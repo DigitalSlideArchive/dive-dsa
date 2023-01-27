@@ -22,17 +22,6 @@ function chainWebpack(config) {
      */
     'vtk.js': 'vtkjs',
   });
-  if (process.env.SENTRY_AUTH_TOKEN) {
-    config
-      .plugin('SentryPlugin')
-      .use(SentryPlugin, [{
-        authToken: process.env.SENTRY_AUTH_TOKEN,
-        include: './dist',
-        org: 'kitware-data',
-        project: 'viame-web-client',
-        release: process.env.VUE_APP_GIT_HASH
-      }]);
-  }
 }
 
 module.exports = {

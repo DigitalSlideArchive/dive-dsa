@@ -58,6 +58,15 @@ def _check_running_jobs(folder_id_str: str):
         is not None
     )
 
+GetDataReturnType = TypedDict(
+    'GetDataReturnType',
+    {
+        'annotations': Optional[types.DIVEAnnotationSchema],
+        'meta': Optional[dict],
+        'attributes': Optional[dict],
+        'type': crud.FileType,
+    },
+)
 
 def _get_data_by_type(
     file: types.GirderModel,

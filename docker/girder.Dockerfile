@@ -34,17 +34,15 @@ ENV PATH="/opt/dive/local/venv/bin:$PATH"
 
 # Copy only the lock and project files to optimize cache
 COPY server/pyproject.toml server/poetry.lock /opt/dive/src/
-# Use the system installation
 RUN poetry env use system
 RUN poetry config virtualenvs.create false
 # Install dependencies only
 RUN poetry install --no-root
 # Build girder client, including plugins like worker/jobs
-RUN girder build
-
 # Copy full source code and install
 COPY server/ /opt/dive/src/
 RUN poetry install --only main
+RUN girder build
 
 # =================
 # == DIST SERVER ==
@@ -60,7 +58,7 @@ COPY --from=server-builder /opt/dive/local/venv /opt/dive/local/venv
 # Copy the source code of the editable module
 COPY --from=server-builder /opt/dive/src /opt/dive/src
 # Copy the client code into the static source location
-COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/viame/
+COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/dive/
 # Install startup scripts
 COPY docker/entrypoint_server.sh docker/server_setup.py /
 

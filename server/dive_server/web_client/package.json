@@ -1,0 +1,12 @@
+{
+    "name": "@girder/dive_server",
+    "version": "0.0.0",
+    "description": "Video and Image Sequence Annotations",
+    "peerDependencies": {
+        "@girder/core": "*"
+    },
+    "girderPlugin": {
+        "name": "dive_server",
+        "main": "./main.js"
+    }
+}

@@ -22,6 +22,8 @@ from .views_rpc import RpcResource
 
 
 class GirderPlugin(plugin.GirderPlugin):
+    DISPLAY_NAME = 'DIVE'
+    CLIENT_SOURCE_PATH = 'web_client'
     def load(self, info):
         ModelImporter.registerModel('trackItem', TrackItem, plugin='dive_server')
         ModelImporter.registerModel('groupItem', GroupItem, plugin='dive_server')
@@ -44,11 +46,16 @@ class GirderPlugin(plugin.GirderPlugin):
         mail_utils.addTemplateDirectory(str(DIVE_MAIL_TEMPLATES))
 
         # Relocate Girder
-        info["serverRoot"], info["serverRoot"].girder = (
-            ClientWebroot(),
-            info["serverRoot"],
-        )
+        girderRoot = info['serverRoot']
+        info['serverRoot'].girder = girderRoot
+        info["serverRoot"].dive = ClientWebroot()
         info["serverRoot"].api = info["serverRoot"].girder.api
+        info["serverRoot"].dive.api = info["serverRoot"].girder.api
+
+        # info["serverRoot"], info["serverRoot"].girder = (
+        #     ClientWebroot(),
+        #     info["serverRoot"],
+        # )
 
         events.bind(
             "filesystem_assetstore_imported",

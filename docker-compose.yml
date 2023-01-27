@@ -11,7 +11,7 @@ x-worker: &base-worker
   build:
     context: .
     dockerfile: docker/girder_worker.Dockerfile
-  image: kitware/viame-worker:${TAG:-latest}
+  image: kitware/dive-worker:${TAG:-latest}
   volumes:
     - addons:/tmp/addons:ro # readonly
   labels:
@@ -57,7 +57,7 @@ services:
     build:
       context: .
       dockerfile: docker/girder.Dockerfile
-    image: kitware/viame-web:${TAG:-latest}
+    image: kitware/dive-web:${TAG:-latest}
     init: true
     command: ["--mode", "production"]
     depends_on:

@@ -42,7 +42,7 @@ RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
 # =================
 # == DIST WORKER ==
 # =================
-FROM kitware/viame:gpu-algorithms-latest as worker
+FROM python:3.8-buster as worker
 # VIAME install at /opt/noaa/viame/
 # VIAME pipelines at /opt/noaa/viame/configs/pipelines/
 
@@ -50,12 +50,6 @@ FROM kitware/viame:gpu-algorithms-latest as worker
 ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
-
-# Install python
-RUN export DEBIAN_FRONTEND=noninteractive && \
-  apt-get update && \
-  apt-get install -qy python3.8 libpython3.8 && \
-  apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Create user "dive" 1099:1099 to align with base image permissions.
 # https://github.com/VIAME/VIAME/blob/master/cmake/build_server_docker.sh#L123

@@ -19,7 +19,6 @@ from girder_worker.utils import JobManager, JobStatus
 from dive_tasks import utils
 from dive_tasks.frame_alignment import check_and_fix_frame_alignment
 from dive_tasks.manager import patch_manager
-from dive_tasks.pipeline_discovery import discover_configs
 from dive_utils import constants, fromMeta
 from dive_utils.types import AvailableJobSchema, GirderModel
 

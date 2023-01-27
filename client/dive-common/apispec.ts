@@ -156,11 +156,8 @@ export {
   FrameImage,
   MultiTrackRecord,
   MultiGroupRecord,
-  Pipe,
-  Pipelines,
   SaveDetectionsArgs,
   SaveAttributeArgs,
-  TrainingConfigs,
   MultiCamMedia,
   MediaImportResponse,
 };
