@@ -1,0 +1,17 @@
+{
+  "include": [
+    "src/**/*",
+    "dive-common/**/*"
+  ],
+  "compilerOptions": {
+    "baseUrl": "",
+    "paths": {
+      "vue-media-annotator/*": [
+        "src/*"
+      ],
+      "dive-common/*": [
+        "dive-common/*"
+      ]
+    }
+  }
+}

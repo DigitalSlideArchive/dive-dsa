@@ -1,0 +1,63 @@
+
+.controls {
+  position: absolute;
+}
+
+.video-annotator {
+  position: relative;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+
+  display: flex;
+  flex-direction: column;
+  .geojs-map {
+    margin:2px;
+    &.geojs-map:focus {
+      outline: none;
+    }  
+  }
+
+  .playback-container {
+    flex: 1;
+
+  
+  }
+  .loadingSpinnerContainer {
+    z-index: 1;
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+  }
+  .geojs-map.annotation-input {
+    cursor: inherit;
+  }
+}
+
+.selected-camera{
+  box-sizing: content-box;
+  .geojs-map {
+    outline: 3px cyan dashed;
+    &.geojs-map:focus {
+      outline: 3px cyan dashed;
+    }  
+  }
+
+}
+
+.imageCursor {
+  z-index: 10; //So it will be above the annotator layers
+  position: fixed;
+  backface-visibility: hidden;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.controls {
+  bottom:0;
+}

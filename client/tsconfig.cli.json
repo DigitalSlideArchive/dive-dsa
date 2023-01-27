@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "commonjs",
+    "outDir": "./bin",
+    "declaration": true,
+    "declarationDir": "./bin/types"
+  },
+  "include": [
+    "dive-common/apispec.ts",
+    "src/@types/*.ts",
+    "src/track.ts",
+    "src/utils.ts",
+    "src/listUtils.ts"
+  ]
+}
