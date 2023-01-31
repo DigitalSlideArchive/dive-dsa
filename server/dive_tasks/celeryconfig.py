@@ -9,7 +9,7 @@ from dive_utils.constants import UserPrivateQueueEnabledMarker
 dive_username = os.environ.get('DIVE_USERNAME', None)
 dive_password = os.environ.get('DIVE_PASSWORD', None)
 dive_api_url = os.environ.get('DIVE_API_URL', 'https://viame.kitware.com/api/v1')
-broker_url = os.environ.get('CELERY_BROKER_URL', None)
+broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq/')
 
 if dive_username and dive_password:
     info(
