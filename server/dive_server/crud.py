@@ -52,7 +52,6 @@ class PydanticAccessControlModel(PydanticModel, AccessControlledModel):
     pass
 
 
-
 def get_or_create_auxiliary_folder(folder, user):
     return Folder().createFolder(
         folder, constants.AuxiliaryFolderName, reuseExisting=True, creator=user

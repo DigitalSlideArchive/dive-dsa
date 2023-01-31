@@ -33,8 +33,6 @@ def validateBrandData(doc):
         crud.get_validated_model(models.BrandData, **val)
 
 
-
-
 class ConfigurationResource(Resource):
     """Configuration resource handles get/set of global configuration"""
 
@@ -45,7 +43,6 @@ class ConfigurationResource(Resource):
         self.route("GET", ("brand_data",), self.get_brand_data)
 
         self.route("PUT", ("brand_data",), self.update_brand_data)
-
 
     @access.public
     @autoDescribeRoute(Description("Get custom brand data"))

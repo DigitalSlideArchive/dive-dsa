@@ -58,6 +58,7 @@ def _check_running_jobs(folder_id_str: str):
         is not None
     )
 
+
 GetDataReturnType = TypedDict(
     'GetDataReturnType',
     {
@@ -67,6 +68,7 @@ GetDataReturnType = TypedDict(
         'type': crud.FileType,
     },
 )
+
 
 def _get_data_by_type(
     file: types.GirderModel,
