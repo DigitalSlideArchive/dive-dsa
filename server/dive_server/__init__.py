@@ -37,15 +37,24 @@ class GirderPlugin(plugin.GirderPlugin):
         info["apiRoot"].dive_rpc = RpcResource("dive_rpc")
 
         # required because girder doesn't load plugins in order so we need to manually load first.
-        # getPlugin('jobs').load(info)
-        # # Setup route additions for exsting resources
-        # info['apiRoot'].job.route("GET", ("queued",), countJobs)
-        # # Expose Job dataset assocation
-        # Job().exposeFields(AccessType.READ, constants.JOBCONST_DATASET_ID)
+        getPlugin('jobs').load(info)
+        # Setup route additions for exsting resources
+        info['apiRoot'].job.route("GET", ("queued",), countJobs)
+        info["apiRoot"].user.route("PUT", (":id", "use_private_queue"), use_private_queue)
+        User().exposeFields(AccessType.READ, constants.UserPrivateQueueEnabledMarker)
+
+        # Expose Job dataset assocation
+        Job().exposeFields(AccessType.READ, constants.JOBCONST_DATASET_ID)
+
+        DIVE_MAIL_TEMPLATES = Path(os.path.realpath(__file__)).parent / 'mail_templates'
+        mail_utils.addTemplateDirectory(str(DIVE_MAIL_TEMPLATES))
 
         # Relocate Girder
         girderRoot = info['serverRoot']
+        info['serverRoot'].girder = girderRoot
         info["serverRoot"].dive = ClientWebroot()
+        info["serverRoot"].api = info["serverRoot"].girder.api
+        info["serverRoot"].dive.api = info["serverRoot"].girder.api
 
         # info["serverRoot"], info["serverRoot"].girder = (
         #     ClientWebroot(),
