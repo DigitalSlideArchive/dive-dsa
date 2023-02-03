@@ -7,6 +7,12 @@
     },
     "girderPlugin": {
         "name": "dive_server",
-        "main": "./main.js"
+        "main": "./main.js",
+        "webpack": "webpack.helper"
+    },
+    "dependencies": {
+        "dive-dsa": "^1.9.1",
+        "webpack": "^2.7.0",
+        "copy-webpack-plugin": "^4.5.2"
     }
 }

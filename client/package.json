@@ -1,5 +1,5 @@
 {
-  "name": "vue-media-annotator",
+  "name": "dive-dsa",
   "version": "1.9.1",
   "author": {
     "name": "Kitware, Inc.",
@@ -11,6 +11,7 @@
   "scripts": {
     "serve": "vue-cli-service serve platform/web-girder/main.ts",
     "build:web": "vue-cli-service build platform/web-girder/main.ts",
+    "build:package": "vue-cli-service build --target lib --name DIVE-DSA platform/web-girder/main.ts",
     "build:lib": "rollup -c",
     "build:cli": "tsc -b tsconfig.cli.json && tsc-alias -p tsconfig.cli.json",
     "lint": "vue-cli-service lint src/ dive-common/ platform/",
@@ -19,9 +20,7 @@
   },
   "resolutions": {},
   "files": [
-    "/src",
-    "/bin/",
-    "/lib/"
+    "/dist"
   ],
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

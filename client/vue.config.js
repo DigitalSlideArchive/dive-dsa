@@ -36,7 +36,7 @@ module.exports = {
     },
   },
   productionSourceMap: true,
-  publicPath: process.env.VUE_APP_STATIC_PATH,
+  publicPath: process.env.VUE_APP_STATIC_PATH || './static/dive',
   chainWebpack,
   pluginOptions: {
   },
