@@ -7,9 +7,6 @@ import View from '@girder/core/views/View';
 import template from '../templates/configView.pug';
 import '@girder/core/utilities/jquery/girderEnable';
 
-const FIELDS = ['uri', 'bindName', 'baseDn', 'password', 'searchField', 'queryFilter'];
-
-const SETTING_FIELDS = ['timeout', 'fallback']
 
 var ConfigView = View.extend({
 

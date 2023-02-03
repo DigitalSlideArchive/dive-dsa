@@ -5,10 +5,14 @@ const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = function (config) {
+    console.log('WEBPACKHELPER');
+    console.log(config);
+    const outPath = config.output.path;
+    const updatedPath = config.output.path.replace('static/built/plugins/dive_server', '')
     config.plugins.push(
         new CopyWebpackPlugin([{
             from: path.join(path.resolve(__dirname), 'node_modules', 'dive-dsa', 'dist'),
-            to: path.join(config.output.path, 'static', 'dive')
+            to: path.join(updatedPath, 'static', 'dive')
         }, ])
     );
     config.plugins.push(
