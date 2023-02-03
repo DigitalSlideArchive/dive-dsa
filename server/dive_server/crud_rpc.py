@@ -228,7 +228,6 @@ def postprocess(
             if total_items > 1:
                 raise RestException('There are multiple files besides a zip, cannot continue')
             newjob = tasks.extract_zip.apply_async(
-                queue=_get_queue_name(user),
                 kwargs=dict(
                     folderId=str(item["folderId"]),
                     itemId=str(item["_id"]),
@@ -252,7 +251,6 @@ def postprocess(
 
         for item in videoItems:
             newjob = tasks.convert_video.apply_async(
-                queue=_get_queue_name(user),
                 kwargs=dict(
                     folderId=str(item["folderId"]),
                     itemId=str(item["_id"]),
@@ -278,7 +276,6 @@ def postprocess(
 
         if imageItems.count() > safeImageItems.count():
             newjob = tasks.convert_images.apply_async(
-                queue=_get_queue_name(user),
                 kwargs=dict(
                     folderId=dsFolder["_id"],
                     user_id=str(user["_id"]),
