@@ -77,14 +77,3 @@ class GirderPlugin(plugin.GirderPlugin):
             send_new_user_email,
         )
 
-        # Create dependency on worker
-        plugin.getPlugin('worker').load(info)
-        Setting().set(
-            'worker.api_url',
-            os.environ.get('WORKER_API_URL', 'http://girder:8080/api/v1'),
-        )
-
-        broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq/')
-        if broker_url is None:
-            raise RuntimeError('CELERY_BROKER_URL must be set')
-        Setting().set('worker.broker', broker_url)
