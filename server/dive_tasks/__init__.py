@@ -1,6 +1,4 @@
 import logging
-import static_ffmpeg
-static_ffmpeg.add_paths()
 from girder_worker import GirderWorkerPluginABC
 
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
