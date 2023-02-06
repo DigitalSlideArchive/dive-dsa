@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 from urllib import request
 from urllib.parse import urlparse
 import zipfile
-from static_ffmpeg import run
+import static_ffmpeg
 
 from GPUtil import getGPUs
 from girder_client import GirderClient
@@ -43,7 +43,8 @@ UPGRADE_JOB_DEFAULT_URLS: List[str] = [
     'https://viame.kitware.com/api/v1/item/629807c192adc2f0ecfa5b54/download',  # Sea Lion
 ]
 
-
+os.system("static_ffmpeg -version")
+os.system("static_ffprobe -version")
 def get_gpu_environment() -> Dict[str, str]:
     """Get environment variables for using CUDA enabled GPUs."""
     env = os.environ.copy()
@@ -111,7 +112,7 @@ class Config:
 def convert_video(
     self: Task, folderId: str, itemId: str, user_id: str, user_login: str, skip_transcoding=False
 ):
-    ffmpeg, ffprobe = run.get_or_fetch_platform_executables_else_raise()
+    static_ffmpeg.add_paths()
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
@@ -131,7 +132,7 @@ def convert_video(
         gc.downloadItem(itemId, _working_directory_path, name=item.get('name'))
 
         command = [
-            ffprobe,
+            "static_ffprobe",
             "-print_format",
             "json",
             "-v",
@@ -195,7 +196,7 @@ def convert_video(
             print('Codec name is not h264 so file will be transcoded')
 
         command = [
-            ffmpeg,
+            "static_ffmpeg",
             "-i",
             file_name,
             "-c:v",
@@ -260,7 +261,6 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
     Returns the number of images successfully converted.
     """
-    ffmpeg, ffprobe = run.get_or_fetch_platform_executables_else_raise()
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
@@ -287,7 +287,7 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
             item_path = images_path / item["name"]
             new_item_path = images_path / ".".join([*item["name"].split(".")[:-1], "png"])
-            command = [ffmpeg, "-i", str(item_path), str(new_item_path)]
+            command = ["static_ffmpeg", "-i", str(item_path), str(new_item_path)]
             utils.stream_subprocess(self, context, manager, {'args': command})
             gc.uploadFileToFolder(folderId, new_item_path)
             gc.delete(f"item/{item['_id']}")
