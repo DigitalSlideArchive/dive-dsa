@@ -472,28 +472,6 @@ decorator = ">=4.0.0"
 stevedore = ">=3.0.0"
 
 [[package]]
-name = "ffmpeg"
-version = "1.4"
-description = "ffmpeg python package url [https://github.com/jiashaokun/ffmpeg]"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "ffmpeg-1.4.tar.gz", hash = "sha256:6931692c890ff21d39938433c2189747815dca0c60ddc7f9bb97f199dba0b5b9"},
-]
-
-[[package]]
-name = "ffprobe"
-version = "0.5"
-description = "Wrapper around ffprobe command to extract metadata from media files"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "ffprobe-0.5.zip", hash = "sha256:f7dc048df62c6ccc1c602c865a7f0976b2679200fd07ebdc34ce51e9a8205b76"},
-]
-
-[[package]]
 name = "filelock"
 version = "3.9.0"
 description = "A platform independent file lock."
@@ -1474,6 +1452,25 @@ files = [
 ]
 
 [[package]]
+name = "static-ffmpeg"
+version = "2.3"
+description = "Cross platform ffmpeg to work on various systems."
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
+files = [
+    {file = "static_ffmpeg-2.3-py2.py3-none-any.whl", hash = "sha256:8f931b063d3fa17d2442d179daed1037df37c12025213c9092de0b0093b97b9b"},
+    {file = "static_ffmpeg-2.3.tar.gz", hash = "sha256:e4b83588233b48e407cb5a83e4564de620d25da38999c94dd160f520975283e6"},
+]
+
+[package.dependencies]
+filelock = "*"
+requests = "*"
+
+[package.extras]
+test = ["pytest"]
+
+[[package]]
 name = "stevedore"
 version = "4.1.1"
 description = "Manage dynamic plugins for Python applications"
@@ -1633,4 +1630,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.10"
-content-hash = "a0e54211f862ce100c094f06e4014f4738e2a57a61246c58878f358f6f2267fc"
+content-hash = "b2246cbf7adb7d4207abd4e9c33c2f284f16ff77c8ee8f7dad23f5df732bf770"
