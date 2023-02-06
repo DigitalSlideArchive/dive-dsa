@@ -58,6 +58,8 @@ typing-extensions = "^4.2.0"
 GPUtil = "^1.4.0"
 requests = ">=2.27.1"
 urllib3 = "<1.27"
+ffmpeg = "1.4"
+ffprobe = "0.5"
 
 [tool.poetry.group.dev.dependencies]
 numpy = "^1.21.4"
