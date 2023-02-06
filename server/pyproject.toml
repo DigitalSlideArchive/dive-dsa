@@ -71,6 +71,9 @@ dive = "scripts.entrypoint_main:cli"
 [tool.poetry.plugins."girder.plugin"]
 dive_server = "dive_server:GirderPlugin"
 
+[tool.poetry.plugins."girder.plugin"]
+dive_server = "dive_tasks:DIVEPlugin"
+
 [tool.poetry.plugins."girder_worker_plugins"]
 dive_tasks = "dive_tasks:DIVEPlugin"
 
