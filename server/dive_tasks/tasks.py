@@ -42,6 +42,7 @@ UPGRADE_JOB_DEFAULT_URLS: List[str] = [
     'https://viame.kitware.com/api/v1/item/629807c192adc2f0ecfa5b54/download',  # Sea Lion
 ]
 
+
 def get_gpu_environment() -> Dict[str, str]:
     """Get environment variables for using CUDA enabled GPUs."""
     env = os.environ.copy()
@@ -128,7 +129,7 @@ def convert_video(
         gc.downloadItem(itemId, _working_directory_path, name=item.get('name'))
 
         command = [
-            "static_ffprobe",
+            "ffprobe",
             "-print_format",
             "json",
             "-v",
@@ -192,7 +193,7 @@ def convert_video(
             print('Codec name is not h264 so file will be transcoded')
 
         command = [
-            "static_ffmpeg",
+            "ffmpeg",
             "-i",
             file_name,
             "-c:v",
@@ -283,7 +284,7 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
             item_path = images_path / item["name"]
             new_item_path = images_path / ".".join([*item["name"].split(".")[:-1], "png"])
-            command = ["static_ffmpeg", "-i", str(item_path), str(new_item_path)]
+            command = ["ffmpeg", "-i", str(item_path), str(new_item_path)]
             utils.stream_subprocess(self, context, manager, {'args': command})
             gc.uploadFileToFolder(folderId, new_item_path)
             gc.delete(f"item/{item['_id']}")
