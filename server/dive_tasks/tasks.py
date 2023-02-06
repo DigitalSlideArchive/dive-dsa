@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 from urllib import request
 from urllib.parse import urlparse
 import zipfile
-import static_ffmpeg
+from static_ffmpeg import run
 
 from GPUtil import getGPUs
 from girder_client import GirderClient
@@ -111,7 +111,7 @@ class Config:
 def convert_video(
     self: Task, folderId: str, itemId: str, user_id: str, user_login: str, skip_transcoding=False
 ):
-    static_ffmpeg.add_paths()
+    ffmpeg, ffprobe = run.get_or_fetch_platform_executables_else_raise()
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
@@ -131,7 +131,7 @@ def convert_video(
         gc.downloadItem(itemId, _working_directory_path, name=item.get('name'))
 
         command = [
-            "static_ffprobe",
+            ffprobe,
             "-print_format",
             "json",
             "-v",
@@ -195,7 +195,7 @@ def convert_video(
             print('Codec name is not h264 so file will be transcoded')
 
         command = [
-            "static_ffmpeg",
+            ffmpeg,
             "-i",
             file_name,
             "-c:v",
@@ -260,7 +260,7 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
     Returns the number of images successfully converted.
     """
-    static_ffmpeg.add_paths()
+    ffmpeg, ffprobe = run.get_or_fetch_platform_executables_else_raise()
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
@@ -287,7 +287,7 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
             item_path = images_path / item["name"]
             new_item_path = images_path / ".".join([*item["name"].split(".")[:-1], "png"])
-            command = ["static_ffmpeg", "-i", str(item_path), str(new_item_path)]
+            command = [ffmpeg, "-i", str(item_path), str(new_item_path)]
             utils.stream_subprocess(self, context, manager, {'args': command})
             gc.uploadFileToFolder(folderId, new_item_path)
             gc.delete(f"item/{item['_id']}")
