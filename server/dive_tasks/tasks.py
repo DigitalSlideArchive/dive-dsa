@@ -9,7 +9,6 @@ from typing import Dict, List, Tuple
 from urllib import request
 from urllib.parse import urlparse
 import zipfile
-import static_ffmpeg
 
 from GPUtil import getGPUs
 from girder_client import GirderClient
@@ -43,8 +42,6 @@ UPGRADE_JOB_DEFAULT_URLS: List[str] = [
     'https://viame.kitware.com/api/v1/item/629807c192adc2f0ecfa5b54/download',  # Sea Lion
 ]
 
-os.system("static_ffmpeg -version")
-os.system("static_ffprobe -version")
 def get_gpu_environment() -> Dict[str, str]:
     """Get environment variables for using CUDA enabled GPUs."""
     env = os.environ.copy()
@@ -112,7 +109,6 @@ class Config:
 def convert_video(
     self: Task, folderId: str, itemId: str, user_id: str, user_login: str, skip_transcoding=False
 ):
-    static_ffmpeg.add_paths()
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
