@@ -74,7 +74,7 @@ def process_assetstore_import(event, meta: dict):
             # Remove the old item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:
-                if oldItem['meta'].get('source_video', False):
+                if oldItem['meta'].get('codec', False):
                     meta = {
                         'source_video': oldItem['meta'].get('source_video', None),
                         'transcoder': oldItem['meta'].get('ffmpeg', None),
