@@ -42,3 +42,8 @@ https://viame.kitware.com/girder#collections.
 When running an algorithmic pipelines or performing manual video annotation (and saving the annotations with the save
 button) output CSV files are produced containing output detections. Simultaneously a detection plot of results
 is shown underneath each video sequence.
+
+### Girder Client Web Development
+
+`docker exec -it dive_name_girder_1 bash`
+`apt-get update && apt-get install -y npm && girder build --dev --watch-plugin dive_server`
