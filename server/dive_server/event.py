@@ -98,6 +98,7 @@ def process_assetstore_import(event, meta: dict):
             folder["meta"].update(
                 {
                     TypeMarker: dataset_type,
+                    FPSMarker: -1, # auto calculate the FPS from import
                     AssetstoreSourcePathMarker: root,
                     **meta,
                 }
