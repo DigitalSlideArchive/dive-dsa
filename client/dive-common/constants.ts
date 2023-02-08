@@ -11,7 +11,7 @@ const MediaTypes: Record<DatasetType, string> = {
   [MultiType]: 'multi',
 };
 
-const DefaultVideoFPS = 10;
+const DefaultVideoFPS = 30;
 const FPSOptions = [
   { text: 1, value: 1 },
   { text: 5, value: 5 },
