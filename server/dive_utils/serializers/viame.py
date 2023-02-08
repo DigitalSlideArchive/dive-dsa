@@ -173,7 +173,7 @@ def _parse_row_for_tracks(row: List[str]) -> Tuple[Feature, Dict, Dict, List]:
     feature = Feature(
         frame=frame,
         bounds=bounds,
-        attributes=attributes or None,
+        attributes=attributes,
         fishLength=fishLength if fishLength > 0 else None,
         **head_tail_feature,
     )
@@ -292,7 +292,6 @@ def load_csv_as_tracks_and_attributes(
         ) = _parse_row_for_tracks(row)
 
         trackId, imageFile, _, _, _ = row_info(row)
-
         if imageMap:
             # validate image ordering if the imageMap is provided
             imageName, _ = os.path.splitext(os.path.basename(imageFile))
@@ -306,7 +305,6 @@ def load_csv_as_tracks_and_attributes(
                 feature.frame = expectedFrameNumber
             else:
                 anyImageMatched = True
-
         if trackId not in tracks:
             tracks[trackId] = Track(begin=feature.frame, end=feature.frame, id=trackId)
         elif reordered:
