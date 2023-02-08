@@ -103,8 +103,7 @@ def process_assetstore_import(event, meta: dict):
                 }
             )
             Folder().save(folder)
-            parentFolder = Folder().findOne({"_id": item["folderId"]})
-            userId = parentFolder['creatorId'] or parentFolder['baseParentId']
+            userId = folder['creatorId'] or folder['baseParentId']
             user = User().findOne({'_id': ObjectId(userId)})
             crud_rpc.postprocess(user, folder, False, True)
 
