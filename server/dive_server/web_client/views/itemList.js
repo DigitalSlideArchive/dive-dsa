@@ -11,11 +11,7 @@ import {
 
 import '../stylesheets/views/itemList.styl';
 
-const webrootPath = 'dive#/viewer/'
-const webrootFolderPath = 'dive#/folder/'
 wrap(ItemListWidget, 'render', function (render) {
-    const root = this;
-
     render.call(this);
     if (this.collection.params.folderId) {
         restRequest({type: 'GET', url: 'folder/' + this.collection.params.folderId}).done((result) => {
