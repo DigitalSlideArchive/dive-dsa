@@ -1,20 +1,19 @@
 import { wrap } from '@girder/core/utilities/PluginUtils';
-import MetadataWidget from '@girder/core/views/widgets/MetadataWidget';
+import HierarchyWidget from '@girder/core/views/widgets/HierarchyWidget';
 
+import { webrootPath } from '../utils/utils';
 
-const webrootPath = 'dive#/viewer/'
-const brandName = "DIVE"
-wrap(MetadataWidget, 'render', function (render) {
+wrap(HierarchyWidget, 'render', function (render) {
 
-    this.once('g:rendered', function () {
-        if (!this.$el.find('.g-dive-open-item[role="button"]').length && this.parentView.parentModel.attributes.meta.annotate) {
+    render.call(this);
+    if (this.parentModel.attributes._modelType === 'folder'){
+        if (!this.$el.find('.g-dive-open-item[role="button"]').length && this.parentModel.attributes.meta.annotate) {
             this.$el.find('.g-folder-header-buttons .btn-group').before(
-                `<a class="g-dive-open-item btn btn-sm btn-primary" role="button" href="${webrootPath}${this.parentView.parentModel.id}" target="_blank">
-                        <i class="icon-link-ext"></i>Open in ${brandName}
+                `<a class="g-dive-open-item btn btn-sm btn-primary" role="button" href="${webrootPath}${this.parentModel.id}" target="_blank">
+                        <i class="icon-link-ext"></i>Open in DIVE
                 </a>`
             );
         }
-        this.delegateEvents();
-    });
-    render.call(this);
+    }
+    this.delegateEvents();
 });
