@@ -17,7 +17,11 @@ wrap(FolderListWidget, 'render', function (render) {
         for (let ix = 0; ix < this.collection.length; ix++) {
             if (!this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') .g-dive-open-link').length && this.collection.models[ix].attributes.meta.annotate) {
                 this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') a[class^=g-]:last').after(
-                    `<a class="g-dive-open-link" title="Open in ${brandName}" href="${webrootPath}${this.collection.models[ix].id}" target="_blank"><i class="icon-video"></i></a>`
+                    `<a class="g-dive-open-link" title="Open in ${brandName}" href="${webrootPath}${this.collection.models[ix].id}" target="_blank">
+                        <div class="g-dive-convert-link btn btn-sm btn-primary">
+                            <i class="icon-link-ext"></i>Open in DIVE
+                        </div>
+                    </a>`
                 );
             }
         }

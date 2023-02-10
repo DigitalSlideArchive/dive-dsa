@@ -1,9 +1,8 @@
 import { wrap } from '@girder/core/utilities/PluginUtils';
 import HierarchyWidget from '@girder/core/views/widgets/HierarchyWidget';
 
+import { webrootPath } from '../utils/utils';
 
-const webrootPath = 'dive#/viewer/'
-const brandName = "DIVE"
 wrap(HierarchyWidget, 'render', function (render) {
 
     render.call(this);
