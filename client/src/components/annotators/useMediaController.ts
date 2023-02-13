@@ -21,6 +21,8 @@ interface MediaControllerReactiveData {
   playing: boolean;
   frame: number;
   flick: number;
+  frameSize: [number, number];
+  length: number;
   filename: string;
   lockedCamera: boolean;
   currentTime: number;
@@ -191,6 +193,8 @@ export function useMediaController() {
       playing: false,
       frame: 0,
       flick: 0,
+      frameSize: [1080, 1920],
+      length: 100,
       filename: '',
       lockedCamera: false,
       currentTime: 0,
@@ -379,6 +383,8 @@ export function useMediaController() {
       playing: toRef(state[camera], 'playing'),
       frame: toRef(state[camera], 'frame'),
       flick: toRef(state[camera], 'flick'),
+      frameSize: toRef(state[camera], 'frameSize'),
+      length: toRef(state[camera], 'length'),
       filename: toRef(state[camera], 'filename'),
       lockedCamera: toRef(state[camera], 'lockedCamera'),
       duration: toRef(state[camera], 'duration'),
@@ -425,6 +431,9 @@ export function useMediaController() {
       cameras: computed(() => cameras.value.map((v) => String(v))),
       maxFrame: defaultController.maxFrame,
       frame: defaultController.frame,
+      frameSize: defaultController.frameSize,
+      flick: defaultController.flick,
+      length: defaultController.length,
       seek: over(map(subControllers, 'seek')),
       nextFrame: over(map(subControllers, 'nextFrame')),
       prevFrame: over(map(subControllers, 'prevFrame')),

@@ -747,6 +747,36 @@ export default function useModeManager({
     recipes.forEach((r) => r.bus.$off('activate', handleSetAnnotationState));
   });
 
+  function addFullFrameTrack(type: string, trackLength = -1) {
+    handleEscapeMode();
+    const {
+      frame, frameSize, flick, length,
+    } = aggregateController.value;
+    const trackType = type;
+
+    // eslint-disable-next-line no-param-reassign
+    const overrideTrackId = cameraStore.getNewTrackId();
+    const trackStore = cameraStore.camMap.value.get(selectedCamera.value)?.trackStore;
+    if (trackStore) {
+      const newTrackId = trackStore.add(
+        frame.value, trackType,
+        selectedTrackId.value || undefined,
+        overrideTrackId,
+      ).trackId;
+      selectTrack(newTrackId, true);
+      const newbounds: RectBounds = [0, 0, frameSize.value[0], frameSize.value[1]];
+      // We add a frame for the length starting at current value if trackLength != -1
+      const start = trackLength === -1 ? 0 : frame.value;
+      const computedLength = trackLength === -1 ? length.value : trackLength;
+      for (let i = start; i < computedLength; i += 1) {
+        handleUpdateRectBounds(i, flick.value, newbounds);
+      }
+      creating = true;
+      selectTrack(null);
+      return newTrackId;
+    }
+    return null;
+  }
   return {
     selectedTrackId,
     editingGroupId,
@@ -785,6 +815,7 @@ export default function useModeManager({
       unstageFromMerge: handleUnstageFromMerge,
       startLinking: handleStartLinking,
       stopLinking: handleStopLinking,
+      addFullFrameTrack,
     },
   };
 }

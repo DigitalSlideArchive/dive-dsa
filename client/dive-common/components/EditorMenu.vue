@@ -5,6 +5,7 @@ import Vue, { PropType } from 'vue';
 import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
+import GenerateTracks from './GenerateTracks.vue';
 
 interface ButtonData {
   id: string;
@@ -16,6 +17,7 @@ interface ButtonData {
 }
 
 export default Vue.extend({
+  components: { GenerateTracks },
   name: 'EditorMenu',
   props: {
     editingTrack: {
@@ -246,6 +248,8 @@ export default Vue.extend({
       </v-btn>
       <slot name="delete-controls" />
       <v-spacer />
+      <generate-tracks />
+      <v-spacer/>
       <span class="pb-1">
         <span class="mr-1 px-3 py-1">
           <v-icon class="pr-1">
