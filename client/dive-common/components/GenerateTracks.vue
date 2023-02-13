@@ -1,10 +1,9 @@
 <script lang="ts">
 import {
-  computed, defineComponent, PropType, Ref, ref,
+  computed, defineComponent, ref,
 } from '@vue/composition-api';
 import { TypePicker } from 'vue-media-annotator/components';
 import { useHandler, useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
-import Mousetrap from 'mousetrap';
 
 
 export default defineComponent({
@@ -26,7 +25,6 @@ export default defineComponent({
       handler.addFullFrameTrack(trackType.value, trackLength.value);
     };
     const trackColor = computed(() => typeStylingRef.value.color(trackType.value));
-    console.log(Mousetrap);
     return {
       trackType,
       trackLength,
