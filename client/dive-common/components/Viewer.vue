@@ -230,6 +230,7 @@ export default defineComponent({
       trackStyleManager,
       selectedTrackId,
       cameraStore,
+      pendingSaveCount,
     });
 
 

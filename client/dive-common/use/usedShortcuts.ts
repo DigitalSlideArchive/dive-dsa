@@ -1,0 +1,30 @@
+
+const usedShortcuts = [
+  { key: 'a', description: 'Attribute Tab' },
+  { key: 'm', description: 'Group Add' },
+  { key: 'shift+m', description: 'Commit Merge' },
+  { key: 'up', description: 'Select Previous Track' },
+  { key: 'down', description: 'Select Next Track' },
+  { key: 'delete', description: 'Delete Track' },
+  { key: 'x', description: 'Split Track' },
+  { key: 'n', description: 'New Track' },
+  { key: 'r', description: 'Reset Zoom' },
+  { key: 'esc', description: 'Abort Track Cration' },
+  { key: 'h', description: 'Head First Point' },
+  { key: 't', description: 'Tail First Point' },
+  { key: 'k', description: 'Toggle Keyframe' },
+  { key: 'i', description: 'Toggle Interpretation' },
+  { key: 'home', description: 'Track Beginning' },
+  { key: 'end', description: 'Track Ending' },
+  { key: 'shift+enter', description: 'Change Track Type' },
+  { key: 'left', description: 'Previous Frame' },
+  { key: 'right', description: 'Next Frame' },
+  { key: 'f', description: 'Next Frame' },
+  { key: 'd', description: 'Previous Frame' },
+  { key: 'l', description: 'Synchronize cameras' },
+  { key: '1', description: 'Switch to Rectangle Editing Mode' },
+  { key: '2', description: 'Switch to Polygon Editing Mode' },
+  { key: '3', description: 'Switch to Line Editing Mode' },
+];
+
+export default usedShortcuts;
