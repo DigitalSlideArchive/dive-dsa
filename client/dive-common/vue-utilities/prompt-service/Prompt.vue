@@ -65,13 +65,6 @@ export default defineComponent({
       }
     }
 
-    async function focusInput() {
-      if (input.value) {
-        // vuetify 2 hack: need to add extra .$el property, may be removed in vuetify 3
-        input.value.$el.focus();
-      }
-    }
-
     async function focusNegative() {
       if (negative.value) {
         // vuetify 2 hack: need to add extra .$el property, may be removed in vuetify 3

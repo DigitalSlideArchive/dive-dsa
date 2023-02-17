@@ -17,8 +17,8 @@ interface ButtonData {
 }
 
 export default Vue.extend({
-  components: { GenerateTracks },
   name: 'EditorMenu',
+  components: { GenerateTracks },
   props: {
     editingTrack: {
       type: Boolean,
@@ -249,7 +249,7 @@ export default Vue.extend({
       <slot name="delete-controls" />
       <v-spacer />
       <generate-tracks />
-      <v-spacer/>
+      <v-spacer />
       <span class="pb-1">
         <span class="mr-1 px-3 py-1">
           <v-icon class="pr-1">

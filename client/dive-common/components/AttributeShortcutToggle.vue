@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, ref, PropType, Ref,
+  computed, defineComponent, ref,
 } from '@vue/composition-api';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import {
@@ -16,7 +16,7 @@ export default defineComponent({
       required: true,
     },
   },
-  setup(props, { emit }) {
+  setup(props) {
     const showShortcuts = ref(false);
     const { inputValue } = usePrompt();
     const shortcutsOn = ref(true);

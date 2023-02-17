@@ -267,7 +267,10 @@ export default defineComponent({
         : 'Track Editor'
       }}
       <v-spacer />
-      <attribute-shortcut-toggle class="pr-7" :hotkeys-disabled="hotkeysDisabled" />
+      <attribute-shortcut-toggle
+        class="pr-7"
+        :hotkeys-disabled="hotkeysDisabled"
+      />
     </v-subheader>
     <div
       v-if="!selectedTrackList.length"
