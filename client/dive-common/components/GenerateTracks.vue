@@ -12,7 +12,7 @@ export default defineComponent({
     TypePicker,
   },
   props: {},
-  setup(props, { emit }) {
+  setup() {
     const handler = useHandler();
     const typeStylingRef = useTrackStyleManager().typeStyling;
 

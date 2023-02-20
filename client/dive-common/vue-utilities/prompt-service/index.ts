@@ -11,6 +11,7 @@ interface PromptParams {
   text: string | string[];
   positiveButton?: string;
   negativeButton?: string;
+  valueType?: 'text' | 'number' | 'boolean';
   confirm?: boolean;
 }
 
@@ -31,12 +32,15 @@ class PromptService {
     negativeButton: string,
     confirm: boolean,
     resolve: (value: boolean) => unknown,
+    valueType?: 'text' | 'number' | 'boolean',
   ): void {
     this.component.title = title;
     this.component.text = text;
     this.component.positiveButton = positiveButton;
     this.component.negativeButton = negativeButton;
     this.component.confirm = confirm;
+    this.component.valueType = valueType;
+    this.component.value = null;
     this.component.functions.resolve = resolve;
     this.component.show = true;
   }
@@ -57,6 +61,28 @@ class PromptService {
           this.set(title, text, positiveButton, negativeButton, confirm, resolve);
         });
       }
+    });
+  }
+
+  inputValue({
+    title,
+    text,
+    positiveButton = 'Confirm',
+    negativeButton = 'Cancel',
+    valueType = 'text',
+    confirm = false,
+  }: PromptParams): Promise<boolean | number | string | null> {
+    return new Promise<boolean | number | string | null>((resolve) => {
+      if (!this.component.show) {
+        this.set(title, text, positiveButton, negativeButton, confirm, resolve, valueType);
+        return this.component.value;
+      }
+      const unwatch = watch(this.component.show, () => {
+        unwatch();
+        this.set(title, text, positiveButton, negativeButton, confirm, resolve, valueType);
+        return null;
+      });
+      return null;
     });
   }
 
@@ -83,12 +109,13 @@ let promptService: PromptService;
 export function usePrompt() {
   // in vue 3 should use inject instead of singleton
   const prompt = (params: PromptParams) => promptService.show(params);
+  const inputValue = (params: PromptParams) => promptService.inputValue(params);
   const visible = () => promptService.visible();
   const invisible = () => promptService.invisible();
   const hide = () => promptService.hide();
 
   return {
-    prompt, visible, invisible, hide,
+    prompt, visible, invisible, hide, inputValue,
   };
 }
 
