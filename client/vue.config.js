@@ -8,7 +8,7 @@ const keepAliveAgent = new http.Agent({ keepAlive: true });
 
 process.env.VUE_APP_GIT_HASH = gitDescribeSync().hash;
 process.env.VUE_APP_VERSION = packagejson.version;
-
+const staticPath = process.env.NODE_ENV === 'production' ? process.env.VUE_APP_STATIC_PATH || './static/dive' : './';
 function chainWebpack(config) {
   config.output.strictModuleExceptionHandling(true);
   config.resolve.symlinks(false);
@@ -36,7 +36,7 @@ module.exports = {
     },
   },
   productionSourceMap: true,
-  publicPath: process.env.VUE_APP_STATIC_PATH || './static/dive',
+  publicPath: staticPath,
   chainWebpack,
   pluginOptions: {
   },

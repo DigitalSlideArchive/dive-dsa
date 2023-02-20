@@ -201,6 +201,8 @@ export default defineComponent({
       video.removeEventListener('loadedmetadata', loadedMetadata);
       const width = video.videoWidth;
       const height = video.videoHeight;
+      data.frameSize = [video.videoWidth, video.videoHeight];
+      data.length = video.duration * (props.originalFps || 30);
       const maybeMaxFrame = Math.floor(props.frameRate * video.duration);
       if (props.originalFps !== null) {
         /**

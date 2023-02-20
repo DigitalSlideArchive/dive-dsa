@@ -129,7 +129,7 @@ def _parse_annotation_for_tracks(
     feature = Feature(
         frame=frame,
         bounds=bounds,
-        attributes=attributes or None,
+        attributes=attributes,
         fishLength=None,
         **features,
     )

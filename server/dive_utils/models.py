@@ -43,7 +43,7 @@ class Feature(BaseModel):
     frame: int
     flick: Optional[int]
     bounds: List[int]
-    attributes: Optional[Dict[str, Union[bool, float, str]]]
+    attributes: Optional[Dict[str, Any]] = {}
     geometry: Optional[GeoJSONFeatureCollection] = None
     head: Optional[Tuple[float, float]] = None
     tail: Optional[Tuple[float, float]] = None
@@ -128,6 +128,12 @@ class RevisionLog(BaseModel):
     created: datetime = Field(default_factory=datetime.utcnow)
     description: Optional[str]
 
+class ShortcutAttributeOptions(BaseModel):
+    key: str  # keyboard key
+    modifiers: Optional[List[str]]
+    value: Union[str, float, bool]
+    description: Optional[str]
+    type: Literal['set', 'dialog', 'remove']
 
 class NumericAttributeOptions(BaseModel):
     type: Literal['combo', 'slider']
@@ -147,6 +153,7 @@ class Attribute(BaseModel):
     key: str
     color: Optional[str]
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
+    shortcuts: Optional[List[ShortcutAttributeOptions]]
 
 
 class CustomStyle(BaseModel):

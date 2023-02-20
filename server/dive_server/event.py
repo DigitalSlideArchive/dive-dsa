@@ -10,6 +10,7 @@ from girder.models.user import User
 from girder.settings import SettingKey
 from girder.utility.mail_utils import renderTemplate, sendMail
 
+from . import crud_rpc
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     AssetstoreSourceMarker,
@@ -73,6 +74,16 @@ def process_assetstore_import(event, meta: dict):
             # Remove the old item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:
+                if oldItem['meta'].get('codec', False):
+                    meta = {
+                        'source_video': oldItem['meta'].get('source_video', None),
+                        'transcoder': oldItem['meta'].get('ffmpeg', None),
+                        'originalFps': oldItem['meta'].get('originalFps', None),
+                        'originalFpsString': oldItem['meta'].get('originalFpsString', None),
+                        'codec': oldItem['meta'].get('codec', None)
+                    }
+                    item['meta'].update(meta)
+                    Item().save(item)
                 Item().remove(oldItem)
         Item().move(item, dest)
         dataset_type = VideoType
@@ -87,14 +98,15 @@ def process_assetstore_import(event, meta: dict):
             folder["meta"].update(
                 {
                     TypeMarker: dataset_type,
-                    FPSMarker: DefaultVideoFPS,
-                    DatasetMarker: True,
+                    FPSMarker: -1, # auto calculate the FPS from import
                     AssetstoreSourcePathMarker: root,
                     **meta,
                 }
             )
             Folder().save(folder)
-
+            userId = folder['creatorId'] or folder['baseParentId']
+            user = User().findOne({'_id': ObjectId(userId)})
+            crud_rpc.postprocess(user, folder, False, True)
 
 def process_fs_import(event):
     return process_assetstore_import(event, {AssetstoreSourceMarker: 'filesystem'})

@@ -9,6 +9,7 @@ import type { Ref } from '@vue/composition-api';
 export interface AggregateMediaController {
   currentTime: Readonly<Ref<number>>;
   frame: Readonly<Ref<number>>;
+  flick: Readonly<Ref<number>>;
   lockedCamera: Readonly<Ref<boolean>>;
   maxFrame: Readonly<Ref<number>>;
   playing: Readonly<Ref<boolean>>;
@@ -16,6 +17,8 @@ export interface AggregateMediaController {
   volume: Readonly<Ref<number>>;
   cameras: Readonly<Ref<string[]>>;
   cameraSync: Readonly<Ref<boolean>>;
+  frameSize: Readonly<Ref<[number, number]>>;
+  length: Readonly<Ref<number>>;
 
   pause: () => void;
   play: () => void;
@@ -39,6 +42,8 @@ export interface MediaController extends AggregateMediaController {
   duration: Readonly<Ref<number>>;
   filename: Readonly<Ref<string>>;
   flick: Readonly<Ref<number>>;
+  frameSize: Readonly<Ref<[number, number]>>;
+  length: Readonly<Ref<number>>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   geoViewerRef: Readonly<Ref<any>>;
   /** @deprecated may be removed in a future release */
