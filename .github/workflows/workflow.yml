@@ -27,7 +27,7 @@ jobs:
         with:
           context: .
           file: docker/girder.Dockerfile
-          tags: ghcr.io/bryonlewis/dive-disa/dive-dsa-web:latest
+          tags: ghcr.io/bryonlewis/dive-dsa/dive-dsa-web:latest
           push: true
       -
         name: Build and push worker
@@ -35,5 +35,5 @@ jobs:
         with:
           context: .
           file: docker/girder_worker.Dockerfile
-          tags: ghcr.io/bryonlewis/dive-disa/dive-dsa-worker:latest
+          tags: ghcr.io/bryonlewis/dive-dsa/dive-dsa-worker:latest
           push: true
