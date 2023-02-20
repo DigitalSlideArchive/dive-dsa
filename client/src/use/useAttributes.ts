@@ -16,6 +16,14 @@ export interface StringAttributeEditorOptions {
   type: 'locked'| 'freeform';
 }
 
+export interface AttributeShortcut {
+  key: string;
+  type: 'set' | 'dialog' | 'remove';
+  modifiers?: string[];
+  value: number | boolean | string;
+  description?: string;
+}
+
 export interface Attribute {
   belongs: 'track' | 'detection';
   datatype: 'text' | 'number' | 'boolean';
@@ -24,6 +32,7 @@ export interface Attribute {
   key: string;
   color?: string;
   editor?: NumericAttributeEditorOptions | StringAttributeEditorOptions;
+  shortcuts?: AttributeShortcut[];
 }
 
 export type Attributes = Record<string, Attribute>;
@@ -92,6 +101,7 @@ interface UseAttributesParams {
   selectedTrackId: Ref<number | null>;
   trackStyleManager: StyleManager;
   cameraStore: CameraStore;
+  pendingSaveCount: Ref<number>;
 }
 
 export default function UseAttributes(
@@ -100,6 +110,7 @@ export default function UseAttributes(
     trackStyleManager,
     selectedTrackId,
     cameraStore,
+    pendingSaveCount,
   }: UseAttributesParams,
 ) {
   const attributes: Ref<Record<string, Attribute>> = ref({});
@@ -135,7 +146,7 @@ export default function UseAttributes(
       markChangesPending({ action: 'delete', attribute: oldAttribute });
       // Create a new attribute to replace it
     }
-    if (oldAttribute === undefined) {
+    if (oldAttribute === undefined && data.color === undefined) {
       // eslint-disable-next-line no-param-reassign
       data.color = trackStyleManager.typeStyling.value.color(data.name);
     }
@@ -325,7 +336,7 @@ export default function UseAttributes(
               const data: LineChartData = {
                 values: [],
                 name: key,
-                color: attributes.value[`detection_${key}`].color || 'white',
+                color: attributes.value[`detection_${key}`]?.color || 'white',
               };
 
               if (typeof (val) === 'number') {
@@ -366,7 +377,9 @@ export default function UseAttributes(
   }
 
   const attributeTimelineData = computed(() => {
-    if (selectedTrackId.value !== null && timelineEnabled.value && timelineFilter.value !== null) {
+    const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
+    if (val !== undefined && selectedTrackId.value !== null
+      && timelineEnabled.value && timelineFilter.value !== null) {
       const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
       if (selectedTrack) {
         const timelineData = generateDetectionTimelineData(selectedTrack, timelineFilter.value);

@@ -88,8 +88,12 @@ export default defineComponent({
       const target = event.target as HTMLInputElement;
       const { name } = props;
       const value = target.value.trim();
-      if (value) {
-        emit('change', { name, value });
+      let val: number | string = value;
+      if (props.datatype === 'number') {
+        val = parseFloat(value);
+      }
+      if (value.length) {
+        emit('change', { name, value: val });
       } else {
         emit('change', { name, value: undefined });
       }

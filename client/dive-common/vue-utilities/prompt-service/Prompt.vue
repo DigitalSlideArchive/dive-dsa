@@ -14,28 +14,39 @@ export default defineComponent({
     const negativeButton = ref('Cancel');
     const selected = ref('positive');
     const confirm = ref(false);
+    const valueType: Ref<'text' | 'number' | 'boolean' | undefined > = ref(undefined);
+    const value: Ref<string | boolean | number| null> = ref(null);
 
     /**
      * Placeholder resolver function.  Wrapped in object so that
      * its reference isn't changed on reassign.
      */
     const functions = {
-      resolve(val: boolean) {
+      resolve(val: boolean | number | string | null) {
         return val;
       },
     };
 
     const positive: Ref<HTMLFormElement | null> = ref(null);
     const negative: Ref<HTMLFormElement | null> = ref(null);
+    const input: Ref<HTMLFormElement | null> = ref(null);
 
     async function clickPositive() {
       show.value = false;
-      functions.resolve(true);
+      if (valueType.value === undefined) {
+        functions.resolve(true);
+      } else {
+        functions.resolve(value.value);
+      }
     }
 
     async function clickNegative() {
       show.value = false;
-      functions.resolve(false);
+      if (valueType.value === undefined) {
+        functions.resolve(false);
+      } else {
+        functions.resolve(null);
+      }
     }
 
     async function select() {
@@ -62,16 +73,34 @@ export default defineComponent({
       }
     }
 
-    watch(show, async (value) => {
-      if (!value) {
-        functions.resolve(false);
+    const watchValueKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && value.value !== null && valueType.value !== undefined) {
+        clickPositive();
+      }
+    };
+
+    watch(valueType, () => {
+      if (valueType.value) {
+        window.document.addEventListener('keypress', watchValueKey);
+      }
+    });
+
+    watch(show, async (val) => {
+      if (!val) {
+        if (valueType.value === undefined) {
+          functions.resolve(false);
+        } else {
+          functions.resolve(null);
+        }
       } else if (positive.value) {
-        selected.value = 'positive';
-        // Needs to mount and then dialog transition, single tick doesn't work
-        await nextTick();
-        await nextTick();
-        // vuetify 2 hack: need to add extra .$el property, may be removed in vuetify 3
-        positive.value.$el.focus();
+        if (valueType.value === undefined && positive.value) {
+          selected.value = 'positive';
+          // Needs to mount and then dialog transition, single tick doesn't work
+          await nextTick();
+          await nextTick();
+          // vuetify 2 hack: need to add extra .$el property, may be removed in vuetify 3
+          positive.value.$el.focus();
+        }
       }
     });
 
@@ -84,9 +113,12 @@ export default defineComponent({
       selected,
       confirm,
       functions,
+      value,
+      valueType,
       clickPositive,
       clickNegative,
       select,
+      input,
       positive,
       negative,
       focusPositive,
@@ -123,6 +155,27 @@ export default defineComponent({
       </v-card-text>
       <v-card-text v-else>
         {{ text }}
+        <v-row v-if="valueType !== undefined">
+          <v-text-field
+            v-if="valueType === 'text'"
+            ref="input"
+            v-model="value"
+            autofocus
+          />
+          <v-text-field
+            v-else-if="valueType === 'number'"
+            ref="input"
+            v-model.number="value"
+            autofocus
+            step="0.1"
+            type="number"
+          />
+          <v-switch
+            v-else-if="valueType === 'boolean'"
+            ref="input"
+            v-model="value"
+          />
+        </v-row>
       </v-card-text>
       <v-card-actions>
         <v-spacer />

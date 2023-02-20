@@ -1,13 +1,20 @@
 <script lang="ts">
 import {
-  computed, defineComponent, PropType, Ref, ref,
+  computed, defineComponent, PropType, Ref, ref, watch,
 } from '@vue/composition-api';
-import { Attribute, NumericAttributeEditorOptions, StringAttributeEditorOptions } from 'vue-media-annotator/use/useAttributes';
+import {
+  Attribute, AttributeShortcut, NumericAttributeEditorOptions, StringAttributeEditorOptions,
+} from 'vue-media-annotator/use/useAttributes';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { useTrackStyleManager } from 'vue-media-annotator/provides';
+import AttributeShortcuts from './AttributeShortcuts.vue';
 
 
 export default defineComponent({
   name: 'AttributeSettings',
+  components: {
+    AttributeShortcuts,
+  },
   props: {
     selectedAttribute: {
       type: Object as PropType<Attribute>,
@@ -20,19 +27,21 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { prompt } = usePrompt();
+    const trackStyleManager = useTrackStyleManager();
     const name: Ref<string> = ref(props.selectedAttribute.name);
     const belongs: Ref<string> = ref(props.selectedAttribute.belongs);
     const datatype: Ref<string> = ref(props.selectedAttribute.datatype);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
+    const tempColor = ref(trackStyleManager.typeStyling.value.color(name.value));
     const areSettingsValid = ref(false);
     const editor: Ref<
       undefined | StringAttributeEditorOptions | NumericAttributeEditorOptions
     > = ref(props.selectedAttribute.editor);
     let values: string[] = props.selectedAttribute.values ? props.selectedAttribute.values : [];
     let addNew = !props.selectedAttribute.key.length;
-
+    const shortcuts: Ref<AttributeShortcut[]> = ref(props.selectedAttribute.shortcuts || []);
     const form: Ref<HTMLFormElement | null> = ref(null);
-
+    const colorEditor = ref(false);
     const textValues = computed({
       get: () => {
         if (values) {
@@ -72,7 +81,8 @@ export default defineComponent({
         values: datatype.value === 'text' && values ? values : [],
         key: `${belongs.value}_${name.value}`,
         editor: editor.value,
-        color: color.value,
+        color: color.value ? color.value : tempColor.value,
+        shortcuts: shortcuts.value,
       };
 
       if (addNew) {
@@ -118,22 +128,41 @@ export default defineComponent({
         };
       }
     };
+
+    watch(name, () => {
+      if (!color.value) {
+        tempColor.value = trackStyleManager.typeStyling.value.color(name.value);
+      }
+    });
+
+    const launchColorEditor = () => {
+      if (!color.value) {
+        color.value = tempColor.value;
+      }
+      colorEditor.value = true;
+    };
+
     return {
       name,
       belongs,
+      color,
+      colorEditor,
       datatype,
       values,
       addNew,
       editor,
       areSettingsValid,
+      tempColor,
       //computed
       textValues,
+      shortcuts,
       //functions
       add,
       submit,
       deleteAttribute,
       typeChange,
       numericChange,
+      launchColorEditor,
     };
   },
 });
@@ -252,6 +281,52 @@ export default defineComponent({
             row-height="30"
           />
         </v-form>
+        <v-row
+          v-if="!colorEditor"
+          align="center"
+          justify="start"
+        >
+          <v-col
+            align-self="center"
+            cols="2"
+          >
+            <h2>
+              Color:
+            </h2>
+          </v-col>
+          <v-col align-self="center">
+            <div
+              v-if="!color"
+              class="edit-color-box"
+              :style="{
+                backgroundColor: tempColor,
+              }"
+              @click="launchColorEditor"
+            /><div
+              v-else
+              class="edit-color-box"
+              :style="{
+                backgroundColor: color,
+              }"
+              @click="launchColorEditor"
+            />
+          </v-col>
+          <v-spacer />
+        </v-row>
+        <v-row v-if="colorEditor">
+          <v-spacer />
+          <v-col>
+            <v-color-picker
+              v-model="color"
+              hide-inputs
+            />
+          </v-col>
+          <v-spacer />
+        </v-row>
+        <attribute-shortcuts
+          v-model="shortcuts"
+          :value-type="datatype"
+        />
         <v-card-actions>
           <v-row>
             <v-tooltip
@@ -304,4 +379,17 @@ export default defineComponent({
     line-height: 24px;
   }
 }
+.edit-color-box {
+  display: inline-block;
+  margin-left: 20px;
+  min-width: 50px;
+  max-width: 50px;
+  min-height: 50px;
+  max-height: 50px;
+  &:hover {
+    cursor: pointer;
+    border: 2px solid white
+  }
+}
+
 </style>
