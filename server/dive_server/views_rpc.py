@@ -23,6 +23,7 @@ from dive_utils.constants import (
     videoRegex,
 )
 
+
 class RpcResource(Resource):
     """Remote procedure calls to celery and other non-RESTful operations"""
 
@@ -93,13 +94,15 @@ class RpcResource(Resource):
         user = self.getCurrentUser()
         if parentFolder:
             foldername = f'Video {item["name"]}'
-            destFolder = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
+            destFolder = Folder().createFolder(
+                parentFolder, foldername, creator=user, reuseExisting=True
+            )
             Item().move(item, destFolder)
             if not asbool(fromMeta(destFolder, DatasetMarker)):
                 destFolder["meta"].update(
                     {
                         TypeMarker: 'video',
-                        FPSMarker: -1, # auto calculate the FPS from import
+                        FPSMarker: -1,  # auto calculate the FPS from import
                     }
                 )
                 Folder().save(destFolder)

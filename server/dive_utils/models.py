@@ -128,12 +128,14 @@ class RevisionLog(BaseModel):
     created: datetime = Field(default_factory=datetime.utcnow)
     description: Optional[str]
 
+
 class ShortcutAttributeOptions(BaseModel):
     key: str  # keyboard key
     modifiers: Optional[List[str]]
     value: Union[str, float, bool]
     description: Optional[str]
     type: Literal['set', 'dialog', 'remove']
+
 
 class NumericAttributeOptions(BaseModel):
     type: Literal['combo', 'slider']
