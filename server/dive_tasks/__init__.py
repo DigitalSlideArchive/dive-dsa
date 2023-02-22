@@ -15,6 +15,7 @@ except PackageNotFoundError:
     # package is not installed
     pass
 
+
 class DIVEPlugin(GirderWorkerPluginABC):
     def __init__(self, app, *args, **kwargs):
         self.app = app

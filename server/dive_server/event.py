@@ -15,6 +15,7 @@ from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     AssetstoreSourceMarker,
     AssetstoreSourcePathMarker,
+    MarkForPostProcess,
     DatasetMarker,
     DefaultVideoFPS,
     FPSMarker,
@@ -80,7 +81,7 @@ def process_assetstore_import(event, meta: dict):
                         'transcoder': oldItem['meta'].get('ffmpeg', None),
                         'originalFps': oldItem['meta'].get('originalFps', None),
                         'originalFpsString': oldItem['meta'].get('originalFpsString', None),
-                        'codec': oldItem['meta'].get('codec', None)
+                        'codec': oldItem['meta'].get('codec', None),
                     }
                     item['meta'].update(meta)
                     Item().save(item)
@@ -98,15 +99,46 @@ def process_assetstore_import(event, meta: dict):
             folder["meta"].update(
                 {
                     TypeMarker: dataset_type,
-                    FPSMarker: -1, # auto calculate the FPS from import
+                    FPSMarker: -1,  # auto calculate the FPS from import
                     AssetstoreSourcePathMarker: root,
+                    MarkForPostProcess: True,
                     **meta,
                 }
             )
             Folder().save(folder)
             userId = folder['creatorId'] or folder['baseParentId']
             user = User().findOne({'_id': ObjectId(userId)})
-            crud_rpc.postprocess(user, folder, False, True)
+
+
+def convert_video_recrusive(folder, user):
+    subFolders = list(Folder().childFolders(folder, 'folder', user))
+    for child in subFolders:
+        if child.get('meta', {}).get(MarkForPostProcess, False):
+            child['meta']['MarkForPostProcess'] = False
+            Folder().save(child)
+            crud_rpc.postprocess(user, child, False, True)
+        convert_video_recrusive(child, user)
+
+
+class DIVES3Imports:
+    destinationId = None
+    destinationType = None
+
+    def process_s3_import_before(self, event):
+        self.destinationId = event.info.get('params', {}).get('destinationId')
+        self.destinationType = event.info.get('params', {}).get('destinationType')
+
+    def process_s3_import_after(self, event):
+        if self.destinationType == 'folder' and self.destinationId is not None:
+            # go through all sub folders and add a new script to convert
+            destinationFolder = Folder().findOne({"_id": ObjectId(self.destinationId)})
+            print(destinationFolder)
+            userId = destinationFolder['creatorId'] or destinationFolder['baseParentId']
+            user = User().findOne({'_id': ObjectId(userId)})
+            convert_video_recrusive(destinationFolder, user)
+        self.destinationId = None
+        self.destinationType = None
+
 
 def process_fs_import(event):
     return process_assetstore_import(event, {AssetstoreSourceMarker: 'filesystem'})
