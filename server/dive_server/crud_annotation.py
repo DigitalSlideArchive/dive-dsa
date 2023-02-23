@@ -174,6 +174,10 @@ class AnnotationUpdateArgs(BaseModel):
         extra = 'ignore'
 
 
+class TrackPutArgs(BaseModel):
+    tracks: List[models.Track] = Field(default_factory=list)
+
+
 def save_annotations(
     dsFolder: types.GirderModel,
     user: types.GirderUserModel,
@@ -302,6 +306,35 @@ def get_annotations(dataset: types.GirderModel, revision: Optional[int] = None):
         serialized = models.Group(**g).dict(exclude_none=True)
         annotations['groups'][serialized['id']] = serialized
     return annotations
+
+
+def add_annotations(
+    dataset: types.GirderModel, new_tracks: dict, prepend='', revision: Optional[int] = None
+):
+    tracks = TrackItem().list(dataset, revision=revision)
+    annotations: types.DIVEAnnotationSchema = {
+        'tracks': {},
+        'groups': {},
+        'version': constants.AnnotationsCurrentVersion,
+    }
+    max_track_id = -1
+    for t in tracks:
+        serialized = models.Track(**t).dict(exclude_none=True)
+        annotations['tracks'][serialized['id']] = serialized
+        max_track_id = max(max_track_id, serialized['id'])
+    # Now add in the new tracks while renaming them
+    for key in new_tracks.keys():
+        new_id = int(key) + max_track_id + 1
+        annotations['tracks'][new_id] = new_tracks[key]
+        annotations['tracks'][new_id]['id'] = new_id
+        if prepend != '':
+            track = annotations['tracks'][new_id]
+            newPairs = []
+            for confidencePairs in track['confidencePairs']:
+                newPairs.append([f'{prepend}_{confidencePairs[0]}', confidencePairs[1]])
+            annotations['tracks'][new_id]['confidencePairs'] = newPairs
+
+    return annotations['tracks']
 
 
 def get_labels(user: types.GirderUserModel, published=False, shared=False):
