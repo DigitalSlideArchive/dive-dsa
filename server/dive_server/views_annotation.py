@@ -42,6 +42,7 @@ class AnnotationResource(Resource):
         self.route("GET", ("export",), self.export)
         self.route("GET", ("labels",), self.get_labels)
         self.route("PATCH", (), self.save_annotations)
+        self.route("PUT", ("track",), self.update_tracks)
         self.route("POST", ("rollback",), self.rollback)
 
     @access.user
@@ -142,7 +143,7 @@ class AnnotationResource(Resource):
     )
     def save_annotations(self, folder, body):
         crud.verify_dataset(folder)
-        validated: crud_annotation.AnnotationUpdateArgs = crud.get_validated_model(
+        validated: models.Track.AnnotationUpdateArgs = crud.get_validated_model(
             crud_annotation.AnnotationUpdateArgs, **body
         )
         upsert_tracks = [track.dict(exclude_none=True) for track in validated.tracks.upsert]
@@ -155,6 +156,33 @@ class AnnotationResource(Resource):
             delete_tracks=validated.tracks.delete,
             upsert_groups=upsert_groups,
             delete_groups=validated.groups.delete,
+        )
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Update Tracks")
+        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+        .jsonParam(
+            "body",
+            "Additive Track Annotations to Update. In the format of {tracks: []}",
+            paramType="body",
+            requireObject=True,
+        )
+    )
+    def update_tracks(self, folder, body):
+        crud.verify_dataset(folder)
+        validated: crud_annotation.TrackPutArgs = crud.get_validated_model(
+            crud_annotation.TrackPutArgs, **body
+        )
+        upsert_tracks = [track.dict(exclude_none=True) for track in validated.tracks]
+        user = self.getCurrentUser()
+        return crud_annotation.save_annotations(
+            folder,
+            user,
+            upsert_tracks=upsert_tracks,
+            delete_tracks={},
+            upsert_groups={},
+            delete_groups={},
         )
 
     @access.user
