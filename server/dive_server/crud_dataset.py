@@ -194,6 +194,35 @@ def update_attributes(dsFolder: types.GirderModel, data: dict):
         "deleted": deleted_len,
     }
 
+class TimelineUpdateArgs(BaseModel):
+    upsert: List[models.TimeLineGraph] = []
+    delete: List[str] = []
+
+    class Config:
+        extra = 'forbid'
+
+
+def update_timelines(dsFolder: types.GirderModel, data: dict):
+    """Upsert or delete attributes"""
+    crud.verify_dataset(dsFolder)
+    validated: TimelineUpdateArgs = crud.get_validated_model(TimelineUpdateArgs, **data)
+    timelines_dict = fromMeta(dsFolder, 'timelines', {})
+
+    for timeline_id in validated.delete:
+        timelines_dict.pop(str(timeline_id), None)
+    for timeline in validated.upsert:
+        timelines_dict[str(timeline.name)] = timeline.dict(exclude_none=True)
+
+    upserted_len = len(validated.delete)
+    deleted_len = len(validated.upsert)
+
+    if upserted_len or deleted_len:
+        update_metadata(dsFolder, {'timelines': timelines_dict})
+
+    return {
+        "updated": upserted_len,
+        "deleted": deleted_len,
+    }
 
 def export_datasets_zipstream(
     dsFolders: List[types.GirderModel],

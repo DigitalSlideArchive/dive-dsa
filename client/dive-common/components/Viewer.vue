@@ -212,6 +212,7 @@ export default defineComponent({
     const {
       attributesList: attributes,
       loadAttributes,
+      loadTimelines,
       setAttribute,
       deleteAttribute,
       attributeFilters,
@@ -221,6 +222,7 @@ export default defineComponent({
       sortAndFilterAttributes,
       setTimelineEnabled,
       setTimelineFilter,
+      removeTimelineFilter,
       attributeTimelineData,
       timelineFilter,
       timelineEnabled,
@@ -511,6 +513,9 @@ export default defineComponent({
         if (meta.attributes) {
           loadAttributes(meta.attributes);
         }
+        if (meta.timelines) {
+          loadTimelines(meta.timelines);
+        }
         trackFilters.setConfidenceFilters(meta.confidenceFilters);
         datasetName.value = meta.name;
         initTime({
@@ -652,6 +657,7 @@ export default defineComponent({
       sortAndFilterAttributes,
       setTimelineEnabled,
       setTimelineFilter,
+      removeTimelineFilter,
       attributeTimelineData,
       timelineFilter,
       timelineEnabled,

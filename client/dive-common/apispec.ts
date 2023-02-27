@@ -4,7 +4,7 @@ import { GroupData } from 'vue-media-annotator/Group';
 
 import { use } from 'vue-media-annotator/provides';
 import { TrackData } from 'vue-media-annotator/track';
-import { Attribute } from 'vue-media-annotator/use/useAttributes';
+import { Attribute, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
 import { CustomStyle } from 'vue-media-annotator/StyleManager';
 
 type DatasetType = 'image-sequence' | 'video' | 'multi';
@@ -42,6 +42,11 @@ interface SaveDetectionsArgs {
 interface SaveAttributeArgs {
   delete: string[];
   upsert: Attribute[];
+}
+
+interface SaveTimelineArgs {
+  delete: string[];
+  upsert: TimelineGraph[];
 }
 
 interface FrameImage {
@@ -96,6 +101,7 @@ interface DatasetMetaMutable {
   customGroupStyling?: Record<string, CustomStyle>;
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
+  timelines?: Readonly<Record<string, TimelineGraph>>;
 }
 const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling'];
 
@@ -120,6 +126,7 @@ interface Api {
   saveDetections(datasetId: string, args: SaveDetectionsArgs): Promise<unknown>;
   saveMetadata(datasetId: string, metadata: DatasetMetaMutable): Promise<unknown>;
   saveAttributes(datasetId: string, args: SaveAttributeArgs): Promise<unknown>;
+  saveTimelines(datasetId: string, args: SaveTimelineArgs): Promise<unknown>;
   // Non-Endpoint shared functions
   openFromDisk(datasetType: DatasetType | 'calibration' | 'annotation' | 'text' | 'zip', directory?: boolean):
     Promise<{canceled?: boolean; filePaths: string[]; fileList?: File[]; root?: string}>;
@@ -159,6 +166,7 @@ export {
   MultiGroupRecord,
   SaveDetectionsArgs,
   SaveAttributeArgs,
+  SaveTimelineArgs,
   MultiCamMedia,
   MediaImportResponse,
 };

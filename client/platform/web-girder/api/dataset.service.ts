@@ -1,6 +1,8 @@
 import type { GirderModel } from '@girder/components/src';
 
-import { DatasetMetaMutable, FrameImage, SaveAttributeArgs } from 'dive-common/apispec';
+import {
+  DatasetMetaMutable, FrameImage, SaveTimelineArgs, SaveAttributeArgs,
+} from 'dive-common/apispec';
 import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import girderRest from 'platform/web-girder/plugins/girder';
 import { postProcess } from './rpc.service';
@@ -119,6 +121,10 @@ function saveAttributes(folderId: string, args: SaveAttributeArgs) {
   return girderRest.patch(`/dive_dataset/${folderId}/attributes`, args);
 }
 
+function saveTimelines(folderId: string, args: SaveTimelineArgs) {
+  return girderRest.patch(`/dive_dataset/${folderId}/timelines`, args);
+}
+
 function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
   return girderRest.patch(`/dive_dataset/${folderId}`, metadata);
 }
@@ -144,6 +150,7 @@ export {
   importAnnotationFile,
   makeViameFolder,
   saveAttributes,
+  saveTimelines,
   saveMetadata,
   validateUploadGroup,
 };

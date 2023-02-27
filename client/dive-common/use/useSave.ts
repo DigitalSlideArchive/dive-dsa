@@ -1,7 +1,7 @@
 import { readonly, ref, Ref } from '@vue/composition-api';
 
 import Track, { TrackId } from 'vue-media-annotator/track';
-import { Attribute } from 'vue-media-annotator/use/useAttributes';
+import { Attribute, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
 
 import { useApi, DatasetMetaMutable } from 'dive-common/apispec';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
@@ -14,6 +14,8 @@ interface ChangeMap {
   attributeDelete: Set<string>;
   groupUpset: Map<AnnotationId, Group>;
   groupDelete: Set<AnnotationId>;
+  timelineUpsert: Map<string, TimelineGraph>;
+  timelineDelete: Set<string>;
   meta: number;
 }
 function _updatePendingChangeMap<K, V>(
@@ -44,10 +46,14 @@ export default function useSave(
       attributeDelete: new Set<string>(),
       groupUpset: new Map<AnnotationId, Group>(),
       groupDelete: new Set<AnnotationId>(),
+      timelineUpsert: new Map<string, TimelineGraph>(),
+      timelineDelete: new Set<string>(),
       meta: 0,
     },
   };
-  const { saveDetections, saveMetadata, saveAttributes } = useApi();
+  const {
+    saveDetections, saveMetadata, saveAttributes, saveTimelines,
+  } = useApi();
 
   async function save(
     datasetMeta?: DatasetMetaMutable,
@@ -99,6 +105,15 @@ export default function useSave(
           pendingChangeMap.attributeDelete.clear();
         }));
       }
+      if (pendingChangeMap.timelineUpsert.size || pendingChangeMap.timelineDelete.size) {
+        promiseList.push(saveTimelines(datasetId.value, {
+          upsert: Array.from(pendingChangeMap.timelineUpsert).map((pair) => pair[1]),
+          delete: Array.from(pendingChangeMap.timelineDelete),
+        }).then(() => {
+          pendingChangeMap.timelineUpsert.clear();
+          pendingChangeMap.timelineDelete.clear();
+        }));
+      }
     });
     // Final save into the multi-cam metadata if multiple cameras exists
     if (globalMetadataUpdated && datasetMeta && pendingChangeMaps) {
@@ -114,12 +129,14 @@ export default function useSave(
       track,
       attribute,
       group,
+      timeline,
       cameraName = 'singleCam',
     }: {
       action: 'upsert' | 'delete' | 'meta';
       track?: Track;
       attribute?: Attribute;
       group?: Group;
+      timeline?: TimelineGraph;
       cameraName?: string;
     } = { action: 'meta' },
   ) {
@@ -159,6 +176,14 @@ export default function useSave(
             pendingChangeMap.groupUpset,
             pendingChangeMap.groupDelete,
           );
+        } else if (timeline !== undefined) {
+          _updatePendingChangeMap(
+            timeline.name,
+            timeline,
+            action,
+            pendingChangeMap.timelineUpsert,
+            pendingChangeMap.timelineDelete,
+          );
         } else {
           throw new Error(`Arguments inconsistent with pending change type: ${action} cannot be performed without additional arguments`);
         }
@@ -175,6 +200,8 @@ export default function useSave(
       pendingChangeMap.attributeDelete.clear();
       pendingChangeMap.groupUpset.clear();
       pendingChangeMap.groupDelete.clear();
+      pendingChangeMap.timelineUpsert.clear();
+      pendingChangeMap.timelineDelete.clear();
       // eslint-disable-next-line no-param-reassign
       pendingChangeMap.meta = 0;
     });
@@ -189,6 +216,8 @@ export default function useSave(
       attributeDelete: new Set<string>(),
       groupUpset: new Map<AnnotationId, Group>(),
       groupDelete: new Set<AnnotationId>(),
+      timelineUpsert: new Map<string, TimelineGraph>(),
+      timelineDelete: new Set<string>(),
       meta: 0,
     };
   }

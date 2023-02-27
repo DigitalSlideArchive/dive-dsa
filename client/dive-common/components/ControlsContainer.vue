@@ -11,6 +11,7 @@ import {
   LineChart,
   Timeline,
 } from 'vue-media-annotator/components';
+import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { useAttributesFilters, useCameraStore, useSelectedCamera } from '../../src/provides';
 
 export default defineComponent({
@@ -54,28 +55,37 @@ export default defineComponent({
     );
     const { timelineEnabled, attributeTimelineData } = useAttributesFilters();
     // Format the Attribute data if it is available
+    const enabledTimelines = computed(() => {
+      const list: string[] = [];
+      Object.entries(timelineEnabled.value).forEach(([key, enabled]) => {
+        if (enabled) {
+          list.push(key);
+        }
+      });
+      return list;
+    });
     const attributeData = computed(() => {
-      if (timelineEnabled.value) {
-        let startFrame = Infinity;
-        let endFrame = -Infinity;
-        attributeTimelineData.value.forEach((item) => {
-          startFrame = Math.min(startFrame, item.minFrame);
-          endFrame = Math.max(endFrame, item.maxFrame);
-        });
-        const timelineData = attributeTimelineData.value.map((item) => item.data);
-        return {
-          startFrame,
-          endFrame,
-          data: timelineData,
-        };
-      }
-      return null;
+      const data: {startFrame: number; endFrame: number; data: LineChartData[] }[] = [];
+      Object.entries(attributeTimelineData.value).forEach(([key, timelineData]) => {
+        if (timelineEnabled.value[key]) {
+          const startFrame = timelineData.begin;
+          const endFrame = timelineData.end;
+          const timelineChartData = timelineData.data.map((item) => item.data);
+          data.push({
+            startFrame,
+            endFrame,
+            data: timelineChartData,
+          });
+        }
+      });
+
+      return data;
     });
     /**
      * Toggles on and off the individual timeline views
      * Resizing is handled by the Annator itself.
      */
-    function toggleView(type: 'Detections' | 'Events' | 'Groups' | 'Attributes') {
+    function toggleView(type: 'Detections' | 'Events' | 'Groups' | string) {
       currentView.value = type;
       emit('update:collapsed', false);
     }
@@ -101,7 +111,7 @@ export default defineComponent({
       ticks,
       hasGroups,
       attributeData,
-      timelineEnabled,
+      enabledTimelines,
     };
   },
 });
@@ -165,16 +175,19 @@ export default defineComponent({
             Groups
           </v-btn>
           <v-btn
-            v-if="!multiCam && timelineEnabled"
+            v-for="timelineName in enabledTimelines"
+            :key="timelineName"
             class="ml-1"
-            :class="{'timeline-button':currentView!=='Attributes' || collapsed}"
+            :class="{'timeline-button':currentView!==timelineName || collapsed}"
             depressed
-            :outlined="currentView==='Attributes' && !collapsed"
+            :outlined="currentView===timelineName && !collapsed"
             x-small
             tab-index="-1"
-            @click="toggleView('Attributes')"
+            @click="toggleView(timelineName)"
           >
-            Attributes
+            <v-icon x-small>
+              mdi-chart-line-variant
+            </v-icon>{{ timelineName }}
           </v-btn>
         </div>
       </template>
@@ -331,17 +344,22 @@ export default defineComponent({
           :margin="margin"
           @select-track="$emit('select-group', $event)"
         />
-        <line-chart
-          v-if="currentView==='Attributes'"
-          :start-frame="startFrame"
-          :end-frame="endFrame"
-          :max-frame="endFrame"
-          :data="attributeData.data"
-          :client-width="clientWidth"
-          :client-height="clientHeight"
-          :margin="margin"
-          :atrributes-chart="true"
-        />
+        <span
+          v-for="(data, index) in attributeData"
+          :key="`Timeline_${index}`"
+        >
+          <line-chart
+            v-if="currentView=== enabledTimelines[index]"
+            :start-frame="data.startFrame"
+            :end-frame="data.endFrame"
+            :max-frame="data.endFrame"
+            :data="data.data"
+            :client-width="clientWidth"
+            :client-height="clientHeight"
+            :margin="margin"
+            :atrributes-chart="true"
+          />
+        </span>
       </template>
     </Timeline>
   </v-col>

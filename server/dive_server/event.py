@@ -45,7 +45,6 @@ def process_assetstore_import(event, meta: dict):
     info = event.info
     objectType = info.get("type")
     importPath = info.get("importPath")
-    now = datetime.now()
 
     if not importPath or not objectType or objectType != "item":
         return
@@ -59,20 +58,20 @@ def process_assetstore_import(event, meta: dict):
         }
     )
 
-    # TODO figure out what's going on here?
-
     if imageRegex.search(importPath):
         dataset_type = ImageSequenceType
 
     elif videoRegex.search(importPath):
-        # Look for exisitng video dataset directory
+        # Look for existing video dataset directory
         parentFolder = Folder().findOne({"_id": item["folderId"]})
         userId = parentFolder['creatorId'] or parentFolder['baseParentId']
         user = User().findOne({'_id': ObjectId(userId)})
         foldername = f'Video {item["name"]}'
+        # resuse existing folder if it already exists with same name
         dest = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
+        now = datetime.now() 
         if dest['created'] < now:
-            # Remove the old item, replace it with the new one.
+            # Remove the old  referenced item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:
                 if oldItem['meta'].get('codec', False):
@@ -87,28 +86,26 @@ def process_assetstore_import(event, meta: dict):
                     Item().save(item)
                 Item().remove(oldItem)
         Item().move(item, dest)
+        # Set the dataset to Video Type
         dataset_type = VideoType
 
     if dataset_type is not None:
         # Update metadata of parent folder
-        # FPS is hardcoded for now
         Item().save(item)
         folder = Folder().findOne({"_id": item["folderId"]})
         root, _ = os.path.split(importPath)
+        # if the parent folder is not marked as a DIVE Dataset, Mark it.
         if not asbool(fromMeta(folder, DatasetMarker)):
             folder["meta"].update(
                 {
-                    TypeMarker: dataset_type,
+                    TypeMarker: dataset_type, # Sets to video
                     FPSMarker: -1,  # auto calculate the FPS from import
                     AssetstoreSourcePathMarker: root,
-                    MarkForPostProcess: True,
+                    MarkForPostProcess: True, # skip transcode or transcode if required
                     **meta,
                 }
             )
             Folder().save(folder)
-            userId = folder['creatorId'] or folder['baseParentId']
-            user = User().findOne({'_id': ObjectId(userId)})
-
 
 def convert_video_recrusive(folder, user):
     subFolders = list(Folder().childFolders(folder, 'folder', user))
