@@ -6,6 +6,7 @@ import {
 import Viewer from 'dive-common/components/Viewer.vue';
 import NavigationTitle from 'dive-common/components/NavigationTitle.vue';
 import ImportAnnotations from 'dive-common/components/ImportAnnotations.vue';
+import DIVETools from 'dive-common/components/DIVETools.vue';
 import SidebarContext from 'dive-common/components/SidebarContext.vue';
 import context from 'dive-common/store/context';
 import { useStore } from 'platform/web-girder/store/types';
@@ -49,6 +50,7 @@ export default defineComponent({
     RevisionHistory,
     SidebarContext,
     ViewerAlert,
+    DIVETools,
     ...context.getComponents(),
   },
 
@@ -179,6 +181,10 @@ export default defineComponent({
       </v-tabs>
     </template>
     <template #title-right>
+      <DIVETools
+        :button-options="buttonOptions"
+        :menu-options="menuOptions"
+      />
       <ImportAnnotations
         :button-options="buttonOptions"
         :menu-options="menuOptions"

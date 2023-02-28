@@ -43,6 +43,9 @@ export default defineComponent({
     const { frame: frameRef } = useTime();
     const selectedTrackIdRef = useSelectedTrackId();
     const { attributeFilters, sortAndFilterAttributes, timelineEnabled } = useAttributesFilters();
+    const timelineActive = computed(
+      () => (Object.values(timelineEnabled.value).filter((item) => item).length),
+    );
     const cameraStore = useCameraStore();
     const activeSettings = ref(true);
     const sortingMethods = ['a-z', '1-0'];
@@ -168,7 +171,7 @@ export default defineComponent({
       clickSortToggle,
       openFilter,
       openTimeline,
-      timelineEnabled,
+      timelineActive,
       filtersActive,
     };
   },
@@ -250,7 +253,7 @@ export default defineComponent({
         <tooltip-btn
           v-if="mode === 'Detection'"
           icon="mdi-chart-line-variant"
-          :color="timelineEnabled ? 'primary' : 'default'"
+          :color="timelineActive ? 'primary' : 'default'"
           tooltip-text="Timeline Settings for Attributes"
           @click="openTimeline"
         />

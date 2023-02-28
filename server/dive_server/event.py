@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 from bson.objectid import ObjectId
@@ -70,7 +70,7 @@ def process_assetstore_import(event, meta: dict):
         # resuse existing folder if it already exists with same name
         dest = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
         now = datetime.now() 
-        if dest['created'] < now:
+        if now - dest['created'] > timedelta(hours=1) :
             # Remove the old  referenced item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:

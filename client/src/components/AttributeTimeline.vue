@@ -128,15 +128,14 @@ export default defineComponent({
           :key="item.name"
           dense
         >
+          <v-checkbox
+            class="my-0 ml-1 pt-0 mr-2"
+            dense
+            hide-details
+            :input-value="item.enabled"
+            @click="setTimelineEnabled(item.name, !item.enabled)"
+          />
           <span>{{ item.name }}</span>
-          <span class="ml-2">
-            <v-icon
-              small
-              :color="item.enabled ? 'primary' : ''"
-              class="ml-2"
-              @click="setTimelineEnabled(item.name, !item.enabled)"
-            > {{ item.enabled ? 'mdi-eye' : 'mdi-eye-off' }} </v-icon>
-          </span>
           <v-spacer />
           <tooltip-btn
             icon="mdi-cog"
