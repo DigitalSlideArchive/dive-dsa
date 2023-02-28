@@ -44,6 +44,7 @@ import clientSettingsSetup, { clientSettings } from 'dive-common/store/settings'
 import { useApi, FrameImage, DatasetType } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
+import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
 
@@ -64,6 +65,7 @@ export default defineComponent({
     ConfidenceFilter,
     UserGuideButton,
     EditorMenu,
+    AttributeShortcutToggle,
   },
 
   // TODO: remove this in vue 3
@@ -692,6 +694,8 @@ export default defineComponent({
       useAttributeFilters,
     );
 
+    const { visible } = usePrompt();
+
     return {
       /* props */
       aggregateController,
@@ -746,6 +750,7 @@ export default defineComponent({
       navigateAwayGuard,
       warnBrowserExit,
       reloadAnnotations,
+      visible,
     };
   },
 });
@@ -838,6 +843,10 @@ export default defineComponent({
 
       <slot name="title-right" />
       <user-guide-button annotating />
+      <attribute-shortcut-toggle
+        class="pr-1"
+        :hotkeys-disabled="visible() || readonlyState"
+      />
 
       <v-tooltip
         bottom

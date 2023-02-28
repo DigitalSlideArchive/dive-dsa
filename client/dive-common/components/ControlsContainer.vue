@@ -12,7 +12,9 @@ import {
   Timeline,
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
-import { useAttributesFilters, useCameraStore, useSelectedCamera } from '../../src/provides';
+import {
+  useAttributesFilters, useCameraStore, useSelectedCamera, useSelectedTrackId,
+} from '../../src/provides';
 
 export default defineComponent({
   components: {
@@ -48,6 +50,7 @@ export default defineComponent({
     const currentView = ref('Detections');
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
     const cameraStore = useCameraStore();
+    const selectedTrackIdRef = useSelectedTrackId();
     const multiCam = ref(cameraStore.camMap.value.size > 1);
     const selectedCamera = useSelectedCamera();
     const hasGroups = computed(
@@ -112,6 +115,7 @@ export default defineComponent({
       hasGroups,
       attributeData,
       enabledTimelines,
+      selectedTrackIdRef,
     };
   },
 });
@@ -344,22 +348,41 @@ export default defineComponent({
           :margin="margin"
           @select-track="$emit('select-group', $event)"
         />
-        <span
-          v-for="(data, index) in attributeData"
-          :key="`Timeline_${index}`"
-        >
-          <line-chart
-            v-if="currentView=== enabledTimelines[index]"
-            :start-frame="data.startFrame"
-            :end-frame="data.endFrame"
-            :max-frame="data.endFrame"
-            :data="data.data"
-            :client-width="clientWidth"
-            :client-height="clientHeight"
-            :margin="margin"
-            :atrributes-chart="true"
-          />
+        <span v-if="attributeData.length">
+          <span
+            v-for="(data, index) in attributeData"
+            :key="`Timeline_${index}`"
+          >
+            <line-chart
+              v-if="currentView=== enabledTimelines[index] && data.data.length"
+              :start-frame="data.startFrame"
+              :end-frame="data.endFrame"
+              :max-frame="data.endFrame"
+              :data="data.data"
+              :client-width="clientWidth"
+              :client-height="clientHeight"
+              :margin="margin"
+              :atrributes-chart="true"
+            />
+            <v-row v-else-if="currentView=== enabledTimelines[index]">
+              <v-spacer />
+              <h2>
+                No Data to Graph
+              </h2>
+              <v-spacer />
+            </v-row>
+
+          </span>
         </span>
+        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
+          <v-row>
+            <v-spacer />
+            <h2>
+              Track needs to be selected to Graph Attributes
+            </h2>
+            <v-spacer />
+          </v-row>
+        </div>
       </template>
     </Timeline>
   </v-col>
