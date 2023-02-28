@@ -31,7 +31,6 @@ import AttributeInput from 'dive-common/components/AttributeInput.vue';
 import AttributeEditor from 'dive-common/components/AttributeEditor.vue';
 import AttributeSubsection from 'dive-common/components/AttributesSubsection.vue';
 import ConfidenceSubsection from 'dive-common/components/ConfidenceSubsection.vue';
-import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
 
 export default defineComponent({
   components: {
@@ -43,7 +42,6 @@ export default defineComponent({
     RangeEditor,
     TooltipBtn,
     TypePicker,
-    AttributeShortcutToggle,
   },
   props: {
     lockTypes: {
@@ -266,11 +264,6 @@ export default defineComponent({
         ? (editingGroupIdRef !== null ? 'Editing Group' : 'Merge Candidates')
         : 'Track Editor'
       }}
-      <v-spacer />
-      <attribute-shortcut-toggle
-        class="pr-7"
-        :hotkeys-disabled="hotkeysDisabled"
-      />
     </v-subheader>
     <div
       v-if="!selectedTrackList.length"
