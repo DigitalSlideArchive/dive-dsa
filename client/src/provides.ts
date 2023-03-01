@@ -47,7 +47,7 @@ export interface AttributesFilterType {
   Readonly<Ref<Record<string, { data: TimelineAttribute[]; begin: number; end: number}>>>;
   timelineFilter: Readonly<Ref<Record<string, AttributeKeyFilter>>>;
   timelineEnabled: Readonly<Ref<Record<string, boolean>>>;
-  timelineDefault: Readonly<Ref<string>>;
+  timelineDefault: Readonly<Ref<string | null>>;
 }
 
 const DatasetIdSymbol = Symbol('datasetID');
