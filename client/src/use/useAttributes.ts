@@ -7,6 +7,13 @@ import { StyleManager, Track } from '..';
 import CameraStore from '../CameraStore';
 import { LineChartData } from './useLineChart';
 
+export interface TimelineGraph {
+  name: string;
+  filter: AttributeKeyFilter;
+  enabled: boolean;
+  default?: boolean;
+}
+
 export interface NumericAttributeEditorOptions {
   type: 'combo'| 'slider';
   range?: number[];
@@ -95,7 +102,8 @@ interface UseAttributesParams {
       attribute,
     }: {
       action: 'upsert' | 'delete';
-      attribute: Attribute;
+      attribute?: Attribute;
+      timeline?: TimelineGraph;
     }
   ) => void;
   selectedTrackId: Ref<number | null>;
@@ -118,13 +126,9 @@ export default function UseAttributes(
     track: AttributeFilter[];
     detection: AttributeFilter[];
   }> = ref({ track: [], detection: [] });
-  const timelineFilter: Ref<AttributeKeyFilter> = ref({
-    appliedTo: ['all'],
-    active: true, // if this filter is active
-    value: true,
-    type: 'key' as 'key',
-  });
-  const timelineEnabled: Ref<boolean> = ref(false);
+  const timelineFilter: Ref<Record<string, AttributeKeyFilter>> = ref({});
+  const timelineEnabled: Ref<Record<string, boolean>> = ref({});
+  const timelineDefault: Ref<string | null> = ref(null);
 
   function loadAttributes(metadataAttributes: Record<string, Attribute>) {
     attributes.value = metadataAttributes;
@@ -134,6 +138,20 @@ export default function UseAttributes(
         attribute.color = trackStyleManager.typeStyling.value.color(attribute.name);
       }
     });
+  }
+
+  function loadTimelines(timelines: Record<string, TimelineGraph>) {
+    const filters: Record<string, AttributeKeyFilter> = {};
+    const enabled: Record<string, boolean> = {};
+    Object.entries(timelines).forEach(([key, item]) => {
+      filters[key] = item.filter;
+      enabled[key] = item.enabled;
+      if (item.default) {
+        timelineDefault.value = key;
+      }
+    });
+    timelineFilter.value = filters;
+    timelineEnabled.value = enabled;
   }
 
   const attributesList = computed(() => Object.values(attributes.value));
@@ -373,34 +391,102 @@ export default function UseAttributes(
         });
       }
     });
-    return valueMap;
+    return { valueMap, begin: track.begin, end: track.end };
   }
 
   const attributeTimelineData = computed(() => {
+    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number}> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
-    if (val !== undefined && selectedTrackId.value !== null
-      && timelineEnabled.value && timelineFilter.value !== null) {
-      const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
-      if (selectedTrack) {
-        const timelineData = generateDetectionTimelineData(selectedTrack, timelineFilter.value);
-        // Need to convert any Number types to Line Chart data;
-        const numberVals = Object.values(timelineData).filter((item) => item.type === 'number');
-        return numberVals;
-      }
+    if (val !== undefined && selectedTrackId.value !== null) {
+      const vals = Object.entries(timelineEnabled.value);
+      vals.forEach(([key, enabled]) => {
+        if (enabled) {
+          if (timelineFilter.value[key] && val !== undefined && selectedTrackId.value !== null) {
+            const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
+            if (selectedTrack) {
+              const timelineData = generateDetectionTimelineData(
+                selectedTrack, timelineFilter.value[key],
+              );
+              // Need to convert any Number types to Line Chart data;
+              const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
+              results[key] = {
+                data: numberVals,
+                begin: timelineData.begin,
+                end: timelineData.end,
+              };
+            }
+          }
+        }
+      });
+      return results;
     }
-    return [];
+    return {};
   });
 
-  function setTimelineEnabled(val: boolean) {
-    timelineEnabled.value = val;
+  function setTimelineEnabled(name: string, val: boolean) {
+    VueSet(timelineEnabled.value, name, val);
+    markChangesPending({
+      action: 'upsert',
+      timeline: {
+        name,
+        enabled: timelineEnabled.value[name],
+        filter: timelineFilter.value[name],
+        default: name === timelineDefault.value,
+      },
+    });
   }
 
-  function setTimelineFilter(val: AttributeKeyFilter) {
-    timelineFilter.value = val;
+  function setTimelineFilter(name: string, val: AttributeKeyFilter) {
+    VueSet(timelineFilter.value, name, val);
+    markChangesPending({
+      action: 'upsert',
+      timeline: {
+        name,
+        enabled: timelineEnabled.value[name],
+        filter: timelineFilter.value[name],
+        default: name === timelineDefault.value,
+      },
+    });
+  }
+
+  function removeTimelineFilter(name: string) {
+    if (timelineEnabled.value[name] !== undefined) {
+      VueDel(timelineEnabled.value, name);
+      VueDel(timelineFilter.value, name);
+      markChangesPending({ action: 'delete', timeline: { name, enabled: timelineEnabled.value[name], filter: timelineFilter.value[name] } });
+    }
+  }
+
+  function setTimelineDefault(name: string) {
+    timelineDefault.value = name;
+    markChangesPending({
+      action: 'upsert',
+      timeline: {
+        name,
+        enabled: timelineEnabled.value[name],
+        filter: timelineFilter.value[name],
+        default: true,
+      },
+    });
+    // Unset other default Timelines
+    Object.entries(timelineEnabled.value).forEach(([disableName, enabled]) => {
+      if (disableName !== name) {
+        markChangesPending({
+          action: 'upsert',
+          timeline: {
+            name: disableName,
+            enabled,
+            filter: timelineFilter.value[disableName],
+            default: false,
+          },
+        });
+      }
+    });
   }
 
   return {
     loadAttributes,
+    loadTimelines,
     attributesList,
     setAttribute,
     deleteAttribute,
@@ -411,8 +497,11 @@ export default function UseAttributes(
     sortAndFilterAttributes,
     setTimelineEnabled,
     setTimelineFilter,
+    setTimelineDefault,
+    removeTimelineFilter,
     attributeTimelineData,
     timelineFilter,
     timelineEnabled,
+    timelineDefault,
   };
 }

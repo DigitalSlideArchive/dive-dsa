@@ -15,6 +15,7 @@ import {
   loadDetections,
   saveDetections,
   unwrap,
+  saveTimelines,
 } from './api';
 import { openFromDisk } from './utils';
 
@@ -33,6 +34,7 @@ export default defineComponent({
       saveDetections: unwrap(saveDetections),
       saveMetadata: unwrap(saveMetadata),
       saveAttributes: unwrap(saveAttributes),
+      saveTimelines: unwrap(saveTimelines),
       loadMetadata,
       openFromDisk,
       importAnnotationFile,

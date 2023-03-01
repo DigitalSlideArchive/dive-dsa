@@ -135,18 +135,38 @@ export default defineComponent({
 
 <template>
   <div>
-    <v-icon
-      v-mousetrap=" shortcutsOn ? mouseTrap : []"
-      :color="shortcutsOn ? 'primary': 'default'"
-      @click="shortcutsOn = !shortcutsOn"
+    <v-tooltip
+      open-delay="200"
+      left
+      max-width="200"
     >
-      mdi-keyboard
-    </v-icon>
-    <v-icon
-      @click="showShortcuts = !showShortcuts"
+      <template #activator="{ on }">
+        <v-icon
+          v-mousetrap=" shortcutsOn ? mouseTrap : []"
+          :color="shortcutsOn ? 'primary': 'default'"
+          v-on="on"
+          @click="shortcutsOn = !shortcutsOn"
+        >
+          mdi-keyboard
+        </v-icon>
+      </template>
+      <span> Toggle Keyboard Shortcuts On/Off</span>
+    </v-tooltip>
+    <v-tooltip
+      open-delay="200"
+      bottom
+      max-width="200"
     >
-      mdi-information-variant
-    </v-icon>
+      <template #activator="{ on }">
+        <v-icon
+          v-on="on"
+          @click="showShortcuts = !showShortcuts"
+        >
+          mdi-information-variant
+        </v-icon>
+      </template>
+      <span>View Custom Keyboard Shortucts</span>
+    </v-tooltip>
     <v-dialog
       v-model="showShortcuts"
       max-width="600"

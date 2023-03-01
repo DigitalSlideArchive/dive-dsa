@@ -39,11 +39,15 @@ export interface AttributesFilterType {
   modifyAttributeFilter: (index: number, type: Attribute['belongs'], filter: AttributeFilter) => void;
   deleteAttributeFilter: (index: number, type: Attribute['belongs']) => void;
   sortAndFilterAttributes: (attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[]) => Attribute[];
-  setTimelineEnabled: (val: boolean) => void;
-  setTimelineFilter: (filter: AttributeKeyFilter) => void;
-  attributeTimelineData: Readonly<Ref<TimelineAttribute[]>>;
-  timelineFilter: Readonly<Ref<AttributeKeyFilter>>;
-  timelineEnabled: Readonly<Ref<boolean>>;
+  setTimelineEnabled: (name: string, val: boolean) => void;
+  setTimelineFilter: (name: string, filter: AttributeKeyFilter) => void;
+  setTimelineDefault: (name: string) => void;
+  removeTimelineFilter: (name: string) => void;
+  attributeTimelineData:
+  Readonly<Ref<Record<string, { data: TimelineAttribute[]; begin: number; end: number}>>>;
+  timelineFilter: Readonly<Ref<Record<string, AttributeKeyFilter>>>;
+  timelineEnabled: Readonly<Ref<Record<string, boolean>>>;
+  timelineDefault: Readonly<Ref<string>>;
 }
 
 const DatasetIdSymbol = Symbol('datasetID');

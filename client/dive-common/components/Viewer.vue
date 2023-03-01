@@ -44,6 +44,7 @@ import clientSettingsSetup, { clientSettings } from 'dive-common/store/settings'
 import { useApi, FrameImage, DatasetType } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
+import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
 
@@ -64,6 +65,7 @@ export default defineComponent({
     ConfidenceFilter,
     UserGuideButton,
     EditorMenu,
+    AttributeShortcutToggle,
   },
 
   // TODO: remove this in vue 3
@@ -212,6 +214,7 @@ export default defineComponent({
     const {
       attributesList: attributes,
       loadAttributes,
+      loadTimelines,
       setAttribute,
       deleteAttribute,
       attributeFilters,
@@ -221,9 +224,12 @@ export default defineComponent({
       sortAndFilterAttributes,
       setTimelineEnabled,
       setTimelineFilter,
+      setTimelineDefault,
+      removeTimelineFilter,
       attributeTimelineData,
       timelineFilter,
       timelineEnabled,
+      timelineDefault,
 
     } = useAttributes({
       markChangesPending,
@@ -511,6 +517,9 @@ export default defineComponent({
         if (meta.attributes) {
           loadAttributes(meta.attributes);
         }
+        if (meta.timelines) {
+          loadTimelines(meta.timelines);
+        }
         trackFilters.setConfidenceFilters(meta.confidenceFilters);
         datasetName.value = meta.name;
         initTime({
@@ -652,10 +661,12 @@ export default defineComponent({
       sortAndFilterAttributes,
       setTimelineEnabled,
       setTimelineFilter,
+      setTimelineDefault,
+      removeTimelineFilter,
       attributeTimelineData,
       timelineFilter,
       timelineEnabled,
-
+      timelineDefault,
     };
 
     provideAnnotator(
@@ -685,6 +696,8 @@ export default defineComponent({
       globalHandler,
       useAttributeFilters,
     );
+
+    const { visible } = usePrompt();
 
     return {
       /* props */
@@ -740,6 +753,7 @@ export default defineComponent({
       navigateAwayGuard,
       warnBrowserExit,
       reloadAnnotations,
+      visible,
     };
   },
 });
@@ -832,6 +846,10 @@ export default defineComponent({
 
       <slot name="title-right" />
       <user-guide-button annotating />
+      <attribute-shortcut-toggle
+        class="pr-1"
+        :hotkeys-disabled="visible() || readonlyState"
+      />
 
       <v-tooltip
         bottom

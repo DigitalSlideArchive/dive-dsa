@@ -112,7 +112,7 @@ export default Vue.extend({
       if (this.atrributesChart) {
         line = d3
           .line()
-          .curve(d3.curveLinear)
+          .curve(d3.curveStepAfter)
           .x((d) => x(d[0]))
           .y((d) => y(d[1]));
       }

@@ -157,6 +157,17 @@ class Attribute(BaseModel):
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
 
+class AttributeKeyFilter(BaseModel):
+    appliedTo: List[str]
+    active: bool
+    value: bool
+    type: Literal['key']
+
+class TimeLineGraph(BaseModel):
+    enabled: bool
+    name: str
+    filter: AttributeKeyFilter
+    default: Optional[bool]
 
 class CustomStyle(BaseModel):
     color: Optional[str]
@@ -175,6 +186,7 @@ class MetadataMutable(BaseModel):
     customGroupStyling: Optional[Dict[str, CustomStyle]]
     confidenceFilters: Optional[Dict[str, float]]
     attributes: Optional[Dict[str, Attribute]]
+    timelines: Optional[Dict[str, TimeLineGraph]]
 
     @staticmethod
     def is_dive_configuration(value: dict):

@@ -11,7 +11,10 @@ import {
   LineChart,
   Timeline,
 } from 'vue-media-annotator/components';
-import { useAttributesFilters, useCameraStore, useSelectedCamera } from '../../src/provides';
+import { LineChartData } from 'vue-media-annotator/use/useLineChart';
+import {
+  useAttributesFilters, useCameraStore, useSelectedCamera, useSelectedTrackId,
+} from '../../src/provides';
 
 export default defineComponent({
   components: {
@@ -47,35 +50,53 @@ export default defineComponent({
     const currentView = ref('Detections');
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
     const cameraStore = useCameraStore();
+    const selectedTrackIdRef = useSelectedTrackId();
     const multiCam = ref(cameraStore.camMap.value.size > 1);
     const selectedCamera = useSelectedCamera();
     const hasGroups = computed(
       () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
     );
-    const { timelineEnabled, attributeTimelineData } = useAttributesFilters();
-    // Format the Attribute data if it is available
-    const attributeData = computed(() => {
-      if (timelineEnabled.value) {
-        let startFrame = Infinity;
-        let endFrame = -Infinity;
-        attributeTimelineData.value.forEach((item) => {
-          startFrame = Math.min(startFrame, item.minFrame);
-          endFrame = Math.max(endFrame, item.maxFrame);
-        });
-        const timelineData = attributeTimelineData.value.map((item) => item.data);
-        return {
-          startFrame,
-          endFrame,
-          data: timelineData,
-        };
+    const { timelineEnabled, attributeTimelineData, timelineDefault } = useAttributesFilters();
+    if (timelineDefault.value !== null) {
+      currentView.value = timelineDefault.value;
+    }
+    watch(timelineDefault, () => {
+      if (timelineDefault.value !== null) {
+        currentView.value = timelineDefault.value;
       }
-      return null;
+    });
+    // Format the Attribute data if it is available
+    const enabledTimelines = computed(() => {
+      const list: string[] = [];
+      Object.entries(timelineEnabled.value).forEach(([key, enabled]) => {
+        if (enabled) {
+          list.push(key);
+        }
+      });
+      return list;
+    });
+    const attributeData = computed(() => {
+      const data: {startFrame: number; endFrame: number; data: LineChartData[] }[] = [];
+      Object.entries(attributeTimelineData.value).forEach(([key, timelineData]) => {
+        if (timelineEnabled.value[key]) {
+          const startFrame = timelineData.begin;
+          const endFrame = timelineData.end;
+          const timelineChartData = timelineData.data.map((item) => item.data);
+          data.push({
+            startFrame,
+            endFrame,
+            data: timelineChartData,
+          });
+        }
+      });
+
+      return data;
     });
     /**
      * Toggles on and off the individual timeline views
      * Resizing is handled by the Annator itself.
      */
-    function toggleView(type: 'Detections' | 'Events' | 'Groups' | 'Attributes') {
+    function toggleView(type: 'Detections' | 'Events' | 'Groups' | string) {
       currentView.value = type;
       emit('update:collapsed', false);
     }
@@ -101,7 +122,8 @@ export default defineComponent({
       ticks,
       hasGroups,
       attributeData,
-      timelineEnabled,
+      enabledTimelines,
+      selectedTrackIdRef,
     };
   },
 });
@@ -113,7 +135,9 @@ export default defineComponent({
     style="position:absolute; bottom: 0px; padding: 0px; margin:0px;"
   >
     <Controls>
-      <template slot="timelineControls">
+      <template
+        slot="timelineControls"
+      >
         <div style="min-width: 270px">
           <v-tooltip
             open-delay="200"
@@ -130,52 +154,98 @@ export default defineComponent({
             </template>
             <span>Collapse/Expand Timeline</span>
           </v-tooltip>
-          <v-btn
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Detections' || collapsed}"
-            depressed
-            :outlined="currentView==='Detections' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Detections')"
-          >
-            Detections
-          </v-btn>
-          <v-btn
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Events' || collapsed}"
-            depressed
-            :outlined="currentView==='Events' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Events')"
-          >
-            Events
-          </v-btn>
-          <v-btn
-            v-if="!multiCam && hasGroups"
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Groups' || collapsed}"
-            depressed
-            :outlined="currentView==='Groups' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Groups')"
-          >
-            Groups
-          </v-btn>
-          <v-btn
-            v-if="!multiCam && timelineEnabled"
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Attributes' || collapsed}"
-            depressed
-            :outlined="currentView==='Attributes' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Attributes')"
-          >
-            Attributes
-          </v-btn>
+          <span v-if="(!collapsed)">
+            <v-btn
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Detections' || collapsed}"
+              depressed
+              :outlined="currentView==='Detections' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView('Detections')"
+            >
+              Detections
+            </v-btn>
+            <v-btn
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Events' || collapsed}"
+              depressed
+              :outlined="currentView==='Events' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView('Events')"
+            >
+              Events
+            </v-btn>
+            <v-btn
+              v-if="!multiCam && hasGroups"
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
+              depressed
+              :outlined="currentView==='Groups' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView('Groups')"
+            >
+              Groups
+            </v-btn>
+            <span v-if="enabledTimelines.length > 2">
+              <v-menu
+                :close-on-content-click="true"
+                top
+                offset-y
+                nudge-left="3"
+                open-on-hover
+                close-delay="500"
+                open-delay="250"
+                rounded="lg"
+              >
+                <template v-slot:activator="{ on }">
+                  <v-btn
+                    depressed
+                    x-small
+                    :outlined="enabledTimelines.includes(currentView)"
+                    v-on="on"
+                  >
+                    <v-icon x-small>mdi-chart-line-variant</v-icon>
+                    {{ enabledTimelines.includes(currentView) ? currentView : 'Attributes'}}
+                    <v-icon class="pa-0 pl-2" x-small>mdi-chevron-down-box</v-icon>
+                  </v-btn>
+                </template>
+                <v-card outlined>
+                  <v-list dense>
+                    <v-list-item
+                      v-for="timelineName in enabledTimelines"
+                      :key="timelineName"
+                      style="align-items:center"
+                      @click="currentView = timelineName"
+                    >
+                      <v-list-item-content>
+                        <v-list-item-title>{{ timelineName }}</v-list-item-title>
+                      </v-list-item-content>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-menu>
+            </span>
+            <span v-else>
+              <v-btn
+                v-for="timelineName in enabledTimelines"
+                :key="timelineName"
+                class="ml-1"
+                :class="{'timeline-button':currentView!==timelineName || collapsed}"
+                depressed
+                :outlined="currentView===timelineName && !collapsed"
+                x-small
+                tab-index="-1"
+                @click="toggleView(timelineName)"
+              >
+                <v-icon x-small>
+                  mdi-chart-line-variant
+                </v-icon>{{ timelineName }}
+              </v-btn>
+            </span>
+          </span>
         </div>
       </template>
       <template #middle>
@@ -331,17 +401,41 @@ export default defineComponent({
           :margin="margin"
           @select-track="$emit('select-group', $event)"
         />
-        <line-chart
-          v-if="currentView==='Attributes'"
-          :start-frame="startFrame"
-          :end-frame="endFrame"
-          :max-frame="endFrame"
-          :data="attributeData.data"
-          :client-width="clientWidth"
-          :client-height="clientHeight"
-          :margin="margin"
-          :atrributes-chart="true"
-        />
+        <span v-if="attributeData.length">
+          <span
+            v-for="(data, index) in attributeData"
+            :key="`Timeline_${index}`"
+          >
+            <line-chart
+              v-if="currentView=== enabledTimelines[index] && data.data.length"
+              :start-frame="data.startFrame"
+              :end-frame="data.endFrame"
+              :max-frame="data.endFrame"
+              :data="data.data"
+              :client-width="clientWidth"
+              :client-height="clientHeight"
+              :margin="margin"
+              :atrributes-chart="true"
+            />
+            <v-row v-else-if="currentView=== enabledTimelines[index]">
+              <v-spacer />
+              <h2>
+                No Data to Graph
+              </h2>
+              <v-spacer />
+            </v-row>
+
+          </span>
+        </span>
+        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
+          <v-row>
+            <v-spacer />
+            <h2>
+              Track needs to be selected to Graph Attributes
+            </h2>
+            <v-spacer />
+          </v-row>
+        </div>
       </template>
     </Timeline>
   </v-col>

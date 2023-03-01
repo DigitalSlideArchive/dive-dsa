@@ -84,11 +84,13 @@ export default defineComponent({
         @input="input"
       />
       <v-row no-gutters>
-        <v-col class="pl-1 py-1 shrink">
-          <slot
-            justify="start"
-            name="timelineControls"
-          />
+        <v-col class="pl-1 py-1 grow">
+          <v-row>
+            <slot
+              justify="start"
+              name="timelineControls"
+            />
+          </v-row>
         </v-col>
         <v-col
           class="py-1 shrink"
