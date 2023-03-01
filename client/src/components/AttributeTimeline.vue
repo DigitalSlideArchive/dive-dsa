@@ -35,6 +35,11 @@ export default defineComponent({
   },
 
   setup() {
+    const {
+      setTimelineEnabled, setTimelineFilter, removeTimelineFilter, setTimelineDefault,
+      timelineFilter, timelineEnabled, timelineDefault,
+    } = useAttributesFilters();
+    const attributesList = useAttributes();
     const addEditTimelineDialog = ref(false);
     const defaultTimelineFilter = {
       appliedTo: ['all'],
@@ -49,12 +54,10 @@ export default defineComponent({
       type: 'key' as 'key',
     });
     const editTimelineEnabled = ref(false);
+    const editTimelineDefault = ref(false);
     let originalName = 'default';
+    let originalDefault = false;
     const editTimelineName = ref('default');
-    const {
-      setTimelineEnabled, setTimelineFilter, removeTimelineFilter, timelineFilter, timelineEnabled,
-    } = useAttributesFilters();
-    const attributesList = useAttributes();
     const filterNames = computed(() => {
       const data = ['all'];
       return data.concat(attributesList.value.map((item) => item.name));
@@ -67,6 +70,9 @@ export default defineComponent({
           name: key,
           enabled: timelineEnabled.value[key],
         };
+        if (timelineDefault.value === key) {
+          list[key].default = true;
+        }
       });
       return list;
     });
@@ -74,6 +80,8 @@ export default defineComponent({
       addEditTimelineDialog.value = true;
       editTimelineName.value = item ? item.name : 'default';
       originalName = editTimelineName.value;
+      originalDefault = item?.default || false;
+      editTimelineDefault.value = originalDefault;
       editTimelineFilter.value = item ? item.filter : defaultTimelineFilter;
       editTimelineEnabled.value = item ? item.enabled : false;
     };
@@ -81,6 +89,10 @@ export default defineComponent({
     const saveChanges = () => {
       if (editTimelineName.value !== originalName) {
         removeTimelineFilter(originalName);
+      }
+      if (editTimelineDefault.value && editTimelineDefault.value !== originalDefault) {
+        // Go through the other timelines and make sure only one is set as the default
+        setTimelineDefault(editTimelineName.value);
       }
       setTimelineFilter(editTimelineName.value, editTimelineFilter.value);
       setTimelineEnabled(editTimelineName.value, editTimelineEnabled.value);
@@ -94,6 +106,7 @@ export default defineComponent({
     return {
       setTimelineEnabled,
       setTimelineFilter,
+      editTimelineDefault,
       addEditTimelineDialog,
       editTimelineFilter,
       editTimelineName,
@@ -187,6 +200,17 @@ export default defineComponent({
               :filter-names="filterNames"
               timeline
               @save-changes="editTimelineFilter = ($event)"
+            />
+          </v-row>
+          <v-row class="pt-2">
+            <p>
+              One Timeline can be labeled ad the Default timeline which will
+              automatically be open when loading the dataset
+            </p>
+            <v-switch
+              v-model="editTimelineDefault"
+              label="Default Visible Timeline"
+              class="pa-0 ma-0"
             />
           </v-row>
         </v-card-text>

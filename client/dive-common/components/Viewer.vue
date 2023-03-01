@@ -224,10 +224,12 @@ export default defineComponent({
       sortAndFilterAttributes,
       setTimelineEnabled,
       setTimelineFilter,
+      setTimelineDefault,
       removeTimelineFilter,
       attributeTimelineData,
       timelineFilter,
       timelineEnabled,
+      timelineDefault,
 
     } = useAttributes({
       markChangesPending,
@@ -659,11 +661,12 @@ export default defineComponent({
       sortAndFilterAttributes,
       setTimelineEnabled,
       setTimelineFilter,
+      setTimelineDefault,
       removeTimelineFilter,
       attributeTimelineData,
       timelineFilter,
       timelineEnabled,
-
+      timelineDefault,
     };
 
     provideAnnotator(

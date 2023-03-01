@@ -11,6 +11,7 @@ export interface TimelineGraph {
   name: string;
   filter: AttributeKeyFilter;
   enabled: boolean;
+  default?: boolean;
 }
 
 export interface NumericAttributeEditorOptions {
@@ -127,6 +128,7 @@ export default function UseAttributes(
   }> = ref({ track: [], detection: [] });
   const timelineFilter: Ref<Record<string, AttributeKeyFilter>> = ref({});
   const timelineEnabled: Ref<Record<string, boolean>> = ref({});
+  const timelineDefault: Ref<string | null> = ref(null);
 
   function loadAttributes(metadataAttributes: Record<string, Attribute>) {
     attributes.value = metadataAttributes;
@@ -144,6 +146,9 @@ export default function UseAttributes(
     Object.entries(timelines).forEach(([key, item]) => {
       filters[key] = item.filter;
       enabled[key] = item.enabled;
+      if (item.default) {
+        timelineDefault.value = key;
+      }
     });
     timelineFilter.value = filters;
     timelineEnabled.value = enabled;
@@ -420,12 +425,28 @@ export default function UseAttributes(
 
   function setTimelineEnabled(name: string, val: boolean) {
     VueSet(timelineEnabled.value, name, val);
-    markChangesPending({ action: 'upsert', timeline: { name, enabled: timelineEnabled.value[name], filter: timelineFilter.value[name] } });
+    markChangesPending({
+      action: 'upsert',
+      timeline: {
+        name,
+        enabled: timelineEnabled.value[name],
+        filter: timelineFilter.value[name],
+        default: name === timelineDefault.value,
+      },
+    });
   }
 
   function setTimelineFilter(name: string, val: AttributeKeyFilter) {
     VueSet(timelineFilter.value, name, val);
-    markChangesPending({ action: 'upsert', timeline: { name, enabled: timelineEnabled.value[name], filter: timelineFilter.value[name] } });
+    markChangesPending({
+      action: 'upsert',
+      timeline: {
+        name,
+        enabled: timelineEnabled.value[name],
+        filter: timelineFilter.value[name],
+        default: name === timelineDefault.value,
+      },
+    });
   }
 
   function removeTimelineFilter(name: string) {
@@ -434,6 +455,33 @@ export default function UseAttributes(
       VueDel(timelineFilter.value, name);
       markChangesPending({ action: 'delete', timeline: { name, enabled: timelineEnabled.value[name], filter: timelineFilter.value[name] } });
     }
+  }
+
+  function setTimelineDefault(name: string) {
+    timelineDefault.value = name;
+    markChangesPending({
+      action: 'upsert',
+      timeline: {
+        name,
+        enabled: timelineEnabled.value[name],
+        filter: timelineFilter.value[name],
+        default: true,
+      },
+    });
+    // Unset other default Timelines
+    Object.entries(timelineEnabled.value).forEach(([disableName, enabled]) => {
+      if (disableName !== name) {
+        markChangesPending({
+          action: 'upsert',
+          timeline: {
+            name: disableName,
+            enabled,
+            filter: timelineFilter.value[disableName],
+            default: false,
+          },
+        });
+      }
+    });
   }
 
   return {
@@ -449,9 +497,11 @@ export default function UseAttributes(
     sortAndFilterAttributes,
     setTimelineEnabled,
     setTimelineFilter,
+    setTimelineDefault,
     removeTimelineFilter,
     attributeTimelineData,
     timelineFilter,
     timelineEnabled,
+    timelineDefault,
   };
 }

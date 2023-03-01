@@ -41,11 +41,13 @@ export interface AttributesFilterType {
   sortAndFilterAttributes: (attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[]) => Attribute[];
   setTimelineEnabled: (name: string, val: boolean) => void;
   setTimelineFilter: (name: string, filter: AttributeKeyFilter) => void;
+  setTimelineDefault: (name: string) => void;
   removeTimelineFilter: (name: string) => void;
   attributeTimelineData:
   Readonly<Ref<Record<string, { data: TimelineAttribute[]; begin: number; end: number}>>>;
   timelineFilter: Readonly<Ref<Record<string, AttributeKeyFilter>>>;
   timelineEnabled: Readonly<Ref<Record<string, boolean>>>;
+  timelineDefault: Readonly<Ref<string>>;
 }
 
 const DatasetIdSymbol = Symbol('datasetID');

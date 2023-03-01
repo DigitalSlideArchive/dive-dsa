@@ -56,7 +56,15 @@ export default defineComponent({
     const hasGroups = computed(
       () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
     );
-    const { timelineEnabled, attributeTimelineData } = useAttributesFilters();
+    const { timelineEnabled, attributeTimelineData, timelineDefault } = useAttributesFilters();
+    if (timelineDefault.value !== null) {
+      currentView.value = timelineDefault.value;
+    }
+    watch(timelineDefault, () => {
+      if (timelineDefault.value !== null) {
+        currentView.value = timelineDefault.value;
+      }
+    });
     // Format the Attribute data if it is available
     const enabledTimelines = computed(() => {
       const list: string[] = [];
@@ -127,7 +135,9 @@ export default defineComponent({
     style="position:absolute; bottom: 0px; padding: 0px; margin:0px;"
   >
     <Controls>
-      <template slot="timelineControls">
+      <template
+        slot="timelineControls"
+      >
         <div style="min-width: 270px">
           <v-tooltip
             open-delay="200"
@@ -144,55 +154,98 @@ export default defineComponent({
             </template>
             <span>Collapse/Expand Timeline</span>
           </v-tooltip>
-          <v-btn
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Detections' || collapsed}"
-            depressed
-            :outlined="currentView==='Detections' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Detections')"
-          >
-            Detections
-          </v-btn>
-          <v-btn
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Events' || collapsed}"
-            depressed
-            :outlined="currentView==='Events' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Events')"
-          >
-            Events
-          </v-btn>
-          <v-btn
-            v-if="!multiCam && hasGroups"
-            class="ml-1"
-            :class="{'timeline-button':currentView!=='Groups' || collapsed}"
-            depressed
-            :outlined="currentView==='Groups' && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView('Groups')"
-          >
-            Groups
-          </v-btn>
-          <v-btn
-            v-for="timelineName in enabledTimelines"
-            :key="timelineName"
-            class="ml-1"
-            :class="{'timeline-button':currentView!==timelineName || collapsed}"
-            depressed
-            :outlined="currentView===timelineName && !collapsed"
-            x-small
-            tab-index="-1"
-            @click="toggleView(timelineName)"
-          >
-            <v-icon x-small>
-              mdi-chart-line-variant
-            </v-icon>{{ timelineName }}
-          </v-btn>
+          <span v-if="(!collapsed)">
+            <v-btn
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Detections' || collapsed}"
+              depressed
+              :outlined="currentView==='Detections' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView('Detections')"
+            >
+              Detections
+            </v-btn>
+            <v-btn
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Events' || collapsed}"
+              depressed
+              :outlined="currentView==='Events' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView('Events')"
+            >
+              Events
+            </v-btn>
+            <v-btn
+              v-if="!multiCam && hasGroups"
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
+              depressed
+              :outlined="currentView==='Groups' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView('Groups')"
+            >
+              Groups
+            </v-btn>
+            <span v-if="enabledTimelines.length > 2">
+              <v-menu
+                :close-on-content-click="true"
+                top
+                offset-y
+                nudge-left="3"
+                open-on-hover
+                close-delay="500"
+                open-delay="250"
+                rounded="lg"
+              >
+                <template v-slot:activator="{ on }">
+                  <v-btn
+                    depressed
+                    x-small
+                    :outlined="enabledTimelines.includes(currentView)"
+                    v-on="on"
+                  >
+                    <v-icon x-small>mdi-chart-line-variant</v-icon>
+                    {{ enabledTimelines.includes(currentView) ? currentView : 'Attributes'}}
+                    <v-icon class="pa-0 pl-2" x-small>mdi-chevron-down-box</v-icon>
+                  </v-btn>
+                </template>
+                <v-card outlined>
+                  <v-list dense>
+                    <v-list-item
+                      v-for="timelineName in enabledTimelines"
+                      :key="timelineName"
+                      style="align-items:center"
+                      @click="currentView = timelineName"
+                    >
+                      <v-list-item-content>
+                        <v-list-item-title>{{ timelineName }}</v-list-item-title>
+                      </v-list-item-content>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-menu>
+            </span>
+            <span v-else>
+              <v-btn
+                v-for="timelineName in enabledTimelines"
+                :key="timelineName"
+                class="ml-1"
+                :class="{'timeline-button':currentView!==timelineName || collapsed}"
+                depressed
+                :outlined="currentView===timelineName && !collapsed"
+                x-small
+                tab-index="-1"
+                @click="toggleView(timelineName)"
+              >
+                <v-icon x-small>
+                  mdi-chart-line-variant
+                </v-icon>{{ timelineName }}
+              </v-btn>
+            </span>
+          </span>
         </div>
       </template>
       <template #middle>

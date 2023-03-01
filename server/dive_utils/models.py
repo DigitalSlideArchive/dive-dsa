@@ -167,6 +167,7 @@ class TimeLineGraph(BaseModel):
     enabled: bool
     name: str
     filter: AttributeKeyFilter
+    default: Optional[bool]
 
 class CustomStyle(BaseModel):
     color: Optional[str]
