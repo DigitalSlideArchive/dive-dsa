@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 import cherrypy
+import json
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, rawResponse
@@ -8,7 +9,11 @@ from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import RestException
 from girder.models.file import File
 from girder.models.folder import Folder
+from girder.models.user import User
+from girder.models.collection import Collection
 from girder.models.item import Item
+from bson.objectid import ObjectId
+
 
 from dive_utils import constants, setContentDisposition
 from dive_utils.models import MetadataMutable
@@ -39,6 +44,7 @@ class DatasetResource(Resource):
         self.route("GET", (":id", "media"), self.get_media)
         self.route("GET", ("export",), self.export)
         self.route("GET", (":id", "configuration"), self.get_configuration)
+        self.route("GET", (":id", "export_configuration"), self.export_configuration)
         self.route("GET", (":id", "media", ":mediaId", "download"), self.download_media)
         self.route("POST", ("validate_files",), self.validate_files)
 
@@ -176,11 +182,11 @@ class DatasetResource(Resource):
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @rawResponse
     @autoDescribeRoute(
-        Description("Get dataset configuration").modelParam(
+        Description("export dataset configuration to JSON").modelParam(
             "id", level=AccessType.READ, **DatasetModelParam
         )
     )
-    def get_configuration(self, folder):
+    def export_configuration(self, folder):
         setContentDisposition(f'{folder["name"]}.config.json')
         # A dataset configuration consists of MetadataMutable properties.
         expose = MetadataMutable.schema()['properties'].keys()
@@ -189,6 +195,89 @@ class DatasetResource(Resource):
             include=expose,
             indent=2,
         )
+
+    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @rawResponse
+    @autoDescribeRoute(
+        Description("Get dataset configuration and merge if required").modelParam(
+            "id", level=AccessType.READ, **DatasetModelParam
+        )
+    )
+    def get_configuration(self, folder):
+        user = self.getCurrentUser()
+        last = False
+        baseFolder = folder
+        configurationList = []
+        baseConfiguration = None # lowest configurationId to start merge from
+        rootConfig = baseFolder.get('meta', {}).get('configuration', False)
+        folderPairs = [[baseFolder.get('name'), str(baseFolder.get('_id'))]]
+        baseParentType = baseFolder.get('baseParentType')
+        baseParentId = baseFolder.get('baseParentId')
+        
+        if rootConfig:
+            configurationList.append(rootConfig)
+        while baseFolder:
+            parentFolderId = baseFolder.get('parentId', False)
+            parentFolder = Folder().findOne({"_id": (parentFolderId)})
+            if parentFolder:
+                folderPairs.append([parentFolder.get('name'), str(parentFolder.get('_id'))])
+                if parentFolder.get('_modelType', False) == 'folder':
+                    meta = parentFolder.get('meta', False)
+                    configuration = meta.get('configuration', False)
+                    general = configuration.get('general', False)
+                    if configuration:
+                        configurationList.append(configuration)
+                        if baseConfiguration is None:
+                            hasBaseId = configuration.get('baseConfiguration', False)
+                            if hasBaseId:
+                                baseConfiguration = hasBaseId
+                baseFolder = parentFolder
+            else:
+                baseFolder = None
+        # Now we have a list of configurations, find the lowest one with the baseConfiguration str and the merge type
+        hierarchy = folderPairs
+        folderParentId = folder.get('parentId', False)
+        folderParentType = folder.get('parentCollection', False)
+        prev = None
+        next = None
+        folderParent = Folder().load(str(folderParentId),level=AccessType.READ,user=user,force=True)
+        childFolders = list(Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]]))
+        for index, item in enumerate(childFolders):
+            if item.get('_id') == folder.get('_id'):
+                if index > 0:
+                    counter = 1
+                    while index - counter >= 0:
+                        if childFolders[index - counter].get('meta',{}).get('annotate', False) is True:
+                            prev = childFolders[index - counter]
+                            break
+                        counter -= 1
+                if index + 1 < len(childFolders):
+                    counter = 1
+                    while index + counter < len(childFolders):
+                        print(childFolders[index + counter].get('meta', {}))
+                        if childFolders[index + counter].get('meta', {}).get('annotate', False):
+                            next = childFolders[index + counter]
+                            break
+                        counter += 1
+                break
+        prevNext = {}
+        if prev:
+            prevNext['previous'] = {
+                "id": str(prev.get('_id')),
+                "name": prev.get('name'),
+            }
+        if next:
+            prevNext['next'] = {
+                "id": str(next.get('_id')),
+                "name": next.get('name'),
+            }
+
+        returnVal = {
+            "prevNext": prevNext,
+            'hierarchy': hierarchy,
+        }
+        print(returnVal)
+        return json.dumps(returnVal)
 
     @access.user
     @autoDescribeRoute(

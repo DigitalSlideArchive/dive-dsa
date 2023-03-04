@@ -177,6 +177,75 @@ class CustomStyle(BaseModel):
     showLabel: Optional[bool]
     showConfidence: Optional[bool]
 
+class GeneralSettings(BaseModel):
+    configruationMerge: Literal['merge up', 'merge down', 'disabled']
+    baseConfiguration: Optional[str]  # the folderId to use as the current write to configuration
+
+class UITopBar(BaseModel):
+    UIData: Optional[bool]
+    UIJobs: Optional[bool]
+    UINextPrev: Optional[bool]
+    UIToolBox: Optional[bool]
+    UIImport: Optional[bool]
+    UIExport: Optional[bool]
+    UIClone: Optional[bool]
+    UIKeyboardShortcuts: Optional[bool]
+    UISave: Optional[bool]
+
+class UIToolBar(BaseModel):
+    UIEditingInfo: Optional[bool]
+    UIEditingTypes: Optional[List[bool]]  # Rectangle, Polygon, Line by default
+    UIVisibility: Optional[List[bool]]  # Rectnagle, Polygon, Line by default
+    UIToolTip: Optional[bool]
+    UITrackTrails: Optional[bool]
+
+class UISideBar(BaseModel):
+    UITrackTypes: Optional[bool]
+    UIConfidenceThreshold: Optional[bool]
+    UITrackList: Optional[bool]
+    UITrackDetails: Optional[bool]
+
+class UIContextBar(BaseModel):
+    UIThresholdControls: Optional[bool]
+    UIImageEnchancements: Optional[bool]
+    UIGroupManager: Optional[bool]
+    UIAttributeDetails: Optional[bool]
+    UIRevisionHistory: Optional[bool]
+    UITrackList: Optional[bool]
+
+class UITrackDetails(BaseModel):
+    UITrackBrowser: Optional[bool]
+    UITrackMerge: Optional[bool]
+    UIConfidencePairs: Optional[bool]
+    UITrackAttributes: Optional[bool]
+    UIDetectionAttributes: Optional[bool]
+
+class UIControls(BaseModel):
+    UIPlaybackControls: Optional[bool]
+    UIAudioControls: Optional[bool]
+    UITimeDisplay: Optional[bool]
+    UIFrameDisplay: Optional[bool]
+    UIImageNameDisplay: Optional[bool]
+    UILockCamera: Optional[bool]
+
+class UITimeline(BaseModel):
+    UIDetections: Optional[bool]
+    UIEvents: Optional[bool]
+
+class UISettings(BaseModel):
+    TopBar: Optional[Union[bool, UITopBar]]
+    UIToolBar: Optional[Union[bool, UIToolBar]]
+    UISideBar: Optional[Union[bool, UISideBar]]
+    UIContextBar: Optional[Union[bool, UIContextBar]]
+    UITrackDetails: Optional[Union[bool, UITrackDetails]]
+    UIControls: Optional[Union[bool, UIControls]]
+    UITimeline: Optional[Union[bool, UITimeline]]
+
+
+class DIVEConfiguration(BaseModel):
+    general: Optional[GeneralSettings]
+    UISettings: Optional[UISettings]
+
 
 class MetadataMutable(BaseModel):
     version = (
@@ -187,6 +256,7 @@ class MetadataMutable(BaseModel):
     confidenceFilters: Optional[Dict[str, float]]
     attributes: Optional[Dict[str, Attribute]]
     timelines: Optional[Dict[str, TimeLineGraph]]
+    configuration: Optional[DIVEConfiguration]
 
     @staticmethod
     def is_dive_configuration(value: dict):
