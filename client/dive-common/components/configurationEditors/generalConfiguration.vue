@@ -2,14 +2,12 @@
 import {
   defineComponent, ref,
 } from '@vue/composition-api';
-import { TypePicker } from 'vue-media-annotator/components';
 import { useConfiguration } from 'vue-media-annotator/provides';
 
 
 export default defineComponent({
   name: 'GeneralConfiguration',
   components: {
-    TypePicker,
   },
   props: {},
   setup() {
