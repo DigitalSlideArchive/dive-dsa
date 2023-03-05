@@ -18,6 +18,7 @@ import {
   Track, Group,
   CameraStore,
   StyleManager, TrackFilterControls, GroupFilterControls,
+  ConfigurationManager,
 } from 'vue-media-annotator/index';
 import { provideAnnotator } from 'vue-media-annotator/provides';
 
@@ -103,7 +104,9 @@ export default defineComponent({
     const datasetName = ref('');
     const saveInProgress = ref(false);
     const videoUrl: Ref<Record<string, string>> = ref({});
-    const { loadDetections, loadMetadata, saveMetadata } = useApi();
+    const {
+      loadDetections, loadMetadata, saveMetadata, saveConfiguration,
+    } = useApi();
     const progress = reactive({
       // Loaded flag prevents annotator window from populating
       // with stale data from props, for example if a persistent store
@@ -143,6 +146,8 @@ export default defineComponent({
       pendingSaveCount,
       addCamera: addSaveCamera,
       removeCamera: removeSaveCamera,
+      configurationId,
+      setConfigurationId,
     } = useSave(datasetId, readonlyState);
 
     const {
@@ -162,6 +167,9 @@ export default defineComponent({
     const groupStyleManager = new StyleManager({ markChangesPending, vuetify });
 
     const cameraStore = new CameraStore({ markChangesPending });
+    // eslint-disable-next-line max-len
+    const configurationManager = new ConfigurationManager({ configurationId, setConfigurationId, saveConfiguration });
+
     // This context for removal
     const removeGroups = (id: AnnotationId) => {
       cameraStore.removeGroups(id);
@@ -491,7 +499,25 @@ export default defineComponent({
       try {
         // Close and reset sideBar
         context.resetActive();
-        const meta = await loadMetadata(datasetId.value);
+        const config = await loadMetadata(datasetId.value);
+        const meta = config.metadata;
+        if (config.diveConfig.prevNext) {
+          configurationManager.setPrevNext(config.diveConfig.prevNext);
+        }
+        if (config.diveConfig.hierarchy) {
+          configurationManager.setHierarchy(config.diveConfig.hierarchy);
+        }
+        if (config.diveConfig.metadata.configuration) {
+          configurationManager.setConfiguration(
+            config.diveConfig.metadata.configuration,
+          );
+
+          if (config.diveConfig.metadata.configuration.general?.baseConfiguration) {
+            configurationManager.setConfigurationId(
+              config.diveConfig.metadata.configuration.general.baseConfiguration,
+            );
+          }
+        }
         const defaultCameraMeta = meta.multiCamMedia?.cameras[meta.multiCamMedia.defaultDisplay];
         baseMulticamDatasetId.value = datasetId.value;
         if (defaultCameraMeta !== undefined && meta.multiCamMedia) {
@@ -533,7 +559,7 @@ export default defineComponent({
             cameraId = `${baseMulticamDatasetId.value}/${camera}`;
           }
           // eslint-disable-next-line no-await-in-loop
-          const subCameraMeta = await loadMetadata(cameraId);
+          const subCameraMeta = (await loadMetadata(cameraId)).metadata;
           datasetType.value = subCameraMeta.type as DatasetType;
 
           imageData.value[camera] = cloneDeep(subCameraMeta.imageData) as FrameImage[];
@@ -651,6 +677,7 @@ export default defineComponent({
       selectCamera,
       linkCameraTrack,
       unlinkCameraTrack,
+      setConfigurationId,
     };
 
     const useAttributeFilters = {
@@ -669,10 +696,12 @@ export default defineComponent({
       timelineDefault,
     };
 
+
     provideAnnotator(
       {
         annotatorPreferences: toRef(clientSettings, 'annotatorPreferences'),
         attributes,
+        configurationManager,
         cameraStore,
         datasetId,
         editingMode,

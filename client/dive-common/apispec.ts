@@ -6,6 +6,7 @@ import { use } from 'vue-media-annotator/provides';
 import { TrackData } from 'vue-media-annotator/track';
 import { Attribute, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
 import { CustomStyle } from 'vue-media-annotator/StyleManager';
+import { Configuration, DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 
 type DatasetType = 'image-sequence' | 'video' | 'multi';
 type MultiTrackRecord = Record<string, TrackData>;
@@ -93,6 +94,8 @@ interface MediaImportResponse {
   globPattern: string;
   mediaConvertList: string[];
 }
+
+
 /**
  * The parts of metadata a user should be able to modify.
  */
@@ -102,10 +105,12 @@ interface DatasetMetaMutable {
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
   timelines?: Readonly<Record<string, TimelineGraph>>;
+  configuration?: Configuration;
 }
-const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling'];
+const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'timelines'];
 
-interface DatasetMeta extends DatasetMetaMutable {
+
+interface DatasetMeta {
   id: Readonly<string>;
   imageData: Readonly<FrameImage[]>;
   videoUrl: Readonly<string | undefined>;
@@ -120,13 +125,17 @@ interface DatasetMeta extends DatasetMetaMutable {
 
 interface Api {
 
-  loadMetadata(datasetId: string): Promise<DatasetMeta>;
+  loadMetadata(datasetId: string): Promise<{
+    metadata: DatasetMeta & DatasetMetaMutable;
+    diveConfig: DiveConfiguration;
+}>;
   loadDetections(datasetId: string, revision?: number): Promise<AnnotationSchemaList>;
 
   saveDetections(datasetId: string, args: SaveDetectionsArgs): Promise<unknown>;
   saveMetadata(datasetId: string, metadata: DatasetMetaMutable): Promise<unknown>;
   saveAttributes(datasetId: string, args: SaveAttributeArgs): Promise<unknown>;
   saveTimelines(datasetId: string, args: SaveTimelineArgs): Promise<unknown>;
+  saveConfiguration(datasetId: string, args: DiveConfiguration['metadata']['configuration']): Promise<unknown>;
   // Non-Endpoint shared functions
   openFromDisk(datasetType: DatasetType | 'calibration' | 'annotation' | 'text' | 'zip', directory?: boolean):
     Promise<{canceled?: boolean; filePaths: string[]; fileList?: File[]; root?: string}>;

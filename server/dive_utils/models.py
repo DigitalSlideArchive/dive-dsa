@@ -177,9 +177,23 @@ class CustomStyle(BaseModel):
     showLabel: Optional[bool]
     showConfidence: Optional[bool]
 
+class ConfigurationSettings(BaseModel):
+    addTypes: Optional[bool]
+    editTypes: Optional[bool]
+    addTracks: Optional[bool]
+    editTracks: Optional[bool]
+    addTrackAttributes: Optional[bool]
+    editTrackAttributes: Optional[bool]
+    addDetectionAttributes: Optional[bool]
+    editDetectionAttributes: Optional[bool]
+
+
 class GeneralSettings(BaseModel):
-    configruationMerge: Literal['merge up', 'merge down', 'disabled']
+    configurationMerge: Optional[Literal['merge up', 'merge down', 'disabled']]
     baseConfiguration: Optional[str]  # the folderId to use as the current write to configuration
+    disableConfigurationEditing: Optional[bool]
+    configurationSettings: Optional[ConfigurationSettings]
+
 
 class UITopBar(BaseModel):
     UIData: Optional[bool]

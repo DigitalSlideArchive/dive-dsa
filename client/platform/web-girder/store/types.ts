@@ -2,6 +2,7 @@ import type { GirderModel, GirderModelType } from '@girder/components/src';
 import { inject } from '@vue/composition-api';
 import type { BrandData } from 'platform/web-girder/api';
 import type { GirderMetadata } from 'platform/web-girder/constants';
+import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 import { Store } from 'vuex';
 
 /**
@@ -20,6 +21,8 @@ export interface LocationState {
 
 export interface DatasetState {
   meta: GirderMetadata | null;
+  prevNext?: DiveConfiguration['prevNext'];
+  hierarchy?: DiveConfiguration['hierarchy'];
 }
 
 export interface BrandState {

@@ -172,9 +172,10 @@ class AttributeUpdateArgs(BaseModel):
         extra = 'forbid'
 
 
-def update_attributes(dsFolder: types.GirderModel, data: dict):
+def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):
     """Upsert or delete attributes"""
-    crud.verify_dataset(dsFolder)
+    if verify:
+        crud.verify_dataset(dsFolder)
     validated: AttributeUpdateArgs = crud.get_validated_model(AttributeUpdateArgs, **data)
     attributes_dict = fromMeta(dsFolder, 'attributes', {})
 
@@ -187,7 +188,7 @@ def update_attributes(dsFolder: types.GirderModel, data: dict):
     deleted_len = len(validated.upsert)
 
     if upserted_len or deleted_len:
-        update_metadata(dsFolder, {'attributes': attributes_dict})
+        update_metadata(dsFolder, {'attributes': attributes_dict}, verify)
 
     return {
         "updated": upserted_len,
@@ -202,9 +203,10 @@ class TimelineUpdateArgs(BaseModel):
         extra = 'forbid'
 
 
-def update_timelines(dsFolder: types.GirderModel, data: dict):
+def update_timelines(dsFolder: types.GirderModel, data: dict, verify=True):
     """Upsert or delete attributes"""
-    crud.verify_dataset(dsFolder)
+    if verify:
+        crud.verify_dataset(dsFolder)
     validated: TimelineUpdateArgs = crud.get_validated_model(TimelineUpdateArgs, **data)
     timelines_dict = fromMeta(dsFolder, 'timelines', {})
 
@@ -217,11 +219,21 @@ def update_timelines(dsFolder: types.GirderModel, data: dict):
     deleted_len = len(validated.upsert)
 
     if upserted_len or deleted_len:
-        update_metadata(dsFolder, {'timelines': timelines_dict})
+        update_metadata(dsFolder, {'timelines': timelines_dict}, verify)
 
     return {
         "updated": upserted_len,
         "deleted": deleted_len,
+    }
+
+
+def update_configuration(dsFolder: types.GirderModel, data: dict, verify=True):
+    if verify:
+        crud.verify_dataset(dsFolder)
+    configuration = fromMeta(dsFolder, 'configuration', {})
+    update_metadata(dsFolder, {'configuration': data}, verify)
+    return {
+        'updated': data
     }
 
 def export_datasets_zipstream(

@@ -11,6 +11,7 @@ import SidebarContext from 'dive-common/components/SidebarContext.vue';
 import context from 'dive-common/store/context';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue';
 import JobsTab from './JobsTab.vue';
 import Export from './Export.vue';
 import Clone from './Clone.vue';
@@ -51,6 +52,7 @@ export default defineComponent({
     SidebarContext,
     ViewerAlert,
     DIVETools,
+    ConfigurationEditor,
     ...context.getComponents(),
   },
 
@@ -202,6 +204,10 @@ export default defineComponent({
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-id="id"
         :revision="revisionNum"
+      />
+      <ConfigurationEditor
+        :button-options="buttonOptions"
+        :menu-options="menuOptions"
       />
     </template>
     <template #right-sidebar>

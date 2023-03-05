@@ -6,8 +6,10 @@
 
 <script lang="ts">
 import { defineComponent } from '@vue/composition-api';
-import { provideApi } from 'dive-common/apispec';
-import type { GirderMetadata } from './constants';
+import {
+  DatasetMeta, DatasetMetaMutable, provideApi,
+} from 'dive-common/apispec';
+import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 import {
   saveMetadata,
   saveAttributes,
@@ -16,6 +18,7 @@ import {
   saveDetections,
   unwrap,
   saveTimelines,
+  saveConfiguration,
 } from './api';
 import { openFromDisk } from './utils';
 
@@ -23,7 +26,10 @@ export default defineComponent({
   name: 'App',
   components: {},
   setup(_, { root }) {
-    async function loadMetadata(datasetId: string): Promise<GirderMetadata> {
+    async function loadMetadata(datasetId: string): Promise<{
+      metadata: DatasetMeta & DatasetMetaMutable;
+    diveConfig: DiveConfiguration;
+    }> {
       return root.$store.dispatch('Dataset/load', datasetId);
     }
 
@@ -35,6 +41,7 @@ export default defineComponent({
       saveMetadata: unwrap(saveMetadata),
       saveAttributes: unwrap(saveAttributes),
       saveTimelines: unwrap(saveTimelines),
+      saveConfiguration: unwrap(saveConfiguration),
       loadMetadata,
       openFromDisk,
       importAnnotationFile,

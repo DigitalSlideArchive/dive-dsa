@@ -36,8 +36,13 @@ function _updatePendingChangeMap<K, V>(
 export default function useSave(
   datasetId: Ref<Readonly<string>>,
   readonlyMode: Ref<Readonly<boolean>>,
+  updatedConfigurationId?: string,
 ) {
   const pendingSaveCount = ref(0);
+  const configurationId = ref(datasetId.value);
+  if (updatedConfigurationId) {
+    configurationId.value = updatedConfigurationId;
+  }
   const pendingChangeMaps: Record<string, ChangeMap> = {
     singleCam: {
       upsert: new Map<TrackId, Track>(),
@@ -97,7 +102,7 @@ export default function useSave(
         }
       }
       if (pendingChangeMap.attributeUpsert.size || pendingChangeMap.attributeDelete.size) {
-        promiseList.push(saveAttributes(datasetId.value, {
+        promiseList.push(saveAttributes(configurationId.value, {
           upsert: Array.from(pendingChangeMap.attributeUpsert).map((pair) => pair[1]),
           delete: Array.from(pendingChangeMap.attributeDelete),
         }).then(() => {
@@ -106,7 +111,7 @@ export default function useSave(
         }));
       }
       if (pendingChangeMap.timelineUpsert.size || pendingChangeMap.timelineDelete.size) {
-        promiseList.push(saveTimelines(datasetId.value, {
+        promiseList.push(saveTimelines(configurationId.value, {
           upsert: Array.from(pendingChangeMap.timelineUpsert).map((pair) => pair[1]),
           delete: Array.from(pendingChangeMap.timelineDelete),
         }).then(() => {
@@ -117,7 +122,7 @@ export default function useSave(
     });
     // Final save into the multi-cam metadata if multiple cameras exists
     if (globalMetadataUpdated && datasetMeta && pendingChangeMaps) {
-      promiseList.push(saveMetadata(datasetId.value, datasetMeta));
+      promiseList.push(saveMetadata(configurationId.value, datasetMeta));
     }
     await Promise.all(promiseList);
     pendingSaveCount.value = 0;
@@ -227,12 +232,17 @@ export default function useSave(
       delete pendingChangeMaps[cameraName];
     }
   }
+  const setConfigurationId = (id: string) => {
+    configurationId.value = id;
+  };
 
   return {
     save,
     markChangesPending,
     discardChanges,
     pendingSaveCount: readonly(pendingSaveCount),
+    configurationId: readonly(configurationId),
+    setConfigurationId,
     addCamera,
     removeCamera,
   };
