@@ -247,7 +247,7 @@ class UITimeline(BaseModel):
     UIEvents: Optional[bool]
 
 class UISettings(BaseModel):
-    TopBar: Optional[Union[bool, UITopBar]]
+    UITopBar: Optional[Union[bool, UITopBar]]
     UIToolBar: Optional[Union[bool, UIToolBar]]
     UISideBar: Optional[Union[bool, UISideBar]]
     UIContextBar: Optional[Union[bool, UIContextBar]]
