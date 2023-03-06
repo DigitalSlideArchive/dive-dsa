@@ -11,17 +11,15 @@ export default defineComponent({
   },
   props: {},
   setup() {
-    const {
-      setConfigurationId, hierarchy, configuration, saveConfiguration,
-    } = useConfiguration();
+    const configMan = useConfiguration();
     const generalDialog = ref(false);
     const baseConfiguration = ref(
-        configuration.value?.general?.baseConfiguration
-         || (hierarchy.value?.length ? hierarchy.value[0].id : null),
+        configMan.configuration.value?.general?.baseConfiguration
+         || (configMan.hierarchy.value?.length ? configMan.hierarchy.value[0].id : null),
     );
-    const mergeType = ref(configuration.value?.general?.configurationMerge || 'disabled');
+    const mergeType = ref(configMan.configuration.value?.general?.configurationMerge || 'disabled');
     const disableConfigurationEditing = ref(
-        configuration.value?.general?.disableConfigurationEditing,
+        configMan.configuration.value?.general?.disableConfigurationEditing,
     );
     const mergeSelection = ref(['merge up', 'merge down', 'disabled']);
     const launchEditor = () => {
@@ -31,18 +29,18 @@ export default defineComponent({
     const saveChanges = () => {
       // We need to take the new values and set them on the 'general' settings
       if (baseConfiguration.value) {
-        setConfigurationId(baseConfiguration.value);
+        configMan.setConfigurationId(baseConfiguration.value);
         const general = {
           baseConfiguration: baseConfiguration.value,
           configurationMerge: mergeType.value,
           disableConfigurationEditing: disableConfigurationEditing.value,
         };
-        saveConfiguration(baseConfiguration.value, { general });
+        configMan.saveConfiguration(baseConfiguration.value, { general });
       }
     };
     return {
       generalDialog,
-      hierarchy,
+      hierarchy: configMan.hierarchy,
       baseConfiguration,
       disableConfigurationEditing,
       mergeType,
@@ -55,7 +53,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <div>
+  <div class="ma-2">
     <v-btn @click="launchEditor">
       <span>
         General

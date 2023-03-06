@@ -2,12 +2,14 @@
 import { defineComponent, ref } from '@vue/composition-api';
 import ConfigurationSettings from './configurationEditors/configurationSettings.vue';
 import GeneralConfiguration from './configurationEditors/generalConfiguration.vue';
+import UiSettings from './configurationEditors/uiSettings.vue';
 
 export default defineComponent({
   name: 'ConfigurationEditor',
   components: {
     GeneralConfiguration,
     ConfigurationSettings,
+    UiSettings,
   },
   props: {
     buttonOptions: {
@@ -78,6 +80,9 @@ export default defineComponent({
           </v-row>
           <v-row>
             <configuration-settings />
+          </v-row>
+          <v-row>
+            <ui-settings />
           </v-row>
         </v-card-text>
       </v-card>

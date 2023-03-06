@@ -45,9 +45,15 @@ import clientSettingsSetup, { clientSettings } from 'dive-common/store/settings'
 import { useApi, FrameImage, DatasetType } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import ImageEnhancementsVue from 'vue-media-annotator/components/ImageEnhancements.vue';
+import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
 import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
+import PrevNext from './PrevNext.vue';
+import AttributesSideBarVue from './AttributesSideBar.vue';
+import TypeThresholdVue from './TypeThreshold.vue';
 
 export interface ImageDataItem {
   url: string;
@@ -67,6 +73,7 @@ export default defineComponent({
     UserGuideButton,
     EditorMenu,
     AttributeShortcutToggle,
+    PrevNext,
   },
 
   // TODO: remove this in vue 3
@@ -518,6 +525,8 @@ export default defineComponent({
             );
           }
         }
+        const flatUIMap = configurationManager.getFlatUISettingMap();
+        ctx.emit('get-ui-settings', flatUIMap);
         const defaultCameraMeta = meta.multiCamMedia?.cameras[meta.multiCamMedia.defaultDisplay];
         baseMulticamDatasetId.value = datasetId.value;
         if (defaultCameraMeta !== undefined && meta.multiCamMedia) {
@@ -621,6 +630,37 @@ export default defineComponent({
             component: GroupSidebarVue,
           });
         }
+        if (!configurationManager.getUISetting('UIGroupManager')) {
+          context.unregister({
+            description: 'Group Manager',
+            component: GroupSidebarVue,
+          });
+        }
+        if (!configurationManager.getUISetting('UIImageEnhancements')) {
+          context.unregister({
+            description: 'Image Enhancmentsr',
+            component: ImageEnhancementsVue,
+          });
+        }
+        if (!configurationManager.getUISetting('UIAttributeDetails')) {
+          context.unregister({
+            description: 'Attrbute Details',
+            component: AttributesSideBarVue,
+          });
+        }
+        if (!configurationManager.getUISetting('UIThresholdControls')) {
+          context.unregister({
+            description: 'Threshold Controls',
+            component: TypeThresholdVue,
+          });
+        }
+        if (!configurationManager.getUISetting('UIRevisionHistory')) {
+          context.unregister({
+            description: 'Revision History',
+            component: RevisionHistoryVue,
+          });
+        }
+        context.resetActive();
       } catch (err) {
         progress.loaded = false;
         console.error(err);
@@ -632,7 +672,6 @@ export default defineComponent({
       }
     };
     loadData();
-
     const reloadAnnotations = async () => {
       mediaControllerClear();
       cameraStore.clearAll();
@@ -728,6 +767,7 @@ export default defineComponent({
 
     const { visible } = usePrompt();
 
+    const getUISetting = (key: UISettingsKey) => configurationManager.getUISetting(key);
     return {
       /* props */
       aggregateController,
@@ -783,6 +823,7 @@ export default defineComponent({
       warnBrowserExit,
       reloadAnnotations,
       visible,
+      getUISetting,
     };
   },
 });
@@ -792,6 +833,10 @@ export default defineComponent({
   <v-main class="viewer">
     <v-app-bar app>
       <slot name="title" />
+      <prev-next
+        v-if="getUISetting('UINextPrev')"
+        class="pr-2"
+      />
       <span
         class="title pl-3 flex-row"
         style="white-space:nowrap;overflow:hidden;text-overflow: ellipsis;"
@@ -826,11 +871,13 @@ export default defineComponent({
       <v-spacer />
       <template #extension>
         <EditorMenu
+          v-if="getUISetting('UIToolBar')"
           v-bind="{
             editingMode, visibleModes, editingTrack, recipes,
             multiSelectActive, editingDetails,
             groupEditActive: editingGroupId !== null,
           }"
+          :get-u-i-setting="getUISetting"
           :tail-settings.sync="clientSettings.annotatorPreferences.trackTails"
           @set-annotation-state="handler.setAnnotationState"
           @exit-edit="handler.trackAbort"
@@ -876,11 +923,13 @@ export default defineComponent({
       <slot name="title-right" />
       <user-guide-button annotating />
       <attribute-shortcut-toggle
+        v-if="getUISetting('UIKeyboardShortcuts')"
         class="pr-1"
         :hotkeys-disabled="visible() || readonlyState"
       />
 
       <v-tooltip
+        v-if="getUISetting('UISave')"
         bottom
         :disabled="!readonlyState"
       >
@@ -916,6 +965,7 @@ export default defineComponent({
       style="min-width: 700px;"
     >
       <sidebar
+        v-if="getUISetting('UISideBar')"
         :enable-slot="context.state.active !== 'TypeThreshold'"
         @import-types="trackFilters.importTypes($event)"
         @track-seek="aggregateController.seek($event)"
@@ -923,11 +973,13 @@ export default defineComponent({
         <template v-if="context.state.active !== 'TypeThreshold'">
           <v-divider />
           <ConfidenceFilter
+            v-if="getUISetting('UIConfidenceThreshold')"
             class="ma-2 mb-0"
             :confidence.sync="confidenceFilters.default"
             @end="saveThreshold"
           >
             <a
+              v-if="getUISetting('UIThresholdControls')"
               style="text-decoration: underline; color: white;"
               @click="context.toggle('TypeThreshold')"
             >

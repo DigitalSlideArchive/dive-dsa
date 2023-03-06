@@ -10,7 +10,7 @@ import GroupStore from './GroupStore';
 import TrackStore from './TrackStore';
 
 /**
- * CameraStore is a warapper for holding and collating tracks from multiple cameras.
+ * CameraStore is a wrapper for holding and collating tracks from multiple cameras.
  * If a singleCamera is in operation it uses the root 'singleCam' with a single store.
  * There are helper functions for getting tracks if they exist in any camera, specific
  * cameras as well as merging tracks together to perform operations on all of them.

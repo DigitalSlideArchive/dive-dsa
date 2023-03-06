@@ -74,10 +74,10 @@ export default defineComponent({
 </script>
 
 <template>
-  <div>
+  <div class="ma-2">
     <v-btn @click="launchEditor">
       <span>
-        General
+        Saving/Editing
         <br>
       </span>
       <v-icon

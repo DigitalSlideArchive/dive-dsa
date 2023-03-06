@@ -203,6 +203,7 @@ class UITopBar(BaseModel):
     UIImport: Optional[bool]
     UIExport: Optional[bool]
     UIClone: Optional[bool]
+    UIConfiguration: Optional[bool]
     UIKeyboardShortcuts: Optional[bool]
     UISave: Optional[bool]
 
@@ -210,7 +211,6 @@ class UIToolBar(BaseModel):
     UIEditingInfo: Optional[bool]
     UIEditingTypes: Optional[List[bool]]  # Rectangle, Polygon, Line by default
     UIVisibility: Optional[List[bool]]  # Rectnagle, Polygon, Line by default
-    UIToolTip: Optional[bool]
     UITrackTrails: Optional[bool]
 
 class UISideBar(BaseModel):
@@ -221,11 +221,10 @@ class UISideBar(BaseModel):
 
 class UIContextBar(BaseModel):
     UIThresholdControls: Optional[bool]
-    UIImageEnchancements: Optional[bool]
+    UIImageEnhancements: Optional[bool]
     UIGroupManager: Optional[bool]
     UIAttributeDetails: Optional[bool]
     UIRevisionHistory: Optional[bool]
-    UITrackList: Optional[bool]
 
 class UITrackDetails(BaseModel):
     UITrackBrowser: Optional[bool]

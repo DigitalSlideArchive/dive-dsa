@@ -1,4 +1,5 @@
 import { ref, Ref } from '@vue/composition-api';
+import { isArray } from 'lodash';
 
 export interface DiveConfiguration {
   prevNext?: {
@@ -25,64 +26,64 @@ interface ConfigurationSettings {
 }
 
 interface UITopBar {
-    UIData? :  boolean;
-    UIJobs? :  boolean;
-    UINextPrev? :  boolean;
-    UIToolBox? :  boolean;
-    UIImport? :  boolean;
-    UIExport? :  boolean;
-    UIClone? :  boolean;
-    UIKeyboardShortcuts? :  boolean;
-    UISave? :  boolean;
+    UIData? : boolean;
+    UIJobs? : boolean;
+    UINextPrev? : boolean;
+    UIToolBox? : boolean;
+    UIImport? : boolean;
+    UIExport? : boolean;
+    UIClone? : boolean;
+    UIConfiguration? : boolean;
+    UIKeyboardShortcuts? : boolean;
+    UISave? : boolean;
 }
 
 interface UIToolBar {
-    UIEditingInfo? :  boolean;
-    UIEditingTypes? :  boolean[];  // Rectangle, Polygon, Line by default
-    UIVisibility? :  boolean[];  // Rectnagle, Polygon, Line by default
-    UIToolTip? :  boolean;
-    UITrackTrails? :  boolean;
+    UIEditingInfo? : boolean;
+    UIEditingTypes? : boolean[]; // Rectangle, Polygon, Line by default
+    UIVisibility? : boolean[]; // Rectnagle, Polygon, Line by default
+    UITrackTrails? : boolean;
 }
 
 interface UISideBar {
-    UITrackTypes? :  boolean;
-    UIConfidenceThreshold? :  boolean;
-    UITrackList? :  boolean;
-    UITrackDetails? :  boolean;
+    UITrackTypes? : boolean;
+    UIConfidenceThreshold? : boolean;
+    UITrackList? : boolean;
+    UITrackDetails? : boolean;
 }
 
 interface UIContextBar {
-    UIThresholdControls? :  boolean;
-    UIImageEnchancements? :  boolean;
-    UIGroupManager? :  boolean;
-    UIAttributeDetails? :  boolean;
-    UIRevisionHistory? :  boolean;
-    UITrackList? :  boolean;
+    UIThresholdControls? : boolean;
+    UIImageEnhancements? : boolean;
+    UIGroupManager? : boolean;
+    UIAttributeDetails? : boolean;
+    UIRevisionHistory? : boolean;
+    UITrackList? : boolean;
 }
 
 interface UITrackDetails {
-    UITrackBrowser? :  boolean;
-    UITrackMerge? :  boolean;
-    UIConfidencePairs? :  boolean;
-    UITrackAttributes? :  boolean;
-    UIDetectionAttributes? :  boolean;
+    UITrackBrowser? : boolean;
+    UITrackMerge? : boolean;
+    UIConfidencePairs? : boolean;
+    UITrackAttributes? : boolean;
+    UIDetectionAttributes? : boolean;
 }
 
 interface UIControls {
-    UIPlaybackControls? :  boolean;
-    UIAudioControls? :  boolean;
-    UITimeDisplay? :  boolean;
-    UIFrameDisplay? :  boolean;
-    UIImageNameDisplay? :  boolean;
-    UILockCamera? :  boolean;
+    UIPlaybackControls? : boolean;
+    UIAudioControls? : boolean;
+    UITimeDisplay? : boolean;
+    UIFrameDisplay? : boolean;
+    UIImageNameDisplay? : boolean;
+    UILockCamera? : boolean;
 }
 
 interface UITimeline {
-    UIDetections? :  boolean;
-    UIEvents? :  boolean;
+    UIDetections? : boolean;
+    UIEvents? : boolean;
 }
 
-interface UISettings {
+export interface UISettings {
     UITopBar?: boolean | UITopBar;
     UIToolBar?: boolean | UIToolBar;
     UISideBar?: boolean | UISideBar;
@@ -92,6 +93,11 @@ interface UISettings {
     UITimeline?: boolean | UITimeline;
 
 }
+export type UISettingsKey = keyof UISettings | keyof UITopBar | keyof UIToolBar
+| keyof UISideBar | keyof UIContextBar | keyof UITrackDetails | keyof UIControls | keyof UITimeline;
+
+type UIValue = UITopBar | UIToolBar
+| UISideBar | UIContextBar | UITrackDetails | UIControls | UITimeline;
 
 export interface Configuration {
   general?: {
@@ -100,7 +106,30 @@ export interface Configuration {
     disableConfigurationEditing?: boolean;
     configurationSettings?: ConfigurationSettings;
   };
-  uiSettings?: UISettings;
+  UISettings?: UISettings;
+}
+
+function flatMapGenerator(data: any, rootKey = '') {
+  let flatMap: Record<string, any> = {};
+  Object.entries(data).forEach(([key, subData]) => {
+    if (typeof (subData) === 'object') {
+      if (rootKey === '') {
+        flatMap[key] = flatMapGenerator(subData);
+      } else {
+        flatMap = { ...flatMap, ...flatMapGenerator(subData, key) };
+      }
+    } else if (isArray(subData)) {
+      flatMap[key] = subData;
+    } else {
+      flatMap[key] = subData;
+    }
+  });
+  if (rootKey !== '') {
+    if (typeof (data[rootKey]) === 'object') {
+      flatMap[rootKey] = true;
+    }
+  }
+  return flatMap;
 }
 
 export default class ConfigurationManager {
@@ -149,26 +178,83 @@ export default class ConfigurationManager {
       this.configuration.value = data;
     }
   }
+
   getConfigurationSetting(key: keyof ConfigurationSettings) {
-    const configurationSettings = this.configuration.value.general.configurationSettings;
-      return (configurationSettings && configurationSettings[key]) 
+    if (this.configuration.value?.general?.configurationSettings) {
+      const { configurationSettings } = this.configuration.value?.general;
+      return (configurationSettings && configurationSettings[key]);
+    }
+    return true;
   }
 
-  getUISetting(key:string) {
-    const splits = key.split('.');
-    const exists = false;
-    const uiSettings = this.configuration.value.uiSettings;
-    let base = uiSettings;
-    for (let i = 0; i < splits.length; i += 1) {
-      if (uiSettings[splits[i]] !== undefined) {
-          if (typeof uiSettings[splits[i]] === 'object') {
-            base = uiSettings[splits[i]]
+  getFlatUISettingMap(addRoots = false) {
+    if (this.configuration.value?.UISettings) {
+      const { UISettings } = this.configuration.value;
+      if (UISettings) {
+        let flatIndex: Record<UISettingsKey | string,
+        boolean | boolean[] | undefined | UIValue> = {};
+        Object.entries(UISettings).forEach(([subKey, val]) => {
+          if (typeof val === 'object') {
+            flatIndex = { ...flatIndex, ...flatMapGenerator(val) };
+            if (addRoots) {
+              flatIndex[subKey] = true;
+            }
+          } else if (isArray(val)) {
+            flatIndex[subKey as UISettingsKey] = val;
           } else {
-            return uiSettings[splits[i]]
+            flatIndex[subKey as UISettingsKey] = val;
           }
+        });
+        return flatIndex;
+      }
+    }
+    return {};
+  }
+
+  getUISetting(key: UISettingsKey) {
+    if (this.configuration.value?.UISettings) {
+      const val = this.getFlatUISettingMap(true)[key];
+      if (val !== undefined) {
+        return val;
       }
     }
     return true;
   }
 
+  getUISettingValue(key: UISettingsKey) {
+    if (this.configuration.value?.UISettings) {
+      const { UISettings } = this.configuration.value;
+      if (UISettings) {
+        const flatIndex: Record<UISettingsKey | string, boolean | boolean[]
+        | UIValue | undefined> = {};
+        Object.entries(UISettings).forEach(([subKey, val]) => {
+          if (typeof val === 'object') {
+            flatIndex[subKey as UISettingsKey] = val;
+          } else {
+            flatIndex[subKey as UISettingsKey] = val;
+          }
+        });
+        if (flatIndex[key] !== undefined) {
+          return flatIndex[key];
+        }
+      }
+    }
+    return true;
+  }
+
+
+  setUISettings(key: keyof UISettings, val: UIValue) {
+    if (this.configuration.value?.UISettings) {
+      const { UISettings } = this.configuration.value;
+      if (UISettings) {
+        UISettings[key] = val;
+      }
+    }
+  }
+
+  setRootUISettings(val: UISettings) {
+    if (this.configuration.value?.UISettings) {
+      this.configuration.value.UISettings = val;
+    }
+  }
 }

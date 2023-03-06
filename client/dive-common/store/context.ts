@@ -60,7 +60,7 @@ function unregister(item: ComponentMapItem) {
 }
 
 function resetActive() {
-  state.last = 'TypeThreshold';
+  state.last = Object.values(componentMap)[0].component.name;
   state.active = null;
 }
 

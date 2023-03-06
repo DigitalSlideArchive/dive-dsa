@@ -9,6 +9,7 @@ import {
 import { FilterList, TrackList } from 'vue-media-annotator/components';
 import {
   useCameraStore,
+  useConfiguration,
   useHandler, useReadOnlyMode, useTrackFilters, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 
@@ -18,6 +19,7 @@ import TrackSettingsPanel from 'dive-common/components/TrackSettingsPanel.vue';
 import TypeSettingsPanel from 'dive-common/components/TypeSettingsPanel.vue';
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
   props: {
@@ -41,6 +43,7 @@ export default defineComponent({
   },
 
   setup() {
+    const configMan = useConfiguration();
     const allTypesRef = useTrackFilters().allTypes;
     const readOnlyMode = useReadOnlyMode();
     const cameraStore = useCameraStore();
@@ -84,6 +87,8 @@ export default defineComponent({
       return trap;
     });
 
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+
     return {
       /* data */
       data,
@@ -100,6 +105,7 @@ export default defineComponent({
       /* methods */
       doToggleMerge,
       swapTabs,
+      getUISetting,
     };
   },
 });
@@ -112,11 +118,12 @@ export default defineComponent({
   >
     <template #default="{ topHeight, bottomHeight }">
       <v-btn
+        v-if="getUISetting('UITrackDetails')"
         v-mousetrap="mouseTrap"
         small
         icon
         title="press `a`"
-        class="swap-button"
+        class="swap-button pb-3"
         @click="swapTabs"
       >
         <v-icon>mdi-swap-horizontal</v-icon>
@@ -128,6 +135,7 @@ export default defineComponent({
           class="wrapper d-flex flex-column"
         >
           <FilterList
+            v-if="getUISetting('UITrackTypes')"
             :show-empty-types="typeSettings.showEmptyTypes"
             :height="topHeight"
             :width="width"
@@ -145,6 +153,7 @@ export default defineComponent({
           <slot v-if="enableSlot" />
           <v-divider />
           <TrackList
+            v-if="getUISetting('UITrackList')"
             class="flex-grow-0 flex-shrink-0"
             :new-track-mode="trackSettings.newTrackSettings.mode"
             :new-track-type="trackSettings.newTrackSettings.type"

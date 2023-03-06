@@ -1,0 +1,75 @@
+<script lang="ts">
+import {
+  defineComponent, ref, watch,
+} from '@vue/composition-api';
+import { useConfiguration } from 'vue-media-annotator/provides';
+
+
+export default defineComponent({
+  name: 'UISideBar',
+  components: {
+  },
+  setup() {
+    const configMan = useConfiguration();
+    const UITrackTypes = ref(configMan.getUISetting('UITrackTypes') as boolean);
+    const UIConfidenceThreshold = ref(configMan.getUISetting('UIConfidenceThreshold') as boolean);
+    const UITrackList = ref(configMan.getUISetting('UITrackList') as boolean);
+    const UITrackDetails = ref(configMan.getUISetting('UITrackDetails') as boolean);
+
+    watch([UITrackTypes, UIConfidenceThreshold, UITrackList, UITrackDetails], () => {
+      const data = {
+        UITrackTypes: UITrackTypes.value ? undefined : false,
+        UIConfidenceThreshold: UIConfidenceThreshold.value ? undefined : false,
+        UITrackList: UITrackList.value ? undefined : false,
+        UITrackDetails: UITrackDetails.value ? undefined : false,
+
+      };
+      configMan.setUISettings('UISideBar', data);
+    });
+    return {
+      UITrackTypes,
+      UIConfidenceThreshold,
+      UITrackList,
+      UITrackDetails,
+    };
+  },
+
+});
+</script>
+
+<template>
+  <v-card>
+    <v-card-title>Side Bar Settings</v-card-title>
+    <v-card-text>
+      <div>
+        <v-row dense>
+          <v-switch
+            v-model="UITrackTypes"
+            label="Track Types"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UIConfidenceThreshold"
+            label="Confidence Threshold"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UITrackList"
+            label="Track List"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UITrackDetails"
+            label="Track Details (Attributes)"
+          />
+        </v-row>
+      </div>
+    </v-card-text>
+  </v-card>
+</template>
+
+<style lang="scss">
+</style>
