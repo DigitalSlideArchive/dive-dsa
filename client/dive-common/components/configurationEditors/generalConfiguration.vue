@@ -36,7 +36,17 @@ export default defineComponent({
           disableConfigurationEditing: disableConfigurationEditing.value,
         };
         configMan.saveConfiguration(baseConfiguration.value, { general });
+        generalDialog.value = false;
       }
+    };
+
+    const transferProgress = ref(false);
+    const transferConfig = () => {
+      transferProgress.value = true;
+      if (configMan.hierarchy.value?.length && baseConfiguration.value) {
+        configMan.transferConfiguration(configMan.hierarchy.value[0].id, baseConfiguration.value);
+      }
+      transferProgress.value = false;
     };
     return {
       generalDialog,
@@ -47,6 +57,8 @@ export default defineComponent({
       mergeSelection,
       launchEditor,
       saveChanges,
+      transferConfig,
+      transferProgress,
     };
   },
 });
@@ -101,7 +113,7 @@ export default defineComponent({
               label="Choose Folder"
             />
           </v-row>
-          <v-row class="pb-4">
+          <v-row v-if="false" class="pb-4">
             <p>
               The Merge property specified how merging is handled when multiple
               configurations are found in the folder hierarchy
@@ -112,7 +124,7 @@ export default defineComponent({
               label="Merge Property"
             />
           </v-row>
-          <v-row class="pb-4">
+          <v-row v-if="false" class="pb-4">
             <p>
               To prevent user's other than the
               owner of the target folder from modifying the configuration settings.
@@ -122,6 +134,14 @@ export default defineComponent({
               label="Disable Configuration Editing"
             />
           </v-row>
+          <v-btn
+            :disabled="
+              baseConfiguration === 'null' || (hierarchy && hierarchy[0].id === baseConfiguration)"
+            color="warning"
+            @click="transferConfig"
+          >
+            Transfer <v-icon>{{ transferProgress ? 'mdi-spin mdi-sync' : '' }}</v-icon>
+          </v-btn>
         </v-card-text>
         <v-card-actions>
           <v-spacer />

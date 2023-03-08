@@ -1,3 +1,4 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
   computed, defineComponent, ref, Ref,
@@ -103,6 +104,7 @@ export default defineComponent({
       // add Filter
       let newFilter: AttributeFilter = {
         dataType: 'number',
+        belongsTo: currentTab.value,
         filterData: {
           type: 'range',
           range: [0, 1.0],
@@ -114,6 +116,7 @@ export default defineComponent({
       };
       if (filterType === 'text') {
         newFilter = {
+          belongsTo: currentTab.value,
           dataType: 'text',
           filterData: {
             value: ['test'],
@@ -125,6 +128,7 @@ export default defineComponent({
       }
       if (filterType === 'key') {
         newFilter = {
+          belongsTo: currentTab.value,
           dataType: 'key',
           filterData: {
             type: 'key',
@@ -147,7 +151,7 @@ export default defineComponent({
       }
     };
     const modifyFilter = (index: number, tab: 'track' | 'detection', filter: AttributeFilter['filterData']) => {
-      const list = attributeFilters.value[tab];
+      const list = attributeFilters.value.filter((item) => item.belongsTo === tab);
       if (index < list.length) {
         const item: AttributeFilter = list[index];
         item.filterData = filter;
@@ -161,7 +165,7 @@ export default defineComponent({
       }
     };
     const updateValue = (index: number, tab: 'track' | 'detection', value: number | string[]) => {
-      const list = attributeFilters.value[tab];
+      const list = attributeFilters.value.filter((item) => item.belongsTo === tab);
       if (index < list.length) {
         const item: AttributeFilter = list[index];
         if (typeof (value) === 'number') {
@@ -173,7 +177,7 @@ export default defineComponent({
       }
     };
     const updateActive = (index: number, tab: 'track' | 'detection', active: boolean) => {
-      const list = attributeFilters.value[tab];
+      const list = attributeFilters.value.filter((item) => item.belongsTo === tab);
       if (index < list.length) {
         const item: AttributeFilter = list[index];
         item.filterData.active = active;
@@ -181,8 +185,11 @@ export default defineComponent({
       }
     };
 
+    const currentFilters = computed(() => (attributeFilters.value.filter((item) => item.belongsTo === currentTab.value)));
+
     return {
       currentTab,
+      currentFilters,
       virtualHeight,
       readOnlyMode,
       attributeFilters,
@@ -239,7 +246,7 @@ export default defineComponent({
         </div>
 
         <div
-          v-for="(filter, index) in attributeFilters[currentTab]"
+          v-for="(filter, index) in currentFilters"
           :key="`track_${index}`"
           no-gutters
         >

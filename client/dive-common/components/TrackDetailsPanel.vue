@@ -32,6 +32,7 @@ import AttributeInput from 'dive-common/components/AttributeInput.vue';
 import AttributeEditor from 'dive-common/components/AttributeEditor.vue';
 import AttributeSubsection from 'dive-common/components/AttributesSubsection.vue';
 import ConfidenceSubsection from 'dive-common/components/ConfidenceSubsection.vue';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
   components: {

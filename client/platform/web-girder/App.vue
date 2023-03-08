@@ -18,7 +18,9 @@ import {
   saveDetections,
   unwrap,
   saveTimelines,
+  saveFilters,
   saveConfiguration,
+  transferConfiguration,
 } from './api';
 import { openFromDisk } from './utils';
 
@@ -41,7 +43,9 @@ export default defineComponent({
       saveMetadata: unwrap(saveMetadata),
       saveAttributes: unwrap(saveAttributes),
       saveTimelines: unwrap(saveTimelines),
+      saveFilters: unwrap(saveFilters),
       saveConfiguration: unwrap(saveConfiguration),
+      transferConfiguration: unwrap(transferConfiguration),
       loadMetadata,
       openFromDisk,
       importAnnotationFile,

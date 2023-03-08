@@ -1,7 +1,7 @@
 import type { GirderModel } from '@girder/components/src';
 
 import {
-  DatasetMetaMutable, FrameImage, SaveTimelineArgs, SaveAttributeArgs,
+  DatasetMetaMutable, FrameImage, SaveTimelineArgs, SaveAttributeArgs, SaveFilterArgs,
 } from 'dive-common/apispec';
 import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import girderRest from 'platform/web-girder/plugins/girder';
@@ -131,8 +131,15 @@ function saveTimelines(folderId: string, args: SaveTimelineArgs) {
   return girderRest.patch(`/dive_dataset/${folderId}/timelines`, args);
 }
 
+function saveFilters(folderId: string, args: SaveFilterArgs) {
+  return girderRest.patch(`/dive_dataset/${folderId}/filters`, args);
+}
+
 function saveConfiguration(folderId: string, config: DiveConfiguration['metadata']['configuration']) {
   return girderRest.patch(`/dive_dataset/${folderId}/configuration`, config);
+}
+function transferConfiguration(source: string, dest: string) {
+  return girderRest.post(`/dive_dataset/${source}/transfer_config/${dest}`);
 }
 
 function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
@@ -162,7 +169,9 @@ export {
   makeViameFolder,
   saveAttributes,
   saveTimelines,
+  saveFilters,
   saveConfiguration,
   saveMetadata,
   validateUploadGroup,
+  transferConfiguration,
 };

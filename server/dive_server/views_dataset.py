@@ -37,7 +37,7 @@ def config_merge(a, b, path= None):
             elif a[key] == b[key]:
                 pass # same leaf value
             else:
-                raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+                a[key] = b[key]
         else:
             a[key] = b[key]
     return a
@@ -63,6 +63,7 @@ class DatasetResource(Resource):
         self.route("GET", (":id", "export_configuration"), self.export_configuration)
         self.route("GET", (":id", "media", ":mediaId", "download"), self.download_media)
         self.route("POST", ("validate_files",), self.validate_files)
+        self.route("POST", (":id", "transfer_config", ":dest",), self.transfer_config)
 
         self.route("PATCH", (":id",), self.patch_metadata)
 
@@ -70,6 +71,7 @@ class DatasetResource(Resource):
         self.route("PATCH", (":id", "attributes"), self.patch_attributes)
         self.route("PATCH", (":id", "timelines"), self.patch_timelines)
         self.route("PATCH", (":id", "configuration"), self.patch_configuration)
+        self.route("PATCH", (":id", "filters"), self.patch_filters)
 
     @access.user
     @autoDescribeRoute(
@@ -225,7 +227,7 @@ class DatasetResource(Resource):
         last = False
         baseFolder = folder
         configurationList = []
-        baseConfiguration = None # lowest configurationId to start merge from
+        baseConfigurationId = None # lowest configurationId to start merge from
         rootConfig = baseFolder.get('meta', {}).get('configuration', False)
         folderPairs = [
             {
@@ -253,6 +255,7 @@ class DatasetResource(Resource):
                 {
                     'name': parentFolder.get('name'),
                     'id': str(parentFolder.get('_id')),
+                    'owner': parentFolder.get('creatorId'),
                     'baseConfiguration': parentFolder.get('meta', {}).get('configuration', {}).get('general', {}).get('baseConfiguration', False),
                     'configuration': parentFolder.get('meta', {}).get('configuration', {}),
                     'attributes': parentFolder.get('meta', {}).get('attributes', False),
@@ -260,6 +263,7 @@ class DatasetResource(Resource):
                     'confidenceFilters': parentFolder.get('meta', {}).get('confidenceFilters', False),
                     'customTypeStyling': parentFolder.get('meta', {}).get('customTypeStyling', False),
                     'customGroupStyling': parentFolder.get('meta', {}).get('customGroupStyling', False),
+                    'filters': parentFolder.get('meta', {}).get('filters', False),
                 })
                 if parentFolder.get('_modelType', False) == 'folder':
                     meta = parentFolder.get('meta', False)
@@ -267,20 +271,24 @@ class DatasetResource(Resource):
                     general = configuration.get('general', False)
                     if configuration:
                         configurationList.append(general)
-                        if baseConfiguration is None:
+                        if baseConfigurationId is None:
                             hasBaseId = general.get('baseConfiguration', False)
                             if hasBaseId:
-                                baseConfiguration = hasBaseId
+                                baseConfigurationId = hasBaseId
                 baseFolder = parentFolder
             else:
                 baseFolder = None
         # Now we have a list of configurations, find the lowest one with the baseConfiguration str and the merge type
-        baseConfiguration = folder.get('_id')
-        mergeType = 'merge up'
+        baseConfigurationId = folder.get('_id')
+        baseConfigOwner = ''
+        baseConfiguration = None
+        mergeType = 'disabled'
         for item in folderPairs:
-            if item.get('baseConfiguration', False):
-                baseConfiguration = item['baseConfiguration']
-                possibleMerge = item.get('configuration', {}).get('configurationMerge', False)
+            if item.get('baseConfiguration', False) == item['id']:
+                baseConfigurationId = item['baseConfiguration']
+                baseConfigOwner = User().findOne({'_id': item['owner']})['login']
+                baseMetaData = item
+                possibleMerge = item.get('configuration', {}).get('general', {}).get('configurationMerge', False)
                 if possibleMerge:
                     mergeType = possibleMerge
                 break
@@ -295,6 +303,7 @@ class DatasetResource(Resource):
         currentConfidenceFilters = {}
         currentCustomTypeStyling = {}
         currentCustomGroupStyling = {}
+        currentFilters = {}
         if mergeType != 'disabled':
             for item in folderPairs:
                 if mergeType == 'merge up':
@@ -310,7 +319,16 @@ class DatasetResource(Resource):
                         currentCustomTypeStyling = config_merge(item.get('customTypeStyling'), currentCustomTypeStyling)
                     if item.get('customGroupStyling', False):
                         currentCustomGroupStyling = config_merge(item.get('customGroupStyling'), currentCustomGroupStyling)
-        
+                    if item.get('filters', False):
+                        currentFilters = config_merge(item.get('filters'), currentFilters)
+        else:
+            currentConfiguration = baseMetaData.get('configuration')
+            currentAttributes = baseMetaData.get('attributes')
+            currentTimelines = baseMetaData.get('timelines')
+            currentConfidenceFilters = baseMetaData.get('confidenceFilters')
+            currentCustomTypeStyling = baseMetaData.get('customTypeStyling')
+            currentCustomGroupStyling = baseMetaData.get('customGroupStyling')
+            currentFilters = baseMetaData.get('filters')
         combinedConfiguration = {}
         if bool(currentAttributes):
             combinedConfiguration['attributes'] = currentAttributes
@@ -323,7 +341,9 @@ class DatasetResource(Resource):
         if bool(currentCustomTypeStyling):
             combinedConfiguration['customTypeStyling'] = currentCustomTypeStyling
         if bool(currentCustomTypeStyling):
-            currentCustomGroupStyling['customGroupStyling'] = currentCustomGroupStyling
+            combinedConfiguration['customGroupStyling'] = currentCustomGroupStyling
+        if bool(currentFilters):
+            combinedConfiguration['filters'] = currentFilters
                     
         hierarchy = []
         for item in folderPairs:
@@ -365,9 +385,10 @@ class DatasetResource(Resource):
             }
 
         returnVal = {
+            'baseConfigurationOwner': baseConfigOwner,
             "prevNext": prevNext,
             'hierarchy': hierarchy,
-            'metadata': combinedConfiguration
+            'metadata': combinedConfiguration,
         }
         print(returnVal)
         return json.dumps(returnVal)
@@ -460,6 +481,15 @@ class DatasetResource(Resource):
 
     @access.user
     @autoDescribeRoute(
+        Description("Transfer Configuration Files")
+        .modelParam("id", level=AccessType.READ, destName="id", **DatasetModelParam)
+        .modelParam("dest", level=AccessType.WRITE, destName="dest", **DatasetModelParam)
+    )
+    def transfer_config(self, id, dest):
+        return crud_dataset.transfer_config(id, dest)
+
+    @access.user
+    @autoDescribeRoute(
         Description("Update mutable metadata fields")
         .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
         .jsonParam(
@@ -498,7 +528,7 @@ class DatasetResource(Resource):
         )
     )
     def patch_timelines(self, folder, data):
-        return crud_dataset.update_timelines(folder, data)
+        return crud_dataset.update_timelines(folder, data, False)
     
     @access.user
     @autoDescribeRoute(
@@ -513,3 +543,17 @@ class DatasetResource(Resource):
     )
     def patch_configuration(self, folder, data):
         return crud_dataset.update_configuration(folder, data, False)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Update Attribute Filter Settings")
+        .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
+        .jsonParam(
+            "data",
+            description="Filters Dictionary",
+            requireObject=True,
+            paramType="body",
+        )
+    )
+    def patch_filters(self, folder, data):
+        return crud_dataset.update_filters(folder, data, False)

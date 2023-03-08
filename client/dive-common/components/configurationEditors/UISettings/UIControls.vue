@@ -13,16 +13,18 @@ export default defineComponent({
     const configMan = useConfiguration();
     const UIPlaybackControls = ref(configMan.getUISetting('UIPlaybackControls') as boolean);
     const UIAudioControls = ref(configMan.getUISetting('UIAudioControls') as boolean);
+    const UISpeedControls = ref(configMan.getUISetting('UISpeedControls') as boolean);
     const UITimeDisplay = ref(configMan.getUISetting('UITimeDisplay') as boolean);
     const UIFrameDisplay = ref(configMan.getUISetting('UIFrameDisplay') as boolean);
     const UIImageNameDisplay = ref(configMan.getUISetting('UIImageNameDisplay') as boolean);
     const UILockCamera = ref(configMan.getUISetting('UILockCamera') as boolean);
 
     watch([UIPlaybackControls, UIAudioControls,
-      UITimeDisplay, UIFrameDisplay, UIImageNameDisplay, UILockCamera], () => {
+      UITimeDisplay, UIFrameDisplay, UIImageNameDisplay, UILockCamera, UISpeedControls], () => {
       const data = {
         UIPlaybackControls: UIPlaybackControls.value ? undefined : false,
         UIAudioControls: UIAudioControls.value ? undefined : false,
+        UISpeedControls: UISpeedControls.value ? undefined : false,
         UITimeDisplay: UITimeDisplay.value ? undefined : false,
         UIFrameDisplay: UIFrameDisplay.value ? undefined : false,
         UIImageNameDisplay: UIImageNameDisplay.value ? undefined : false,
@@ -34,6 +36,7 @@ export default defineComponent({
     return {
       UIPlaybackControls,
       UIAudioControls,
+      UISpeedControls,
       UITimeDisplay,
       UIFrameDisplay,
       UIImageNameDisplay,
@@ -46,19 +49,25 @@ export default defineComponent({
 
 <template>
   <v-card>
-    <v-card-title>Plaback Controls</v-card-title>
+    <v-card-title>Playback Controls</v-card-title>
     <v-card-text>
       <div>
         <v-row dense>
           <v-switch
             v-model="UIPlaybackControls"
-            label="Plaback Controls"
+            label="Playback Controls"
           />
         </v-row>
         <v-row dense>
           <v-switch
             v-model="UIAudioControls"
             label="Audio/Volume settings"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UISpeedControls"
+            label="Playback Speed controls"
           />
         </v-row>
         <v-row dense>

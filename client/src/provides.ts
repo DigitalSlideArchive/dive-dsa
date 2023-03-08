@@ -35,7 +35,7 @@ type AttributesType = Readonly<Ref<Attribute[]>>;
 
 const AttributesFilterSymbol = Symbol('attributesFilter');
 export interface AttributesFilterType {
-  attributeFilters: Readonly<Ref< {track: AttributeFilter[]; detection: AttributeFilter[]}>>;
+  attributeFilters: Readonly<Ref<AttributeFilter[]>>;
   addAttributeFilter: (index: number, type: Attribute['belongs'], filter: AttributeFilter) => void;
   modifyAttributeFilter: (index: number, type: Attribute['belongs'], filter: AttributeFilter) => void;
   deleteAttributeFilter: (index: number, type: Attribute['belongs']) => void;
@@ -260,7 +260,9 @@ const markChangesPending = () => { };
  */
 function dummyState(): State {
   const cameraStore = new CameraStore({ markChangesPending });
-  const configurationManager = new ConfigurationManager({ configurationId: ref(';'), setConfigurationId: markChangesPending, saveConfiguration: markChangesPending });
+  const configurationManager = new ConfigurationManager({
+    configurationId: ref(';'), setConfigurationId: markChangesPending, saveConfiguration: markChangesPending, transferConfiguration: markChangesPending,
+  });
   const groupFilterControls = new GroupFilterControls(
     {
       sorted: cameraStore.sortedGroups,

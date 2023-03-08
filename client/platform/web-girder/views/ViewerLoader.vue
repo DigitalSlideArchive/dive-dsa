@@ -160,7 +160,6 @@ export default defineComponent({
     };
     const enabledFeatures = computed(() => {
       if (configMan.value !== null) {
-        console.log(configMan.value);
         return {
           data: getSetting('UIData'),
           jobs: getSetting('UIJobs'),

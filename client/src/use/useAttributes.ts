@@ -76,6 +76,7 @@ export interface AttributeBoolFilter {
 }
 export interface AttributeFilter {
   dataType: Attribute['datatype'] | 'key';
+  belongsTo: 'track' | 'detection';
   filterData:
   AttributeNumberFilter
   | AttributeStringFilter
@@ -104,6 +105,7 @@ interface UseAttributesParams {
       action: 'upsert' | 'delete';
       attribute?: Attribute;
       timeline?: TimelineGraph;
+      filter?: AttributeFilter;
     }
   ) => void;
   selectedTrackId: Ref<number | null>;
@@ -122,10 +124,7 @@ export default function UseAttributes(
   }: UseAttributesParams,
 ) {
   const attributes: Ref<Record<string, Attribute>> = ref({});
-  const attributeFilters: Ref<{
-    track: AttributeFilter[];
-    detection: AttributeFilter[];
-  }> = ref({ track: [], detection: [] });
+  const attributeFilters: Ref<AttributeFilter[]> = ref([]);
   const timelineFilter: Ref<Record<string, AttributeKeyFilter>> = ref({});
   const timelineEnabled: Ref<Record<string, boolean>> = ref({});
   const timelineDefault: Ref<string | null> = ref(null);
@@ -152,6 +151,12 @@ export default function UseAttributes(
     });
     timelineFilter.value = filters;
     timelineEnabled.value = enabled;
+  }
+
+  function loadFilters(filters: Record<string, AttributeFilter>) {
+    Object.entries(filters).forEach(([, item]) => {
+      attributeFilters.value.push(item);
+    });
   }
 
   const attributesList = computed(() => Object.values(attributes.value));
@@ -187,24 +192,37 @@ export default function UseAttributes(
   }
 
   function addAttributeFilter(index: number, type: Attribute['belongs'], filter: AttributeFilter) {
-    const filterList = attributeFilters.value[type];
+    const filterList = attributeFilters.value;
     filterList.push(filter);
-    VueSet(attributeFilters.value, type, filterList);
+    attributeFilters.value = filterList;
+    markChangesPending({
+      action: 'upsert', filter,
+    });
   }
 
   function deleteAttributeFilter(index: number, type: Attribute['belongs']) {
-    const filterList = attributeFilters.value[type];
+    const filterList = attributeFilters.value;
+
     if (index < filterList.length) {
+      markChangesPending({
+        action: 'delete', filter: filterList[index],
+      });
       filterList.splice(index, 1);
     } else {
       throw Error(`Index: ${index} is out of range for the ${type} filter list of length ${filterList.length}`);
     }
   }
   function modifyAttributeFilter(index: number, type: Attribute['belongs'], filter: AttributeFilter) {
-    const filterList = attributeFilters.value[type];
+    const filterList = attributeFilters.value;
     if (index < filterList.length) {
       filterList[index] = filter;
-      VueSet(attributeFilters.value, type, filterList);
+      markChangesPending({
+        action: 'delete', filter: filterList[index],
+      });
+      attributeFilters.value = filterList;
+      markChangesPending({
+        action: 'upsert', filter,
+      });
     } else {
       throw Error(`Index: ${index} is out of range for the ${type} filter list of length ${filterList.length}`);
     }
@@ -487,6 +505,7 @@ export default function UseAttributes(
   return {
     loadAttributes,
     loadTimelines,
+    loadFilters,
     attributesList,
     setAttribute,
     deleteAttribute,

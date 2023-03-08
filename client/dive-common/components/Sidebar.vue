@@ -3,7 +3,9 @@ import {
   computed,
   defineComponent,
   reactive,
+  ref,
   toRef,
+  watch,
 } from '@vue/composition-api';
 
 import { FilterList, TrackList } from 'vue-media-annotator/components';
@@ -44,6 +46,7 @@ export default defineComponent({
 
   setup() {
     const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const allTypesRef = useTrackFilters().allTypes;
     const readOnlyMode = useReadOnlyMode();
     const cameraStore = useCameraStore();
@@ -54,9 +57,16 @@ export default defineComponent({
     const typeSettings = toRef(clientSettings, 'typeSettings');
     const trackFilterControls = useTrackFilters();
     const styleManager = useTrackStyleManager();
-
+    const hideAttributeSwap = ref(false);
     const data = reactive({
       currentTab: 'tracks' as 'tracks' | 'attributes',
+    });
+
+    watch(configMan.configuration, () => {
+      if (!getUISetting('UITrackTypes') && !getUISetting('UITrackList')) {
+        data.currentTab = 'attributes';
+        hideAttributeSwap.value = true;
+      }
     });
 
     function swapTabs() {
@@ -87,8 +97,6 @@ export default defineComponent({
       return trap;
     });
 
-    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-
     return {
       /* data */
       data,
@@ -97,6 +105,7 @@ export default defineComponent({
       groupAdd,
       mouseTrap,
       trackFilterControls,
+      hideAttributeSwap,
       trackSettings,
       typeSettings,
       readOnlyMode,
@@ -118,7 +127,7 @@ export default defineComponent({
   >
     <template #default="{ topHeight, bottomHeight }">
       <v-btn
-        v-if="getUISetting('UITrackDetails')"
+        v-if="getUISetting('UITrackDetails') && !hideAttributeSwap"
         v-mousetrap="mouseTrap"
         small
         icon

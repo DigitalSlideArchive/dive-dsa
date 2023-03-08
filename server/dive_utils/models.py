@@ -157,11 +157,37 @@ class Attribute(BaseModel):
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
 
+class AttributeNumberFilter(BaseModel):
+    type: Literal['range', 'top']
+    comp: Literal['>' ,'<', '>=', '<=']
+    value: float
+    active: bool
+    range: List[float]
+    appliedTo: List[str]
+
 class AttributeKeyFilter(BaseModel):
     appliedTo: List[str]
     active: bool
     value: bool
     type: Literal['key']
+
+class AttributeBoolFilter(BaseModel):
+    value: bool
+    type: Literal['is', 'not']
+    appliedTo: List[str]
+    active: bool
+
+class AttributeStringFilter(BaseModel):
+    comp: Literal['=', '!=', 'contains', 'starts']
+    value: List[str]
+    appliedTo: List[str]
+    active: bool
+
+
+class AttributeFilter(BaseModel):
+    belongsTo: Literal['track', 'detection']
+    dataType: Literal['text', 'number', 'boolean', 'key']
+    filterData: Union[AttributeKeyFilter, AttributeStringFilter, AttributeBoolFilter, AttributeNumberFilter]
 
 class TimeLineGraph(BaseModel):
     enabled: bool
@@ -218,6 +244,8 @@ class UISideBar(BaseModel):
     UIConfidenceThreshold: Optional[bool]
     UITrackList: Optional[bool]
     UITrackDetails: Optional[bool]
+    UIAttributeSettings: Optional[bool]
+    UIAttributeAdding: Optional[bool]
 
 class UIContextBar(BaseModel):
     UIThresholdControls: Optional[bool]
@@ -236,6 +264,7 @@ class UITrackDetails(BaseModel):
 class UIControls(BaseModel):
     UIPlaybackControls: Optional[bool]
     UIAudioControls: Optional[bool]
+    UISpeedControls: Optional[bool]
     UITimeDisplay: Optional[bool]
     UIFrameDisplay: Optional[bool]
     UIImageNameDisplay: Optional[bool]
@@ -269,6 +298,7 @@ class MetadataMutable(BaseModel):
     confidenceFilters: Optional[Dict[str, float]]
     attributes: Optional[Dict[str, Attribute]]
     timelines: Optional[Dict[str, TimeLineGraph]]
+    filters: Optional[Dict[str, AttributeFilter]]
     configuration: Optional[DIVEConfiguration]
 
     @staticmethod

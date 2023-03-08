@@ -12,8 +12,9 @@ import {
   Timeline,
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
-  useAttributesFilters, useCameraStore, useSelectedCamera, useSelectedTrackId,
+  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId,
 } from '../../src/provides';
 
 export default defineComponent({
@@ -49,6 +50,8 @@ export default defineComponent({
   setup(_, { emit }) {
     const currentView = ref('Detections');
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const cameraStore = useCameraStore();
     const selectedTrackIdRef = useSelectedTrackId();
     const multiCam = ref(cameraStore.camMap.value.size > 1);
@@ -65,6 +68,22 @@ export default defineComponent({
         currentView.value = timelineDefault.value;
       }
     });
+    const timelineDisabled = ref(false);
+    if (timelineDefault.value === null && !getUISetting('UIEvents') && !getUISetting('UIDetections')) {
+      const entries = Object.entries(timelineEnabled.value);
+      let found = false;
+      for (let i = 0; i < entries.length; i += 1) {
+        const key = entries[i][0];
+        if (key) {
+          currentView.value = key;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        timelineDisabled.value = true;
+      }
+    }
     // Format the Attribute data if it is available
     const enabledTimelines = computed(() => {
       const list: string[] = [];
@@ -124,6 +143,8 @@ export default defineComponent({
       attributeData,
       enabledTimelines,
       selectedTrackIdRef,
+      getUISetting,
+      timelineDisabled,
     };
   },
 });
@@ -136,6 +157,7 @@ export default defineComponent({
   >
     <Controls>
       <template
+        v-if="!timelineDisabled && getUISetting('UITimeline')"
         slot="timelineControls"
       >
         <div style="min-width: 270px">
@@ -156,6 +178,7 @@ export default defineComponent({
           </v-tooltip>
           <span v-if="(!collapsed)">
             <v-btn
+              v-if="getUISetting('UIDetections')"
               class="ml-1"
               :class="{'timeline-button':currentView!=='Detections' || collapsed}"
               depressed
@@ -167,6 +190,7 @@ export default defineComponent({
               Detections
             </v-btn>
             <v-btn
+              v-if="getUISetting('UIEvents')"
               class="ml-1"
               :class="{'timeline-button':currentView!=='Events' || collapsed}"
               depressed
@@ -208,8 +232,11 @@ export default defineComponent({
                     v-on="on"
                   >
                     <v-icon x-small>mdi-chart-line-variant</v-icon>
-                    {{ enabledTimelines.includes(currentView) ? currentView : 'Attributes'}}
-                    <v-icon class="pa-0 pl-2" x-small>mdi-chevron-down-box</v-icon>
+                    {{ enabledTimelines.includes(currentView) ? currentView : 'Attributes' }}
+                    <v-icon
+                      class="pa-0 pl-2"
+                      x-small
+                    >mdi-chevron-down-box</v-icon>
                   </v-btn>
                 </template>
                 <v-card outlined>
@@ -250,12 +277,12 @@ export default defineComponent({
       </template>
       <template #middle>
         <file-name-time-display
-          v-if="datasetType === 'image-sequence'"
+          v-if="getUISetting('UIImageNameDisplay') && datasetType === 'image-sequence'"
           class="text-middle px-3"
           display-type="filename"
         />
         <span v-else-if="datasetType === 'video'">
-          <span class="mr-2">
+          <span v-if="getUISetting('UIAudioControls')" class="mr-2">
             <v-menu
               :close-on-content-click="false"
               top
@@ -285,7 +312,7 @@ export default defineComponent({
               </v-card>
             </v-menu>
           </span>
-          <span class="mr-2">
+          <span v-if="getUISetting('UISpeedControls')" class="mr-2">
             <v-menu
               :close-on-content-click="false"
               top
@@ -333,29 +360,10 @@ export default defineComponent({
             display-type="time"
           />
         </span>
-        <v-tooltip
-          open-delay="200"
-          bottom
-        >
-          <template #activator="{ on }">
-            <v-icon
-              small
-              class="mx-2"
-              v-on="on"
-            >
-              mdi-information
-            </v-icon>
-          </template>
-          <span>
-            annotation framerate may be downsampled.
-            <br>
-            frame numbers start at zero.
-          </span>
-        </v-tooltip>
       </template>
     </Controls>
     <Timeline
-      v-if="(!collapsed)"
+      v-if="(!collapsed) && !timelineDisabled && getUISetting('UITimeline')"
       :max-frame="maxFrame"
       :frame="frame"
       :display="!collapsed"
@@ -408,9 +416,9 @@ export default defineComponent({
           >
             <line-chart
               v-if="currentView=== enabledTimelines[index] && data.data.length"
-              :start-frame="data.startFrame"
-              :end-frame="data.endFrame"
-              :max-frame="data.endFrame"
+              :start-frame="startFrame"
+              :end-frame="endFrame"
+              :max-frame="childMaxFrame"
               :data="data.data"
               :client-width="clientWidth"
               :client-height="clientHeight"

@@ -15,13 +15,16 @@ export default defineComponent({
     const UIConfidenceThreshold = ref(configMan.getUISetting('UIConfidenceThreshold') as boolean);
     const UITrackList = ref(configMan.getUISetting('UITrackList') as boolean);
     const UITrackDetails = ref(configMan.getUISetting('UITrackDetails') as boolean);
+    const UIAttributeSettings = ref(configMan.getUISetting('UIAttributeSettings') as boolean);
+    const UIAttributeAdding = ref(configMan.getUISetting('UIAttributeAdding') as boolean);
 
-    watch([UITrackTypes, UIConfidenceThreshold, UITrackList, UITrackDetails], () => {
+    watch([UITrackTypes, UIConfidenceThreshold, UITrackList, UITrackDetails, UIAttributeSettings, UIAttributeAdding], () => {
       const data = {
         UITrackTypes: UITrackTypes.value ? undefined : false,
         UIConfidenceThreshold: UIConfidenceThreshold.value ? undefined : false,
         UITrackList: UITrackList.value ? undefined : false,
-        UITrackDetails: UITrackDetails.value ? undefined : false,
+        UIAttributeSettings: UIAttributeSettings.value ? undefined : false,
+        UIAttributeAdding: UIAttributeAdding.value ? undefined : false,
 
       };
       configMan.setUISettings('UISideBar', data);
@@ -31,6 +34,8 @@ export default defineComponent({
       UIConfidenceThreshold,
       UITrackList,
       UITrackDetails,
+      UIAttributeSettings,
+      UIAttributeAdding,
     };
   },
 
@@ -64,6 +69,18 @@ export default defineComponent({
           <v-switch
             v-model="UITrackDetails"
             label="Track Details (Attributes)"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UIAttributeSettings"
+            label="Attribute Settings"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UIAttributeAdding"
+            label="Adding Attributes"
           />
         </v-row>
       </div>

@@ -4,6 +4,8 @@ import {
 } from '@vue/composition-api';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
+import { useConfiguration } from 'vue-media-annotator/provides';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { injectAggregateController } from '../annotators/useMediaController';
 
 export default defineComponent({
@@ -15,6 +17,9 @@ export default defineComponent({
     });
     const mediaController = injectAggregateController().value;
     const { visible } = usePrompt();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+
     watch(mediaController.frame, (frame) => {
       if (!data.dragging) {
         data.frame = frame;
@@ -50,6 +55,7 @@ export default defineComponent({
       togglePlay,
       toggleEnhancements,
       visible,
+      getUISetting,
     };
   },
 });
@@ -93,6 +99,7 @@ export default defineComponent({
           </v-row>
         </v-col>
         <v-col
+          v-if="getUISetting('UIPlaybackControls')"
           class="py-1 shrink"
           style="min-width: 100px;"
         >
@@ -141,6 +148,7 @@ export default defineComponent({
           align="right"
         >
           <v-btn
+            v-if="getUISetting('UILockCamera')"
             icon
             small
             :color="mediaController.lockedCamera.value ? 'primary': 'default'"
@@ -160,6 +168,7 @@ export default defineComponent({
             <v-icon>mdi-image-filter-center-focus</v-icon>
           </v-btn>
           <v-btn
+            v-if="getUISetting('UIImageEnhancements')"
             icon
             small
             title="Image Enhancements"

@@ -112,7 +112,7 @@ export default defineComponent({
     const saveInProgress = ref(false);
     const videoUrl: Ref<Record<string, string>> = ref({});
     const {
-      loadDetections, loadMetadata, saveMetadata, saveConfiguration,
+      loadDetections, loadMetadata, saveMetadata, saveConfiguration, transferConfiguration,
     } = useApi();
     const progress = reactive({
       // Loaded flag prevents annotator window from populating
@@ -175,7 +175,9 @@ export default defineComponent({
 
     const cameraStore = new CameraStore({ markChangesPending });
     // eslint-disable-next-line max-len
-    const configurationManager = new ConfigurationManager({ configurationId, setConfigurationId, saveConfiguration });
+    const configurationManager = new ConfigurationManager({
+      configurationId, setConfigurationId, saveConfiguration, transferConfiguration,
+    });
 
     // This context for removal
     const removeGroups = (id: AnnotationId) => {
@@ -230,6 +232,7 @@ export default defineComponent({
       attributesList: attributes,
       loadAttributes,
       loadTimelines,
+      loadFilters,
       setAttribute,
       deleteAttribute,
       attributeFilters,
@@ -554,6 +557,9 @@ export default defineComponent({
         }
         if (meta.timelines) {
           loadTimelines(meta.timelines);
+        }
+        if (meta.filters) {
+          loadFilters(meta.filters);
         }
         trackFilters.setConfidenceFilters(meta.confidenceFilters);
         datasetName.value = meta.name;

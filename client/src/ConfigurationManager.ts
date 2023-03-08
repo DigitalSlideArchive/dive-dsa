@@ -50,6 +50,9 @@ interface UISideBar {
     UIConfidenceThreshold? : boolean;
     UITrackList? : boolean;
     UITrackDetails? : boolean;
+    UIAttributeSettings? : boolean;
+    UIAttributeAdding? : boolean;
+
 }
 
 interface UIContextBar {
@@ -72,6 +75,7 @@ interface UITrackDetails {
 interface UIControls {
     UIPlaybackControls? : boolean;
     UIAudioControls? : boolean;
+    UISpeedControls? : boolean;
     UITimeDisplay? : boolean;
     UIFrameDisplay? : boolean;
     UIImageNameDisplay? : boolean;
@@ -143,6 +147,8 @@ export default class ConfigurationManager {
 
   saveConfiguration: (id: string, config?: Configuration) => void;
 
+  transferConfiguration: (source: string, dest: string) => void;
+
   configurationId: Ref<Readonly<string>>;
 
 
@@ -151,15 +157,18 @@ export default class ConfigurationManager {
       configurationId,
       setConfigurationId,
       saveConfiguration,
+      transferConfiguration,
     }: {
     configurationId: Ref<Readonly<string>>;
     setConfigurationId: (id: string) => void;
     saveConfiguration: (id: string, config?: Configuration) => void;
+    transferConfiguration: (source: string, dest: string) => void;
     },
   ) {
     this.configurationId = configurationId;
     this.setConfigurationId = setConfigurationId;
     this.saveConfiguration = saveConfiguration;
+    this.transferConfiguration = transferConfiguration;
     this.hierarchy = ref(null);
     this.configuration = ref(null);
     this.prevNext = ref(null);
