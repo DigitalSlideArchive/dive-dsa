@@ -2,7 +2,7 @@
 import {
   defineComponent, ref, watch, Ref,
 } from '@vue/composition-api';
-import { isArray, isObject } from 'lodash';
+import { isObject } from 'lodash';
 import { useConfiguration } from 'vue-media-annotator/provides';
 
 
@@ -10,7 +10,7 @@ export default defineComponent({
   name: 'UIToolBar',
   components: {
   },
-  setup(props) {
+  setup() {
     const configMan = useConfiguration();
     const editVisTypes = ref(['bounding box', 'polygon', 'line']);
     const visTypes = ref(['bounding_box', 'polygon', 'line', 'text', 'tooltip']);

@@ -64,7 +64,7 @@ export default defineComponent({
 
       };
       configMan.setRootUISettings(data as UISettings);
-      const updatedConfig = { ...configMan.configuration.value, UISettings: data };
+      const updatedConfig = { UISettings: data, ...configMan.configuration.value };
       if (updatedConfig) {
         configMan.saveConfiguration(configMan.configurationId.value,
           { ...updatedConfig as Configuration });

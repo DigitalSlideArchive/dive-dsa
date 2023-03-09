@@ -50,7 +50,7 @@ export default defineComponent({
       } else {
         general = {
           baseConfiguration: configurationId.value,
-          configurationMerge: 'merge up',
+          configurationMerge: 'disabled',
           configurationSettings: newConfigurationSettings,
         };
       }

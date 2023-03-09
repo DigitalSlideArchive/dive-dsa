@@ -1,3 +1,4 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
   defineComponent, ref, watch,

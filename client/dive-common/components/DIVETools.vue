@@ -21,7 +21,7 @@ export default defineComponent({
       default: false,
     },
   },
-  setup(props) {
+  setup() {
     const menuOpen = ref(false);
     const additive = ref(false);
     const additivePrepend = ref('');

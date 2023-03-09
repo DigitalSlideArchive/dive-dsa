@@ -282,7 +282,10 @@ export default defineComponent({
           display-type="filename"
         />
         <span v-else-if="datasetType === 'video'">
-          <span v-if="getUISetting('UIAudioControls')" class="mr-2">
+          <span
+            v-if="getUISetting('UIAudioControls')"
+            class="mr-2"
+          >
             <v-menu
               :close-on-content-click="false"
               top
@@ -312,7 +315,10 @@ export default defineComponent({
               </v-card>
             </v-menu>
           </span>
-          <span v-if="getUISetting('UISpeedControls')" class="mr-2">
+          <span
+            v-if="getUISetting('UISpeedControls')"
+            class="mr-2"
+          >
             <v-menu
               :close-on-content-click="false"
               top

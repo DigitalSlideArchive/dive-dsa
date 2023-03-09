@@ -113,7 +113,10 @@ export default defineComponent({
               label="Choose Folder"
             />
           </v-row>
-          <v-row v-if="false" class="pb-4">
+          <v-row
+            v-if="false"
+            class="pb-4"
+          >
             <p>
               The Merge property specified how merging is handled when multiple
               configurations are found in the folder hierarchy
@@ -124,7 +127,10 @@ export default defineComponent({
               label="Merge Property"
             />
           </v-row>
-          <v-row v-if="false" class="pb-4">
+          <v-row
+            v-if="false"
+            class="pb-4"
+          >
             <p>
               To prevent user's other than the
               owner of the target folder from modifying the configuration settings.

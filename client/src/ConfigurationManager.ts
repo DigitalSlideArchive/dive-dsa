@@ -10,6 +10,7 @@ export interface DiveConfiguration {
   metadata: {
     configuration?: Configuration;
   };
+  baseConfigurationOwner: string;
 }
 
 
@@ -151,6 +152,8 @@ export default class ConfigurationManager {
 
   configurationId: Ref<Readonly<string>>;
 
+  baseConfigurationOwner: Ref<Readonly<string>>;
+
 
   constructor(
     {
@@ -172,10 +175,15 @@ export default class ConfigurationManager {
     this.hierarchy = ref(null);
     this.configuration = ref(null);
     this.prevNext = ref(null);
+    this.baseConfigurationOwner = ref('');
   }
 
   setHierarchy(data: DiveConfiguration['hierarchy']) {
     this.hierarchy.value = data;
+  }
+
+  setBaseConfigurationOwner(data: string) {
+    this.baseConfigurationOwner.value = data;
   }
 
   setPrevNext(data: DiveConfiguration['prevNext']) {
@@ -253,6 +261,17 @@ export default class ConfigurationManager {
 
 
   setUISettings(key: keyof UISettings, val: UIValue) {
+    if (this.configuration.value && !this.configuration.value.UISettings) {
+      this.configuration.value.UISettings = {
+        UITopBar: true,
+        UIToolBar: true,
+        UISideBar: true,
+        UIContextBar: true,
+        UITrackDetails: true,
+        UIControls: true,
+        UITimeline: true,
+      };
+    }
     if (this.configuration.value?.UISettings) {
       const { UISettings } = this.configuration.value;
       if (UISettings) {

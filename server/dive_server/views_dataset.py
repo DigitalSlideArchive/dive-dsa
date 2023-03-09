@@ -282,6 +282,8 @@ class DatasetResource(Resource):
         baseConfigurationId = folder.get('_id')
         baseConfigOwner = ''
         baseConfiguration = None
+        baseMetaData = {}
+        baseConfigOwner = self.getCurrentUser().get('login')
         mergeType = 'disabled'
         for item in folderPairs:
             if item.get('baseConfiguration', False) == item['id']:
@@ -322,13 +324,13 @@ class DatasetResource(Resource):
                     if item.get('filters', False):
                         currentFilters = config_merge(item.get('filters'), currentFilters)
         else:
-            currentConfiguration = baseMetaData.get('configuration')
-            currentAttributes = baseMetaData.get('attributes')
-            currentTimelines = baseMetaData.get('timelines')
-            currentConfidenceFilters = baseMetaData.get('confidenceFilters')
-            currentCustomTypeStyling = baseMetaData.get('customTypeStyling')
-            currentCustomGroupStyling = baseMetaData.get('customGroupStyling')
-            currentFilters = baseMetaData.get('filters')
+            currentConfiguration = baseMetaData.get('configuration', {})
+            currentAttributes = baseMetaData.get('attributes', {})
+            currentTimelines = baseMetaData.get('timelines', {})
+            currentConfidenceFilters = baseMetaData.get('confidenceFilters', {})
+            currentCustomTypeStyling = baseMetaData.get('customTypeStyling', {})
+            currentCustomGroupStyling = baseMetaData.get('customGroupStyling', {})
+            currentFilters = baseMetaData.get('filters', {})
         combinedConfiguration = {}
         if bool(currentAttributes):
             combinedConfiguration['attributes'] = currentAttributes

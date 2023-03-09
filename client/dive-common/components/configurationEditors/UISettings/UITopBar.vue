@@ -9,7 +9,7 @@ export default defineComponent({
   name: 'UITopBar',
   components: {
   },
-  setup(props) {
+  setup() {
     const configMan = useConfiguration();
     const UIData = ref(configMan.getUISetting('UIData') as boolean);
     const UIJobs = ref(configMan.getUISetting('UIJobs') as boolean);

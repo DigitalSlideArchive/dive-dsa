@@ -279,7 +279,9 @@ export default defineComponent({
         This panel is used for:
         <ul>
           <li>Setting attributes on tracks and keyframes</li>
-          <li v-if="getUISetting('UITrackMerge')">Merging several tracks together</li>
+          <li v-if="getUISetting('UITrackMerge')">
+            Merging several tracks together
+          </li>
           <li>Viewing and managing class types and confidence values</li>
           <li v-if="!multiCam">
             Creating and editing track groups

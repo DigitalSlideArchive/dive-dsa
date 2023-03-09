@@ -160,7 +160,7 @@ export default defineComponent({
     };
     const enabledFeatures = computed(() => {
       if (configMan.value !== null) {
-        return {
+        const retData = {
           data: getSetting('UIData'),
           jobs: getSetting('UIJobs'),
           toolbox: getSetting('UIToolBox'),
@@ -168,6 +168,7 @@ export default defineComponent({
           export: getSetting('UIExport'),
           clone: getSetting('UIClone'),
         };
+        return retData;
       }
       return {
         data: false,

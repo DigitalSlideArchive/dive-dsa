@@ -5,9 +5,6 @@ import {
   defineComponent,
   Ref,
 } from '@vue/composition-api';
-import { timeline } from 'console';
-import { type } from 'os';
-
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import { AttributeKeyFilter, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
 import { useAttributesFilters, useAttributes } from '../provides';

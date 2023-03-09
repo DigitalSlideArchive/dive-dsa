@@ -517,6 +517,9 @@ export default defineComponent({
         if (config.diveConfig.hierarchy) {
           configurationManager.setHierarchy(config.diveConfig.hierarchy);
         }
+        if (config.diveConfig.baseConfigurationOwner) {
+          configurationManager.setBaseConfigurationOwner(config.diveConfig.baseConfigurationOwner);
+        }
         if (config.diveConfig.metadata.configuration) {
           configurationManager.setConfiguration(
             config.diveConfig.metadata.configuration,

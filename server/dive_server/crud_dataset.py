@@ -172,16 +172,18 @@ class AttributeUpdateArgs(BaseModel):
         extra = 'forbid'
 
 def transfer_config(source: types.GirderModel, dest: types.GirderModel):
-    attributes = source['meta']['attributes']
-    timelines = source['meta']['timelines']
-    customGroupStyling = source['meta']['customGroupStyling']
-    customTypeStyling = source['meta']['customTypeStyling']
-    confidenceFilters = source['meta']['confidenceFilters']
+    attributes = source.get('meta',{}).get('attributes', {})
+    timelines = source.get('meta',{}).get('timelines', {})
+    customGroupStyling = source.get('meta',{}).get('customGroupStyling', {})
+    customTypeStyling = source.get('meta',{}).get('customTypeStyling', {})
+    confidenceFilters = source.get('meta',{}).get('confidenceFilters', {})
+    filters = source.get('meta',{}).get('filters', {})
     data = {
         'attributes': attributes,
         'timelines': timelines,
         'customGroupStyling': customGroupStyling,
         'customTypeStyling': customTypeStyling,
+        'filters': filters,
         'confidenceFilters': confidenceFilters,
     }
     update_metadata(dest, data, False)
