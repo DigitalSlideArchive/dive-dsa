@@ -16,6 +16,8 @@ export interface LineChartData {
   area?: boolean;
   areaColor?: string;
   areaOpacity?: number;
+  lineOpacity?: number;
+  max?: boolean;
 }
 
 function updateHistogram(begin: number, end: number, histogram: number[]) {

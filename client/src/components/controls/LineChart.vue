@@ -104,44 +104,7 @@ export default Vue.extend({
           .range([height, 0]);
       }
 
-      let line = d3
-        .line()
-        .curve(d3.curveStepAfter)
-        .x((d) => x(d[0]))
-        .y((d) => y(d[1]));
-      if (this.atrributesChart) {
-        line = d3
-          .line()
-          .curve(d3.curveLinear)
-          .x((d) => x(d[0]))
-          .y((d) => y(d[1]));
-      }
-      this.line = line;
-      this.linear = line;
-      this.step = d3
-        .line()
-        .curve(d3.curveStep)
-        .x((d) => x(d[0]))
-        .y((d) => y(d[1] ? max : 0));
-
-      this.natural = d3
-        .line()
-        .curve(d3.curveNatural)
-        .x((d) => x(d[0]))
-        .y((d) => y(d[1] ? max : 0));
-
-
-      this.stepBefore = d3
-        .line()
-        .curve(d3.curveStepAfter)
-        .x((d) => x(d[0]))
-        .y((d) => y(d[1] ? max : 0));
-
-      this.stepAfter = d3
-        .line()
-        .curve(d3.curveStepAfter)
-        .x((d) => x(d[0]))
-        .y((d) => y(d[1] ? max : 0));
+      this.generateLineAreas(max, x, y);
 
       const svg = d3
         .select(this.$el)
@@ -170,9 +133,10 @@ export default Vue.extend({
         .enter()
         .append('path')
         .attr('class', 'line')
-        .attr('d', (d) => line(d.values))
+        .attr('d', (d) => this.getCurveType(d.values, 'line', d.max))
         .style('stroke', (d) => (d.color ? d.color : '#4c9ac2'))
         .attr('class', (d) => `${d.name} line `)
+        .style('opacity', (d) => (d.lineOpacity !== undefined ? d.lineOpacity : 1.0))
         // Non-Arrow function to preserve the 'this' context for d3.mouse(this)
         .on('mouseenter', function mouseEnterHandler(d) {
           const [_x, _y] = d3.mouse(this);
@@ -196,88 +160,91 @@ export default Vue.extend({
           }
         });
       this.path = path;
-      this.areaLine = d3.area()
-        .curve(d3.curveLinear)
-        .x((d) => x(d[0]))
-        .y1((d) => y(d[1] ? max : 0))
-        .y0(y(0));
-      this.areaStep = d3.area()
-        .curve(d3.curveStep)
-        .x((d) => x(d[0]))
-        .y1((d) => y(d[1] ? max : 0))
-        .y0(y(0));
-      this.areaStepBefore = d3.area()
-        .curve(d3.curveStepBefore)
-        .x((d) => x(d[0]))
-        .y1((d) => y(d[1] ? max : 0))
-        .y0(y(0));
-      this.areaStepAfter = d3.area()
-        .curve(d3.curveStepAfter)
-        .x((d) => x(d[0]))
-        .y1((d) => y(d[1] ? max : 0))
-        .y0(y(0));
-      this.areaNatural = d3.area()
-        .curve(d3.curveNatural)
-        .x((d) => x(d[0]))
-        .y1((d) => y(d[1] ? max : 0))
-        .y0(y(0));
       this.area = svg
         .selectAll()
         .data(this.data)
         .enter()
         .append('path')
         .attr('class', 'area')
-        .attr('d', (d) => this.getAreaType(d))
+        .attr('d', (d) => this.getCurveType(d, 'area', d.max))
         .style('fill', (d) => (d.areaColor ? d.areaColor : '#4c9ac2'))
-        .style('opacity', (d) => (d.areaOpacity ? d.areaOpacity : 0.2));
+        .style('opacity', (d) => (d.areaOpacity !== undefined ? d.areaOpacity : 0.2));
 
       this.update();
     },
-    getAreaType(d) {
-      if (d.type) {
-        if (d.type === 'Step') {
-          return this.areaStep(d.area ? d.values : []);
-        }
-        if (d.type === 'StepBefore') {
-          return this.areaStepBefore(d.area ? d.values : []);
-        }
-        if (d.type === 'StepAfter') {
-          return this.areaStepAfter(d.area ? d.values : []);
-        }
-        if (d.type === 'Natural') {
-          return this.areaNatural(d.area ? d.values : []);
-        }
-      }
-      return this.areaLine(d.area ? d.values : []);
+    generateLineAreas(max, x, y) {
+      this.d3Map = {
+        linear: d3.curveLinear,
+        step: d3.curveStep,
+        stepBefore: d3.curveStepBefore,
+        stepAfter: d3.curveStepAfter,
+        natural: d3.curveNatural,
+      };
+      const lineTypes = ['linear', 'step', 'stepBefore', 'stepAfter', 'natural'];
+      // eslint-disable-next-line func-names
+      lineTypes.forEach((lineType) => {
+        this[lineType] = d3.line()
+          .curve(this.d3Map[lineType])
+          .x((d) => x(d[0]))
+          .y((d) => y(d[1]));
+
+        this[`${lineType}Max`] = d3.line()
+          .curve(this.d3Map[lineType])
+          .x((d) => x(d[0]))
+          .y((d) => y(d[1] ? max : 0));
+
+        this[`${lineType}Area`] = d3.area()
+          .curve(this.d3Map[lineType])
+          .x((d) => x(d[0]))
+          .y1((d) => y(d[1]))
+          .y0(y(0));
+        this[`${lineType}AreaMax`] = d3.area()
+          .curve(this.d3Map[lineType])
+          .x((d) => x(d[0]))
+          .y1((d) => y(d[1] ? max : 0))
+          .y0(y(0));
+      });
     },
-    getCurveType(d) {
-      if (d.type) {
-        if (d.type === 'Step') {
-          return this.step(d.values);
-        }
-        if (d.type === 'StepBefore') {
-          return this.stepBefore(d.values);
-        }
-        if (d.type === 'StepAfter') {
-          return this.step(d.values);
-        }
-        if (d.type === 'Natural') {
-          return this.natural(d.values);
+    getCurveType(d, lineArea, max) {
+      let add = '';
+      if (lineArea === 'area') {
+        add = 'Area';
+        if (!d.area) {
+          return this[`linear${add}`]([]);
         }
       }
-      return this.line(d.values);
+      if (d.type) {
+        if (max) {
+          add = `${add}Max`;
+        }
+        if (d.type === 'Step') {
+          return this[`step${add}`](d.values);
+        }
+        if (d.type === 'StepBefore') {
+          return this[`stepBefore${add}`](d.values);
+        }
+        if (d.type === 'StepAfter') {
+          return this[`stepAfter${add}`](d.values);
+        }
+        if (d.type === 'Natural') {
+          return this[`natural${add}`](d.values);
+        }
+      }
+      return this[`linear${add}`](d.values);
+    },
+    updateCurves() {
+      const lineTypes = ['linear', 'step', 'stepBefore', 'stepAfter', 'natural'];
+      lineTypes.forEach((item) => {
+        this[`${item}`].x((d) => this.x(d[0]));
+        this[`${item}Max`].x((d) => this.x(d[0]));
+        this[`${item}Area`].x((d) => this.x(d[0]));
+      });
     },
     update() {
       this.x.domain([this.startFrame, this.endFrame]);
-      this.line.x((d) => this.x(d[0]));
-      this.step.x((d) => this.x(d[0]));
-      this.stepBefore.x((d) => this.x(d[0]));
-      this.stepAfter.x((d) => this.x(d[0]));
-      this.natural.x((d) => this.x(d[0]));
-      this.areaLine.x((d) => this.x(d[0]));
-      this.areaStepAfter.x((d) => this.x(d[0]));
-      this.path.attr('d', (d) => this.getCurveType(d));
-      this.area.attr('d', (d) => this.getAreaType(d));
+      this.updateCurves();
+      this.path.attr('d', (d) => this.getCurveType(d, 'line', d.max));
+      this.area.attr('d', (d) => this.getCurveType(d, 'area', d.max));
     },
   },
 });

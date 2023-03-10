@@ -106,20 +106,29 @@ export default defineComponent({
     const graphAreaOpacity = ref(0.2);
     const graphType: Ref<LineChartData['type']> = ref('Linear');
     const graphAreaColor = ref('');
+    const graphMax = ref(false);
+    const graphLineOpacity = ref(1.0);
     let editTimelineKey = '';
     const editGraphSettings = (key: string) => {
       // set the defaults:
       editTimelineKey = key;
       editingGraphSettings.value = true;
       graphType.value = 'Linear';
+      graphMax.value = false;
       graphArea.value = false;
       graphAreaOpacity.value = 0.2;
       graphAreaColor.value = attributesList.value.find((item) => key === item.name)?.color || '';
+      graphLineOpacity.value = 1.0;
       if (editTimelineSettings.value[key]) {
         graphType.value = editTimelineSettings.value[key].type || 'Linear';
         graphArea.value = editTimelineSettings.value[key].area || false;
-        graphAreaOpacity.value = (editTimelineSettings.value[key].areaOpacity || 0.2) as number;
+        graphAreaOpacity.value = (editTimelineSettings.value[key].areaOpacity as number);
         graphAreaColor.value = editTimelineSettings.value[key].areaColor || '';
+        graphMax.value = editTimelineSettings.value[key].max || false;
+        graphLineOpacity.value = editTimelineSettings.value[key].lineOpacity;
+        if (graphAreaOpacity.value === undefined) {
+          graphAreaOpacity.value = 0.2;
+        }
       }
     };
 
@@ -135,6 +144,8 @@ export default defineComponent({
           area: graphArea.value,
           areaOpacity: graphAreaOpacity.value,
           areaColor: graphAreaColor.value,
+          max: graphMax.value,
+          lineOpacity: graphLineOpacity.value,
         };
         editTimelineSettings.value[editTimelineKey] = data;
       }
@@ -161,7 +172,9 @@ export default defineComponent({
       graphType,
       graphTypes,
       graphArea,
+      graphMax,
       graphAreaOpacity,
+      graphLineOpacity,
       graphAreaColor,
       timelineGraphs,
     };
@@ -272,9 +285,25 @@ export default defineComponent({
                 :items="graphTypes"
                 label="Graph Type"
               />
+              <v-slider
+                v-model="graphLineOpacity"
+                :label="`Line Opacity ${graphLineOpacity.toFixed(2)}`"
+                min="0"
+                max="1"
+                step="0.01"
+              />
+
+              <v-checkbox
+                v-model="graphMax"
+                label="Max Graph"
+                persistent-hint
+                hint="Any value other than 0 is the Max value"
+              />
               <v-checkbox
                 v-model="graphArea"
                 label="Graph Area"
+                persistent-hint
+                hint="Shade the area under the graph"
               />
               <v-slider
                 v-if="graphArea"

@@ -190,10 +190,12 @@ class AttributeFilter(BaseModel):
     filterData: Union[AttributeKeyFilter, AttributeStringFilter, AttributeBoolFilter, AttributeNumberFilter]
 
 class TimeLineGraphSettings(BaseModel):
-    type: Literal['Linear', 'Step',  'StepAfter', 'StepBefore', 'Natural']
+    type: Literal['Linear', 'Step', 'StepAfter', 'StepBefore', 'Natural']
     area: bool
     areaOpacity: float
     areaColor: str
+    max: bool
+    lineOpacity: float
 
 
 class TimeLineGraph(BaseModel):

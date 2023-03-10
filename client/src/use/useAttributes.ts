@@ -12,6 +12,8 @@ export interface TimelineGraphSettings {
   area: boolean;
   areaOpacity: number;
   areaColor: string;
+  lineOpacity: number;
+  max: boolean;
 }
 
 export interface TimelineGraph {
@@ -356,7 +358,7 @@ export default function UseAttributes(
   function generateDetectionTimelineData(
     track: Track,
     filter: TimeLineFilter,
-    settings: Record<string, TimelineGraphSettings>,
+    settings?: Record<string, TimelineGraphSettings>,
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, TimelineAttribute> = { };
@@ -380,7 +382,9 @@ export default function UseAttributes(
                 data.area = settings[key].area;
                 data.areaColor = settings[key].areaColor;
                 data.areaOpacity = settings[key].areaOpacity;
+                data.lineOpacity = settings[key].lineOpacity;
                 data.type = settings[key].type;
+                data.max = settings[key].max;
               }
 
               if (typeof (val) === 'number') {
