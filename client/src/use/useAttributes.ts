@@ -7,11 +7,19 @@ import { StyleManager, Track } from '..';
 import CameraStore from '../CameraStore';
 import { LineChartData } from './useLineChart';
 
+export interface TimelineGraphSettings {
+  type: LineChartData['type'];
+  area: boolean;
+  areaOpacity: number;
+  areaColor: string;
+}
+
 export interface TimelineGraph {
   name: string;
   filter: AttributeKeyFilter;
   enabled: boolean;
   default?: boolean;
+  settings?: Record<string, TimelineGraphSettings>;
 }
 
 export interface NumericAttributeEditorOptions {
@@ -54,6 +62,9 @@ export interface AttributeNumberFilter {
   range: [number, number]; // Pairs of number indicating start/stop ranges
   appliedTo: string[];
 }
+
+export type TimeLineFilter =
+  AttributeKeyFilter & { settings? : Record<string, TimelineGraphSettings> };
 
 export interface AttributeStringFilter {
   comp: '=' | '!=' | 'contains' | 'starts';
@@ -125,9 +136,7 @@ export default function UseAttributes(
 ) {
   const attributes: Ref<Record<string, Attribute>> = ref({});
   const attributeFilters: Ref<AttributeFilter[]> = ref([]);
-  const timelineFilter: Ref<Record<string, AttributeKeyFilter>> = ref({});
-  const timelineEnabled: Ref<Record<string, boolean>> = ref({});
-  const timelineDefault: Ref<string | null> = ref(null);
+  const timelineGraphs: Ref<Record<string, TimelineGraph>> = ref({});
 
   function loadAttributes(metadataAttributes: Record<string, Attribute>) {
     attributes.value = metadataAttributes;
@@ -140,17 +149,9 @@ export default function UseAttributes(
   }
 
   function loadTimelines(timelines: Record<string, TimelineGraph>) {
-    const filters: Record<string, AttributeKeyFilter> = {};
-    const enabled: Record<string, boolean> = {};
     Object.entries(timelines).forEach(([key, item]) => {
-      filters[key] = item.filter;
-      enabled[key] = item.enabled;
-      if (item.default) {
-        timelineDefault.value = key;
-      }
+      timelineGraphs.value[key] = item;
     });
-    timelineFilter.value = filters;
-    timelineEnabled.value = enabled;
   }
 
   function loadFilters(filters: Record<string, AttributeFilter>) {
@@ -354,7 +355,8 @@ export default function UseAttributes(
 
   function generateDetectionTimelineData(
     track: Track,
-    filter: AttributeKeyFilter,
+    filter: TimeLineFilter,
+    settings: Record<string, TimelineGraphSettings>,
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, TimelineAttribute> = { };
@@ -374,6 +376,12 @@ export default function UseAttributes(
                 name: key,
                 color: attributes.value[`detection_${key}`]?.color || 'white',
               };
+              if (settings && settings[key]) {
+                data.area = settings[key].area;
+                data.areaColor = settings[key].areaColor;
+                data.areaOpacity = settings[key].areaOpacity;
+                data.type = settings[key].type;
+              }
 
               if (typeof (val) === 'number') {
                 dataType = 'number';
@@ -416,14 +424,14 @@ export default function UseAttributes(
     const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number}> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
     if (val !== undefined && selectedTrackId.value !== null) {
-      const vals = Object.entries(timelineEnabled.value);
-      vals.forEach(([key, enabled]) => {
-        if (enabled) {
-          if (timelineFilter.value[key] && val !== undefined && selectedTrackId.value !== null) {
+      const vals = Object.entries(timelineGraphs.value);
+      vals.forEach(([key, graph]) => {
+        if (graph.enabled) {
+          if (val !== undefined && selectedTrackId.value !== null) {
             const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
             if (selectedTrack) {
               const timelineData = generateDetectionTimelineData(
-                selectedTrack, timelineFilter.value[key],
+                selectedTrack, graph.filter, graph.settings,
               );
               // Need to convert any Number types to Line Chart data;
               const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
@@ -442,65 +450,71 @@ export default function UseAttributes(
   });
 
   function setTimelineEnabled(name: string, val: boolean) {
-    VueSet(timelineEnabled.value, name, val);
-    markChangesPending({
-      action: 'upsert',
-      timeline: {
-        name,
-        enabled: timelineEnabled.value[name],
-        filter: timelineFilter.value[name],
-        default: name === timelineDefault.value,
-      },
-    });
+    if (timelineGraphs.value[name]) {
+      timelineGraphs.value[name].enabled = val;
+      markChangesPending({
+        action: 'upsert',
+        timeline: timelineGraphs.value[name],
+      });
+    }
   }
 
-  function setTimelineFilter(name: string, val: AttributeKeyFilter) {
-    VueSet(timelineFilter.value, name, val);
-    markChangesPending({
-      action: 'upsert',
-      timeline: {
-        name,
-        enabled: timelineEnabled.value[name],
-        filter: timelineFilter.value[name],
-        default: name === timelineDefault.value,
-      },
-    });
+  function setTimelineGraph(name: string, val: TimelineGraph) {
+    if (timelineGraphs.value[name]) {
+      VueSet(timelineGraphs.value, name, val);
+      markChangesPending({
+        action: 'upsert',
+        timeline: timelineGraphs.value[name],
+      });
+    }
   }
 
   function removeTimelineFilter(name: string) {
-    if (timelineEnabled.value[name] !== undefined) {
-      VueDel(timelineEnabled.value, name);
-      VueDel(timelineFilter.value, name);
-      markChangesPending({ action: 'delete', timeline: { name, enabled: timelineEnabled.value[name], filter: timelineFilter.value[name] } });
+    if (timelineGraphs.value[name]) {
+      VueDel(timelineGraphs.value, name);
+      markChangesPending({
+        action: 'delete',
+        timeline: timelineGraphs.value[name],
+      });
     }
   }
 
   function setTimelineDefault(name: string) {
-    timelineDefault.value = name;
-    markChangesPending({
-      action: 'upsert',
-      timeline: {
-        name,
-        enabled: timelineEnabled.value[name],
-        filter: timelineFilter.value[name],
-        default: true,
-      },
-    });
+    if (timelineGraphs.value[name]) {
+      timelineGraphs.value[name].default = true;
+      VueSet(timelineGraphs.value, name, timelineGraphs.value[name]);
+      markChangesPending({
+        action: 'upsert',
+        timeline: timelineGraphs.value[name],
+      });
+    }
     // Unset other default Timelines
-    Object.entries(timelineEnabled.value).forEach(([disableName, enabled]) => {
+    Object.entries(timelineGraphs.value).forEach(([disableName, graph]) => {
       if (disableName !== name) {
         markChangesPending({
           action: 'upsert',
-          timeline: {
-            name: disableName,
-            enabled,
-            filter: timelineFilter.value[disableName],
-            default: false,
-          },
+          timeline: graph,
         });
       }
     });
   }
+
+
+  const timelineEnabled = computed(() => {
+    const filters: Record<string, boolean> = {};
+    Object.entries(timelineGraphs.value).forEach(([key, graph]) => {
+      filters[key] = graph.enabled;
+    });
+    return filters;
+  });
+
+  const timelineDefault = computed(() => {
+    const defVal = Object.entries(timelineGraphs.value).find(([key, item]) => item.default);
+    if (defVal) {
+      return defVal[0];
+    }
+    return null;
+  });
 
   return {
     loadAttributes,
@@ -515,11 +529,11 @@ export default function UseAttributes(
     attributeFilters,
     sortAndFilterAttributes,
     setTimelineEnabled,
-    setTimelineFilter,
+    setTimelineGraph,
     setTimelineDefault,
     removeTimelineFilter,
     attributeTimelineData,
-    timelineFilter,
+    timelineGraphs,
     timelineEnabled,
     timelineDefault,
   };

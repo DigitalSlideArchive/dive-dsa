@@ -4,9 +4,13 @@ import {
   ref,
   defineComponent,
   Ref,
+  set as VueSet, del as VueDel,
 } from '@vue/composition-api';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
-import { AttributeKeyFilter, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
+import {
+  AttributeKeyFilter, TimeLineFilter, TimelineGraph, TimelineGraphSettings,
+} from 'vue-media-annotator/use/useAttributes';
+import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { useAttributesFilters, useAttributes } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
@@ -33,8 +37,8 @@ export default defineComponent({
 
   setup() {
     const {
-      setTimelineEnabled, setTimelineFilter, removeTimelineFilter, setTimelineDefault,
-      timelineFilter, timelineEnabled, timelineDefault,
+      setTimelineEnabled, setTimelineGraph, removeTimelineFilter,
+      timelineGraphs,
     } = useAttributesFilters();
     const attributesList = useAttributes();
     const addEditTimelineDialog = ref(false);
@@ -44,12 +48,13 @@ export default defineComponent({
       value: true,
       type: 'key' as 'key',
     };
-    const editTimelineFilter: Ref<AttributeKeyFilter> = ref({
+    const editTimelineFilter: Ref<TimeLineFilter> = ref({
       appliedTo: ['all'],
       active: true, // if this filter is active
       value: true,
       type: 'key' as 'key',
     });
+    const editTimelineSettings: Ref<Record<string, TimelineGraphSettings>> = ref({});
     const editTimelineEnabled = ref(false);
     const editTimelineDefault = ref(false);
     let originalName = 'default';
@@ -57,22 +62,9 @@ export default defineComponent({
     const editTimelineName = ref('default');
     const filterNames = computed(() => {
       const data = ['all'];
-      return data.concat(attributesList.value.map((item) => item.name));
+      return data.concat(attributesList.value.filter((item) => item.belongs === 'detection').map((item) => item.name));
     });
-    const timelineList = computed(() => {
-      const list: Record<string, TimelineGraph> = {};
-      Object.entries(timelineFilter.value).forEach(([key, filter]) => {
-        list[key] = {
-          filter,
-          name: key,
-          enabled: timelineEnabled.value[key],
-        };
-        if (timelineDefault.value === key) {
-          list[key].default = true;
-        }
-      });
-      return list;
-    });
+    const editingGraphSettings = ref(false);
     const addEditTimeline = (item?: TimelineGraph) => {
       addEditTimelineDialog.value = true;
       editTimelineName.value = item ? item.name : 'default';
@@ -80,18 +72,28 @@ export default defineComponent({
       originalDefault = item?.default || false;
       editTimelineDefault.value = originalDefault;
       editTimelineFilter.value = item ? item.filter : defaultTimelineFilter;
+      editTimelineSettings.value = item && item.settings ? item.settings : {};
       editTimelineEnabled.value = item ? item.enabled : false;
+      editingGraphSettings.value = false;
     };
 
     const saveChanges = () => {
       if (editTimelineName.value !== originalName) {
         removeTimelineFilter(originalName);
       }
+      let setDefault = false;
       if (editTimelineDefault.value && editTimelineDefault.value !== originalDefault) {
         // Go through the other timelines and make sure only one is set as the default
-        setTimelineDefault(editTimelineName.value);
+        setDefault = true;
       }
-      setTimelineFilter(editTimelineName.value, editTimelineFilter.value);
+      const updateObject = {
+        name: editTimelineName.value,
+        filter: editTimelineFilter.value,
+        enabled: editTimelineEnabled.value,
+        settings: editTimelineSettings.value,
+        default: setDefault,
+      };
+      setTimelineGraph(editTimelineName.value, updateObject);
       setTimelineEnabled(editTimelineName.value, editTimelineEnabled.value);
       addEditTimelineDialog.value = false;
     };
@@ -99,20 +101,69 @@ export default defineComponent({
     const deleteFilter = (item: TimelineGraph) => {
       removeTimelineFilter(item.name);
     };
+    const graphTypes = ref(['Linear', 'Step', 'StepAfter', 'StepBefore', 'Natural']);
+    const graphArea = ref(false);
+    const graphAreaOpacity = ref(0.2);
+    const graphType: Ref<LineChartData['type']> = ref('Linear');
+    const graphAreaColor = ref('');
+    let editTimelineKey = '';
+    const editGraphSettings = (key: string) => {
+      // set the defaults:
+      editTimelineKey = key;
+      editingGraphSettings.value = true;
+      graphType.value = 'Linear';
+      graphArea.value = false;
+      graphAreaOpacity.value = 0.2;
+      graphAreaColor.value = attributesList.value.find((item) => key === item.name)?.color || '';
+      if (editTimelineSettings.value[key]) {
+        graphType.value = editTimelineSettings.value[key].type || 'Linear';
+        graphArea.value = editTimelineSettings.value[key].area || false;
+        graphAreaOpacity.value = (editTimelineSettings.value[key].areaOpacity || 0.2) as number;
+        graphAreaColor.value = editTimelineSettings.value[key].areaColor || '';
+      }
+    };
+
+    const saveGraphSettings = () => {
+      // Don't set if default values
+      if (!graphType.value && graphType.value === 'Linear') {
+        if (editTimelineSettings.value && editTimelineSettings.value[editTimelineKey]) {
+          VueDel(editTimelineSettings.value, editTimelineKey);
+        }
+      } else {
+        const data: TimelineGraphSettings = {
+          type: graphType.value,
+          area: graphArea.value,
+          areaOpacity: graphAreaOpacity.value,
+          areaColor: graphAreaColor.value,
+        };
+        editTimelineSettings.value[editTimelineKey] = data;
+      }
+      editingGraphSettings.value = false;
+    };
 
     return {
       setTimelineEnabled,
-      setTimelineFilter,
+      setTimelineGraph,
       editTimelineDefault,
       addEditTimelineDialog,
       editTimelineFilter,
       editTimelineName,
       editTimelineEnabled,
       filterNames,
-      timelineList,
       saveChanges,
       addEditTimeline,
       deleteFilter,
+      //Graph Settings
+      saveGraphSettings,
+      editGraphSettings,
+      editingGraphSettings,
+      editTimelineSettings,
+      graphType,
+      graphTypes,
+      graphArea,
+      graphAreaOpacity,
+      graphAreaColor,
+      timelineGraphs,
     };
   },
 });
@@ -134,7 +185,7 @@ export default defineComponent({
       </ul>
       <v-card-text>
         <v-row
-          v-for="item in timelineList"
+          v-for="item in timelineGraphs"
           :key="item.name"
           dense
         >
@@ -199,7 +250,57 @@ export default defineComponent({
               @save-changes="editTimelineFilter = ($event)"
             />
           </v-row>
-          <v-row class="pt-2">
+          <v-row>
+            <h2> Graph Settings </h2>
+            <v-list>
+              <v-list-item
+                v-for="key in editTimelineFilter.appliedTo"
+                :key="`graph_details_${key}`"
+              >
+                <v-row>
+                  {{ key }} <v-spacer /> <v-icon @click="editGraphSettings(key)">
+                    mdi-cog
+                  </v-icon>
+                </v-row>
+              </v-list-item>
+            </v-list>
+          </v-row>
+          <v-row v-if="editingGraphSettings">
+            <v-col>
+              <v-select
+                v-model="graphType"
+                :items="graphTypes"
+                label="Graph Type"
+              />
+              <v-checkbox
+                v-model="graphArea"
+                label="Graph Area"
+              />
+              <v-slider
+                v-if="graphArea"
+                v-model="graphAreaOpacity"
+                :label="`Area Opacity ${graphAreaOpacity.toFixed(2)}`"
+                min="0"
+                max="1"
+                step="0.01"
+              />
+              <h3>Area Color</h3>
+              <v-color-picker
+                v-if="graphArea"
+                v-model="graphAreaColor"
+                hide-inputs
+              />
+            </v-col>
+          </v-row>
+          <v-row v-if="editingGraphSettings">
+            <v-spacer />
+            <v-btn @click="saveGraphSettings">
+              Save Graph Settings
+            </v-btn>
+          </v-row>
+          <v-row
+            class="pt-2"
+          >
             <p>
               One Timeline can be labeled ad the Default timeline which will
               automatically be open when loading the dataset

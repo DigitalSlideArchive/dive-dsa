@@ -5,7 +5,6 @@ import Vue, { PropType } from 'vue';
 import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
-import { UISettings } from 'vue-media-annotator/ConfigurationManager';
 
 interface ButtonData {
   id: string;

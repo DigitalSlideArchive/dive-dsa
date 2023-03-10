@@ -117,6 +117,31 @@ export default Vue.extend({
           .y((d) => y(d[1]));
       }
       this.line = line;
+      this.linear = line;
+      this.step = d3
+        .line()
+        .curve(d3.curveStep)
+        .x((d) => x(d[0]))
+        .y((d) => y(d[1] ? max : 0));
+
+      this.natural = d3
+        .line()
+        .curve(d3.curveNatural)
+        .x((d) => x(d[0]))
+        .y((d) => y(d[1] ? max : 0));
+
+
+      this.stepBefore = d3
+        .line()
+        .curve(d3.curveStepAfter)
+        .x((d) => x(d[0]))
+        .y((d) => y(d[1] ? max : 0));
+
+      this.stepAfter = d3
+        .line()
+        .curve(d3.curveStepAfter)
+        .x((d) => x(d[0]))
+        .y((d) => y(d[1] ? max : 0));
 
       const svg = d3
         .select(this.$el)
@@ -147,6 +172,7 @@ export default Vue.extend({
         .attr('class', 'line')
         .attr('d', (d) => line(d.values))
         .style('stroke', (d) => (d.color ? d.color : '#4c9ac2'))
+        .attr('class', (d) => `${d.name} line `)
         // Non-Arrow function to preserve the 'this' context for d3.mouse(this)
         .on('mouseenter', function mouseEnterHandler(d) {
           const [_x, _y] = d3.mouse(this);
@@ -170,11 +196,88 @@ export default Vue.extend({
           }
         });
       this.path = path;
+      this.areaLine = d3.area()
+        .curve(d3.curveLinear)
+        .x((d) => x(d[0]))
+        .y1((d) => y(d[1] ? max : 0))
+        .y0(y(0));
+      this.areaStep = d3.area()
+        .curve(d3.curveStep)
+        .x((d) => x(d[0]))
+        .y1((d) => y(d[1] ? max : 0))
+        .y0(y(0));
+      this.areaStepBefore = d3.area()
+        .curve(d3.curveStepBefore)
+        .x((d) => x(d[0]))
+        .y1((d) => y(d[1] ? max : 0))
+        .y0(y(0));
+      this.areaStepAfter = d3.area()
+        .curve(d3.curveStepAfter)
+        .x((d) => x(d[0]))
+        .y1((d) => y(d[1] ? max : 0))
+        .y0(y(0));
+      this.areaNatural = d3.area()
+        .curve(d3.curveNatural)
+        .x((d) => x(d[0]))
+        .y1((d) => y(d[1] ? max : 0))
+        .y0(y(0));
+      this.area = svg
+        .selectAll()
+        .data(this.data)
+        .enter()
+        .append('path')
+        .attr('class', 'area')
+        .attr('d', (d) => this.getAreaType(d))
+        .style('fill', (d) => (d.areaColor ? d.areaColor : '#4c9ac2'))
+        .style('opacity', (d) => (d.areaOpacity ? d.areaOpacity : 0.2));
+
+      this.update();
+    },
+    getAreaType(d) {
+      if (d.type) {
+        if (d.type === 'Step') {
+          return this.areaStep(d.area ? d.values : []);
+        }
+        if (d.type === 'StepBefore') {
+          return this.areaStepBefore(d.area ? d.values : []);
+        }
+        if (d.type === 'StepAfter') {
+          return this.areaStepAfter(d.area ? d.values : []);
+        }
+        if (d.type === 'Natural') {
+          return this.areaNatural(d.area ? d.values : []);
+        }
+      }
+      return this.areaLine(d.area ? d.values : []);
+    },
+    getCurveType(d) {
+      if (d.type) {
+        if (d.type === 'Step') {
+          return this.step(d.values);
+        }
+        if (d.type === 'StepBefore') {
+          return this.stepBefore(d.values);
+        }
+        if (d.type === 'StepAfter') {
+          return this.step(d.values);
+        }
+        if (d.type === 'Natural') {
+          return this.natural(d.values);
+        }
+      }
+      return this.line(d.values);
     },
     update() {
       this.x.domain([this.startFrame, this.endFrame]);
       this.line.x((d) => this.x(d[0]));
-      this.path.attr('d', (d) => this.line(d.values));
+      this.step.x((d) => this.x(d[0]));
+      this.stepBefore.x((d) => this.x(d[0]));
+      this.stepAfter.x((d) => this.x(d[0]));
+      this.natural.x((d) => this.x(d[0]));
+      this.areaLine.x((d) => this.x(d[0]));
+      this.areaStepAfter.x((d) => this.x(d[0]));
+      this.path.attr('d', (d) => this.getCurveType(d));
+      this.area.attr('d', (d) => this.getAreaType(d));
     },
   },
 });
@@ -209,5 +312,9 @@ export default Vue.extend({
     padding: 0px 5px;
     font-size: 14px;
   }
+}
+.area {
+    fill: rgba(234, 255, 0, 0.2);
+    stroke-width: 0;
 }
 </style>
