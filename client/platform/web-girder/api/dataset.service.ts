@@ -1,10 +1,11 @@
 import type { GirderModel } from '@girder/components/src';
 
 import {
-  DatasetMetaMutable, FrameImage, SaveTimelineArgs, SaveAttributeArgs,
+  DatasetMetaMutable, FrameImage, SaveTimelineArgs, SaveAttributeArgs, SaveFilterArgs,
 } from 'dive-common/apispec';
 import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import girderRest from 'platform/web-girder/plugins/girder';
+import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 import { postProcess } from './rpc.service';
 
 interface HTMLFile extends File {
@@ -14,6 +15,11 @@ interface HTMLFile extends File {
 function getDataset(folderId: string) {
   return girderRest.get<GirderMetadataStatic>(`dive_dataset/${folderId}`);
 }
+
+function getDiveConfiguration(folderId: string) {
+  return girderRest.get<DiveConfiguration>(`dive_dataset/${folderId}/configuration`);
+}
+
 
 async function getDatasetList(
   limit?: number,
@@ -125,6 +131,17 @@ function saveTimelines(folderId: string, args: SaveTimelineArgs) {
   return girderRest.patch(`/dive_dataset/${folderId}/timelines`, args);
 }
 
+function saveFilters(folderId: string, args: SaveFilterArgs) {
+  return girderRest.patch(`/dive_dataset/${folderId}/filters`, args);
+}
+
+function saveConfiguration(folderId: string, config: DiveConfiguration['metadata']['configuration']) {
+  return girderRest.patch(`/dive_dataset/${folderId}/configuration`, config);
+}
+function transferConfiguration(source: string, dest: string) {
+  return girderRest.post(`/dive_dataset/${source}/transfer_config/${dest}`);
+}
+
 function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
   return girderRest.patch(`/dive_dataset/${folderId}`, metadata);
 }
@@ -147,10 +164,14 @@ export {
   getDataset,
   getDatasetList,
   getDatasetMedia,
+  getDiveConfiguration,
   importAnnotationFile,
   makeViameFolder,
   saveAttributes,
   saveTimelines,
+  saveFilters,
+  saveConfiguration,
   saveMetadata,
   validateUploadGroup,
+  transferConfiguration,
 };

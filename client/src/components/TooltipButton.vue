@@ -37,6 +37,10 @@ export default Vue.extend({
       type: Boolean,
       default: false,
     },
+    to: {
+      type: String,
+      default: '',
+    },
   },
 });
 </script>
@@ -57,6 +61,7 @@ export default Vue.extend({
         :outlined="outlined"
         :tile="tile"
         class="ma-0"
+        :to="to !== '' ? to : undefined"
         v-on="on"
         @click="$emit('click')"
       >

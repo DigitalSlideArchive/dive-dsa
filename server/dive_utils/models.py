@@ -157,11 +157,37 @@ class Attribute(BaseModel):
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
 
+class AttributeNumberFilter(BaseModel):
+    type: Literal['range', 'top']
+    comp: Literal['>' ,'<', '>=', '<=']
+    value: float
+    active: bool
+    range: List[float]
+    appliedTo: List[str]
+
 class AttributeKeyFilter(BaseModel):
     appliedTo: List[str]
     active: bool
     value: bool
     type: Literal['key']
+
+class AttributeBoolFilter(BaseModel):
+    value: bool
+    type: Literal['is', 'not']
+    appliedTo: List[str]
+    active: bool
+
+class AttributeStringFilter(BaseModel):
+    comp: Literal['=', '!=', 'contains', 'starts']
+    value: List[str]
+    appliedTo: List[str]
+    active: bool
+
+
+class AttributeFilter(BaseModel):
+    belongsTo: Literal['track', 'detection']
+    dataType: Literal['text', 'number', 'boolean', 'key']
+    filterData: Union[AttributeKeyFilter, AttributeStringFilter, AttributeBoolFilter, AttributeNumberFilter]
 
 class TimeLineGraph(BaseModel):
     enabled: bool
@@ -177,6 +203,91 @@ class CustomStyle(BaseModel):
     showLabel: Optional[bool]
     showConfidence: Optional[bool]
 
+class ConfigurationSettings(BaseModel):
+    addTypes: Optional[bool]
+    editTypes: Optional[bool]
+    addTracks: Optional[bool]
+    editTracks: Optional[bool]
+    addTrackAttributes: Optional[bool]
+    editTrackAttributes: Optional[bool]
+    addDetectionAttributes: Optional[bool]
+    editDetectionAttributes: Optional[bool]
+
+
+class GeneralSettings(BaseModel):
+    configurationMerge: Optional[Literal['merge up', 'merge down', 'disabled']]
+    baseConfiguration: Optional[str]  # the folderId to use as the current write to configuration
+    disableConfigurationEditing: Optional[bool]
+    configurationSettings: Optional[ConfigurationSettings]
+
+
+class UITopBar(BaseModel):
+    UIData: Optional[bool]
+    UIJobs: Optional[bool]
+    UINextPrev: Optional[bool]
+    UIToolBox: Optional[bool]
+    UIImport: Optional[bool]
+    UIExport: Optional[bool]
+    UIClone: Optional[bool]
+    UIConfiguration: Optional[bool]
+    UIKeyboardShortcuts: Optional[bool]
+    UISave: Optional[bool]
+
+class UIToolBar(BaseModel):
+    UIEditingInfo: Optional[bool]
+    UIEditingTypes: Optional[List[bool]]  # Rectangle, Polygon, Line by default
+    UIVisibility: Optional[List[bool]]  # Rectnagle, Polygon, Line by default
+    UITrackTrails: Optional[bool]
+
+class UISideBar(BaseModel):
+    UITrackTypes: Optional[bool]
+    UIConfidenceThreshold: Optional[bool]
+    UITrackList: Optional[bool]
+    UITrackDetails: Optional[bool]
+    UIAttributeSettings: Optional[bool]
+    UIAttributeAdding: Optional[bool]
+
+class UIContextBar(BaseModel):
+    UIThresholdControls: Optional[bool]
+    UIImageEnhancements: Optional[bool]
+    UIGroupManager: Optional[bool]
+    UIAttributeDetails: Optional[bool]
+    UIRevisionHistory: Optional[bool]
+
+class UITrackDetails(BaseModel):
+    UITrackBrowser: Optional[bool]
+    UITrackMerge: Optional[bool]
+    UIConfidencePairs: Optional[bool]
+    UITrackAttributes: Optional[bool]
+    UIDetectionAttributes: Optional[bool]
+
+class UIControls(BaseModel):
+    UIPlaybackControls: Optional[bool]
+    UIAudioControls: Optional[bool]
+    UISpeedControls: Optional[bool]
+    UITimeDisplay: Optional[bool]
+    UIFrameDisplay: Optional[bool]
+    UIImageNameDisplay: Optional[bool]
+    UILockCamera: Optional[bool]
+
+class UITimeline(BaseModel):
+    UIDetections: Optional[bool]
+    UIEvents: Optional[bool]
+
+class UISettings(BaseModel):
+    UITopBar: Optional[Union[bool, UITopBar]]
+    UIToolBar: Optional[Union[bool, UIToolBar]]
+    UISideBar: Optional[Union[bool, UISideBar]]
+    UIContextBar: Optional[Union[bool, UIContextBar]]
+    UITrackDetails: Optional[Union[bool, UITrackDetails]]
+    UIControls: Optional[Union[bool, UIControls]]
+    UITimeline: Optional[Union[bool, UITimeline]]
+
+
+class DIVEConfiguration(BaseModel):
+    general: Optional[GeneralSettings]
+    UISettings: Optional[UISettings]
+
 
 class MetadataMutable(BaseModel):
     version = (
@@ -187,6 +298,8 @@ class MetadataMutable(BaseModel):
     confidenceFilters: Optional[Dict[str, float]]
     attributes: Optional[Dict[str, Attribute]]
     timelines: Optional[Dict[str, TimeLineGraph]]
+    filters: Optional[Dict[str, AttributeFilter]]
+    configuration: Optional[DIVEConfiguration]
 
     @staticmethod
     def is_dive_configuration(value: dict):

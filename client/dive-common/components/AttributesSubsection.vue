@@ -11,12 +11,14 @@ import {
   useTime,
   useReadOnlyMode,
   useAttributesFilters,
+  useConfiguration,
 } from 'vue-media-annotator/provides';
 import type { Attribute, AttributeFilter } from 'vue-media-annotator/use/useAttributes';
 import AttributeInput from 'dive-common/components/AttributeInput.vue';
 import PanelSubsection from 'dive-common/components/PanelSubsection.vue';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import context from 'dive-common/store/context';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
   components: {
@@ -42,6 +44,8 @@ export default defineComponent({
     const readOnlyMode = useReadOnlyMode();
     const { frame: frameRef } = useTime();
     const selectedTrackIdRef = useSelectedTrackId();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const { attributeFilters, sortAndFilterAttributes, timelineEnabled } = useAttributesFilters();
     const timelineActive = computed(
       () => (Object.values(timelineEnabled.value).filter((item) => item).length),
@@ -80,9 +84,9 @@ export default defineComponent({
       let additionFilters: AttributeFilter[] = [];
       let mode: 'track' | 'detection' = 'track';
       if (props.mode === 'Track') {
-        additionFilters = attributeFilters.value.track;
+        additionFilters = attributeFilters.value.filter((item) => item.belongsTo === 'track');
       } else {
-        additionFilters = attributeFilters.value.detection;
+        additionFilters = attributeFilters.value.filter((item) => item.belongsTo === 'detection');
         mode = 'detection';
       }
       let attributeVals = {};
@@ -137,9 +141,9 @@ export default defineComponent({
     const filtersActive = computed(() => {
       let additionFilters: AttributeFilter[] = [];
       if (props.mode === 'Track') {
-        additionFilters = attributeFilters.value.track;
+        additionFilters = attributeFilters.value.filter((item) => item.belongsTo === 'track');
       } else {
-        additionFilters = attributeFilters.value.detection;
+        additionFilters = attributeFilters.value.filter((item) => item.belongsTo === 'detection');
       }
       return !!additionFilters.find((filter) => filter.filterData.active === true);
     });
@@ -173,6 +177,7 @@ export default defineComponent({
       openTimeline,
       timelineActive,
       filtersActive,
+      getUISetting,
     };
   },
 });
@@ -195,9 +200,17 @@ export default defineComponent({
             class="text-caption"
           >
             {{ `Frame: ${frameRef}` }}
+            <tooltip-btn
+              v-if="selectedAttributes.keyframe === false"
+              size="x-small"
+              color="warning"
+              icon="mdi-alert"
+              tooltip-text="Not a Keyframe can't edit attributes.  Check if interpolation is on."
+            />
           </div>
         </v-col>
         <v-tooltip
+          v-if="getUISetting('UIAttributeAdding')"
           open-delay="200"
           bottom
           max-width="200"
@@ -244,6 +257,7 @@ export default defineComponent({
           @click="clickSortToggle"
         />
         <tooltip-btn
+          v-if="getUISetting('UIAttributeDetails')"
           icon="mdi-filter"
           :color="filtersActive ? 'primary' : 'default'"
           :tooltip-text="filtersActive
@@ -251,7 +265,7 @@ export default defineComponent({
           @click="openFilter"
         />
         <tooltip-btn
-          v-if="mode === 'Detection'"
+          v-if="mode === 'Detection' && getUISetting('UIAttributeDetails')"
           icon="mdi-chart-line-variant"
           :color="timelineActive ? 'primary' : 'default'"
           tooltip-text="Timeline Settings for Attributes"
@@ -300,7 +314,8 @@ export default defineComponent({
                 v-if="activeSettings"
                 :datatype="attribute.datatype"
                 :name="attribute.name"
-                :disabled="readOnlyMode"
+                :disabled="readOnlyMode
+                  || (mode === 'Detection' && selectedAttributes.keyframe === false)"
                 :values="attribute.values ? attribute.values : null"
                 :value="
                   selectedAttributes && selectedAttributes.attributes
@@ -342,6 +357,7 @@ export default defineComponent({
               cols="1"
             >
               <v-btn
+                v-if="getUISetting('UIAttributeSettings')"
                 icon
                 x-small
                 @click="editAttribute(attribute)"

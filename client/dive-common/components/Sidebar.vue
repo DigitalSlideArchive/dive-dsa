@@ -3,12 +3,15 @@ import {
   computed,
   defineComponent,
   reactive,
+  ref,
   toRef,
+  watch,
 } from '@vue/composition-api';
 
 import { FilterList, TrackList } from 'vue-media-annotator/components';
 import {
   useCameraStore,
+  useConfiguration,
   useHandler, useReadOnlyMode, useTrackFilters, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 
@@ -18,6 +21,7 @@ import TrackSettingsPanel from 'dive-common/components/TrackSettingsPanel.vue';
 import TypeSettingsPanel from 'dive-common/components/TypeSettingsPanel.vue';
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
   props: {
@@ -41,6 +45,8 @@ export default defineComponent({
   },
 
   setup() {
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const allTypesRef = useTrackFilters().allTypes;
     const readOnlyMode = useReadOnlyMode();
     const cameraStore = useCameraStore();
@@ -51,9 +57,16 @@ export default defineComponent({
     const typeSettings = toRef(clientSettings, 'typeSettings');
     const trackFilterControls = useTrackFilters();
     const styleManager = useTrackStyleManager();
-
+    const hideAttributeSwap = ref(false);
     const data = reactive({
       currentTab: 'tracks' as 'tracks' | 'attributes',
+    });
+
+    watch(configMan.configuration, () => {
+      if (!getUISetting('UITrackTypes') && !getUISetting('UITrackList')) {
+        data.currentTab = 'attributes';
+        hideAttributeSwap.value = true;
+      }
     });
 
     function swapTabs() {
@@ -92,6 +105,7 @@ export default defineComponent({
       groupAdd,
       mouseTrap,
       trackFilterControls,
+      hideAttributeSwap,
       trackSettings,
       typeSettings,
       readOnlyMode,
@@ -100,6 +114,7 @@ export default defineComponent({
       /* methods */
       doToggleMerge,
       swapTabs,
+      getUISetting,
     };
   },
 });
@@ -112,11 +127,12 @@ export default defineComponent({
   >
     <template #default="{ topHeight, bottomHeight }">
       <v-btn
+        v-if="getUISetting('UITrackDetails') && !hideAttributeSwap"
         v-mousetrap="mouseTrap"
         small
         icon
         title="press `a`"
-        class="swap-button"
+        class="swap-button pb-3"
         @click="swapTabs"
       >
         <v-icon>mdi-swap-horizontal</v-icon>
@@ -128,6 +144,7 @@ export default defineComponent({
           class="wrapper d-flex flex-column"
         >
           <FilterList
+            v-if="getUISetting('UITrackTypes')"
             :show-empty-types="typeSettings.showEmptyTypes"
             :height="topHeight"
             :width="width"
@@ -145,6 +162,7 @@ export default defineComponent({
           <slot v-if="enableSlot" />
           <v-divider />
           <TrackList
+            v-if="getUISetting('UITrackList')"
             class="flex-grow-0 flex-shrink-0"
             :new-track-mode="trackSettings.newTrackSettings.mode"
             :new-track-type="trackSettings.newTrackSettings.type"

@@ -134,7 +134,7 @@ export default defineComponent({
             },
           }),
           exportConfigurationUrl: getUri({
-            url: `dive_dataset/${singleDataSetId.value}/configuration`,
+            url: `dive_dataset/${singleDataSetId.value}/export_configuration`,
           }),
         };
       }

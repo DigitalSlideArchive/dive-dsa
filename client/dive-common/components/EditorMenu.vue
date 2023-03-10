@@ -5,6 +5,7 @@ import Vue, { PropType } from 'vue';
 import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
+import { UISettings } from 'vue-media-annotator/ConfigurationManager';
 
 interface ButtonData {
   id: string;
@@ -49,6 +50,10 @@ export default Vue.extend({
     tailSettings: {
       type: Object as PropType<{ before: number; after: number }>,
       default: () => ({ before: 20, after: 10 }),
+    },
+    getUISetting: {
+      type: Function,
+      required: true,
     },
   },
   data() {
@@ -204,6 +209,7 @@ export default Vue.extend({
   >
     <div class="d-flex align-center grow">
       <div
+        v-if="getUISetting('UIEditingInfo')"
         class="pa-1 d-flex"
         style="width: 280px;"
       >
@@ -231,19 +237,23 @@ export default Vue.extend({
           </div>
         </div>
       </div>
-      <v-btn
-        v-for="button in editButtons"
+      <span
+        v-for="(button, index) in editButtons"
         :key="button.id + 'view'"
-        :disabled="!editingMode"
-        :outlined="!button.active"
-        :color="button.active ? editingHeader.color : ''"
-        class="mx-1"
-        small
-        @click="button.click"
       >
-        <pre v-if="button.mousetrap">{{ button.mousetrap[0].bind }}:</pre>
-        <v-icon>{{ button.icon }}</v-icon>
-      </v-btn>
+        <v-btn
+          v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[index]"
+          :disabled="!editingMode"
+          :outlined="!button.active"
+          :color="button.active ? editingHeader.color : ''"
+          class="mx-1"
+          small
+          @click="button.click"
+        >
+          <pre v-if="button.mousetrap">{{ button.mousetrap[0].bind }}:</pre>
+          <v-icon>{{ button.icon }}</v-icon>
+        </v-btn>
+      </span>
       <slot name="delete-controls" />
       <v-spacer />
       <span class="pb-1">
@@ -255,16 +265,20 @@ export default Vue.extend({
             Visibility
           </span>
         </span>
-        <v-btn
-          v-for="button in viewButtons"
+        <span
+          v-for="(button, index) in viewButtons"
           :key="button.id"
-          :color="button.active ? 'grey darken-2' : ''"
-          class="mx-1 mode-button"
-          small
-          @click="button.click"
         >
-          <v-icon>{{ button.icon }}</v-icon>
-        </v-btn>
+          <v-btn
+            v-if="getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index]"
+            :color="button.active ? 'grey darken-2' : ''"
+            class="mx-1 mode-button"
+            small
+            @click="button.click"
+          >
+            <v-icon>{{ button.icon }}</v-icon>
+          </v-btn>
+        </span>
         <v-menu
           open-on-hover
           bottom
@@ -273,6 +287,7 @@ export default Vue.extend({
         >
           <template #activator="{ on, attrs }">
             <v-btn
+              v-if="getUISetting('UITrackTrails')"
               v-bind="attrs"
               :color="isVisible('TrackTail') ? 'grey darken-2' : ''"
               class="mx-1 mode-button"

@@ -5,6 +5,7 @@ import * as components from './components';
 import BaseAnnotation from './BaseAnnotation';
 import BaseAnnotationStore from './BaseAnnotationStore';
 import CameraStore from './CameraStore';
+import ConfigurationManager from './ConfigurationManager';
 import Group from './Group';
 import GroupFilterControls from './GroupFilterControls';
 import GroupStore from './GroupStore';
@@ -28,6 +29,7 @@ export {
   BaseAnnotation,
   BaseAnnotationStore,
   CameraStore,
+  ConfigurationManager,
   Group,
   GroupFilterControls,
   GroupStore,

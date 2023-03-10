@@ -20,6 +20,7 @@ import {
   useGroupFilterControls,
   useCameraStore,
   useSelectedCamera,
+  useConfiguration,
 } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/useAttributes';
 import TrackItem from 'vue-media-annotator/components/TrackItem.vue';
@@ -31,6 +32,7 @@ import AttributeInput from 'dive-common/components/AttributeInput.vue';
 import AttributeEditor from 'dive-common/components/AttributeEditor.vue';
 import AttributeSubsection from 'dive-common/components/AttributesSubsection.vue';
 import ConfidenceSubsection from 'dive-common/components/ConfidenceSubsection.vue';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
   components: {
@@ -60,6 +62,8 @@ export default defineComponent({
   setup(props) {
     const readOnlyMode = useReadOnlyMode();
     const attributes = useAttributes();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const editingAttribute: Ref<Attribute | null> = ref(null);
     const editingError: Ref<string | null> = ref(null);
     const editingModeRef = useEditingMode();
@@ -247,6 +251,7 @@ export default defineComponent({
       removeGroup,
       toggleMerge,
       unstageFromMerge,
+      getUISetting,
     };
   },
 });
@@ -274,8 +279,10 @@ export default defineComponent({
         This panel is used for:
         <ul>
           <li>Setting attributes on tracks and keyframes</li>
-          <li>Merging several tracks together</li>
-          <li>Viewing and managing class types and conficence values</li>
+          <li v-if="getUISetting('UITrackMerge')">
+            Merging several tracks together
+          </li>
+          <li>Viewing and managing class types and confidence values</li>
           <li v-if="!multiCam">
             Creating and editing track groups
           </li>
@@ -291,7 +298,7 @@ export default defineComponent({
     </div>
     <template v-else>
       <div
-        v-if="editingGroup && !multiCam"
+        v-if="getUISetting('UIGroupManager') && editingGroup && !multiCam"
         class="px-2"
       >
         <div class="d-flex">
@@ -361,6 +368,7 @@ export default defineComponent({
         </option>
       </datalist>
       <div
+        v-if="getUISetting('UITrackBrowser')"
         :class="{ 'multi-select-list': true, 'unlimited': editingGroup !== null }"
         class="track-details"
       >
@@ -423,7 +431,7 @@ export default defineComponent({
       </div>
       <div class="d-flex flex-column">
         <v-btn
-          v-if="!multiSelectInProgress && !multiCam"
+          v-if="getUISetting('UITrackMerge') && !multiSelectInProgress && !multiCam"
           color="primary lighten-1"
           class="mx-2 mb-2 grow"
           :disabled="readOnlyMode"
@@ -441,7 +449,7 @@ export default defineComponent({
           Begin Track Merge (m)
         </v-btn>
         <v-btn
-          v-if="!multiSelectInProgress && !multiCam"
+          v-if="getUISetting('UIGroupManager') && !multiSelectInProgress && !multiCam"
           color="primary darken-1"
           class="mx-2 mb-2 grow"
           :disabled="readOnlyMode"
@@ -496,7 +504,7 @@ export default defineComponent({
         </v-btn>
       </div>
       <confidence-subsection
-        v-if="editingGroupIdRef === null"
+        v-if="getUISetting('UIConfidencePairs') && editingGroupIdRef === null"
         style="max-height:33vh;"
         :confidence-pairs="
           flatten(selectedTrackList.map((t) => t.confidencePairs)).sort((a, b) => b[1] - a[1])
@@ -505,7 +513,7 @@ export default defineComponent({
         @set-type="selectedTrackList[0].setType($event)"
       />
       <attribute-subsection
-        v-if="!multiSelectInProgress"
+        v-if="getUISetting('UITrackAttributes') && !multiSelectInProgress"
         mode="Track"
         :attributes="attributes"
         :edit-individual="editIndividual"
@@ -514,7 +522,7 @@ export default defineComponent({
         @add-attribute="addAttribute"
       />
       <attribute-subsection
-        v-if="!multiSelectInProgress"
+        v-if="getUISetting('UIDetectionAttributes') && !multiSelectInProgress"
         mode="Detection"
         :attributes="attributes"
         :edit-individual="editIndividual"

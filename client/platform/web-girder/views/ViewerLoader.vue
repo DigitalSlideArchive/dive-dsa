@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, onBeforeUnmount, onMounted, ref, toRef, watch,
+  computed, defineComponent, onBeforeUnmount, onMounted, ref, toRef, watch, Ref,
 } from '@vue/composition-api';
 
 import Viewer from 'dive-common/components/Viewer.vue';
@@ -11,6 +11,8 @@ import SidebarContext from 'dive-common/components/SidebarContext.vue';
 import context from 'dive-common/store/context';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import JobsTab from './JobsTab.vue';
 import Export from './Export.vue';
 import Clone from './Clone.vue';
@@ -51,6 +53,7 @@ export default defineComponent({
     SidebarContext,
     ViewerAlert,
     DIVETools,
+    ConfigurationEditor,
     ...context.getComponents(),
   },
 
@@ -139,6 +142,44 @@ export default defineComponent({
         params: { id: props.id, revision: revisionId.toString() },
       });
     }
+    const configMan: Ref<Record<UISettingsKey | string,
+    boolean | boolean[] | undefined> | null> = ref(null);
+    const enabledUISettings = (map: Record<UISettingsKey | string,
+    boolean | boolean[] | undefined>) => {
+      configMan.value = map;
+    };
+
+    const getSetting = (key: UISettingsKey) => {
+      if (configMan.value) {
+        if (configMan.value[key] === undefined) {
+          return true;
+        }
+        return configMan.value[key];
+      }
+      return true;
+    };
+    const enabledFeatures = computed(() => {
+      if (configMan.value !== null) {
+        const retData = {
+          data: getSetting('UIData'),
+          jobs: getSetting('UIJobs'),
+          toolbox: getSetting('UIToolBox'),
+          import: getSetting('UIImport'),
+          export: getSetting('UIExport'),
+          clone: getSetting('UIClone'),
+        };
+        return retData;
+      }
+      return {
+        data: false,
+        jobs: false,
+        toolbox: false,
+        import: false,
+        export: false,
+        clone: false,
+
+      };
+    });
 
     return {
       buttonOptions,
@@ -151,6 +192,8 @@ export default defineComponent({
       currentJob,
       runningPipelines,
       routeRevision,
+      enabledFeatures,
+      enabledUISettings,
     };
   },
 });
@@ -163,6 +206,7 @@ export default defineComponent({
     ref="viewerRef"
     :revision="revisionNum"
     :read-only-mode="!!getters['Jobs/datasetRunningState'](id)"
+    @get-ui-settings="enabledUISettings($event)"
   >
     <template #title>
       <ViewerAlert />
@@ -173,11 +217,14 @@ export default defineComponent({
         class="mx-2"
         style="flex-basis:0; flex-grow:0;"
       >
-        <v-tab :to="getters['Location/locationRoute']">
+        <v-tab
+          v-if="enabledFeatures.data"
+          :to="getters['Location/locationRoute']"
+        >
           Data
           <v-icon>mdi-database</v-icon>
         </v-tab>
-        <JobsTab />
+        <JobsTab v-if="enabledFeatures.jobs" />
       </v-tabs>
     </template>
     <template #title-right>
@@ -186,6 +233,7 @@ export default defineComponent({
         :menu-options="menuOptions"
       />
       <ImportAnnotations
+        v-if="enabledFeatures['import']"
         :button-options="buttonOptions"
         :menu-options="menuOptions"
         :read-only-mode="!!getters['Jobs/datasetRunningState'](id) || revisionNum !== undefined"
@@ -193,15 +241,20 @@ export default defineComponent({
         block-on-unsaved
       />
       <Export
+        v-if="enabledFeatures['export']"
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-ids="[id]"
         block-on-unsaved
       />
       <Clone
-        v-if="$store.state.Dataset.meta"
+        v-if="$store.state.Dataset.meta && enabledFeatures['clone']"
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-id="id"
         :revision="revisionNum"
+      />
+      <ConfigurationEditor
+        :button-options="buttonOptions"
+        :menu-options="menuOptions"
       />
     </template>
     <template #right-sidebar>

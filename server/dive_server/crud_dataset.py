@@ -171,10 +171,28 @@ class AttributeUpdateArgs(BaseModel):
     class Config:
         extra = 'forbid'
 
+def transfer_config(source: types.GirderModel, dest: types.GirderModel):
+    attributes = source.get('meta',{}).get('attributes', {})
+    timelines = source.get('meta',{}).get('timelines', {})
+    customGroupStyling = source.get('meta',{}).get('customGroupStyling', {})
+    customTypeStyling = source.get('meta',{}).get('customTypeStyling', {})
+    confidenceFilters = source.get('meta',{}).get('confidenceFilters', {})
+    filters = source.get('meta',{}).get('filters', {})
+    data = {
+        'attributes': attributes,
+        'timelines': timelines,
+        'customGroupStyling': customGroupStyling,
+        'customTypeStyling': customTypeStyling,
+        'filters': filters,
+        'confidenceFilters': confidenceFilters,
+    }
+    update_metadata(dest, data, False)
 
-def update_attributes(dsFolder: types.GirderModel, data: dict):
+
+def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):
     """Upsert or delete attributes"""
-    crud.verify_dataset(dsFolder)
+    if verify:
+        crud.verify_dataset(dsFolder)
     validated: AttributeUpdateArgs = crud.get_validated_model(AttributeUpdateArgs, **data)
     attributes_dict = fromMeta(dsFolder, 'attributes', {})
 
@@ -187,7 +205,7 @@ def update_attributes(dsFolder: types.GirderModel, data: dict):
     deleted_len = len(validated.upsert)
 
     if upserted_len or deleted_len:
-        update_metadata(dsFolder, {'attributes': attributes_dict})
+        update_metadata(dsFolder, {'attributes': attributes_dict}, verify)
 
     return {
         "updated": upserted_len,
@@ -201,10 +219,18 @@ class TimelineUpdateArgs(BaseModel):
     class Config:
         extra = 'forbid'
 
+class FilterUpdateArgs(BaseModel):
+    upsert: List[models.AttributeFilter] = []
+    delete: List[str] = []
 
-def update_timelines(dsFolder: types.GirderModel, data: dict):
+    class Config:
+        extra = 'forbid'
+
+
+def update_timelines(dsFolder: types.GirderModel, data: dict, verify=True):
     """Upsert or delete attributes"""
-    crud.verify_dataset(dsFolder)
+    if verify:
+        crud.verify_dataset(dsFolder)
     validated: TimelineUpdateArgs = crud.get_validated_model(TimelineUpdateArgs, **data)
     timelines_dict = fromMeta(dsFolder, 'timelines', {})
 
@@ -217,11 +243,47 @@ def update_timelines(dsFolder: types.GirderModel, data: dict):
     deleted_len = len(validated.upsert)
 
     if upserted_len or deleted_len:
-        update_metadata(dsFolder, {'timelines': timelines_dict})
+        update_metadata(dsFolder, {'timelines': timelines_dict}, verify)
 
     return {
         "updated": upserted_len,
         "deleted": deleted_len,
+    }
+
+
+def update_filters(dsFolder: types.GirderModel, data: dict, verify=True):
+    """Upsert or delete attributes"""
+    if verify:
+        crud.verify_dataset(dsFolder)
+    validated: FilterUpdateArgs = crud.get_validated_model(FilterUpdateArgs, **data)
+    filters_dict = fromMeta(dsFolder, 'filters', {})
+
+    for filter_id in validated.delete:
+        filters_dict.pop(str(filter_id), None)
+    for filter in validated.upsert:
+        key = f'{filter.belongsTo}_{filter.dataType}_{"-".join(filter.filterData.appliedTo)}'
+        filters_dict[str(key)] = filter.dict(exclude_none=True)
+
+    upserted_len = len(validated.delete)
+    deleted_len = len(validated.upsert)
+
+    if upserted_len or deleted_len:
+        update_metadata(dsFolder, {'filters': filters_dict}, verify)
+
+    return {
+        "updated": upserted_len,
+        "deleted": deleted_len,
+    }
+
+
+
+def update_configuration(dsFolder: types.GirderModel, data: dict, verify=True):
+    if verify:
+        crud.verify_dataset(dsFolder)
+    configuration = fromMeta(dsFolder, 'configuration', {})
+    update_metadata(dsFolder, {'configuration': data}, verify)
+    return {
+        'updated': data
     }
 
 def export_datasets_zipstream(

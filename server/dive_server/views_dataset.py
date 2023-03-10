@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 import cherrypy
+import json
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, rawResponse
@@ -8,7 +9,11 @@ from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import RestException
 from girder.models.file import File
 from girder.models.folder import Folder
+from girder.models.user import User
+from girder.models.collection import Collection
 from girder.models.item import Item
+from bson.objectid import ObjectId
+
 
 from dive_utils import constants, setContentDisposition
 from dive_utils.models import MetadataMutable
@@ -21,6 +26,22 @@ DatasetModelParam = {
     'paramType': 'path',
     'required': True,
 }
+
+def config_merge(a, b, path= None):
+    "merges b into a"
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                config_merge(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass # same leaf value
+            else:
+                a[key] = b[key]
+        else:
+            a[key] = b[key]
+    return a
+
 
 
 class DatasetResource(Resource):
@@ -39,14 +60,18 @@ class DatasetResource(Resource):
         self.route("GET", (":id", "media"), self.get_media)
         self.route("GET", ("export",), self.export)
         self.route("GET", (":id", "configuration"), self.get_configuration)
+        self.route("GET", (":id", "export_configuration"), self.export_configuration)
         self.route("GET", (":id", "media", ":mediaId", "download"), self.download_media)
         self.route("POST", ("validate_files",), self.validate_files)
+        self.route("POST", (":id", "transfer_config", ":dest",), self.transfer_config)
 
         self.route("PATCH", (":id",), self.patch_metadata)
 
         # do we make this another resource in girder?
         self.route("PATCH", (":id", "attributes"), self.patch_attributes)
         self.route("PATCH", (":id", "timelines"), self.patch_timelines)
+        self.route("PATCH", (":id", "configuration"), self.patch_configuration)
+        self.route("PATCH", (":id", "filters"), self.patch_filters)
 
     @access.user
     @autoDescribeRoute(
@@ -176,11 +201,11 @@ class DatasetResource(Resource):
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @rawResponse
     @autoDescribeRoute(
-        Description("Get dataset configuration").modelParam(
+        Description("export dataset configuration to JSON").modelParam(
             "id", level=AccessType.READ, **DatasetModelParam
         )
     )
-    def get_configuration(self, folder):
+    def export_configuration(self, folder):
         setContentDisposition(f'{folder["name"]}.config.json')
         # A dataset configuration consists of MetadataMutable properties.
         expose = MetadataMutable.schema()['properties'].keys()
@@ -189,6 +214,186 @@ class DatasetResource(Resource):
             include=expose,
             indent=2,
         )
+
+    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @rawResponse
+    @autoDescribeRoute(
+        Description("Get dataset configuration and merge if required").modelParam(
+            "id", level=AccessType.READ, **DatasetModelParam
+        )
+    )
+    def get_configuration(self, folder):
+        user = self.getCurrentUser()
+        last = False
+        baseFolder = folder
+        configurationList = []
+        baseConfigurationId = None # lowest configurationId to start merge from
+        rootConfig = baseFolder.get('meta', {}).get('configuration', False)
+        folderPairs = [
+            {
+                'name' : baseFolder.get('name'),
+                'id' :str(baseFolder.get('_id')),
+                'baseConfiguration' : baseFolder.get('meta', {}).get('configuration', {}).get('general', {}).get('baseConfiguration', False),
+                'configuration': baseFolder.get('meta', {}).get('configuration', {}),
+                'attributes': baseFolder.get('meta', {}).get('attributes', False),
+                'timelines': baseFolder.get('meta', {}).get('timelines', False),
+                'confidenceFilters': baseFolder.get('meta', {}).get('confidenceFilters', False),
+                'customTypeStyling': baseFolder.get('meta', {}).get('customTypeStyling', False),
+                'customGroupStyling': baseFolder.get('meta', {}).get('customGroupStyling', False),
+            }
+        ]
+        baseParentType = baseFolder.get('baseParentType')
+        baseParentId = baseFolder.get('baseParentId')
+        
+        if rootConfig:
+            configurationList.append(rootConfig)
+        while baseFolder:
+            parentFolderId = baseFolder.get('parentId', False)
+            parentFolder = Folder().findOne({"_id": (parentFolderId)})
+            if parentFolder:
+                folderPairs.append(
+                {
+                    'name': parentFolder.get('name'),
+                    'id': str(parentFolder.get('_id')),
+                    'owner': parentFolder.get('creatorId'),
+                    'baseConfiguration': parentFolder.get('meta', {}).get('configuration', {}).get('general', {}).get('baseConfiguration', False),
+                    'configuration': parentFolder.get('meta', {}).get('configuration', {}),
+                    'attributes': parentFolder.get('meta', {}).get('attributes', False),
+                    'timelines': parentFolder.get('meta', {}).get('timelines', False),
+                    'confidenceFilters': parentFolder.get('meta', {}).get('confidenceFilters', False),
+                    'customTypeStyling': parentFolder.get('meta', {}).get('customTypeStyling', False),
+                    'customGroupStyling': parentFolder.get('meta', {}).get('customGroupStyling', False),
+                    'filters': parentFolder.get('meta', {}).get('filters', False),
+                })
+                if parentFolder.get('_modelType', False) == 'folder':
+                    meta = parentFolder.get('meta', False)
+                    configuration = meta.get('configuration', False)
+                    general = configuration.get('general', False)
+                    if configuration:
+                        configurationList.append(general)
+                        if baseConfigurationId is None:
+                            hasBaseId = general.get('baseConfiguration', False)
+                            if hasBaseId:
+                                baseConfigurationId = hasBaseId
+                baseFolder = parentFolder
+            else:
+                baseFolder = None
+        # Now we have a list of configurations, find the lowest one with the baseConfiguration str and the merge type
+        baseConfigurationId = folder.get('_id')
+        baseConfigOwner = ''
+        baseConfiguration = None
+        baseMetaData = {}
+        baseConfigOwner = self.getCurrentUser().get('login')
+        mergeType = 'disabled'
+        for item in folderPairs:
+            if item.get('baseConfiguration', False) == item['id']:
+                baseConfigurationId = item['baseConfiguration']
+                baseConfigOwner = User().findOne({'_id': item['owner']})['login']
+                baseMetaData = item
+                possibleMerge = item.get('configuration', {}).get('general', {}).get('configurationMerge', False)
+                if possibleMerge:
+                    mergeType = possibleMerge
+                break
+        # now that we have the folder with the lowest baseConfiguration Set
+        # determine the merge process if it exists
+        # merge down means that lower folders are overwritten by higher folders
+        # merge up means that lower folders will overwrite higher folders
+        # disable means now merging at all
+        currentAttributes = {}
+        currentConfiguration = {}
+        currentTimelines = {}
+        currentConfidenceFilters = {}
+        currentCustomTypeStyling = {}
+        currentCustomGroupStyling = {}
+        currentFilters = {}
+        if mergeType != 'disabled':
+            for item in folderPairs:
+                if mergeType == 'merge up':
+                    if item.get('configuration', False):
+                        currentConfiguration = config_merge(item.get('configuration'), currentConfiguration)
+                    if item.get('attributes', False):
+                        currentAttributes = config_merge(item.get('attributes'), currentAttributes)
+                    if item.get('timelines', False):
+                        currentTimelines = config_merge(item.get('timelines'), currentTimelines)
+                    if item.get('confidenceFilters', False):
+                        currentConfidenceFilters = config_merge(item.get('confidenceFilters'), currentConfidenceFilters)
+                    if item.get('customTypeStyling', False):
+                        currentCustomTypeStyling = config_merge(item.get('customTypeStyling'), currentCustomTypeStyling)
+                    if item.get('customGroupStyling', False):
+                        currentCustomGroupStyling = config_merge(item.get('customGroupStyling'), currentCustomGroupStyling)
+                    if item.get('filters', False):
+                        currentFilters = config_merge(item.get('filters'), currentFilters)
+        else:
+            currentConfiguration = baseMetaData.get('configuration', {})
+            currentAttributes = baseMetaData.get('attributes', {})
+            currentTimelines = baseMetaData.get('timelines', {})
+            currentConfidenceFilters = baseMetaData.get('confidenceFilters', {})
+            currentCustomTypeStyling = baseMetaData.get('customTypeStyling', {})
+            currentCustomGroupStyling = baseMetaData.get('customGroupStyling', {})
+            currentFilters = baseMetaData.get('filters', {})
+        combinedConfiguration = {}
+        if bool(currentAttributes):
+            combinedConfiguration['attributes'] = currentAttributes
+        if bool(currentConfiguration):
+            combinedConfiguration['configuration'] = currentConfiguration
+        if bool(currentTimelines):
+            combinedConfiguration['timelines'] = currentTimelines
+        if bool(currentConfidenceFilters):
+            combinedConfiguration['confidenceFilters'] = currentConfidenceFilters
+        if bool(currentCustomTypeStyling):
+            combinedConfiguration['customTypeStyling'] = currentCustomTypeStyling
+        if bool(currentCustomTypeStyling):
+            combinedConfiguration['customGroupStyling'] = currentCustomGroupStyling
+        if bool(currentFilters):
+            combinedConfiguration['filters'] = currentFilters
+                    
+        hierarchy = []
+        for item in folderPairs:
+            hierarchy.append({ 'name': item['name'], 'id': item['id'] })
+        folderParentId = folder.get('parentId', False)
+        folderParentType = folder.get('parentCollection', False)
+        prev = None
+        next = None
+        folderParent = Folder().load(str(folderParentId),level=AccessType.READ,user=user,force=True)
+        childFolders = list(Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]]))
+        for index, item in enumerate(childFolders):
+            if item.get('_id') == folder.get('_id'):
+                if index > 0:
+                    counter = 1
+                    while index - counter >= 0:
+                        if childFolders[index - counter].get('meta',{}).get('annotate', False) is True:
+                            prev = childFolders[index - counter]
+                            break
+                        counter -= 1
+                if index + 1 < len(childFolders):
+                    counter = 1
+                    while index + counter < len(childFolders):
+                        print(childFolders[index + counter].get('meta', {}))
+                        if childFolders[index + counter].get('meta', {}).get('annotate', False):
+                            next = childFolders[index + counter]
+                            break
+                        counter += 1
+                break
+        prevNext = {}
+        if prev:
+            prevNext['previous'] = {
+                "id": str(prev.get('_id')),
+                "name": prev.get('name'),
+            }
+        if next:
+            prevNext['next'] = {
+                "id": str(next.get('_id')),
+                "name": next.get('name'),
+            }
+
+        returnVal = {
+            'baseConfigurationOwner': baseConfigOwner,
+            "prevNext": prevNext,
+            'hierarchy': hierarchy,
+            'metadata': combinedConfiguration,
+        }
+        print(returnVal)
+        return json.dumps(returnVal)
 
     @access.user
     @autoDescribeRoute(
@@ -278,6 +483,15 @@ class DatasetResource(Resource):
 
     @access.user
     @autoDescribeRoute(
+        Description("Transfer Configuration Files")
+        .modelParam("id", level=AccessType.READ, destName="id", **DatasetModelParam)
+        .modelParam("dest", level=AccessType.WRITE, destName="dest", **DatasetModelParam)
+    )
+    def transfer_config(self, id, dest):
+        return crud_dataset.transfer_config(id, dest)
+
+    @access.user
+    @autoDescribeRoute(
         Description("Update mutable metadata fields")
         .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
         .jsonParam(
@@ -288,7 +502,7 @@ class DatasetResource(Resource):
         )
     )
     def patch_metadata(self, folder, data):
-        return crud_dataset.update_metadata(folder, data)
+        return crud_dataset.update_metadata(folder, data, False)
 
     @access.user
     @autoDescribeRoute(
@@ -302,7 +516,7 @@ class DatasetResource(Resource):
         )
     )
     def patch_attributes(self, folder, data):
-        return crud_dataset.update_attributes(folder, data)
+        return crud_dataset.update_attributes(folder, data, False)
 
     @access.user
     @autoDescribeRoute(
@@ -316,4 +530,32 @@ class DatasetResource(Resource):
         )
     )
     def patch_timelines(self, folder, data):
-        return crud_dataset.update_timelines(folder, data)
+        return crud_dataset.update_timelines(folder, data, False)
+    
+    @access.user
+    @autoDescribeRoute(
+        Description("Update Configuration Settings")
+        .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
+        .jsonParam(
+            "data",
+            description="Configuration Dictionary",
+            requireObject=True,
+            paramType="body",
+        )
+    )
+    def patch_configuration(self, folder, data):
+        return crud_dataset.update_configuration(folder, data, False)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Update Attribute Filter Settings")
+        .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
+        .jsonParam(
+            "data",
+            description="Filters Dictionary",
+            requireObject=True,
+            paramType="body",
+        )
+    )
+    def patch_filters(self, folder, data):
+        return crud_dataset.update_filters(folder, data, False)

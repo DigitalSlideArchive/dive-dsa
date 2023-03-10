@@ -1,7 +1,8 @@
+/* eslint-disable max-len */
 import { readonly, ref, Ref } from '@vue/composition-api';
 
 import Track, { TrackId } from 'vue-media-annotator/track';
-import { Attribute, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
+import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
 
 import { useApi, DatasetMetaMutable } from 'dive-common/apispec';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
@@ -16,6 +17,8 @@ interface ChangeMap {
   groupDelete: Set<AnnotationId>;
   timelineUpsert: Map<string, TimelineGraph>;
   timelineDelete: Set<string>;
+  filterUpsert: Map<string, AttributeFilter>;
+  filterDelete: Set<string>;
   meta: number;
 }
 function _updatePendingChangeMap<K, V>(
@@ -36,8 +39,13 @@ function _updatePendingChangeMap<K, V>(
 export default function useSave(
   datasetId: Ref<Readonly<string>>,
   readonlyMode: Ref<Readonly<boolean>>,
+  updatedConfigurationId?: string,
 ) {
   const pendingSaveCount = ref(0);
+  const configurationId = ref(datasetId.value);
+  if (updatedConfigurationId) {
+    configurationId.value = updatedConfigurationId;
+  }
   const pendingChangeMaps: Record<string, ChangeMap> = {
     singleCam: {
       upsert: new Map<TrackId, Track>(),
@@ -48,11 +56,13 @@ export default function useSave(
       groupDelete: new Set<AnnotationId>(),
       timelineUpsert: new Map<string, TimelineGraph>(),
       timelineDelete: new Set<string>(),
+      filterUpsert: new Map<string, AttributeFilter>(),
+      filterDelete: new Set<string>(),
       meta: 0,
     },
   };
   const {
-    saveDetections, saveMetadata, saveAttributes, saveTimelines,
+    saveDetections, saveMetadata, saveAttributes, saveTimelines, saveFilters,
   } = useApi();
 
   async function save(
@@ -97,7 +107,7 @@ export default function useSave(
         }
       }
       if (pendingChangeMap.attributeUpsert.size || pendingChangeMap.attributeDelete.size) {
-        promiseList.push(saveAttributes(datasetId.value, {
+        promiseList.push(saveAttributes(configurationId.value, {
           upsert: Array.from(pendingChangeMap.attributeUpsert).map((pair) => pair[1]),
           delete: Array.from(pendingChangeMap.attributeDelete),
         }).then(() => {
@@ -106,7 +116,7 @@ export default function useSave(
         }));
       }
       if (pendingChangeMap.timelineUpsert.size || pendingChangeMap.timelineDelete.size) {
-        promiseList.push(saveTimelines(datasetId.value, {
+        promiseList.push(saveTimelines(configurationId.value, {
           upsert: Array.from(pendingChangeMap.timelineUpsert).map((pair) => pair[1]),
           delete: Array.from(pendingChangeMap.timelineDelete),
         }).then(() => {
@@ -114,10 +124,19 @@ export default function useSave(
           pendingChangeMap.timelineDelete.clear();
         }));
       }
+      if (pendingChangeMap.filterUpsert.size || pendingChangeMap.filterDelete.size) {
+        promiseList.push(saveFilters(configurationId.value, {
+          upsert: Array.from(pendingChangeMap.filterUpsert).map((pair) => pair[1]),
+          delete: Array.from(pendingChangeMap.filterDelete),
+        }).then(() => {
+          pendingChangeMap.filterUpsert.clear();
+          pendingChangeMap.filterDelete.clear();
+        }));
+      }
     });
     // Final save into the multi-cam metadata if multiple cameras exists
     if (globalMetadataUpdated && datasetMeta && pendingChangeMaps) {
-      promiseList.push(saveMetadata(datasetId.value, datasetMeta));
+      promiseList.push(saveMetadata(configurationId.value, datasetMeta));
     }
     await Promise.all(promiseList);
     pendingSaveCount.value = 0;
@@ -130,6 +149,7 @@ export default function useSave(
       attribute,
       group,
       timeline,
+      filter,
       cameraName = 'singleCam',
     }: {
       action: 'upsert' | 'delete' | 'meta';
@@ -137,6 +157,7 @@ export default function useSave(
       attribute?: Attribute;
       group?: Group;
       timeline?: TimelineGraph;
+      filter?: AttributeFilter;
       cameraName?: string;
     } = { action: 'meta' },
   ) {
@@ -184,6 +205,14 @@ export default function useSave(
             pendingChangeMap.timelineUpsert,
             pendingChangeMap.timelineDelete,
           );
+        } else if (filter !== undefined) {
+          _updatePendingChangeMap(
+            `${filter.belongsTo}_${filter.dataType}_${filter.filterData.appliedTo.join('-')}`,
+            filter,
+            action,
+            pendingChangeMap.filterUpsert,
+            pendingChangeMap.filterDelete,
+          );
         } else {
           throw new Error(`Arguments inconsistent with pending change type: ${action} cannot be performed without additional arguments`);
         }
@@ -202,6 +231,8 @@ export default function useSave(
       pendingChangeMap.groupDelete.clear();
       pendingChangeMap.timelineUpsert.clear();
       pendingChangeMap.timelineDelete.clear();
+      pendingChangeMap.filterUpsert.clear();
+      pendingChangeMap.filterDelete.clear();
       // eslint-disable-next-line no-param-reassign
       pendingChangeMap.meta = 0;
     });
@@ -218,6 +249,8 @@ export default function useSave(
       groupDelete: new Set<AnnotationId>(),
       timelineUpsert: new Map<string, TimelineGraph>(),
       timelineDelete: new Set<string>(),
+      filterUpsert: new Map<string, AttributeFilter>(),
+      filterDelete: new Set<string>(),
       meta: 0,
     };
   }
@@ -227,12 +260,17 @@ export default function useSave(
       delete pendingChangeMaps[cameraName];
     }
   }
+  const setConfigurationId = (id: string) => {
+    configurationId.value = id;
+  };
 
   return {
     save,
     markChangesPending,
     discardChanges,
     pendingSaveCount: readonly(pendingSaveCount),
+    configurationId: readonly(configurationId),
+    setConfigurationId,
     addCamera,
     removeCamera,
   };

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { computed, defineComponent, PropType } from '@vue/composition-api';
-import { useSelectedCamera } from '../../provides';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { useConfiguration, useSelectedCamera } from '../../provides';
 import { injectAggregateController } from '../annotators/useMediaController';
 
 export default defineComponent({
@@ -15,6 +16,9 @@ export default defineComponent({
     const mediaController = injectAggregateController();
     const { currentTime, frame } = mediaController.value;
     const selectedCamera = useSelectedCamera();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+
     const selectedCameraController = computed(() => {
       try {
         return mediaController.value.getController(selectedCamera.value);
@@ -38,6 +42,7 @@ export default defineComponent({
       frame,
       currentTime,
       selectedCamera,
+      getUISetting,
     };
   },
 });
@@ -45,10 +50,34 @@ export default defineComponent({
 
 <template>
   <span>
-    <span>
+    <span v-if="getUISetting('UITimeDisplay')">
       {{ display }}
     </span>
-    <span class="border-radius mr-1">frame {{ frame }}</span>
+    <span
+      v-if="getUISetting('UIFrameDisplay')"
+      class="border-radius mr-1"
+    >frame {{ frame }}</span>
+    <v-tooltip
+      v-if="getUISetting('UIFrameDisplay')"
+      open-delay="200"
+      bottom
+    >
+      <template #activator="{ on }">
+        <v-icon
+          small
+          class="mx-2"
+          v-on="on"
+        >
+          mdi-information
+        </v-icon>
+      </template>
+      <span>
+        annotation framerate may be downsampled.
+        <br>
+        frame numbers start at zero.
+      </span>
+    </v-tooltip>
+
   </span>
 </template>
 

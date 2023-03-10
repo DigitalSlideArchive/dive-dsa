@@ -1,11 +1,18 @@
 <script lang="ts">
-import { defineComponent, ref } from '@vue/composition-api';
-import GenerateTracks from './GenerateTracks.vue';
+import { computed, defineComponent, ref } from '@vue/composition-api';
+import { useGirderRest } from 'platform/web-girder/plugins/girder';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { useConfiguration } from 'vue-media-annotator/provides';
+import ConfigurationSettings from './configurationEditors/configurationSettings.vue';
+import GeneralConfiguration from './configurationEditors/generalConfiguration.vue';
+import UiSettings from './configurationEditors/uiSettings.vue';
 
 export default defineComponent({
-  name: 'DIVETools',
+  name: 'ConfigurationEditor',
   components: {
-    GenerateTracks,
+    GeneralConfiguration,
+    ConfigurationSettings,
+    UiSettings,
   },
   props: {
     buttonOptions: {
@@ -22,6 +29,19 @@ export default defineComponent({
     },
   },
   setup() {
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+    const girderRest = useGirderRest();
+    const isAdminOwner = computed(() => {
+      let ownerAdmin = false;
+      if (girderRest.user) {
+        ownerAdmin = girderRest.user.admin;
+      }
+      if (configMan.baseConfigurationOwner.value === girderRest.user.login) {
+        ownerAdmin = true;
+      }
+      return ownerAdmin;
+    });
     const menuOpen = ref(false);
     const additive = ref(false);
     const additivePrepend = ref('');
@@ -29,7 +49,8 @@ export default defineComponent({
       menuOpen,
       additive,
       additivePrepend,
-
+      isAdminOwner,
+      getUISetting,
     };
   },
 });
@@ -37,6 +58,7 @@ export default defineComponent({
 
 <template>
   <v-menu
+    v-if="isAdminOwner"
     v-model="menuOpen"
     :close-on-content-click="false"
     :nudge-width="120"
@@ -53,13 +75,13 @@ export default defineComponent({
           >
             <div>
               <v-icon>
-                mdi-toolbox
+                mdi-cog
               </v-icon>
               <span
                 v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
                 class="pl-1"
               >
-                Tools
+                Configuration
               </span>
             </div>
           </v-btn>
@@ -71,7 +93,15 @@ export default defineComponent({
       <v-card>
         <v-card-title>Tools</v-card-title>
         <v-card-text>
-          <generate-tracks />
+          <v-row>
+            <general-configuration />
+          </v-row>
+          <v-row v-if="false">
+            <configuration-settings />
+          </v-row>
+          <v-row>
+            <ui-settings />
+          </v-row>
         </v-card-text>
       </v-card>
     </template>
