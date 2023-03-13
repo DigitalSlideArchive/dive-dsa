@@ -2,6 +2,7 @@
 import {
   ref, Ref, computed, set as VueSet, del as VueDel,
 } from '@vue/composition-api';
+import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { StyleManager, Track } from '..';
 import CameraStore from '../CameraStore';
@@ -464,21 +465,20 @@ export default function UseAttributes(
   }
 
   function setTimelineGraph(name: string, val: TimelineGraph) {
-    if (timelineGraphs.value[name]) {
-      VueSet(timelineGraphs.value, name, val);
-      markChangesPending({
-        action: 'upsert',
-        timeline: timelineGraphs.value[name],
-      });
-    }
+    VueSet(timelineGraphs.value, name, val);
+    markChangesPending({
+      action: 'upsert',
+      timeline: timelineGraphs.value[name],
+    });
   }
 
   function removeTimelineFilter(name: string) {
     if (timelineGraphs.value[name]) {
+      const copy = cloneDeep(timelineGraphs.value[name]);
       VueDel(timelineGraphs.value, name);
       markChangesPending({
         action: 'delete',
-        timeline: timelineGraphs.value[name],
+        timeline: copy,
       });
     }
   }

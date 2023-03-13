@@ -233,6 +233,7 @@ class DatasetResource(Resource):
             {
                 'name' : baseFolder.get('name'),
                 'id' :str(baseFolder.get('_id')),
+                'owner' :baseFolder.get('creatorId',{}),
                 'baseConfiguration' : baseFolder.get('meta', {}).get('configuration', {}).get('general', {}).get('baseConfiguration', False),
                 'configuration': baseFolder.get('meta', {}).get('configuration', {}),
                 'attributes': baseFolder.get('meta', {}).get('attributes', False),

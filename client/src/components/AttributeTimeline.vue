@@ -42,6 +42,7 @@ export default defineComponent({
     } = useAttributesFilters();
     const attributesList = useAttributes();
     const addEditTimelineDialog = ref(false);
+    const showGraphSettings = ref(false);
     const defaultTimelineFilter = {
       appliedTo: ['all'],
       active: true, // if this filter is active
@@ -93,6 +94,7 @@ export default defineComponent({
         settings: editTimelineSettings.value,
         default: setDefault,
       };
+      console.log(updateObject);
       setTimelineGraph(editTimelineName.value, updateObject);
       setTimelineEnabled(editTimelineName.value, editTimelineEnabled.value);
       addEditTimelineDialog.value = false;
@@ -108,10 +110,10 @@ export default defineComponent({
     const graphAreaColor = ref('');
     const graphMax = ref(false);
     const graphLineOpacity = ref(1.0);
-    let editTimelineKey = '';
+    const editTimelineKey = ref('');
     const editGraphSettings = (key: string) => {
       // set the defaults:
-      editTimelineKey = key;
+      editTimelineKey.value = key;
       editingGraphSettings.value = true;
       graphType.value = 'Linear';
       graphMax.value = false;
@@ -125,7 +127,8 @@ export default defineComponent({
         graphAreaOpacity.value = (editTimelineSettings.value[key].areaOpacity as number);
         graphAreaColor.value = editTimelineSettings.value[key].areaColor || '';
         graphMax.value = editTimelineSettings.value[key].max || false;
-        graphLineOpacity.value = editTimelineSettings.value[key].lineOpacity;
+        graphLineOpacity.value = editTimelineSettings.value[key].lineOpacity !== undefined
+          ? editTimelineSettings.value[key].lineOpacity : 1.0;
         if (graphAreaOpacity.value === undefined) {
           graphAreaOpacity.value = 0.2;
         }
@@ -135,8 +138,8 @@ export default defineComponent({
     const saveGraphSettings = () => {
       // Don't set if default values
       if (!graphType.value && graphType.value === 'Linear') {
-        if (editTimelineSettings.value && editTimelineSettings.value[editTimelineKey]) {
-          VueDel(editTimelineSettings.value, editTimelineKey);
+        if (editTimelineSettings.value && editTimelineSettings.value[editTimelineKey.value]) {
+          VueDel(editTimelineSettings.value, editTimelineKey.value);
         }
       } else {
         const data: TimelineGraphSettings = {
@@ -147,9 +150,10 @@ export default defineComponent({
           max: graphMax.value,
           lineOpacity: graphLineOpacity.value,
         };
-        editTimelineSettings.value[editTimelineKey] = data;
+        editTimelineSettings.value[editTimelineKey.value] = data;
       }
       editingGraphSettings.value = false;
+      showGraphSettings.value = false;
     };
 
     return {
@@ -177,6 +181,8 @@ export default defineComponent({
       graphLineOpacity,
       graphAreaColor,
       timelineGraphs,
+      showGraphSettings,
+      editTimelineKey,
     };
   },
 });
@@ -238,7 +244,7 @@ export default defineComponent({
     </v-card>
     <v-dialog
       v-model="addEditTimelineDialog"
-      width="650"
+      width="800"
     >
       <v-card>
         <v-card-title> Add Timeline </v-card-title>
@@ -263,70 +269,149 @@ export default defineComponent({
               @save-changes="editTimelineFilter = ($event)"
             />
           </v-row>
-          <v-row>
-            <h2> Graph Settings </h2>
-            <v-list>
-              <v-list-item
+          <div class="mt-4">
+            <h2>
+              Graph Settings <v-icon @click="showGraphSettings = !showGraphSettings">
+                {{ showGraphSettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+              </v-icon>
+            </h2>
+            <div
+              v-if="showGraphSettings"
+              class="graph-settings-area"
+            >
+              <v-row
                 v-for="key in editTimelineFilter.appliedTo"
                 :key="`graph_details_${key}`"
+                class="graph-settings-list my-2"
+                :class="{'selected-setting': key === editTimelineKey}"
               >
-                <v-row>
-                  {{ key }} <v-spacer /> <v-icon @click="editGraphSettings(key)">
-                    mdi-cog
-                  </v-icon>
-                </v-row>
-              </v-list-item>
-            </v-list>
-          </v-row>
-          <v-row v-if="editingGraphSettings">
-            <v-col>
-              <v-select
-                v-model="graphType"
-                :items="graphTypes"
-                label="Graph Type"
-              />
-              <v-slider
-                v-model="graphLineOpacity"
-                :label="`Line Opacity ${graphLineOpacity.toFixed(2)}`"
-                min="0"
-                max="1"
-                step="0.01"
-              />
+                <v-col><b>{{ key }}</b></v-col>
+                <v-col
+                  v-if="editTimelineSettings[key]"
+                  class="graphsetting"
+                >
+                  <b>Type</b>:{{ editTimelineSettings[key].type }}
+                </v-col>
 
-              <v-checkbox
-                v-model="graphMax"
-                label="Max Graph"
-                persistent-hint
-                hint="Any value other than 0 is the Max value"
-              />
-              <v-checkbox
-                v-model="graphArea"
-                label="Graph Area"
-                persistent-hint
-                hint="Shade the area under the graph"
-              />
-              <v-slider
-                v-if="graphArea"
-                v-model="graphAreaOpacity"
-                :label="`Area Opacity ${graphAreaOpacity.toFixed(2)}`"
-                min="0"
-                max="1"
-                step="0.01"
-              />
-              <h3>Area Color</h3>
-              <v-color-picker
-                v-if="graphArea"
-                v-model="graphAreaColor"
-                hide-inputs
-              />
-            </v-col>
-          </v-row>
-          <v-row v-if="editingGraphSettings">
-            <v-spacer />
-            <v-btn @click="saveGraphSettings">
-              Save Graph Settings
-            </v-btn>
-          </v-row>
+                <v-col
+                  v-if="editTimelineSettings[key]"
+                  class="graphsetting"
+                >
+                  <b>Line %</b>:
+                  {{ (editTimelineSettings[key].lineOpacity
+                    ? editTimelineSettings[key].lineOpacity : 1).toFixed(2) }}
+                </v-col>
+
+                <v-col
+                  v-if="editTimelineSettings[key]"
+                  class="graphsetting"
+                >
+                  <b>Max</b>:{{ editTimelineSettings[key].max }}
+                </v-col>
+
+                <v-col
+                  v-if="editTimelineSettings[key]"
+                  class="graphsetting"
+                >
+                  <b>Area</b>:{{ editTimelineSettings[key].area }}
+                </v-col>
+
+                <v-col
+                  v-if="editTimelineSettings[key]
+                    && editTimelineSettings[key].area"
+                  class="graphsetting"
+                >
+                  <b>Area %</b>:{{ editTimelineSettings[key].areaOpacity }}
+                </v-col>
+                <v-col
+                  v-if="editTimelineSettings[key]
+                    && editTimelineSettings[key].areaColor"
+                  class="graphsetting"
+                >
+                  <b>Area col:</b>:<div
+                    class="type-color-box"
+                    :style="{
+                      backgroundColor:editTimelineSettings[key].areaColor,
+                    }"
+                  />
+                </v-col>
+
+                <v-icon
+                  class="mr-4"
+                  @click="editGraphSettings(key)"
+                >
+                  mdi-cog
+                </v-icon>
+              </v-row>
+            </div>
+          </div>
+          <v-card
+            v-if="editingGraphSettings"
+            class="editGraphCard"
+          >
+            <v-card-title>
+              Editing Graph Line:
+              <b class="pl-2"><i> {{ editTimelineKey }}</i></b>
+            </v-card-title>
+            <v-card-text>
+              <v-row>
+                <v-col>
+                  <v-select
+                    v-model="graphType"
+                    :items="graphTypes"
+                    label="Graph Type"
+                  />
+                  <v-slider
+                    v-model="graphLineOpacity"
+                    :label="`Line Opacity ${graphLineOpacity.toFixed(2)}`"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                  />
+
+                  <v-checkbox
+                    v-model="graphMax"
+                    label="Max Graph"
+                    persistent-hint
+                    hint="Any value other than 0 is the Max value"
+                  />
+                  <v-checkbox
+                    v-model="graphArea"
+                    label="Graph Area"
+                    persistent-hint
+                    hint="Shade the area under the graph"
+                  />
+                  <v-slider
+                    v-if="graphArea"
+                    v-model="graphAreaOpacity"
+                    :label="`Area Opacity ${graphAreaOpacity.toFixed(2)}`"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                  />
+                  <h3
+                    v-if="graphArea"
+                  >
+                    Area Color
+                  </h3>
+                  <v-color-picker
+                    v-if="graphArea"
+                    v-model="graphAreaColor"
+                    hide-inputs
+                  />
+                </v-col>
+              </v-row>
+              <v-row v-if="editingGraphSettings">
+                <v-spacer />
+                <v-btn
+                  color="success"
+                  @click="saveGraphSettings"
+                >
+                  Save Graph Settings
+                </v-btn>
+              </v-row>
+            </v-card-text>
+          </v-card>
           <v-row
             class="pt-2"
           >
@@ -391,5 +476,33 @@ export default defineComponent({
   border-radius: 6px;
   padding: 0 5px;
   font-size: 12px;
+}
+
+.graph-settings-area {
+  padding: 5px;
+}
+
+.graph-settings-list{
+ border: 1px solid gray;
+
+ .selected-setting {
+  background-color: darkgray;
+ }
+}
+.graphsetting {
+  font-size:0.75em;
+}
+
+.type-color-box {
+    margin: 7px;
+    margin-top: 4px;
+    min-width: 15px;
+    max-width: 15px;
+    min-height: 15px;
+    max-height: 15px;
+}
+
+.editGraphCard {
+  border: 2px solid gray;
 }
 </style>
