@@ -33,7 +33,7 @@ ENV VIRTUAL_ENV="/opt/dive/local/venv"
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
 
 # Copy only the lock and project files to optimize cache
-COPY server/pyproject.toml server/poetry.lock /opt/dive/src/
+COPY server/pyproject.toml /opt/dive/src/
 RUN poetry env use system
 RUN poetry config virtualenvs.create false
 # Install dependencies only
