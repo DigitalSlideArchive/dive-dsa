@@ -189,11 +189,21 @@ class AttributeFilter(BaseModel):
     dataType: Literal['text', 'number', 'boolean', 'key']
     filterData: Union[AttributeKeyFilter, AttributeStringFilter, AttributeBoolFilter, AttributeNumberFilter]
 
+class TimeLineGraphSettings(BaseModel):
+    type: Literal['Linear', 'Step', 'StepAfter', 'StepBefore', 'Natural']
+    area: bool
+    areaOpacity: float
+    areaColor: str
+    max: bool
+    lineOpacity: float
+
+
 class TimeLineGraph(BaseModel):
     enabled: bool
     name: str
     filter: AttributeKeyFilter
     default: Optional[bool]
+    settings: Optional[Dict[str, TimeLineGraphSettings]]
 
 class CustomStyle(BaseModel):
     color: Optional[str]

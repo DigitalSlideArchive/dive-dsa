@@ -239,8 +239,8 @@ def update_timelines(dsFolder: types.GirderModel, data: dict, verify=True):
     for timeline in validated.upsert:
         timelines_dict[str(timeline.name)] = timeline.dict(exclude_none=True)
 
-    upserted_len = len(validated.delete)
-    deleted_len = len(validated.upsert)
+    upserted_len = len(validated.upsert)
+    deleted_len = len(validated.delete)
 
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'timelines': timelines_dict}, verify)

@@ -12,6 +12,12 @@ export interface LineChartData {
   values: [number, number][];
   color: string;
   name: string;
+  type?: 'Linear' | 'Step' | 'StepAfter' | 'StepBefore' | 'Natural';
+  area?: boolean;
+  areaColor?: string;
+  areaOpacity?: number;
+  lineOpacity?: number;
+  max?: boolean;
 }
 
 function updateHistogram(begin: number, end: number, histogram: number[]) {

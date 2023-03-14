@@ -13,6 +13,8 @@ import type {
   AttributeFilter,
   AttributeKeyFilter,
   TimelineAttribute,
+  TimeLineFilter,
+  TimelineGraph,
 } from './use/useAttributes';
 import type { Time } from './use/useTimeObserver';
 import type { ImageEnhancements } from './use/useImageEnhancements';
@@ -41,12 +43,12 @@ export interface AttributesFilterType {
   deleteAttributeFilter: (index: number, type: Attribute['belongs']) => void;
   sortAndFilterAttributes: (attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[]) => Attribute[];
   setTimelineEnabled: (name: string, val: boolean) => void;
-  setTimelineFilter: (name: string, filter: AttributeKeyFilter) => void;
+  setTimelineGraph: (name: string, filter: TimelineGraph) => void;
   setTimelineDefault: (name: string) => void;
   removeTimelineFilter: (name: string) => void;
   attributeTimelineData:
   Readonly<Ref<Record<string, { data: TimelineAttribute[]; begin: number; end: number}>>>;
-  timelineFilter: Readonly<Ref<Record<string, AttributeKeyFilter>>>;
+  timelineGraphs: Readonly<Ref<Record<string, TimelineGraph>>>;
   timelineEnabled: Readonly<Ref<Record<string, boolean>>>;
   timelineDefault: Readonly<Ref<string | null>>;
 }
