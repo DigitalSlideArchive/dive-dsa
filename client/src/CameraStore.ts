@@ -140,6 +140,8 @@ export default class CameraStore {
       return track;
     }
 
+    getTrackFromAction()
+
     addCamera(cameraName: string) {
       if (this.camMap.value.get(cameraName) === undefined) {
         this.camMap.value.set(cameraName, {

@@ -1,5 +1,7 @@
 import { ref, Ref, computed } from '@vue/composition-api';
 import IntervalTree from '@flatten-js/interval-tree';
+import { checkAttributes, TrackSelectAction } from 'dive-common/use/useActions';
+import { intersection } from 'lodash';
 import type Track from './track';
 import type Group from './Group';
 import type { AnnotationId, NotifierFuncParams } from './BaseAnnotation';
@@ -102,6 +104,56 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
    */
   getPossible(annotationId: AnnotationId) {
     return this.annotationMap.get(annotationId);
+  }
+
+  getFromAction(trackAction: TrackSelectAction) {
+    const tracksFound: number[] = [];
+    let skipRest = false;
+    this.annotationMap.forEach((track) => {
+      if (skipRest) {
+        return;
+      }
+      // Find a track which matches the specifications
+      const vals: boolean[] = [];
+      if (trackAction.startTrack !== undefined) {
+        vals.push(track.id > trackAction.startTrack);
+      }
+      if (trackAction.startFrame !== undefined) {
+        vals.push(track.end > trackAction.startFrame);
+      }
+      if (trackAction.typeFilter !== undefined) {
+        const types = track.confidencePairs.map((item) => item[0]);
+        vals.push(intersection(types, trackAction.typeFilter).length > 0);
+      }
+      if (trackAction.confidenceFilter !== undefined) {
+        const confidenceVals = track.confidencePairs.map((item) => item[1]);
+        vals.push(confidenceVals[0] > trackAction.confidenceFilter);
+      }
+      if (vals.filter((item) => item).length === vals.length) {
+        tracksFound.push(track.id);
+      }
+      //attribute checking
+      if (trackAction.attributes) {
+        if (trackAction.attributes.track) {
+          vals.push(checkAttributes(trackAction.attributes.track, track.attributes));
+        }
+        //Need a separate check for detection attribuytes
+      }
+
+      // Skip full track list if we have the necessary values
+      if (trackAction.Nth >= 0 && tracksFound.length >= trackAction.Nth) {
+        skipRest = true;
+      }
+    });
+    if (trackAction.Nth !== undefined) {
+      if (trackAction.Nth >= 0 && tracksFound.length) {
+        return tracksFound[0];
+      } if (trackAction.Nth < 0 && tracksFound.length) {
+        return tracksFound[tracksFound.length + trackAction.Nth];
+      }
+      return -1;
+    }
+    return -1;
   }
 
   getNewId() {
