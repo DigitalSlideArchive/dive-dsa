@@ -394,7 +394,7 @@ class DatasetResource(Resource):
             'metadata': combinedConfiguration,
         }
         print(returnVal)
-        return json.dumps(returnVal)
+        return json.dumps(returnVal, indent=4)
 
     @access.user
     @autoDescribeRoute(

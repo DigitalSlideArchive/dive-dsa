@@ -107,7 +107,7 @@ type UIValue = UITopBar | UIToolBar
 export interface Configuration {
   general?: {
     configurationMerge? : 'merge up' | 'merge down' | 'disabled';
-    baseConfiguration?: string;
+    baseConfiguration?: string | null;
     disableConfigurationEditing?: boolean;
     configurationSettings?: ConfigurationSettings;
   };
