@@ -132,7 +132,7 @@ class DIVES3Imports:
             print(destinationFolder)
             userId = destinationFolder['creatorId'] or destinationFolder['baseParentId']
             user = User().findOne({'_id': ObjectId(userId)})
-            # convert_video_recrusive(destinationFolder, user)
+            convert_video_recrusive(destinationFolder, user)
         self.destinationId = None
         self.destinationType = None
 
