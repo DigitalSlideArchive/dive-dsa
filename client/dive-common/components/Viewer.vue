@@ -511,6 +511,7 @@ export default defineComponent({
         context.resetActive();
         const config = await loadMetadata(datasetId.value);
         const meta = config.metadata;
+        const configMeta = config.diveConfig.metadata || config.metadata;
         if (config.diveConfig.prevNext) {
           configurationManager.setPrevNext(config.diveConfig.prevNext);
         }
@@ -549,22 +550,22 @@ export default defineComponent({
         /* Otherwise, complete loading of the dataset */
         trackStyleManager.populateTypeStyles(meta.customTypeStyling);
         groupStyleManager.populateTypeStyles(meta.customGroupStyling);
-        if (meta.customTypeStyling) {
-          trackFilters.importTypes(Object.keys(meta.customTypeStyling), false);
+        if (configMeta.customTypeStyling) {
+          trackFilters.importTypes(Object.keys(configMeta.customTypeStyling), false);
         }
-        if (meta.customGroupStyling) {
-          groupFilters.importTypes(Object.keys(meta.customGroupStyling), false);
+        if (configMeta.customGroupStyling) {
+          groupFilters.importTypes(Object.keys(configMeta.customGroupStyling), false);
         }
-        if (meta.attributes) {
-          loadAttributes(meta.attributes);
+        if (configMeta.attributes) {
+          loadAttributes(configMeta.attributes);
         }
-        if (meta.timelines) {
-          loadTimelines(meta.timelines);
+        if (configMeta.timelines) {
+          loadTimelines(configMeta.timelines);
         }
-        if (meta.filters) {
-          loadFilters(meta.filters);
+        if (configMeta.filters) {
+          loadFilters(configMeta.filters);
         }
-        trackFilters.setConfidenceFilters(meta.confidenceFilters);
+        trackFilters.setConfidenceFilters(configMeta.confidenceFilters);
         datasetName.value = meta.name;
         initTime({
           frameRate: meta.fps,

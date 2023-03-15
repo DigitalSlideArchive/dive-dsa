@@ -43,7 +43,6 @@ const datasetModule: Module<DatasetState, RootState> = {
       ]);
       const dsMeta = {
         ...metaStatic.data,
-        ...diveConfig.data.metadata,
         ...media.data,
         videoUrl: media.data.video?.url,
       };

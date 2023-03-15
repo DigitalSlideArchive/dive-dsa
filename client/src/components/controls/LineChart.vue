@@ -230,6 +230,9 @@ export default Vue.extend({
           return this[`natural${add}`](d.values);
         }
       }
+      if (!this.atrributesChart) {
+        return this[`stepAfter${add}`](d.values);
+      }
       return this[`linear${add}`](d.values);
     },
     updateCurves() {

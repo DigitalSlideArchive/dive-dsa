@@ -133,7 +133,7 @@ interface Api {
 
   loadMetadata(datasetId: string): Promise<{
     metadata: DatasetMeta & DatasetMetaMutable;
-    diveConfig: DiveConfiguration;
+    diveConfig: DiveConfiguration & {metadata: DatasetMetaMutable};
 }>;
   loadDetections(datasetId: string, revision?: number): Promise<AnnotationSchemaList>;
 

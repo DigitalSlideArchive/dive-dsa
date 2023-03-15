@@ -21,6 +21,7 @@ from dive_utils.constants import (
     VideoType,
     imageRegex,
     videoRegex,
+    MarkForPostProcess,
 )
 
 
@@ -32,6 +33,7 @@ class RpcResource(Resource):
         self.resourceName = resourceName
         self.route("POST", ("postprocess", ":id"), self.postprocess)
         self.route("POST", ("convert_dive", ":id"), self.convert_dive)
+        self.route("POST", ("batch_postprocess", ":id"), self.batch_postprocess)
 
     @access.user
     @autoDescribeRoute(
@@ -127,3 +129,57 @@ class RpcResource(Resource):
                 crud_rpc.postprocess(self.getCurrentUser(), destFolder, skipJobs, skipTranscoding)
             return str(destFolder['_id'])
         return ''
+
+    def get_marked_for_postprocess(self, folder, user, datasets, limit):
+        subFolders = list(Folder().childFolders(folder, 'folder', user))
+        for child in subFolders:
+            if child.get('meta', {}).get(MarkForPostProcess, False):
+                if len(datasets) < limit:
+                    datasets.append(child)
+                else:
+                    return
+            self.get_marked_for_postprocess(child, user, datasets, limit)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Post-processing for after S3 Imports")
+        .modelParam(
+            "id",
+            description="Folder containing the items to process",
+            model=Folder,
+            level=AccessType.WRITE,
+        )
+        .param(
+            "skipJobs",
+            "Whether to skip processing that might dispatch worker jobs",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
+        .param(
+            "skipTranscoding",
+            "Whether to skip processing that might dispatch worker jobs",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
+        .param(
+            "limit",
+            "Number of Jobs to start to attempt to convert to DIVE format",
+            paramType="formData",
+            dataType="integer",
+            default=100,
+            required=False,
+        )
+    )
+    def batch_postprocess(self, folder, skipJobs, skipTranscoding, limit):
+        # get a list of possible Datasets
+        datasets = []
+        self.get_marked_for_postprocess(folder, self.getCurrentUser(), datasets, limit)
+        for subFolder in datasets:
+            subFolder['meta']['MarkForPostProcess'] = False
+            Folder().save(subFolder)
+            crud_rpc.postprocess(
+                self.getCurrentUser(), subFolder, skipJobs, skipTranscoding)

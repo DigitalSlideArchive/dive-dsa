@@ -1,3 +1,4 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
   defineComponent, ref,
@@ -25,6 +26,12 @@ export default defineComponent({
     const launchEditor = () => {
       generalDialog.value = true;
     };
+    const originalConfiguration = {
+      baseConfiguration: baseConfiguration.value,
+      configurationMerge: mergeType.value,
+      disableConfigurationEditing: disableConfigurationEditing.value,
+    };
+
 
     const saveChanges = () => {
       // We need to take the new values and set them on the 'general' settings
@@ -35,6 +42,19 @@ export default defineComponent({
           configurationMerge: mergeType.value,
           disableConfigurationEditing: disableConfigurationEditing.value,
         };
+        // Need to disable the previous base configuration value if it's lower
+        if (configMan.hierarchy.value) {
+          const origIndex = configMan.hierarchy.value.findIndex((item) => item.id === originalConfiguration.baseConfiguration);
+          const newIndex = configMan.hierarchy.value.findIndex((item) => item.id === baseConfiguration.value);
+          if (origIndex < newIndex) { //We remove the original baseConfiguration
+            const id = originalConfiguration.baseConfiguration;
+            originalConfiguration.baseConfiguration = null;
+            if (id) {
+              configMan.saveConfiguration(id, { general: originalConfiguration });
+            }
+          }
+        }
+
         configMan.saveConfiguration(baseConfiguration.value, { general });
         generalDialog.value = false;
       }
