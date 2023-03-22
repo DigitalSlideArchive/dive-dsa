@@ -1,4 +1,5 @@
 import { ref, Ref } from '@vue/composition-api';
+import { DIVEAction } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
 
 export interface DiveConfiguration {
@@ -112,6 +113,7 @@ export interface Configuration {
     configurationSettings?: ConfigurationSettings;
   };
   UISettings?: UISettings;
+  actions?: DIVEAction[];
 }
 
 function flatMapGenerator(data: any, rootKey = '') {
@@ -146,7 +148,7 @@ export default class ConfigurationManager {
 
   setConfigurationId: (id: string) => void;
 
-  saveConfiguration: (id: string, config?: Configuration) => void;
+  _saveConfiguration: (id: string, config?: Configuration) => void;
 
   transferConfiguration: (source: string, dest: string) => void;
 
@@ -170,12 +172,17 @@ export default class ConfigurationManager {
   ) {
     this.configurationId = configurationId;
     this.setConfigurationId = setConfigurationId;
-    this.saveConfiguration = saveConfiguration;
+    this._saveConfiguration = saveConfiguration;
     this.transferConfiguration = transferConfiguration;
     this.hierarchy = ref(null);
     this.configuration = ref(null);
     this.prevNext = ref(null);
     this.baseConfigurationOwner = ref('');
+  }
+
+  saveConfiguration(id: string, config?: Configuration) {
+    const updateConfig = { ...this.configuration.value, ...config };
+    this._saveConfiguration(id, updateConfig);
   }
 
   setHierarchy(data: DiveConfiguration['hierarchy']) {
@@ -283,6 +290,32 @@ export default class ConfigurationManager {
   setRootUISettings(val: UISettings) {
     if (this.configuration.value?.UISettings) {
       this.configuration.value.UISettings = val;
+    }
+  }
+
+  addAction(val: DIVEAction) {
+    if (this.configuration.value && !this.configuration.value?.actions) {
+      this.configuration.value.actions = [];
+    }
+    if (this.configuration.value?.actions) {
+      const { actions } = this.configuration.value;
+      actions.push(val);
+      this.configuration.value.actions = actions;
+    }
+  }
+
+  removeAction(index: number) {
+    if (this.configuration.value && !this.configuration.value?.actions) {
+      this.configuration.value.actions = [];
+    }
+    if (this.configuration.value?.actions) {
+      const { actions } = this.configuration.value;
+      if (actions.length === 1) {
+        this.configuration.value.actions = [];
+      } else if (actions[index]) {
+        const newActions = actions.splice(index, 1);
+        this.configuration.value.actions = newActions;
+      }
     }
   }
 }

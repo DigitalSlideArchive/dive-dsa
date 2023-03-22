@@ -6,11 +6,16 @@ interface Action {
     type: string;
 }
 
-type MatchOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'range' | 'in';
+export type MatchOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'range' | 'in';
 
-interface AttributeMatch {
+export interface AttributeMatch {
     op?: MatchOperator;
     val: any; //number, string, array of numbers or strings
+}
+
+export interface AttributeSelectAction {
+  track?: Record<string, AttributeMatch>;
+  detection?: Record<string, AttributeMatch>;
 }
 
 export interface TrackSelectAction {
@@ -18,25 +23,24 @@ export interface TrackSelectAction {
     confidenceFilter?: number; // find track wtih confidenceValue > 0
     startTrack?: number;
     startFrame?: number;
-    Nth: number; //first: 0, last: -1, nth:
+    Nth?: number; //first: 0, last: -1, nth:
 
     //Get track which matches attribute values
-    attributes?: {
-        track?: Record<string, AttributeMatch>;
-        detection?: Record<string, AttributeMatch>;
-    };
+    attributes?: AttributeSelectAction;
+    type: 'TrackSelection';
 }
 
-
-interface AttributeSelectAction {
-    track?: Record<string, AttributeMatch>;
-    detection?: Record<string, AttributeMatch>;
-}
+export type ActionTypes = 'GoToFrame' | 'SelectTrack' | 'Wait' | 'Popup';
 
 interface GoToFrameAction{
-    track?: TrackSelectAction; // Go to first frame of track that matches
+    track?: TrackSelectAction; // Go to first frame of track that matches conditions
+    frame?: number; // Jump to X frame
+    type: 'GoToFrame';
 }
 
+export interface DIVEAction {
+  action: GoToFrameAction | TrackSelectAction;
+}
 
 const checkAttributes = (attributeMatch: Record<string, AttributeMatch>, attributes: StringKeyObject) => {
   const results: boolean[] = [];

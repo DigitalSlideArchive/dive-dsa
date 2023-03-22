@@ -293,10 +293,34 @@ class UISettings(BaseModel):
     UIControls: Optional[Union[bool, UIControls]]
     UITimeline: Optional[Union[bool, UITimeline]]
 
+class AttributeMatch(BaseModel):
+    op: Optional[Literal['=', '!=', '>', '<', '>=', '<=', 'range', 'in']]
+    val: Any
+
+class AttributeSelectAction(BaseModel):
+    track: Optional[Dict[str, AttributeMatch]]
+    detection: Optional[Dict[str, AttributeMatch]]
+
+class TrackSelectAction(BaseModel):
+    typeFilter: Optional[List[str]]
+    startTrack: Optional[int]
+    startFrame: Optional[int]
+    Nth: Optional[int]
+    attributes: Optional[AttributeSelectAction]
+    type: Optional[Literal['TrackSelection']]
+
+class GoToFrameAction(BaseModel):
+    track: Optional[TrackSelectAction]
+    frame: Optional[int]
+    type: Literal['GoToFrame']
+
+class DIVEActions(BaseModel):
+    action: Union[GoToFrameAction, TrackSelectAction]
 
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]
     UISettings: Optional[UISettings]
+    actions: Optional[List[DIVEActions]]
 
 
 class MetadataMutable(BaseModel):

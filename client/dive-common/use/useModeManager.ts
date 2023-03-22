@@ -16,6 +16,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
+import { DIVEAction } from 'dive-common/use/useActions';
 
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
@@ -777,6 +778,27 @@ export default function useModeManager({
     }
     return null;
   }
+
+  function processAction(action: DIVEAction) {
+    if (action.action.type === 'GoToFrame') {
+      if (action.action.track) {
+        const frame = cameraStore.getFrameFomAction(action.action.track);
+        if (frame !== -1) {
+          aggregateController.value.seek(frame);
+        }
+      } else if (action.action.frame !== undefined) {
+        aggregateController.value.seek(action.action.frame);
+      }
+    }
+    if (action.action.type === 'TrackSelection') {
+      const track = cameraStore.getTrackFromAction(action.action);
+      if (track) {
+        selectTrack(track.id, false);
+      }
+    }
+  }
+
+
   return {
     selectedTrackId,
     editingGroupId,
@@ -815,6 +837,7 @@ export default function useModeManager({
       unstageFromMerge: handleUnstageFromMerge,
       startLinking: handleStartLinking,
       stopLinking: handleStopLinking,
+      processAction,
       addFullFrameTrack,
     },
   };

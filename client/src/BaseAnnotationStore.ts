@@ -109,6 +109,7 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
   getFromAction(trackAction: TrackSelectAction) {
     const tracksFound: number[] = [];
     let skipRest = false;
+    let foundFrame = -1;
     this.annotationMap.forEach((track) => {
       if (skipRest) {
         return;
@@ -129,32 +130,58 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
         const confidenceVals = track.confidencePairs.map((item) => item[1]);
         vals.push(confidenceVals[0] > trackAction.confidenceFilter);
       }
-      if (vals.filter((item) => item).length === vals.length) {
-        tracksFound.push(track.id);
-      }
       //attribute checking
       if (trackAction.attributes) {
         if (trackAction.attributes.track) {
           vals.push(checkAttributes(trackAction.attributes.track, track.attributes));
         }
-        //Need a separate check for detection attribuytes
+        //Need a separate check for detection attributes
+        if (trackAction.attributes.detection) {
+          for (let i = 0; i < (track as Track).features.length; i += 1) {
+            const feature = (track as Track).features[i];
+            if (trackAction.startFrame !== undefined) {
+              if (feature.frame < trackAction.startFrame) {
+                // eslint-disable-next-line no-continue
+                continue;
+              }
+            }
+            if (feature.attributes) {
+              const result = checkAttributes(trackAction.attributes.detection, feature.attributes);
+              if (result) {
+                vals.push(result);
+                foundFrame = feature.frame;
+                console.log(`Frame: ${foundFrame} is True`);
+                break;
+              }
+            }
+          }
+        }
+      }
+      console.log(vals);
+      if (vals.filter((item) => item).length === vals.length) {
+        tracksFound.push(track.id);
       }
 
       // Skip full track list if we have the necessary values
-      if (trackAction.Nth >= 0 && tracksFound.length >= trackAction.Nth) {
+      // eslint-disable-next-line max-len
+      if ((trackAction.Nth === undefined && tracksFound.length) || (trackAction.Nth !== undefined && trackAction.Nth >= 0 && tracksFound.length >= trackAction.Nth)) {
         skipRest = true;
       }
     });
     if (trackAction.Nth !== undefined) {
       if (trackAction.Nth >= 0 && tracksFound.length) {
-        return tracksFound[0];
+        return { track: tracksFound[trackAction.Nth], frame: foundFrame };
       } if (trackAction.Nth < 0 && tracksFound.length) {
-        return tracksFound[tracksFound.length + trackAction.Nth];
+        return { track: tracksFound[tracksFound.length + trackAction.Nth], frame: foundFrame };
       }
-      return -1;
+      return { track: -1, frame: -1 };
     }
-    return -1;
+    if (tracksFound.length) {
+      return { track: tracksFound[0], frame: foundFrame };
+    }
+    return { track: -1, frame: -1 };
   }
+
 
   getNewId() {
     if (this.annotationIds.value.length) {
