@@ -1,60 +1,33 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  computed,
-  defineComponent, ref, watch, Ref,
+  defineComponent, ref, Ref, PropType,
 } from '@vue/composition-api';
 import {
-  AttributeMatch, AttributeSelectAction, DIVEAction, MatchOperator, TrackSelectAction,
+  DIVEAction, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
-  useAttributes, useCameraStore, useConfiguration, useTrackFilters,
+  useAttributes, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 import TrackFilter from './TrackFilter.vue';
 
 
 export default defineComponent({
-  name: 'ActionEditor',
+  name: 'ActionEditorSettings',
   components: {
     TrackFilter,
   },
-  setup() {
-    const configMan = useConfiguration();
-    const actionList: Ref<DIVEAction[]> = ref([]);
-
-    const updateActionList = () => {
-      if (configMan.configuration.value?.actions) {
-        const tempList: DIVEAction[] = [];
-        configMan.configuration.value.actions.forEach((item) => {
-          tempList.push(item);
-        });
-        actionList.value = tempList;
-      }
-    };
-    updateActionList();
-    const generalDialog = ref(false);
-    const addEditAction = ref(false);
-    const addEditActionindex = ref(0);
-    const editingAction: Ref<null | DIVEAction['action']> = ref(null);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame'> = ref('TrackSelection');
-    const editAction = (index?: number) => {
-      addEditAction.value = true;
-      console.log(index);
-      if (index !== undefined) {
-        addEditActionindex.value = index;
-        if (actionList.value[index]) {
-          addEditActionType.value = actionList.value[index].action.type;
-          editingAction.value = actionList.value[index].action;
-        }
-      } else {
-        editingAction.value = {
-          type: 'TrackSelection',
-        };
-
-        addEditActionindex.value = actionList.value.length - 1;
-      }
-    };
-
+  props: {
+    value: {
+      type: Object as PropType<DIVEAction>,
+      required: true,
+    },
+  },
+  setup(props, { emit }) {
+    const typeStylingRef = useTrackStyleManager().typeStyling;
+    const attributesList = useAttributes();
+    const editingAction: Ref<DIVEAction> = ref(props.value);
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame'> = ref(props.value.action.type);
 
     const saveAction = (action: TrackSelectAction, type: DIVEAction['action']['type']) => {
       let diveAction: DIVEAction = {
@@ -69,53 +42,57 @@ export default defineComponent({
 
         };
       }
-      configMan.addAction(diveAction);
-      addEditAction.value = false;
-      updateActionList();
+      emit('input', diveAction);
     };
 
-    const save = () => {
-      // Save all actions to server:
-      const id = configMan.configuration.value?.general?.baseConfiguration;
-      const config = configMan.configuration;
-      if (id && config.value) {
-        configMan.saveConfiguration(id, config.value);
-        generalDialog.value = false;
-      }
-    };
     const changeType = () => {
       if (addEditActionType.value === 'GoToFrame') {
         editingAction.value = {
-          track: {
-            type: 'TrackSelection',
+          action: {
+            track: {
+              type: 'TrackSelection',
+            },
+            type: 'GoToFrame',
           },
-          type: 'GoToFrame',
         };
       }
-      if (addEditActionType.value === 'TrackSelection') {
-        editingAction.value = {
+    };
+    if (addEditActionType.value === 'TrackSelection') {
+      editingAction.value = {
+        action: {
           type: 'TrackSelection',
-        };
-      }
+        },
+      };
+    }
+
+
+    const getAttributeColor = (item: string) => {
+      const found = attributesList.value.find((atr) => atr.key === item || atr.key === `detection_${item}`);
+      return found?.color || 'white';
     };
 
-    const removeAction = (index: number) => {
-      configMan.removeAction(index);
-      updateActionList();
+    const getAttributeList = (item: TrackSelectAction) => {
+      const results: {name: string; color: string; opVal: string}[] = [];
+      if (item.attributes?.detection) {
+        Object.entries(item.attributes.detection).forEach(([key, data]) => {
+          results.push({ name: key, color: getAttributeColor(key), opVal: `${data.op} ${data.val}` });
+        });
+      }
+      if (item.attributes?.track) {
+        Object.entries(item.attributes.track).forEach(([key, data]) => {
+          results.push({ name: key, color: getAttributeColor(key), opVal: `${data.op} ${data.val}` });
+        });
+      }
+      return results;
     };
+
     return {
-      configMan,
-      generalDialog,
-      actionList,
-      addEditAction,
       addEditActionType,
-      addEditActionindex,
       editingAction,
-      editAction,
       saveAction,
-      save,
       changeType,
-      removeAction,
+      getAttributeList,
+      typeStylingRef,
     };
   },
 
@@ -123,103 +100,47 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="ma-2">
-    <v-btn @click="generalDialog = true">
-      <span>
-        Launch Actions
-        <br>
-      </span>
-      <v-icon
-        class="ml-2"
-      >
-        mdi-cog
-      </v-icon>
-    </v-btn>
-    <v-dialog
-      v-model="generalDialog"
-      max-width="800"
-    >
-      <v-card>
-        <v-card-title>Track Filter Creation</v-card-title>
-        <v-card-text>
-          <div v-if="!addEditAction">
-            <p>Below is a list of actions which will activated on launching</p>
-            <v-row
-              v-for="(item, index) in actionList"
-              :key="`ActionItem_${index}`"
-              dense
-            >
-              <v-col>
-                {{ item.action.type }}
-              </v-col>
-              <v-col>
-                <v-icon @click="editAction(index)">
-                  mdi-pencil
-                </v-icon>
-                <v-icon
-                  color="error"
-                  @click="removeAction(index)"
-                >
-                  mdi-delete
-                </v-icon>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-spacer />
-              <v-btn @click="editAction()">
-                Add Action
-              </v-btn>
-            </v-row>
-          </div>
-          <div v-else>
-            <h2>Create/Edit Action</h2>
-            <v-row>
-              <v-select
-                v-model="addEditActionType"
-                :items="['GoToFrame', 'TrackSelection']"
-                label="Action Type"
-                @change="changeType"
-              />
-            </v-row>
-            <v-row v-if="addEditActionType === 'TrackSelection'">
-              <track-filter
-                v-if="editingAction !== null && editingAction.type === 'TrackSelection'"
-                :data="editingAction"
-                @update-trackselection="saveAction($event, addEditActionType)"
-              />
-            </v-row>
-            <v-row v-else-if="addEditActionType === 'GoToFrame'">
-              <track-filter
-                v-if="editingAction !== null && editingAction.type === 'GoToFrame' && editingAction.track"
-                :data="editingAction.track"
-                @update-trackselection="saveAction($event, addEditActionType)"
-              />
-              <v-text-field
-                v-if="editingAction !== null && editingAction.type === 'GoToFrame' && editingAction.track"
-                v-model="editingAction.frame"
-                type="number"
-              />
-            </v-row>
-          </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-btn
-            x-small
-            @click="generalDialog = false"
-          >
-            Cancel
-          </v-btn>
-          <v-btn
-            color="primary"
-            @click="save()"
-          >
-            Save
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </div>
+  <v-card>
+    <v-card-title>Action Editor</v-card-title>
+    <v-card-text>
+      <div>
+        <h2>Create/Edit Action</h2>
+        <v-row>
+          <v-select
+            v-model="addEditActionType"
+            :items="['GoToFrame', 'TrackSelection']"
+            label="Action Type"
+            @change="changeType"
+          />
+        </v-row>
+        <v-row v-if="addEditActionType === 'TrackSelection'">
+          <track-filter
+            v-if="editingAction !== null && editingAction.action.type === 'TrackSelection'"
+            :data="editingAction.action"
+            @update-trackselection="saveAction($event, addEditActionType)"
+            @cancel="$emit('cancel')"
+          />
+        </v-row>
+        <v-row v-else-if="addEditActionType === 'GoToFrame'">
+          <track-filter
+            v-if="editingAction !== null && editingAction.action.type === 'GoToFrame' && editingAction.action.track"
+            :data="editingAction.action.track"
+            @update-trackselection="saveAction($event, addEditActionType)"
+            @cancel="$emit('cancel')"
+          />
+        </v-row>
+      </div>
+    </v-card-text>
+  </v-card>
 </template>
 
 <style lang="scss">
+  .type-color-box {
+    margin: 7px;
+    margin-top: 4px;
+    min-width: 15px;
+    max-width: 15px;
+    min-height: 15px;
+    max-height: 15px;
+  }
 </style>

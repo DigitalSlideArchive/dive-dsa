@@ -1,10 +1,12 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
   computed, defineComponent, ref,
 } from '@vue/composition-api';
+import { DIVEAction } from 'dive-common/use/useActions';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import {
-  useAttributes, useCameraStore, useSelectedTrackId, useTime,
+  useAttributes, useCameraStore, useConfiguration, useHandler, useSelectedTrackId, useTime,
 } from 'vue-media-annotator/provides';
 
 
@@ -18,12 +20,33 @@ export default defineComponent({
   },
   setup(props) {
     const showShortcuts = ref(false);
+    const configMan = useConfiguration();
     const { inputValue } = usePrompt();
     const shortcutsOn = ref(true);
     const attributes = useAttributes();
     const selectedTrackIdRef = useSelectedTrackId();
     const cameraStore = useCameraStore();
     const { frame: frameRef } = useTime();
+    const actionShortcuts = computed(() => {
+      const dataList: {
+        shortcut: string;
+        description: string;
+        actions: DIVEAction[];
+      }[] = [];
+      if (configMan.configuration.value?.shortcuts) {
+        configMan.configuration.value.shortcuts.forEach((item) => {
+          let base = '';
+          if (item.shortcut.modifiers && item.shortcut.modifiers.length > 0) {
+            base = item.shortcut.modifiers.join('+');
+            base = `${base}+`;
+          }
+          const displayKey = `${base}${item.shortcut.key}`;
+          const description = item.description || '';
+          dataList.push({ shortcut: displayKey, description, actions: item.actions });
+        });
+      }
+      return dataList;
+    });
     const shortcutList = computed(() => {
       const dataList: {
         shortcut: string;
@@ -69,9 +92,26 @@ export default defineComponent({
       }
     }
 
+    const systemHandler = useHandler();
+
+    const runActions = (shortcut: string) => {
+      const index = actionShortcuts.value.findIndex((item) => item.shortcut === shortcut);
+      if (index !== -1) {
+        actionShortcuts.value[index].actions.forEach((action) => {
+          systemHandler.processAction(action, true, { frame: frameRef.value });
+        });
+      }
+    };
 
     const mouseTrap = computed(() => {
       const actions: {bind: string; handler: Function; disabled: boolean}[] = [];
+
+      // System Actions
+      actionShortcuts.value.forEach((shortcut) => {
+        const bind = shortcut.shortcut;
+        actions.push({ bind, handler: () => runActions(shortcut.shortcut), disabled: props.hotkeysDisabled });
+      });
+
       shortcutList.value.forEach((shortcut) => {
         const bind = shortcut.shortcut;
         let handler: Function;
@@ -125,6 +165,7 @@ export default defineComponent({
     });
     return {
       shortcutList,
+      actionShortcuts,
       shortcutsOn,
       showShortcuts,
       mouseTrap,
@@ -176,7 +217,10 @@ export default defineComponent({
           Configured Shortcuts
         </v-card-title>
         <v-card-text>
-          <v-row>
+          <v-row
+            dense
+            class="helpContextRow ma-0 align-center"
+          >
             <v-col cols="2">
               <span>Shortcut</span>
             </v-col>
@@ -193,9 +237,29 @@ export default defineComponent({
             </v-col>
           </v-row>
           <v-row
+            v-for="shortcut in actionShortcuts"
+            :key="`${shortcut.shortcut}`"
+            class="helpContextRow ma-0 align-center"
+            dense
+          >
+            <v-col cols="2">
+              <v-chip>{{ shortcut.shortcut }}</v-chip>
+            </v-col>
+            <v-col cols="2">
+              <v-chip>System</v-chip>
+            </v-col>
+            <v-col
+              col="2"
+            />
+            <v-col col="6">
+              <v-chip>{{ shortcut.description }}</v-chip>
+            </v-col>
+          </v-row>
+          <v-row
             v-for="shortcut in shortcutList"
             :key="`${shortcut.shortcut}`"
             class="helpContextRow ma-0 align-center"
+            dense
           >
             <v-col cols="2">
               <v-chip>{{ shortcut.shortcut }}</v-chip>

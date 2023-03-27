@@ -145,7 +145,6 @@ export default class CameraStore {
       let track: Track | undefined;
       this.camMap.value.forEach((camera) => {
         const { track: trackNum } = camera.trackStore.getFromAction(trackAction);
-        console.log(trackNum);
         if (trackNum > -1) {
           track = camera.trackStore.getPossible(trackNum);
         }

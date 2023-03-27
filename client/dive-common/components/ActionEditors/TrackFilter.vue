@@ -8,7 +8,7 @@ import {
   AttributeMatch, AttributeSelectAction, MatchOperator, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
-  useAttributes, useCameraStore, useConfiguration, useTrackFilters,
+  useAttributes, useCameraStore, useConfiguration, useTrackFilters, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 
 
@@ -24,6 +24,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const configMan = useConfiguration();
+    const typeStylingRef = useTrackStyleManager().typeStyling;
+
     const attributes = useAttributes();
     const generalDialog = ref(false);
     const cameraStore = useCameraStore();
@@ -35,6 +37,7 @@ export default defineComponent({
     const startTrack: Ref<number | undefined> = ref(props.data.startTrack || -1);
     const startFrame: Ref<number | undefined> = ref(props.data.startFrame || -1);
     const Nth: Ref<number | undefined> = ref(props.data.Nth || 0);
+    const direction: Ref<TrackSelectAction['direction']> = ref(props.data.direction || 'next');
 
     const attributeFilters: Ref<AttributeSelectAction> = ref(props.data.attributes || {});
 
@@ -47,15 +50,14 @@ export default defineComponent({
         startFrame: startFrame.value,
         Nth: Nth.value,
         attributes: attributeFilters.value,
+        direction: direction.value,
         type: 'TrackSelection',
       };
       if (type === 'track') {
         const result = cameraStore.getTrackFromAction(selectTrackAction);
-        console.log(result);
       }
       if (type === 'frame') {
         const result = cameraStore.getFrameFomAction(selectTrackAction);
-        console.log(result);
       }
     };
     const creatingAtrType: Ref<'track' | 'detection'> = ref('track');
@@ -141,10 +143,21 @@ export default defineComponent({
         startFrame: startFrame.value,
         Nth: Nth.value,
         attributes: attributeFilters.value,
+        direction: direction.value,
         type: 'TrackSelection',
       };
       emit('update-trackselection', selectTrackAction);
     };
+
+    const deleteChip = (item: string) => {
+      typeFilter.value.splice(typeFilter.value.findIndex((data) => data === item));
+    };
+
+    const getAttributeColor = (item: string) => {
+      const found = attributes.value.find((atr) => atr.key === item || atr.key === `detection_${item}`);
+      return found?.color || 'white';
+    };
+
     return {
       typeFilter,
       types,
@@ -153,6 +166,7 @@ export default defineComponent({
       startTrack,
       startFrame,
       Nth,
+      direction,
       testFilter,
       creatingAttribute,
       attributeTypes,
@@ -170,6 +184,9 @@ export default defineComponent({
       attributeFilters,
       saveFilter,
       removeAttribute,
+      deleteChip,
+      typeStylingRef,
+      getAttributeColor,
     };
   },
 
@@ -196,6 +213,24 @@ export default defineComponent({
                 deletable-chips
                 chips
                 label="Filter Types"
+              >
+                <template #selection="{ item }">
+                  <v-chip
+                    close
+                    :color="typeStylingRef.color(item)"
+                    text-color="gray"
+                    @click:close="deleteChip(item)"
+                  >
+                    {{ item }}
+                  </v-chip>
+                </template>
+              </v-select>
+            </v-col>
+            <v-col class="mx-3">
+              <v-select
+                v-model="direction"
+                :items="['next', 'previous']"
+                label="Direction"
               />
             </v-col>
             <v-col class="mx-3">
@@ -231,7 +266,7 @@ export default defineComponent({
               />
             </v-col>
             <v-col class="mx-3">
-              <p>Nth track which meets the criteria</p>
+              <p>Nth track</p>
               <v-text-field
                 v-model.number="Nth"
                 label="Nth Track"
@@ -293,11 +328,18 @@ export default defineComponent({
             v-for="item in detectionAtrList"
             :key="`detectionAttr_${item.key}`"
             dense
+            style="border: 1px gray solid; margin:2px"
           >
+            <v-col cols="1">
+              <div
+                class="type-color-box"
+                :style="{backgroundColor: getAttributeColor(item.key)}"
+              />
+            </v-col>
             <v-col>{{ item.key }}</v-col>
             <v-col>{{ item.item.op }}</v-col>
             <v-col>{{ item.item.val }}</v-col>
-            <v-col>
+            <v-col cols="1">
               <v-icon
                 @click="addAttribute('detection', item.key)"
               >
@@ -380,4 +422,13 @@ export default defineComponent({
 </template>
 
 <style lang="scss">
+  .type-color-box {
+    margin: 7px;
+    margin-top: 4px;
+    min-width: 15px;
+    max-width: 15px;
+    min-height: 15px;
+    max-height: 15px;
+  }
+
 </style>

@@ -1,5 +1,5 @@
 import { ref, Ref } from '@vue/composition-api';
-import { DIVEAction } from 'dive-common/use/useActions';
+import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
 
 export interface DiveConfiguration {
@@ -114,6 +114,7 @@ export interface Configuration {
   };
   UISettings?: UISettings;
   actions?: DIVEAction[];
+  shortcuts?: DIVEActionShortcut[];
 }
 
 function flatMapGenerator(data: any, rootKey = '') {
@@ -315,6 +316,36 @@ export default class ConfigurationManager {
       } else if (actions[index]) {
         const newActions = actions.splice(index, 1);
         this.configuration.value.actions = newActions;
+      }
+    }
+  }
+
+  updateShortcut(val: DIVEActionShortcut, index: number) {
+    if (this.configuration.value && !this.configuration.value?.shortcuts) {
+      this.configuration.value.shortcuts = [];
+    }
+    if (this.configuration.value?.shortcuts) {
+      const { shortcuts } = this.configuration.value;
+      if (shortcuts[index]) {
+        shortcuts[index] = val;
+      } else {
+        shortcuts.push(val);
+      }
+      this.configuration.value.shortcuts = shortcuts;
+    }
+  }
+
+  removeShortCut(index: number) {
+    if (this.configuration.value && !this.configuration.value?.shortcuts) {
+      this.configuration.value.shortcuts = [];
+    }
+    if (this.configuration.value?.shortcuts) {
+      const { shortcuts } = this.configuration.value;
+      if (shortcuts.length === 1) {
+        this.configuration.value.shortcuts = [];
+      } else if (shortcuts[index]) {
+        const newShortcuts = shortcuts.splice(index, 1);
+        this.configuration.value.shortcuts = newShortcuts;
       }
     }
   }

@@ -177,7 +177,8 @@ export interface Handler {
   startLinking(camera: string): void;
   stopLinking(): void;
   addFullFrameTrack(trackType: string, trackLength: number): void;
-  processAction(action: DIVEAction): void;
+  processAction(action: DIVEAction,
+    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}): void;
 
 }
 const HandlerSymbol = Symbol('handler');

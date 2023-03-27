@@ -120,7 +120,11 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
         vals.push(track.id > trackAction.startTrack);
       }
       if (trackAction.startFrame !== undefined) {
-        vals.push(track.end > trackAction.startFrame);
+        if (trackAction.direction && trackAction.direction === 'previous') {
+          vals.push(track.begin < trackAction.startFrame);
+        } else {
+          vals.push(track.end > trackAction.startFrame);
+        }
       }
       if (trackAction.typeFilter !== undefined) {
         const types = track.confidencePairs.map((item) => item[0]);
@@ -140,7 +144,12 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
           for (let i = 0; i < (track as Track).features.length; i += 1) {
             const feature = (track as Track).features[i];
             if (trackAction.startFrame !== undefined) {
-              if (feature.frame < trackAction.startFrame) {
+              if (trackAction.direction && trackAction.direction === 'previous') {
+                if (feature.frame >= trackAction.startFrame) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
+              } else if (feature.frame <= trackAction.startFrame) {
                 // eslint-disable-next-line no-continue
                 continue;
               }
@@ -149,15 +158,19 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
               const result = checkAttributes(trackAction.attributes.detection, feature.attributes);
               if (result) {
                 vals.push(result);
-                foundFrame = feature.frame;
-                console.log(`Frame: ${foundFrame} is True`);
-                break;
+                if (trackAction.direction && trackAction.direction === 'previous' && trackAction.startFrame) {
+                  if (foundFrame < trackAction.startFrame) {
+                    foundFrame = feature.frame;
+                  }
+                } else {
+                  foundFrame = feature.frame;
+                  break;
+                }
               }
             }
           }
         }
       }
-      console.log(vals);
       if (vals.filter((item) => item).length === vals.length) {
         tracksFound.push(track.id);
       }

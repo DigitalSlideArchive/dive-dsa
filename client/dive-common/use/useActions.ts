@@ -28,6 +28,7 @@ export interface TrackSelectAction {
     //Get track which matches attribute values
     attributes?: AttributeSelectAction;
     type: 'TrackSelection';
+    direction?: 'next' | 'previous';
 }
 
 export type ActionTypes = 'GoToFrame' | 'SelectTrack' | 'Wait' | 'Popup';
@@ -40,6 +41,15 @@ interface GoToFrameAction{
 
 export interface DIVEAction {
   action: GoToFrameAction | TrackSelectAction;
+}
+
+export interface DIVEActionShortcut {
+    shortcut: {
+      key: string;
+      modifiers?: string[];
+    };
+    description?: string;
+    actions: DIVEAction[];
 }
 
 const checkAttributes = (attributeMatch: Record<string, AttributeMatch>, attributes: StringKeyObject) => {

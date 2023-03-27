@@ -3,7 +3,8 @@ import { computed, defineComponent, ref } from '@vue/composition-api';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration } from 'vue-media-annotator/provides';
-import ActionEditor from './ActionEditors/ActionEditor.vue';
+import ActionEditorSettings from './ActionEditors/ActionEditorSettings.vue';
+import ActionShortcuts from './ActionEditors/ActionShortcuts.vue';
 import TrackFilter from './ActionEditors/TrackFilter.vue';
 import ConfigurationSettings from './configurationEditors/configurationSettings.vue';
 import GeneralConfiguration from './configurationEditors/generalConfiguration.vue';
@@ -16,7 +17,8 @@ export default defineComponent({
     ConfigurationSettings,
     UiSettings,
     TrackFilter,
-    ActionEditor,
+    ActionEditorSettings,
+    ActionShortcuts,
   },
   props: {
     buttonOptions: {
@@ -107,7 +109,10 @@ export default defineComponent({
             <ui-settings />
           </v-row>
           <v-row>
-            <action-editor />
+            <action-editor-settings />
+          </v-row>
+          <v-row>
+            <action-shortcuts />
           </v-row>
         </v-card-text>
       </v-card>

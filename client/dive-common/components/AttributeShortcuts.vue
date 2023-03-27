@@ -5,6 +5,7 @@ import {
 import { AttributeShortcut } from 'vue-media-annotator/use/useAttributes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
+import { uniq } from 'lodash';
 
 export default defineComponent({
   name: 'AttributeShortcuts',
@@ -115,9 +116,7 @@ export default defineComponent({
       editShortcutDialog.value = true;
     };
 
-    function handleKeyPress(e: KeyboardEvent) {
-      shortcutError.value = null;
-      selectedShortcutModifiers.value = [];
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.altKey) {
         selectedShortcutModifiers.value.push('alt');
       }
@@ -127,6 +126,31 @@ export default defineComponent({
       if (e.shiftKey) {
         selectedShortcutModifiers.value.push('shift');
       }
+      let { key } = e;
+      if (e.code.includes('Arrow')) {
+        key = e.code.replace('Arrow', '');
+        key = key.toLowerCase();
+        selectedShortcutKey.value = key;
+        // Now check to make sure it doesn't conflict with any other shortucts.
+        let base = '';
+        if (selectedShortcutModifiers.value.length) {
+          selectedShortcutModifiers.value = uniq(selectedShortcutModifiers.value);
+          base = selectedShortcutModifiers.value.join('+');
+          base = `${base}+`;
+        }
+        const displaykey = `${base}${selectedShortcutKey.value}`;
+        if (existingShortcuts.value[displaykey]) {
+          shortcutError.value = existingShortcuts.value[displaykey];
+        }
+        awaitingKeyPress.value = false;
+        window.document.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        window.document.removeEventListener('keypress', handleKeyPress);
+      }
+    }
+
+    function handleKeyPress(e: KeyboardEvent) {
+      shortcutError.value = null;
       let { key } = e;
       if (e.code.includes('Digit')) {
         key = e.code.replace('Digit', '');
@@ -143,6 +167,7 @@ export default defineComponent({
       // Now check to make sure it doesn't conflict with any other shortucts.
       let base = '';
       if (selectedShortcutModifiers.value.length) {
+        selectedShortcutModifiers.value = uniq(selectedShortcutModifiers.value);
         base = selectedShortcutModifiers.value.join('+');
         base = `${base}+`;
       }
@@ -151,11 +176,14 @@ export default defineComponent({
         shortcutError.value = existingShortcuts.value[displaykey];
       }
       awaitingKeyPress.value = false;
+      window.document.removeEventListener('keydown', handleKeyDown);
       window.document.removeEventListener('keypress', handleKeyPress);
     }
     const editKeyPress = () => {
       awaitingKeyPress.value = true;
+      selectedShortcutModifiers.value = [];
       window.document.addEventListener('keypress', handleKeyPress);
+      window.document.addEventListener('keydown', handleKeyDown);
     };
 
     const selectedDisplayKey = computed(() => {
