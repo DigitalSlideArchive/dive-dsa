@@ -139,7 +139,7 @@ export default defineComponent({
           },
         };
 
-        addEditActionindex.value = actionList.value.length - 1;
+        addEditActionindex.value = actionList.value.length;
       }
     };
     const saveAction = (diveAction: DIVEAction) => {

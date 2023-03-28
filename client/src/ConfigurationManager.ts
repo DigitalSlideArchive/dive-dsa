@@ -294,13 +294,17 @@ export default class ConfigurationManager {
     }
   }
 
-  addAction(val: DIVEAction) {
+  updateAction(val: DIVEAction, index: number) {
     if (this.configuration.value && !this.configuration.value?.actions) {
       this.configuration.value.actions = [];
     }
     if (this.configuration.value?.actions) {
       const { actions } = this.configuration.value;
-      actions.push(val);
+      if (actions[index]) {
+        actions[index] = val;
+      } else {
+        actions.push(val);
+      }
       this.configuration.value.actions = actions;
     }
   }

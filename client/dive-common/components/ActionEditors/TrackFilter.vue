@@ -158,6 +158,14 @@ export default defineComponent({
       return found?.color || 'white';
     };
 
+    const changeAttributeType = () => {
+      if (editingAtrOp.value === 'range') {
+        editingAtrVal.value = [0, 1];
+      } else {
+        editingAtrVal.value = '';
+      }
+    };
+
     return {
       typeFilter,
       types,
@@ -187,6 +195,7 @@ export default defineComponent({
       deleteChip,
       typeStylingRef,
       getAttributeColor,
+      changeAttributeType,
     };
   },
 
@@ -392,14 +401,40 @@ export default defineComponent({
             <v-select
               v-model="editingAtrOp"
               :items="editingOps"
+              @change="changeAttributeType"
               label="Operator"
             />
           </v-row>
           <v-row dense>
             <v-text-field
+              v-if="!['range', 'in'].includes(editingAtrOp)"
               v-model="editingAtrVal"
               :type="attributeTypes[editingAtrKey] === 'text' ? 'text' : 'number'"
             />
+            <div
+              v-else-if="'in' === editingAtrOp"
+            >
+              <v-combobox
+                v-model="editingAtrVal"
+                chips
+                deletable-chips
+                :type="attributeTypes[editingAtrKey] === 'text' ? 'text' : 'number'"
+              />
+            </div>
+            <div
+              v-else-if="'range' === editingAtrOp && editingAtrVal.length > 0"
+            >
+              <v-text-field
+                v-model="editingAtrVal[0]"
+                :type="'number'"
+                label="low"
+              />
+              <v-text-field
+                v-model="editingAtrVal[1]"
+                :type="'number'"
+                label="high"
+              />
+            </div>
           </v-row>
         </v-card-text>
         <v-card-actions>

@@ -239,7 +239,8 @@ export default defineComponent({
           <v-row
             v-for="shortcut in actionShortcuts"
             :key="`${shortcut.shortcut}`"
-            class="helpContextRow ma-0 align-center"
+            class="helpContextRow ma-0 align-cente py-2"
+            style="border: 1px solid gray;"
             dense
           >
             <v-col cols="2">
@@ -258,7 +259,8 @@ export default defineComponent({
           <v-row
             v-for="shortcut in shortcutList"
             :key="`${shortcut.shortcut}`"
-            class="helpContextRow ma-0 align-center"
+            class="helpContextRow ma-0 align-center py-2"
+            style="border: 1px solid gray;"
             dense
           >
             <v-col cols="2">

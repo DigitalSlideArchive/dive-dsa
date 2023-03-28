@@ -56,13 +56,13 @@ export default defineComponent({
           },
         };
 
-        addEditActionindex.value = actionList.value.length - 1;
+        addEditActionindex.value = actionList.value.length;
       }
     };
 
 
     const saveAction = (diveAction: DIVEAction) => {
-      configMan.addAction(diveAction);
+      configMan.updateAction(diveAction, addEditActionindex.value);
       addEditAction.value = false;
       updateActionList();
     };
