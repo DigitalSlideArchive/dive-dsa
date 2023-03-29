@@ -181,18 +181,24 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
         skipRest = true;
       }
     });
+    let returnTrack = -1;
     if (trackAction.Nth !== undefined) {
       if (trackAction.Nth >= 0 && tracksFound.length) {
-        return { track: tracksFound[trackAction.Nth], frame: foundFrame };
+        returnTrack = tracksFound[trackAction.Nth];
       } if (trackAction.Nth < 0 && tracksFound.length) {
-        return { track: tracksFound[tracksFound.length + trackAction.Nth], frame: foundFrame };
+        returnTrack = tracksFound[tracksFound.length + trackAction.Nth];
       }
-      return { track: -1, frame: -1 };
     }
     if (tracksFound.length) {
-      return { track: tracksFound[0], frame: foundFrame };
+      [returnTrack] = tracksFound;
     }
-    return { track: -1, frame: -1 };
+    if (!trackAction.attributes && foundFrame === -1) {
+      const foundTrack = this.annotationMap.get(returnTrack);
+      if (foundTrack) {
+        foundFrame = foundTrack.begin;
+      }
+    }
+    return { track: returnTrack, frame: foundFrame };
   }
 
 
