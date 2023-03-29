@@ -52,7 +52,7 @@ export default defineComponent({
       default: undefined,
     },
   },
-  setup(props) {
+  setup(props, { emit }) {
     const loadingVideo = ref(false);
     const loadingImage = ref(true);
     const cameraInitializer = injectCameraInitializer();
@@ -349,6 +349,7 @@ export default defineComponent({
           // Set quadFeature and conditionally apply brightness filter
           local.quadFeature = quadFeatureLayer.createFeature('quad');
           setBrightnessFilter(props.brightness !== undefined);
+          emit('loaded');
           data.ready = true;
           seek(0);
         });

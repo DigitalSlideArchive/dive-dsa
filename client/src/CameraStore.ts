@@ -2,6 +2,7 @@ import {
   Ref, computed, shallowRef, triggerRef,
 } from '@vue/composition-api';
 import { cloneDeep, uniq } from 'lodash';
+import { TrackSelectAction } from 'dive-common/use/useActions';
 import type Track from './track';
 import type Group from './Group';
 import { AnnotationId } from './BaseAnnotation';
@@ -138,6 +139,31 @@ export default class CameraStore {
         throw Error(`TrackId: ${trackId} is not found in any camera`);
       }
       return track;
+    }
+
+    getTrackFromAction(trackAction: TrackSelectAction) {
+      let track: Track | undefined;
+      this.camMap.value.forEach((camera) => {
+        const { track: trackNum } = camera.trackStore.getFromAction(trackAction);
+        if (trackNum > -1) {
+          track = camera.trackStore.getPossible(trackNum);
+        }
+      });
+      if (track) {
+        return track;
+      }
+      return undefined;
+    }
+
+    getFrameFomAction(trackAction: TrackSelectAction) {
+      let frame = -1;
+      this.camMap.value.forEach((camera) => {
+        const { frame: foundFrame } = camera.trackStore.getFromAction(trackAction);
+        if (foundFrame > -1) {
+          frame = foundFrame;
+        }
+      });
+      return frame;
     }
 
     addCamera(cameraName: string) {

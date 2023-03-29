@@ -1,3 +1,4 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
   defineComponent, ref, toRef, computed, Ref, reactive, watch, inject, nextTick, onBeforeUnmount,
@@ -511,7 +512,7 @@ export default defineComponent({
         context.resetActive();
         const config = await loadMetadata(datasetId.value);
         const meta = config.metadata;
-        const configMeta = config.diveConfig.metadata || config.metadata;
+        const configMeta = Object.keys(config.diveConfig.metadata).length ? config.diveConfig.metadata : config.metadata;
         if (config.diveConfig.prevNext) {
           configurationManager.setPrevNext(config.diveConfig.prevNext);
         }
@@ -778,6 +779,15 @@ export default defineComponent({
     const { visible } = usePrompt();
 
     const getUISetting = (key: UISettingsKey) => configurationManager.getUISetting(key);
+
+    const runActions = () => {
+      if (configurationManager.configuration.value?.actions) {
+        const { actions } = configurationManager.configuration.value;
+        for (let i = 0; i < actions.length; i += 1) {
+          handler.processAction(actions[i]);
+        }
+      }
+    };
     return {
       /* props */
       aggregateController,
@@ -834,6 +844,7 @@ export default defineComponent({
       reloadAnnotations,
       visible,
       getUISetting,
+      runActions,
     };
   },
 });
@@ -1030,6 +1041,7 @@ export default defineComponent({
                 v-bind="{
                   imageData: imageData[camera], videoUrl: videoUrl[camera],
                   updateTime, frameRate, originalFps, camera, brightness, intercept }"
+                @loaded="runActions"
               >
                 <LayerManager :camera="camera" />
               </component>

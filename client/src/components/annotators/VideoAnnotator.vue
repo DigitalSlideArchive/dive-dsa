@@ -101,7 +101,7 @@ export default defineComponent({
       default: undefined,
     },
   },
-  setup(props) {
+  setup(props, { emit }) {
     const cameraInitializer = injectCameraInitializer();
     const {
       state: data,
@@ -237,6 +237,7 @@ export default defineComponent({
       // See https://github.com/Kitware/dive/issues/447 for more details.
       seek(0);
       data.ready = true;
+      emit('loaded');
       data.volume = video.volume;
       data.speed = video.playbackRate;
       data.currentTime = video.currentTime;

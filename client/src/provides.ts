@@ -2,6 +2,7 @@ import {
   provide, inject, ref, Ref, reactive,
 } from '@vue/composition-api';
 
+import { DIVEAction } from 'dive-common/use/useActions';
 import type { AnnotatorPreferences as AnnotatorPrefsIface } from './types';
 import StyleManager from './StyleManager';
 import type { EditAnnotationTypes } from './layers/EditAnnotationLayer';
@@ -176,6 +177,8 @@ export interface Handler {
   startLinking(camera: string): void;
   stopLinking(): void;
   addFullFrameTrack(trackType: string, trackLength: number): void;
+  processAction(action: DIVEAction,
+    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}): void;
 
 }
 const HandlerSymbol = Symbol('handler');
@@ -217,7 +220,7 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     startLinking(...args) { handle('startLinking', args); },
     stopLinking(...args) { handle('stopLinking', args); },
     addFullFrameTrack(...args) { handle('addFullFrameTrack', args); },
-
+    processAction(...args) { handle('processAction', args); },
   };
 }
 

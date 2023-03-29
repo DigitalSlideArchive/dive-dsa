@@ -1,5 +1,7 @@
 import { ref, Ref, computed } from '@vue/composition-api';
 import IntervalTree from '@flatten-js/interval-tree';
+import { checkAttributes, TrackSelectAction } from 'dive-common/use/useActions';
+import { intersection } from 'lodash';
 import type Track from './track';
 import type Group from './Group';
 import type { AnnotationId, NotifierFuncParams } from './BaseAnnotation';
@@ -103,6 +105,102 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
   getPossible(annotationId: AnnotationId) {
     return this.annotationMap.get(annotationId);
   }
+
+  getFromAction(trackAction: TrackSelectAction) {
+    const tracksFound: number[] = [];
+    let skipRest = false;
+    let foundFrame = -1;
+    this.annotationMap.forEach((track) => {
+      if (skipRest) {
+        return;
+      }
+      // Find a track which matches the specifications
+      const vals: boolean[] = [];
+      if (trackAction.startTrack !== undefined) {
+        vals.push(track.id > trackAction.startTrack);
+      }
+      if (trackAction.startFrame !== undefined) {
+        if (trackAction.direction && trackAction.direction === 'previous') {
+          vals.push(track.begin < trackAction.startFrame);
+        } else {
+          vals.push(track.end > trackAction.startFrame);
+        }
+      }
+      if (trackAction.typeFilter !== undefined) {
+        const types = track.confidencePairs.map((item) => item[0]);
+        vals.push(intersection(types, trackAction.typeFilter).length > 0);
+      }
+      if (trackAction.confidenceFilter !== undefined) {
+        const confidenceVals = track.confidencePairs.map((item) => item[1]);
+        vals.push(confidenceVals[0] > trackAction.confidenceFilter);
+      }
+      //attribute checking
+      if (trackAction.attributes) {
+        if (trackAction.attributes.track) {
+          vals.push(checkAttributes(trackAction.attributes.track, track.attributes));
+        }
+        //Need a separate check for detection attributes
+        if (trackAction.attributes.detection) {
+          for (let i = 0; i < (track as Track).features.length; i += 1) {
+            const feature = (track as Track).features[i];
+            if (trackAction.startFrame !== undefined) {
+              if (trackAction.direction && trackAction.direction === 'previous') {
+                if (feature.frame >= trackAction.startFrame) {
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
+              } else if (feature.frame <= trackAction.startFrame) {
+                // eslint-disable-next-line no-continue
+                continue;
+              }
+            }
+            if (feature.attributes) {
+              const result = checkAttributes(trackAction.attributes.detection, feature.attributes);
+              if (result) {
+                vals.push(result);
+                if (trackAction.direction && trackAction.direction === 'previous' && trackAction.startFrame) {
+                  if (foundFrame < trackAction.startFrame) {
+                    foundFrame = feature.frame;
+                  }
+                } else {
+                  foundFrame = feature.frame;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      if (vals.filter((item) => item).length === vals.length) {
+        tracksFound.push(track.id);
+      }
+
+      // Skip full track list if we have the necessary values
+      // eslint-disable-next-line max-len
+      if ((trackAction.Nth === undefined && tracksFound.length) || (trackAction.Nth !== undefined && trackAction.Nth >= 0 && tracksFound.length >= trackAction.Nth)) {
+        skipRest = true;
+      }
+    });
+    let returnTrack = -1;
+    if (trackAction.Nth !== undefined) {
+      if (trackAction.Nth >= 0 && tracksFound.length) {
+        returnTrack = tracksFound[trackAction.Nth];
+      } if (trackAction.Nth < 0 && tracksFound.length) {
+        returnTrack = tracksFound[tracksFound.length + trackAction.Nth];
+      }
+    }
+    if (tracksFound.length) {
+      [returnTrack] = tracksFound;
+    }
+    if (!trackAction.attributes && foundFrame === -1) {
+      const foundTrack = this.annotationMap.get(returnTrack);
+      if (foundTrack) {
+        foundFrame = foundTrack.begin;
+      }
+    }
+    return { track: returnTrack, frame: foundFrame };
+  }
+
 
   getNewId() {
     if (this.annotationIds.value.length) {

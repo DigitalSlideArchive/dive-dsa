@@ -1,7 +1,9 @@
 import {
   computed, Ref, reactive, ref, onBeforeUnmount, toRef,
 } from '@vue/composition-api';
-import { uniq, flatMapDeep, flattenDeep } from 'lodash';
+import {
+  uniq, flatMapDeep, flattenDeep, cloneDeep,
+} from 'lodash';
 import Track, { TrackId } from 'vue-media-annotator/track';
 import { RectBounds, updateBounds } from 'vue-media-annotator/utils';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
@@ -16,6 +18,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
+import { DIVEAction } from 'dive-common/use/useActions';
 
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
@@ -777,6 +780,40 @@ export default function useModeManager({
     }
     return null;
   }
+
+  function processAction(actionRoot: DIVEAction, shortcut = false,
+    data?: {frame?: number; selectedTrack?: number}) {
+    const action = cloneDeep(actionRoot);
+    if (action.action.type === 'GoToFrame') {
+      if (action.action.track) {
+        if (shortcut) { //if Frame/is -1 we use currently selected as basis
+          if (action.action.track.startFrame === -1 && data?.frame) {
+            // eslint-disable-next-line no-param-reassign
+            action.action.track.startFrame = data.frame;
+          }
+        }
+        const frame = cameraStore.getFrameFomAction(action.action.track);
+        if (frame !== -1) {
+          aggregateController.value.seek(frame);
+        }
+      } else if (action.action.frame !== undefined) {
+        aggregateController.value.seek(action.action.frame);
+      }
+    }
+    if (action.action.type === 'TrackSelection') {
+      if (action.action.startTrack === -1) {
+        // eslint-disable-next-line no-param-reassign
+        action.action.startTrack = selectedTrackId.value || -1;
+      }
+
+      const track = cameraStore.getTrackFromAction(action.action);
+      if (track) {
+        selectTrack(track.id, false);
+      }
+    }
+  }
+
+
   return {
     selectedTrackId,
     editingGroupId,
@@ -815,6 +852,7 @@ export default function useModeManager({
       unstageFromMerge: handleUnstageFromMerge,
       startLinking: handleStartLinking,
       stopLinking: handleStopLinking,
+      processAction,
       addFullFrameTrack,
     },
   };

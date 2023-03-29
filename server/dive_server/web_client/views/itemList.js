@@ -15,7 +15,7 @@ wrap(ItemListWidget, 'render', function (render) {
     render.call(this);
     if (this.collection.params.folderId) {
         restRequest({type: 'GET', url: 'folder/' + this.collection.params.folderId}).done((result) => {
-            if (!result.meta.annotate) {    
+            if (!result.meta.annotate && result.meta.MarkForPostProcess === undefined) {    
                 if (!this.$el.closest('.modal-dialog').length) {
                     for (let ix = 0; ix < this.collection.length; ix++) {
                         if (!this.$el.find('.g-item-list li.g-item-list-entry:eq(' + ix + ') .g-dive-convert-link').length && isVideoType(this.collection.models[ix].attributes.name)) {
