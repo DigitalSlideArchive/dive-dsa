@@ -49,6 +49,7 @@ export interface Attribute {
   name: string;
   key: string;
   color?: string;
+  user?: boolean;
   editor?: NumericAttributeEditorOptions | StringAttributeEditorOptions;
   shortcuts?: AttributeShortcut[];
 }
@@ -513,7 +514,7 @@ export default function UseAttributes(
   });
 
   const timelineDefault = computed(() => {
-    const defVal = Object.entries(timelineGraphs.value).find(([key, item]) => item.default);
+    const defVal = Object.entries(timelineGraphs.value).find(([_key, item]) => item.default);
     if (defVal) {
       return defVal[0];
     }

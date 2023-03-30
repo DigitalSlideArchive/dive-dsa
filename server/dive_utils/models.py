@@ -154,6 +154,7 @@ class Attribute(BaseModel):
     name: str
     key: str
     color: Optional[str]
+    user: Optional[bool]
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
 

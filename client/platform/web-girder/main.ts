@@ -38,7 +38,7 @@ if (
 
 Promise.all([
   store.dispatch('Brand/loadBrand'),
-  girderRest.fetchUser(),
+  store.dispatch('User/loadUser'),
 ]).then(() => {
   const vuetify = getVuetify(store.state.Brand.brandData?.vuetify);
   Vue.use(promptService(vuetify));

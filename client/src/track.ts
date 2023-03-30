@@ -349,12 +349,24 @@ export default class Track extends BaseAnnotation {
   }
 
 
-  setFeatureAttribute(frame: number, name: string, value: unknown) {
+  setFeatureAttribute(frame: number, name: string, value: unknown, user: null | string = null) {
     if (this.features[frame]) {
-      this.features[frame].attributes = {
-        ...this.features[frame].attributes,
-        [name]: value,
-      };
+      if (user !== null) {
+        this.features[frame].attributes = {
+          ...this.features[frame].attributes,
+        };
+        if (this.features[frame].attributes !== undefined) {
+          (this.features[frame].attributes as StringKeyObject)[user] = {
+            ...(this.features[frame].attributes as StringKeyObject)[user] as StringKeyObject,
+            [name]: value,
+          };
+        }
+      } else {
+        this.features[frame].attributes = {
+          ...this.features[frame].attributes,
+          [name]: value,
+        };
+      }
       this.notify('feature', this.features[frame]);
     }
   }

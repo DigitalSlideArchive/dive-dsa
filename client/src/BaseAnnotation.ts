@@ -157,9 +157,15 @@ export default abstract class BaseAnnotation {
     this.notify('confidencePairs', old);
   }
 
-  setAttribute(key: string, value: unknown) {
-    const oldval = this.attributes[key];
-    this.attributes[key] = value;
+  setAttribute(key: string, value: unknown, user: null | string = null) {
+    let oldval = this.attributes[key];
+    if (user !== null) {
+      if (this.attributes[user] === undefined) {
+        this.attributes[user] = {};
+      }
+      oldval = (this.attributes[user] as StringKeyObject);
+      (this.attributes[user] as StringKeyObject)[key] = value;
+    }
     this.notify('attributes', { key, value: oldval });
   }
 
