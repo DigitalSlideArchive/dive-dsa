@@ -195,7 +195,8 @@ export default defineComponent({
           <v-text-field
             v-model="name"
             label="Name"
-            :rules="[v => !!v || 'Name is required', v => !v.includes(' ') || 'No spaces']"
+            :rules="[v => !!v || 'Name is required', v => !v.includes(' ') ||
+              'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
             required
           />
           <v-select
