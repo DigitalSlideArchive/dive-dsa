@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import { RectBounds } from './utils';
 import {
   binarySearch,
@@ -24,7 +25,7 @@ export interface Feature {
   bounds?: RectBounds;
   geometry?: GeoJSON.FeatureCollection<TrackSupportedFeature>;
   fishLength?: number;
-  attributes?: StringKeyObject;
+  attributes?: StringKeyObject & { userAttributes?: StringKeyObject };
   head?: [number, number];
   tail?: [number, number];
 }
@@ -355,12 +356,13 @@ export default class Track extends BaseAnnotation {
         this.features[frame].attributes = {
           ...this.features[frame].attributes,
         };
-        if (this.features[frame].attributes !== undefined) {
-          (this.features[frame].attributes as StringKeyObject)[user] = {
-            ...(this.features[frame].attributes as StringKeyObject)[user] as StringKeyObject,
-            [name]: value,
-          };
+        if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject).userAttributes === undefined) {
+          (this.features[frame].attributes as StringKeyObject).userAttributes = {};
         }
+        ((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] = {
+          ...(this.features[frame].attributes as StringKeyObject)[user] as StringKeyObject,
+          [name]: value,
+        };
       } else {
         this.features[frame].attributes = {
           ...this.features[frame].attributes,

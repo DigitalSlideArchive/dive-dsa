@@ -49,6 +49,7 @@ import context from 'dive-common/store/context';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import ImageEnhancementsVue from 'vue-media-annotator/components/ImageEnhancements.vue';
 import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
+import { useStore } from 'platform/web-girder/store/types';
 import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -146,6 +147,8 @@ export default defineComponent({
       }
       return 'track';
     });
+
+    const store = useStore();
 
     const {
       save: saveToServer,
@@ -256,6 +259,7 @@ export default defineComponent({
       selectedTrackId,
       cameraStore,
       pendingSaveCount,
+      login: store.state.User.user?.login || '',
     });
 
 

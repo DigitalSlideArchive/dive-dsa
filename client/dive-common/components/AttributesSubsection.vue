@@ -1,3 +1,4 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
   defineComponent,
@@ -169,9 +170,9 @@ export default defineComponent({
           return selectedAttributes.value.attributes[attribute.name];
         }
         const user = store.state.User.user?.login || null;
-        if (user && selectedAttributes.value.attributes[user]) {
-          if ((selectedAttributes.value.attributes[user] as StringKeyObject)[attribute.name]) {
-            return ((selectedAttributes.value.attributes[user] as StringKeyObject)[attribute.name]);
+        if (user && selectedAttributes.value.attributes?.userAttributes !== undefined && selectedAttributes.value.attributes.userAttributes[user]) {
+          if ((selectedAttributes.value.attributes.userAttributes[user] as StringKeyObject)[attribute.name]) {
+            return ((selectedAttributes.value.attributes.userAttributes[user] as StringKeyObject)[attribute.name]);
           }
         }
       }

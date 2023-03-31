@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 
 import {
   ref, Ref, computed, set as VueSet, del as VueDel,
@@ -127,6 +128,7 @@ interface UseAttributesParams {
   trackStyleManager: StyleManager;
   cameraStore: CameraStore;
   pendingSaveCount: Ref<number>;
+  login: string;
 }
 
 export default function UseAttributes(
@@ -136,6 +138,7 @@ export default function UseAttributes(
     selectedTrackId,
     cameraStore,
     pendingSaveCount,
+    login,
   }: UseAttributesParams,
 ) {
   const attributes: Ref<Record<string, Attribute>> = ref({});
@@ -369,7 +372,14 @@ export default function UseAttributes(
       if (feature.attributes) {
         Object.keys(feature.attributes).forEach((key) => {
           if (feature.attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
-            const val = feature.attributes[key] as string | number | boolean | undefined;
+            let val: string | number | boolean | undefined;
+            // Get user attribute if it exists:
+            const baseAttribute = attributesList.value.find((item) => item.name === key);
+            if (baseAttribute?.user && feature.attributes.userAttributes) {
+              val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
+            } else {
+              val = feature.attributes[key] as string | number | boolean | undefined;
+            }
             if (val === undefined) {
               return;
             }

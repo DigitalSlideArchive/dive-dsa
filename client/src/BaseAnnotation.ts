@@ -15,7 +15,7 @@ export interface StringKeyObject {
 export interface BaseData {
   id: AnnotationId;
   meta?: StringKeyObject;
-  attributes: StringKeyObject;
+  attributes: StringKeyObject & { userAttributes?: StringKeyObject };
   confidencePairs: Array<ConfidencePair>;
   begin: number;
   end: number;
@@ -27,7 +27,7 @@ export interface BaseAnnotationParams {
   begin?: number;
   end?: number;
   confidencePairs?: Array<ConfidencePair>;
-  attributes?: StringKeyObject;
+  attributes?: StringKeyObject & { userAttributes?: StringKeyObject };
 }
 
 /**
@@ -39,7 +39,7 @@ export default abstract class BaseAnnotation {
 
   meta?: StringKeyObject;
 
-  attributes: StringKeyObject;
+  attributes: StringKeyObject & { userAttributes?: StringKeyObject };
 
   confidencePairs: ConfidencePair[];
 
@@ -160,11 +160,16 @@ export default abstract class BaseAnnotation {
   setAttribute(key: string, value: unknown, user: null | string = null) {
     let oldval = this.attributes[key];
     if (user !== null) {
-      if (this.attributes[user] === undefined) {
-        this.attributes[user] = {};
+      if (this.attributes.userAttributes === undefined) {
+        this.attributes.userAttributes = {};
       }
-      oldval = (this.attributes[user] as StringKeyObject);
-      (this.attributes[user] as StringKeyObject)[key] = value;
+      if (this.attributes.userAttributes[user] === undefined) {
+        this.attributes.userAttributes[user] = {};
+      }
+      oldval = (this.attributes.userAttributes[user] as StringKeyObject);
+      (this.attributes.userAttributes[user] as StringKeyObject)[key] = value;
+    } else {
+      this.attributes[key] = value;
     }
     this.notify('attributes', { key, value: oldval });
   }
