@@ -268,6 +268,7 @@ class UISideBar(BaseModel):
     UITrackDetails: Optional[bool]
     UIAttributeSettings: Optional[bool]
     UIAttributeAdding: Optional[bool]
+    UIAttributeUserReview: Optional[bool]
 
 
 class UIContextBar(BaseModel):

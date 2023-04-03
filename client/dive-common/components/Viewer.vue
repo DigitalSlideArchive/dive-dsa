@@ -56,6 +56,7 @@ import MultiCamToolsVue from './MultiCamTools.vue';
 import PrevNext from './PrevNext.vue';
 import AttributesSideBarVue from './AttributesSideBar.vue';
 import TypeThresholdVue from './TypeThreshold.vue';
+import AttributeUserReviewVue from './AttributeUserReview.vue';
 
 export interface ImageDataItem {
   url: string;
@@ -661,6 +662,12 @@ export default defineComponent({
           context.unregister({
             description: 'Attrbute Details',
             component: AttributesSideBarVue,
+          });
+        }
+        if (!configurationManager.getUISetting('UIAttributeUserReview')) {
+          context.unregister({
+            description: 'Attrbute User Review',
+            component: AttributeUserReviewVue,
           });
         }
         if (!configurationManager.getUISetting('UIThresholdControls')) {

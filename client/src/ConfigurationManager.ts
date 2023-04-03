@@ -54,6 +54,7 @@ interface UISideBar {
     UITrackDetails? : boolean;
     UIAttributeSettings? : boolean;
     UIAttributeAdding? : boolean;
+    UIAttributeUserReview?: boolean;
 
 }
 

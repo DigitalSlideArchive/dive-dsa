@@ -42,6 +42,10 @@ export default defineComponent({
       type: String as PropType<'Track' | 'Detection'>,
       required: true,
     },
+    user: {
+      type: String as PropType<string>,
+      default: '',
+    },
   },
   setup(props, { emit }) {
     const readOnlyMode = useReadOnlyMode();
@@ -121,7 +125,7 @@ export default defineComponent({
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
         let user: null | string = null;
         if (attribute.user) {
-          user = store.state.User.user?.login || null;
+          user = props.user || store.state.User.user?.login || null;
         }
         if (tracks.length) {
           if (props.mode === 'Track') {
@@ -169,7 +173,7 @@ export default defineComponent({
         if (!attribute.user) {
           return selectedAttributes.value.attributes[attribute.name];
         }
-        const user = store.state.User.user?.login || null;
+        const user = props.user || store.state.User.user?.login || null;
         if (user && selectedAttributes.value.attributes?.userAttributes !== undefined && selectedAttributes.value.attributes.userAttributes[user]) {
           if ((selectedAttributes.value.attributes.userAttributes[user] as StringKeyObject)[attribute.name]) {
             return ((selectedAttributes.value.attributes.userAttributes[user] as StringKeyObject)[attribute.name]);
@@ -235,7 +239,7 @@ export default defineComponent({
           </div>
         </v-col>
         <v-tooltip
-          v-if="getUISetting('UIAttributeAdding')"
+          v-if="getUISetting('UIAttributeAdding') && user === ''"
           open-delay="200"
           bottom
           max-width="200"
@@ -256,6 +260,7 @@ export default defineComponent({
           <span>Add a new {{ mode }} Attribute</span>
         </v-tooltip>
         <v-tooltip
+          v-if="user === ''"
           open-delay="200"
           bottom
           max-width="200"
@@ -282,7 +287,7 @@ export default defineComponent({
           @click="clickSortToggle"
         />
         <tooltip-btn
-          v-if="getUISetting('UIAttributeDetails')"
+          v-if="getUISetting('UIAttributeDetails') && user === ''"
           icon="mdi-filter"
           :color="filtersActive ? 'primary' : 'default'"
           :tooltip-text="filtersActive
@@ -290,7 +295,7 @@ export default defineComponent({
           @click="openFilter"
         />
         <tooltip-btn
-          v-if="mode === 'Detection' && getUISetting('UIAttributeDetails')"
+          v-if="mode === 'Detection' && getUISetting('UIAttributeDetails') && user === ''"
           icon="mdi-chart-line-variant"
           :color="timelineActive ? 'primary' : 'default'"
           tooltip-text="Timeline Settings for Attributes"
@@ -374,7 +379,7 @@ export default defineComponent({
               cols="1"
             >
               <v-btn
-                v-if="getUISetting('UIAttributeSettings')"
+                v-if="getUISetting('UIAttributeSettings') && user === ''"
                 icon
                 x-small
                 @click="editAttribute(attribute)"

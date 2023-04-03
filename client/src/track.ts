@@ -441,6 +441,21 @@ export default class Track extends BaseAnnotation {
     return features;
   }
 
+  getUserAttributeList() {
+    const userList = new Set<string>();
+    if (this.attributes && this.attributes.userAttributes) {
+      Object.keys(this.attributes.userAttributes).forEach((item) => userList.add(item));
+    }
+    if (this.features) {
+      this.features.forEach((feature) => {
+        if (feature.attributes && feature.attributes.userAttributes) {
+          Object.keys(feature.attributes.userAttributes).forEach((item) => userList.add(item));
+        }
+      });
+    }
+    return userList;
+  }
+
   /* Serialize back to a regular track object */
   serialize(): TrackData {
     return {

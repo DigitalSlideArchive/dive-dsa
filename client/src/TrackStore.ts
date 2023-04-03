@@ -14,4 +14,12 @@ export default class TrackStore extends BaseAnnotationStore<Track> {
     this.markChangesPending({ action: 'upsert', track, cameraName: this.cameraName });
     return track;
   }
+
+  getUserAttributeList() {
+    let userList = new Set<string>();
+    this.annotationMap.forEach((item) => {
+      userList = new Set([...userList, ...item.getUserAttributeList()]);
+    });
+    return userList;
+  }
 }
