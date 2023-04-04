@@ -3,6 +3,7 @@ import {
   defineComponent, watch, PropType, Ref, ref, computed, toRef,
 } from '@vue/composition-api';
 
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -33,6 +34,7 @@ import {
   useGroupStyleManager,
   useCameraStore,
   useSelectedCamera,
+  useConfiguration,
 } from '../provides';
 
 /** LayerManager is a component intended to be used as a child of an Annotator.
@@ -60,6 +62,9 @@ export default defineComponent({
     const handler = useHandler();
     const cameraStore = useCameraStore();
     const selectedCamera = useSelectedCamera();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
     const groupStore = cameraStore.camMap.value.get(props.camera)?.groupStore;
     if (!trackStore || !groupStore) {
@@ -346,9 +351,10 @@ export default defineComponent({
         return;
       }
       //So we only want to pass the click whjen not in creation mode or editing mode for features
-      if (editAnnotationLayer.getMode() !== 'creation') {
+      if (editAnnotationLayer.getMode() !== 'creation' && getUISetting('UISelection')) {
         editAnnotationLayer.disable();
-        handler.trackSelect(trackId, editing);
+        const editTrack = editing && getUISetting('UIEditing') as boolean;
+        handler.trackSelect(trackId, editTrack);
       }
     };
 

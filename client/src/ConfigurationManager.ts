@@ -90,6 +90,11 @@ interface UITimeline {
     UIEvents? : boolean;
 }
 
+interface UIInteractions {
+  UISelection?: boolean;
+  UIEditing?: boolean;
+}
+
 export interface UISettings {
     UITopBar?: boolean | UITopBar;
     UIToolBar?: boolean | UIToolBar;
@@ -98,13 +103,15 @@ export interface UISettings {
     UITrackDetails?: boolean | UITrackDetails;
     UIControls?: boolean | UIControls;
     UITimeline?: boolean | UITimeline;
+    UIInteractions?: boolean | UIInteractions;
 
 }
 export type UISettingsKey = keyof UISettings | keyof UITopBar | keyof UIToolBar
-| keyof UISideBar | keyof UIContextBar | keyof UITrackDetails | keyof UIControls | keyof UITimeline;
+| keyof UISideBar | keyof UIContextBar | keyof UITrackDetails | keyof UIControls
+| keyof UITimeline | keyof UIInteractions;
 
 type UIValue = UITopBar | UIToolBar
-| UISideBar | UIContextBar | UITrackDetails | UIControls | UITimeline;
+| UISideBar | UIContextBar | UITrackDetails | UIControls | UITimeline | UIInteractions;
 
 export interface Configuration {
   general?: {
@@ -279,6 +286,7 @@ export default class ConfigurationManager {
         UITrackDetails: true,
         UIControls: true,
         UITimeline: true,
+        UIInteractions: true,
       };
     }
     if (this.configuration.value?.UISettings) {

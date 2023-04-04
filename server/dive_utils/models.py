@@ -301,6 +301,9 @@ class UITimeline(BaseModel):
     UIDetections: Optional[bool]
     UIEvents: Optional[bool]
 
+class UIInteractions(BaseModel):
+    UISelection: Optional[bool]
+    UIEditing: Optional[bool]
 
 class UISettings(BaseModel):
     UITopBar: Optional[Union[bool, UITopBar]]
@@ -310,6 +313,7 @@ class UISettings(BaseModel):
     UITrackDetails: Optional[Union[bool, UITrackDetails]]
     UIControls: Optional[Union[bool, UIControls]]
     UITimeline: Optional[Union[bool, UITimeline]]
+    UIInteractions: Optional[Union[bool, UIInteractions]]
 
 
 class AttributeMatch(BaseModel):

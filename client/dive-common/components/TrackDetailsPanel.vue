@@ -202,7 +202,7 @@ export default defineComponent({
         {
           bind: 'del',
           handler: () => {
-            if (!readOnlyMode.value && selectedTrackIdRef.value !== null) {
+            if (!readOnlyMode.value && selectedTrackIdRef.value !== null && getUISetting('UIEditing')) {
               removeTrack([selectedTrackIdRef.value]);
             }
           },

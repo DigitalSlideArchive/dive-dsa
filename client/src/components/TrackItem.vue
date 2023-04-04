@@ -3,10 +3,11 @@ import {
   defineComponent, computed, PropType, ref,
 } from '@vue/composition-api';
 import context from 'dive-common/store/context';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import TooltipBtn from './TooltipButton.vue';
 import TypePicker from './TypePicker.vue';
 import {
-  useHandler, useTime, useReadOnlyMode, useTrackFilters, useCameraStore,
+  useHandler, useTime, useReadOnlyMode, useTrackFilters, useCameraStore, useConfiguration,
 } from '../provides';
 import Track from '../track';
 
@@ -66,6 +67,8 @@ export default defineComponent({
     const allTypesRef = trackFilters.allTypes;
     const readOnlyMode = useReadOnlyMode();
     const cameraStore = useCameraStore();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const multiCam = ref(cameraStore.camMap.value.size > 1);
     /**
      * Use of revision is safe because it will only create a
@@ -170,6 +173,7 @@ export default defineComponent({
       toggleInterpolation,
       toggleKeyframe,
       setTrackType,
+      getUISetting,
     };
   },
 });
@@ -210,7 +214,7 @@ export default defineComponent({
           <div
             class="trackNumber pl-0 pr-2"
             v-on="on"
-            @click.self="handler.trackSeek(track.trackId)"
+            @click.self="getUISetting('UISelection') && handler.trackSeek(track.trackId)"
           >
             {{ track.trackId }}
           </div>
@@ -240,6 +244,7 @@ export default defineComponent({
           ]"
         />
         <tooltip-btn
+          v-if="getUISetting('UIEditing')"
           color="error"
           icon="mdi-delete"
           :disabled="merging || readOnlyMode"
@@ -248,7 +253,7 @@ export default defineComponent({
         />
         <span v-if="!multiCam">
           <tooltip-btn
-            v-if="isTrack"
+            v-if="isTrack && getUISetting('UIEditing')"
             :disabled="!track.canSplit(frame) || merging || readOnlyMode"
             icon="mdi-call-split"
             tooltip-text="Split Track"
@@ -256,7 +261,7 @@ export default defineComponent({
           />
 
           <tooltip-btn
-            v-if="isTrack && !readOnlyMode"
+            v-if="isTrack && !readOnlyMode && getUISetting('UIEditing')"
             :icon="(feature.isKeyframe)
               ? 'mdi-star'
               : 'mdi-star-outline'"
@@ -266,7 +271,7 @@ export default defineComponent({
           />
 
           <tooltip-btn
-            v-if="isTrack && !readOnlyMode"
+            v-if="isTrack && !readOnlyMode && getUISetting('UIEditing')"
             :icon="(feature.shouldInterpolate)
               ? 'mdi-vector-selection'
               : 'mdi-selection-off'"
@@ -316,7 +321,7 @@ export default defineComponent({
       />
 
       <tooltip-btn
-        v-if="!merging"
+        v-if="!merging && getUISetting('UIEditing')"
         :icon="(editing) ? 'mdi-pencil-box' : 'mdi-pencil-box-outline'"
         tooltip-text="Toggle edit mode"
         :disabled="!inputValue || readOnlyMode"

@@ -5,7 +5,8 @@ import {
 import { difference, union } from 'lodash';
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
-import { useReadOnlyMode } from '../provides';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { useConfiguration, useReadOnlyMode } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 import TypeEditor from './TypeEditor.vue';
 import TypeItem from './TypeItem.vue';
@@ -60,7 +61,8 @@ export default defineComponent({
   setup(props) {
     const { prompt } = usePrompt();
     const readOnlyMode = useReadOnlyMode();
-
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     // Ordering of these lists should match
     const sortingMethods = ['a-z', 'count'];
     const sortingMethodIcons = ['mdi-sort-alphabetical-ascending', 'mdi-sort-numeric-ascending'];
@@ -230,6 +232,7 @@ export default defineComponent({
       headCheckClicked,
       setCheckedTypes: trackFilters.updateCheckedTypes,
       updateCheckedType,
+      getUISetting,
     };
   },
 });
@@ -273,6 +276,7 @@ export default defineComponent({
           >
             <template #activator="{ on }">
               <v-btn
+                v-if="getUISetting('UIEditing')"
                 class="hover-show-child"
                 :disabled="checkedTypesRef.length === 0 || readOnlyMode"
                 icon
