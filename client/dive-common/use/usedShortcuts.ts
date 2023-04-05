@@ -9,7 +9,7 @@ const usedShortcuts = [
   { key: 'x', description: 'Split Track' },
   { key: 'n', description: 'New Track' },
   { key: 'r', description: 'Reset Zoom' },
-  { key: 'esc', description: 'Abort Track Cration' },
+  { key: 'esc', description: 'Abort Track Creation' },
   { key: 'h', description: 'Head First Point' },
   { key: 't', description: 'Tail First Point' },
   { key: 'k', description: 'Toggle Keyframe' },

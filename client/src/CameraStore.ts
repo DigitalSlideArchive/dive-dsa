@@ -272,4 +272,15 @@ export default class CameraStore {
         });
       });
     }
+
+    getUserAttributeList() {
+      let userList = new Set<string>();
+
+      this.camMap.value.forEach((camera) => {
+        camera.trackStore.annotationMap.forEach((store) => {
+          userList = new Set([...userList, ...store.getUserAttributeList()]);
+        });
+      });
+      return userList;
+    }
 }

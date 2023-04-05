@@ -5,6 +5,7 @@ import {
 } from '@vue/composition-api';
 import { DIVEAction } from 'dive-common/use/useActions';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { useStore } from 'platform/web-girder/store/types';
 import {
   useAttributes, useCameraStore, useConfiguration, useHandler, useSelectedTrackId, useTime,
 } from 'vue-media-annotator/provides';
@@ -21,6 +22,7 @@ export default defineComponent({
   setup(props) {
     const showShortcuts = ref(false);
     const configMan = useConfiguration();
+    const store = useStore();
     const { inputValue } = usePrompt();
     const shortcutsOn = ref(true);
     const attributes = useAttributes();
@@ -78,15 +80,24 @@ export default defineComponent({
       return dataList;
     });
 
+    function getAttributeUser({ name, belongs }: { name: string; belongs: 'track' | 'detection' }) {
+      const attribute = attributes.value.find((attr) => attr.name === name && attr.belongs === belongs);
+      if (attribute?.user) {
+        return store.state.User.user?.login || null;
+      }
+      return null;
+    }
+
     function updateAttribute({ name, value, belongs }: { name: string; value: unknown; belongs: 'track' | 'detection' }) {
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
+        const user = getAttributeUser({ name, belongs });
         if (tracks.length) {
           if (belongs === 'track') {
-            tracks.forEach((track) => track.setAttribute(name, value));
+            tracks.forEach((track) => track.setAttribute(name, value, user));
           } else if (belongs === 'detection' && frameRef.value !== undefined) {
-            tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value));
+            tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value, user));
           }
         }
       }

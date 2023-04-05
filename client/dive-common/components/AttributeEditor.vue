@@ -31,6 +31,7 @@ export default defineComponent({
     const name: Ref<string> = ref(props.selectedAttribute.name);
     const belongs: Ref<string> = ref(props.selectedAttribute.belongs);
     const datatype: Ref<string> = ref(props.selectedAttribute.datatype);
+    const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
     const tempColor = ref(trackStyleManager.typeStyling.value.color(name.value));
     const areSettingsValid = ref(false);
@@ -83,6 +84,7 @@ export default defineComponent({
         editor: editor.value,
         color: color.value ? color.value : tempColor.value,
         shortcuts: shortcuts.value,
+        user: user.value ? true : undefined,
       };
 
       if (addNew) {
@@ -156,6 +158,7 @@ export default defineComponent({
       //computed
       textValues,
       shortcuts,
+      user,
       //functions
       add,
       submit,
@@ -192,7 +195,8 @@ export default defineComponent({
           <v-text-field
             v-model="name"
             label="Name"
-            :rules="[v => !!v || 'Name is required', v => !v.includes(' ') || 'No spaces']"
+            :rules="[v => !!v || 'Name is required', v => !v.includes(' ') ||
+              'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
             required
           />
           <v-select
@@ -221,6 +225,14 @@ export default defineComponent({
                 value="slider"
               />
             </v-radio-group>
+          </div>
+          <div>
+            <v-checkbox
+              v-model="user"
+              label="User Attribute"
+              hint="Attribute data is saved per user instead of globally."
+              persistent-hint
+            />
           </div>
           <div v-if="datatype === 'number' && editor && editor.type === 'slider'">
             <v-row class="pt-2">

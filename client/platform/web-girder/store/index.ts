@@ -6,6 +6,7 @@ import { RootState } from './types';
 import Location from './Location';
 import Dataset from './Dataset';
 import Brand from './Brand';
+import User from './User';
 import Jobs, { init as JobsInit } from './Jobs';
 
 Vue.use(Vuex);
@@ -13,6 +14,7 @@ Vue.use(Vuex);
 const store = new Vuex.Store<RootState>({
   modules: {
     Brand,
+    User,
     Location,
     Dataset,
     Jobs,

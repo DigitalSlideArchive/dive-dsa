@@ -5,6 +5,7 @@ import TypeThreshold from 'dive-common/components/TypeThreshold.vue';
 import ImageEnhancements from 'vue-media-annotator/components/ImageEnhancements.vue';
 import GroupSidebar from 'dive-common/components/GroupSidebar.vue';
 import AttributesSideBar from 'dive-common/components/AttributesSideBar.vue';
+import AtributeUserReview from 'dive-common/components/AttributeUserReview.vue';
 import MultiCamTools from 'dive-common/components/MultiCamTools.vue';
 
 Vue.use(Install);
@@ -46,6 +47,10 @@ const componentMap: Record<string, ComponentMapItem> = {
   [AttributesSideBar.name]: {
     description: 'Attribute Details',
     component: AttributesSideBar,
+  },
+  [AtributeUserReview.name]: {
+    description: 'Attribute User Review',
+    component: AtributeUserReview,
   },
 };
 

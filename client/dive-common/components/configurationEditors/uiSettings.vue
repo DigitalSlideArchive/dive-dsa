@@ -4,6 +4,7 @@ import {
 } from '@vue/composition-api';
 import { Configuration, UISettings } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration } from 'vue-media-annotator/provides';
+import UIInteractionsVue from './UISettings/UIInteractions.vue';
 import UITopBarVue from './UISettings/UITopBar.vue';
 import UIToolBarVue from './UISettings/UIToolBar.vue';
 import UIContextBarVue from './UISettings/UIContextBar.vue';
@@ -15,6 +16,7 @@ import UITrackDetailsVue from './UISettings/UITrackDetails.vue';
 export default defineComponent({
   name: 'uiSettings',
   components: {
+    'ui-interactions': UIInteractionsVue,
     'ui-top-bar': UITopBarVue,
     'ui-tool-bar': UIToolBarVue,
     'ui-context-bar': UIContextBarVue,
@@ -35,6 +37,7 @@ export default defineComponent({
     const UITrackDetails = ref(configMan.getUISetting('UITrackDetails') as boolean);
     const UIControls = ref(configMan.getUISetting('UIControls') as boolean);
     const UITimeline = ref(configMan.getUISetting('UITimeline') as boolean);
+    const UIInteractions = ref(configMan.getUISetting('UIInteractions') as boolean);
 
     const launchEditor = () => {
       generalDialog.value = true;
@@ -61,6 +64,7 @@ export default defineComponent({
         UITrackDetails: setVal('UITrackDetails', UITrackDetails.value),
         UIControls: setVal('UIControls', UIControls.value),
         UITimeline: setVal('UITimeline', UITimeline.value),
+        UIInteractions: setVal('UIInteractions', UIInteractions.value),
 
       };
       configMan.setRootUISettings(data as UISettings);
@@ -77,6 +81,7 @@ export default defineComponent({
       generalDialog,
       launchEditor,
       saveChanges,
+      UIInteractions,
       UITopBar,
       UIToolBar,
       UISideBar,
@@ -127,6 +132,9 @@ export default defineComponent({
           <v-card-title class="text-h6">
             <v-tabs v-model="currentTab">
               <v-tab> Main </v-tab>
+              <v-tab :disabled="!UIInteractions">
+                Interactions
+              </v-tab>
               <v-tab :disabled="!UITopBar">
                 TopBar
               </v-tab>
@@ -152,6 +160,13 @@ export default defineComponent({
           </v-card-title>
           <v-tabs-items v-model="currentTab">
             <v-tab-item>
+              <v-row dense>
+                <v-switch
+                  v-model="UIInteractions"
+                  label="Interactions"
+                />
+              </v-row>
+
               <v-row dense>
                 <v-switch
                   v-model="UITopBar"
@@ -195,6 +210,9 @@ export default defineComponent({
                   label="Timeline"
                 />
               </v-row>
+            </v-tab-item>
+            <v-tab-item>
+              <ui-interactions />
             </v-tab-item>
             <v-tab-item>
               <ui-top-bar />

@@ -154,16 +154,19 @@ class Attribute(BaseModel):
     name: str
     key: str
     color: Optional[str]
+    user: Optional[bool]
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
 
+
 class AttributeNumberFilter(BaseModel):
     type: Literal['range', 'top']
-    comp: Literal['>' ,'<', '>=', '<=']
+    comp: Literal['>', '<', '>=', '<=']
     value: float
     active: bool
     range: List[float]
     appliedTo: List[str]
+
 
 class AttributeKeyFilter(BaseModel):
     appliedTo: List[str]
@@ -171,11 +174,13 @@ class AttributeKeyFilter(BaseModel):
     value: bool
     type: Literal['key']
 
+
 class AttributeBoolFilter(BaseModel):
     value: bool
     type: Literal['is', 'not']
     appliedTo: List[str]
     active: bool
+
 
 class AttributeStringFilter(BaseModel):
     comp: Literal['=', '!=', 'contains', 'starts']
@@ -187,7 +192,10 @@ class AttributeStringFilter(BaseModel):
 class AttributeFilter(BaseModel):
     belongsTo: Literal['track', 'detection']
     dataType: Literal['text', 'number', 'boolean', 'key']
-    filterData: Union[AttributeKeyFilter, AttributeStringFilter, AttributeBoolFilter, AttributeNumberFilter]
+    filterData: Union[
+        AttributeKeyFilter, AttributeStringFilter, AttributeBoolFilter, AttributeNumberFilter
+    ]
+
 
 class TimeLineGraphSettings(BaseModel):
     type: Literal['Linear', 'Step', 'StepAfter', 'StepBefore', 'Natural']
@@ -205,6 +213,7 @@ class TimeLineGraph(BaseModel):
     default: Optional[bool]
     settings: Optional[Dict[str, TimeLineGraphSettings]]
 
+
 class CustomStyle(BaseModel):
     color: Optional[str]
     strokeWidth: Optional[float]
@@ -212,6 +221,7 @@ class CustomStyle(BaseModel):
     fill: Optional[bool]
     showLabel: Optional[bool]
     showConfidence: Optional[bool]
+
 
 class ConfigurationSettings(BaseModel):
     addTypes: Optional[bool]
@@ -243,11 +253,13 @@ class UITopBar(BaseModel):
     UIKeyboardShortcuts: Optional[bool]
     UISave: Optional[bool]
 
+
 class UIToolBar(BaseModel):
     UIEditingInfo: Optional[bool]
     UIEditingTypes: Optional[List[bool]]  # Rectangle, Polygon, Line by default
     UIVisibility: Optional[List[bool]]  # Rectnagle, Polygon, Line by default
     UITrackTrails: Optional[bool]
+
 
 class UISideBar(BaseModel):
     UITrackTypes: Optional[bool]
@@ -256,6 +268,8 @@ class UISideBar(BaseModel):
     UITrackDetails: Optional[bool]
     UIAttributeSettings: Optional[bool]
     UIAttributeAdding: Optional[bool]
+    UIAttributeUserReview: Optional[bool]
+
 
 class UIContextBar(BaseModel):
     UIThresholdControls: Optional[bool]
@@ -264,12 +278,14 @@ class UIContextBar(BaseModel):
     UIAttributeDetails: Optional[bool]
     UIRevisionHistory: Optional[bool]
 
+
 class UITrackDetails(BaseModel):
     UITrackBrowser: Optional[bool]
     UITrackMerge: Optional[bool]
     UIConfidencePairs: Optional[bool]
     UITrackAttributes: Optional[bool]
     UIDetectionAttributes: Optional[bool]
+
 
 class UIControls(BaseModel):
     UIPlaybackControls: Optional[bool]
@@ -280,9 +296,14 @@ class UIControls(BaseModel):
     UIImageNameDisplay: Optional[bool]
     UILockCamera: Optional[bool]
 
+
 class UITimeline(BaseModel):
     UIDetections: Optional[bool]
     UIEvents: Optional[bool]
+
+class UIInteractions(BaseModel):
+    UISelection: Optional[bool]
+    UIEditing: Optional[bool]
 
 class UISettings(BaseModel):
     UITopBar: Optional[Union[bool, UITopBar]]
@@ -292,14 +313,18 @@ class UISettings(BaseModel):
     UITrackDetails: Optional[Union[bool, UITrackDetails]]
     UIControls: Optional[Union[bool, UIControls]]
     UITimeline: Optional[Union[bool, UITimeline]]
+    UIInteractions: Optional[Union[bool, UIInteractions]]
+
 
 class AttributeMatch(BaseModel):
     op: Optional[Literal['=', '!=', '>', '<', '>=', '<=', 'range', 'in']]
     val: Any
 
+
 class AttributeSelectAction(BaseModel):
     track: Optional[Dict[str, AttributeMatch]]
     detection: Optional[Dict[str, AttributeMatch]]
+
 
 class TrackSelectAction(BaseModel):
     typeFilter: Optional[List[str]]
@@ -310,22 +335,27 @@ class TrackSelectAction(BaseModel):
     type: Optional[Literal['TrackSelection']]
     direction: Optional[Literal['next', 'previous']]
 
+
 class GoToFrameAction(BaseModel):
     track: Optional[TrackSelectAction]
     frame: Optional[int]
     type: Literal['GoToFrame']
 
+
 class DIVEActions(BaseModel):
     action: Union[GoToFrameAction, TrackSelectAction]
+
 
 class ShortCut(BaseModel):
     key: str
     modifiers: Optional[List[str]]
 
+
 class DIVEShortcut(BaseModel):
     shortcut: ShortCut
     description: str
     actions: List[DIVEActions]
+
 
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]

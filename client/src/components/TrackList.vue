@@ -5,6 +5,7 @@ import {
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 import {
   useEditingMode,
@@ -16,6 +17,7 @@ import {
   useTrackStyleManager,
   useMultiSelectList,
   useCameraStore,
+  useConfiguration,
 } from '../provides';
 import useVirtualScrollTo from '../use/useVirtualScrollTo';
 import TrackItem from './TrackItem.vue';
@@ -59,6 +61,9 @@ export default defineComponent({
     const checkedTrackIdsRef = trackFilters.checkedIDs;
     const editingModeRef = useEditingMode();
     const selectedTrackIdRef = useSelectedTrackId();
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+
     const cameraStore = useCameraStore();
     const filteredTracksRef = trackFilters.filteredAnnotations;
     const typeStylingRef = useTrackStyleManager().typeStyling;
@@ -160,21 +165,25 @@ export default defineComponent({
         {
           bind: 'up',
           handler: (el: HTMLElement, event: KeyboardEvent) => {
-            virtualScroll.scrollPreventDefault(el, event, 'up');
+            if (getUISetting('UISelection')) {
+              virtualScroll.scrollPreventDefault(el, event, 'up');
+            }
           },
           disabled,
         },
         {
           bind: 'down',
           handler: (el: HTMLElement, event: KeyboardEvent) => {
-            virtualScroll.scrollPreventDefault(el, event, 'down');
+            if (getUISetting('UISelection')) {
+              virtualScroll.scrollPreventDefault(el, event, 'down');
+            }
           },
           disabled,
         },
         {
           bind: 'del',
           handler: () => {
-            if (!readOnlyMode.value && selectedTrackIdRef.value !== null) {
+            if (!readOnlyMode.value && selectedTrackIdRef.value !== null && getUISetting('UIEditing')) {
               removeTrack([selectedTrackIdRef.value]);
             }
           },
@@ -204,6 +213,7 @@ export default defineComponent({
       virtualListItems,
       virtualList: virtualScroll.virtualList,
       multiDelete,
+      getUISetting,
     };
   },
 });
@@ -217,6 +227,7 @@ export default defineComponent({
           Tracks ({{ filteredTracks.length }})
           <v-spacer />
           <v-menu
+            v-if="getUISetting('UIEditing')"
             v-model="data.settingsActive"
             :close-on-content-click="false"
             :nudge-bottom="28"
@@ -243,11 +254,13 @@ export default defineComponent({
             />
           </v-menu>
           <v-tooltip
+            v-if="getUISetting('UIEditing')"
             open-delay="100"
             bottom
           >
             <template #activator="{ on }">
               <v-btn
+
                 :disabled="filteredTracks.length === 0 || readOnlyMode"
                 icon
                 small
@@ -266,6 +279,7 @@ export default defineComponent({
             <span>Delete visible items</span>
           </v-tooltip>
           <v-tooltip
+            v-if="getUISetting('UIEditing')"
             open-delay="200"
             bottom
             max-width="200"

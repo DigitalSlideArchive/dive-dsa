@@ -49,12 +49,14 @@ import context from 'dive-common/store/context';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import ImageEnhancementsVue from 'vue-media-annotator/components/ImageEnhancements.vue';
 import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
+import { useStore } from 'platform/web-girder/store/types';
 import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
 import PrevNext from './PrevNext.vue';
 import AttributesSideBarVue from './AttributesSideBar.vue';
 import TypeThresholdVue from './TypeThreshold.vue';
+import AttributeUserReviewVue from './AttributeUserReview.vue';
 
 export interface ImageDataItem {
   url: string;
@@ -146,6 +148,8 @@ export default defineComponent({
       }
       return 'track';
     });
+
+    const store = useStore();
 
     const {
       save: saveToServer,
@@ -256,6 +260,7 @@ export default defineComponent({
       selectedTrackId,
       cameraStore,
       pendingSaveCount,
+      login: store.state.User.user?.login || '',
     });
 
 
@@ -659,6 +664,12 @@ export default defineComponent({
             component: AttributesSideBarVue,
           });
         }
+        if (!configurationManager.getUISetting('UIAttributeUserReview')) {
+          context.unregister({
+            description: 'Attrbute User Review',
+            component: AttributeUserReviewVue,
+          });
+        }
         if (!configurationManager.getUISetting('UIThresholdControls')) {
           context.unregister({
             description: 'Threshold Controls',
@@ -1019,7 +1030,7 @@ export default defineComponent({
           v-mousetrap="[
             { bind: 'n', handler: () => !readonlyState && handler.trackAdd() },
             { bind: 'r', handler: () => aggregateController.resetZoom() },
-            { bind: 'esc', handler: () => handler.trackAbort() },
+            { bind: 'esc', handler: () => getUISetting('UISelection') && handler.trackAbort() },
           ]"
           class="d-flex flex-column grow"
         >
