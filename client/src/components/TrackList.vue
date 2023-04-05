@@ -165,14 +165,18 @@ export default defineComponent({
         {
           bind: 'up',
           handler: (el: HTMLElement, event: KeyboardEvent) => {
-            virtualScroll.scrollPreventDefault(el, event, 'up');
+            if (getUISetting('UISelection')) {
+              virtualScroll.scrollPreventDefault(el, event, 'up');
+            }
           },
           disabled,
         },
         {
           bind: 'down',
           handler: (el: HTMLElement, event: KeyboardEvent) => {
-            virtualScroll.scrollPreventDefault(el, event, 'down');
+            if (getUISetting('UISelection')) {
+              virtualScroll.scrollPreventDefault(el, event, 'down');
+            }
           },
           disabled,
         },

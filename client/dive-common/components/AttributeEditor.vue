@@ -230,6 +230,8 @@ export default defineComponent({
             <v-checkbox
               v-model="user"
               label="User Attribute"
+              hint="Attribute data is saved per user instead of globally."
+              persistent-hint
             />
           </div>
           <div v-if="datatype === 'number' && editor && editor.type === 'slider'">

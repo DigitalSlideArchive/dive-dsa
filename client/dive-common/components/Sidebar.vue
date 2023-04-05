@@ -89,7 +89,7 @@ export default defineComponent({
       ];
       if (!readOnlyMode.value && !multiCam) {
         trap.push(
-          { bind: 'm', handler: doToggleMerge },
+          { bind: 'm', handler: () => getUISetting('UIEditing') && doToggleMerge() },
           { bind: 'g', handler: () => { groupAdd(); data.currentTab = 'attributes'; } },
           { bind: 'shift+m', handler: commitMerge },
         );

@@ -237,8 +237,8 @@ export default defineComponent({
         <span
           v-show="false"
           v-mousetrap="[
-            { bind: 'k', handler: toggleKeyframe},
-            { bind: 'i', handler: toggleInterpolation},
+            { bind: 'k', handler: () => getUISetting('UIEditing') && toggleKeyframe()},
+            { bind: 'i', handler: () => getUISetting('UIEditing') && toggleInterpolation()},
             { bind: 'home', handler: () => $emit('seek', track.begin)},
             { bind: 'end', handler: () => $emit('seek', track.end)},
           ]"
