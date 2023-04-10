@@ -27,7 +27,6 @@ export default defineComponent({
     const shortcutList: Ref<DIVEActionShortcut[]> = ref([]);
 
     const updateShortCutList = () => {
-      console.log(configMan.configuration.value);
       if (configMan.configuration.value?.shortcuts) {
         const tempList: DIVEActionShortcut[] = [];
         configMan.configuration.value.shortcuts.forEach((item) => {
