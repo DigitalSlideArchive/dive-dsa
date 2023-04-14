@@ -334,6 +334,9 @@ export default class ConfigurationManager {
   }
 
   updateShortcut(val: DIVEActionShortcut, index: number) {
+    if (!this.configuration.value) {
+      this.configuration.value = {};
+    }
     if (this.configuration.value && !this.configuration.value?.shortcuts) {
       this.configuration.value.shortcuts = [];
     }

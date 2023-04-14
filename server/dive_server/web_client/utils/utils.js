@@ -22,7 +22,7 @@ function convertToDIVEHandler(e) {
     var folderId = $(e.currentTarget).attr('folder-id');
     restRequest({
         type: 'POST',
-        url: 'dive_rpc/convert_dive/' + itemId,
+        url: 'dive_rpc/convert_dive/' + itemId + '?skipTranscoding=true',
         error: function (error) {
             if (error.status !== 0) {
                 events.trigger('g:alert', {
