@@ -253,6 +253,8 @@ def load_json_as_track_and_attributes(
     for key, track in tracks.items():
         track_attributes = {}
         detection_attributes = {}
+        if track.get('confidencePairs', False) is False or len(track['confidencePairs']) < 1:
+            raise ValueError(f'confidencePairs do not exist for TrackId: {key}')
         for attrkey, attribute in track['attributes'].items():
             track_attributes[attrkey] = _deduceType(attribute)
         for feature in track['features']:
