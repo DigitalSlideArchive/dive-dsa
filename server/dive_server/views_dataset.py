@@ -295,6 +295,11 @@ class DatasetResource(Resource):
                 if possibleMerge:
                     mergeType = possibleMerge
                 break
+
+        if baseConfigurationId == folder.get('_id'):
+            baseConfigOwner = User().findOne({'_id': folder['creatorId']})['login']
+            baseMetaData = folder.get('meta', {})
+
         # now that we have the folder with the lowest baseConfiguration Set
         # determine the merge process if it exists
         # merge down means that lower folders are overwritten by higher folders

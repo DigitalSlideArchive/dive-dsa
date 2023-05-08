@@ -65,8 +65,10 @@ function unregister(item: ComponentMapItem) {
 }
 
 function resetActive() {
-  state.last = Object.values(componentMap)[0].component.name;
-  state.active = null;
+  if (Object.values(componentMap).length) {
+    state.last = Object.values(componentMap)[0].component.name;
+    state.active = null;
+  }
 }
 
 function getComponents() {

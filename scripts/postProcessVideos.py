@@ -1,16 +1,15 @@
 import click
 import girder_client
 
-
-apiURL = "localhost"  # url of the server
-port = 8080  # set to your local port being used
+apiURL = "127.0.0.1"  # url of the server
+port = 8010  # set to your local port being used
 rootFolderId = '63fcf7e931949275f05194b0'  # root folderId to recursively look at
 limit = 5  # only want to process X videos
 # Below is a global variable which shouldn't be edited
 totalFolders = 0  # use to maintain a total count of items added
 
 def login():
-    gc = girder_client.GirderClient(apiURL, port=port, apiRoot='girder/api/v1')
+    gc = girder_client.GirderClient(apiURL, port=port, apiRoot='girder/api/v1', scheme='http')
     gc.authenticate(interactive=True)
     return gc
 

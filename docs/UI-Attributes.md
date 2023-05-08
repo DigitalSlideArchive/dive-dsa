@@ -43,7 +43,7 @@
 1. Attributes can be sorted by their name (alphabetically) or by their numeric value.  Clicking on the ==:material-sort-alphabetical-ascending:== or the ==:material-sort-numeric-ascending:== button will swap between the two.
 1. Attribute Filtering
     1. The Attribute filtering icon ==:material-filter:== will change color when filtering is being applied.
-    1. Clicking on the filter icon will bring up the **[Attributes Details Panel](UI-AttributeDetails.md)**
+    1. Clicking on the filter icon will bring up the Attribute Details Panel where **[Attributes Filtering](UI-AttributeFiltering.md)** and **[Attributes Timeline Graphing](UI-AttributeTimeline.md)** can be done.
 <div style="clear: both;"/>
 
 !!! info
@@ -82,7 +82,7 @@ Click the ==:material-cog:== button next to an existing attribute to edit its de
     * **Deleting** an attribute definition will cause it to disappear from the list, but the values will remain in the database.
     * **Editing** an attribute definition will change the way the controls behave, but will not change any existing set values.
 
-* *User Attribute* - This flag will set the attribute so that the storage of data is per user instead of globally.  By defauly attributes are stored on the dataset and are universal for each user that views/edits the dataset.  If this flag is set the attributes will be per user so that different user's when setting attributes will see different values.  This is stored in the TrackJSON structure under 'UserAttributes' key for track and detection attributes.
+* *User Attribute* - This flag will set the attribute so that the storage of data is per user instead of globally.  By defauly attributes are stored on the dataset and are universal for each user that views/edits the dataset.  If this flag is set the attributes will be per user so that different user's when setting attributes will see different values.  This is stored in the TrackJSON structure under 'UserAttributes' key for track and detection attributes.  There is a new Sidebar called User Attribute Review which allows for reviewing of all user attributes.
 * *Color* - Allows specification of a custom color to represent the attribute when filtering or when graphing the attribute value
 
 ## Attribute Shortcuts
