@@ -2,7 +2,6 @@
 
 <p>
   <img width="160" style="margin-right: 50px;" src="images/General/Kitware-Logo-Stacked.png">
-  <img width="320" style="margin-right: 50px;" src="images/General/logo.png">
 </p>
 
 This is the documentation site for DIVE-DSA (DIVE - Digital Slide Archive), which is a fork based on [**DIVE**](https://github.com/Kitware/dive) a [**free and open-source**](https://www.kitware.com/open-philosophy/) annotation and analysis platform for web and desktop built by [Kitware](https://kitware.com). This fork eliminates DIVE's integration with VIAME and provides some enhanced annotation features when compared to base DIVE.  It is also meant to be integrated in with [Digial Slide Archive](https://digitalslidearchive.github.io/digital_slide_archive/).
