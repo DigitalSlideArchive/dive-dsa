@@ -26,6 +26,10 @@ export default Vue.extend({
       type: Number,
       required: true,
     },
+    yRange: {
+      type: Array,
+      default: () => [-1, -1],
+    },
     margin: {
       type: Number,
       default: 0,
@@ -42,6 +46,13 @@ export default Vue.extend({
       type: Boolean,
       default: false,
     },
+  },
+  data() {
+    return {
+      adjustRange: false,
+      tempRange: [-1, -1],
+      currentRange: [-1, -1],
+    };
   },
   computed: {
     /**
@@ -67,6 +78,14 @@ export default Vue.extend({
       this.initialize();
       this.update();
     },
+    yRange() {
+      this.initialize();
+      this.update();
+    },
+    currentRange() {
+      this.initialize();
+      this.update();
+    },
   },
   created() {
     this.update = throttle(this.update, 30);
@@ -76,6 +95,7 @@ export default Vue.extend({
   },
   methods: {
     initialize() {
+      this.currentRange = this.yRange;
       d3.select(this.$el)
         .select('svg')
         .remove();
@@ -92,7 +112,19 @@ export default Vue.extend({
         .domain([this.startFrame, this.endFrame])
         .range([this.margin, width]);
       this.x = x;
-      const max = d3.max(this.data, (datum) => d3.max(datum.values, (d) => d[1]));
+      const maxVal = d3.max(this.data, (datum) => d3.max(datum.values, (d) => d[1]));
+      const minVal = d3.min(this.data, (datum) => d3.min(datum.values, (d) => d[1]));
+      let max = maxVal;
+      let min = minVal;
+      if (this.currentRange !== undefined) {
+        if (this.currentRange[0] !== -1) {
+          [min] = this.currentRange;
+        }
+        if (this.currentRange[1] !== -1) {
+          [, max] = this.currentRange;
+        }
+      }
+      this.tempRange = [min, max];
       let y = d3
         .scaleLinear()
         .domain([0, Math.max(max + max * 0.2, 2)])
@@ -100,11 +132,11 @@ export default Vue.extend({
       if (this.atrributesChart) {
         y = d3
           .scaleLinear()
-          .domain([0, Math.max(max * 1.2, 1.0)])
+          .domain([min, Math.max(max * 1.2, 1.0)])
           .range([height, 0]);
       }
 
-      this.generateLineAreas(max, x, y);
+      this.generateLineAreas(minVal, maxVal, x, y);
 
       const svg = d3
         .select(this.$el)
@@ -172,7 +204,7 @@ export default Vue.extend({
 
       this.update();
     },
-    generateLineAreas(max, x, y) {
+    generateLineAreas(min, max, x, y) {
       this.d3Map = {
         linear: d3.curveLinear,
         step: d3.curveStep,
@@ -191,18 +223,18 @@ export default Vue.extend({
         this[`${lineType}Max`] = d3.line()
           .curve(this.d3Map[lineType])
           .x((d) => x(d[0]))
-          .y((d) => y(d[1] ? max : 0));
+          .y((d) => y(d[1] ? max : min));
 
         this[`${lineType}Area`] = d3.area()
           .curve(this.d3Map[lineType])
           .x((d) => x(d[0]))
           .y1((d) => y(d[1]))
-          .y0(y(0));
+          .y0(y(min));
         this[`${lineType}AreaMax`] = d3.area()
           .curve(this.d3Map[lineType])
           .x((d) => x(d[0]))
-          .y1((d) => y(d[1] ? max : 0))
-          .y0(y(0));
+          .y1((d) => y(d[1] ? max : min))
+          .y0(y(min));
       });
     },
     getCurveType(d, lineArea, max) {
@@ -249,18 +281,91 @@ export default Vue.extend({
       this.path.attr('d', (d) => this.getCurveType(d, 'line', d.max));
       this.area.attr('d', (d) => this.getCurveType(d, 'area', d.max));
     },
+    doubleClick() {
+      this.tempRange = this.currentRange;
+      this.adjustRange = true;
+    },
+    saveRange() {
+      this.adjustRange = false;
+      this.currentRange = this.tempRange;
+      this.initialize();
+    },
+    cancelRange() {
+      this.adjustRange = false;
+      this.currentRange = this.tempRange;
+      this.initialize();
+    },
   },
 });
 </script>
 
 <template>
-  <div class="line-chart" />
+  <div
+    class="line-chart"
+  >
+    <div
+      v-if="atrributesChart"
+      class="yaxisclick"
+      @dblclick="doubleClick"
+    />
+    <v-dialog
+      v-model="adjustRange"
+      width="400"
+    >
+      <v-card>
+        <v-card-title>Y-Axis Range</v-card-title>
+        <v-card-text>
+          <v-row>
+            <v-text-field
+              v-model.number="currentRange[0]"
+              type="number"
+              label="Min"
+              hint="-1 will auto calculate"
+              persistent-hint
+            />
+            <v-text-field
+              v-model.number="currentRange[1]"
+              type="number"
+              label="Max"
+              hint="-1 will auto calculate"
+              persistent-hint
+            />
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn
+            depressed
+            text
+            @click="cancelRange"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="saveRange"
+          >
+            Save
+          </v-btn>
+        </v-card-actions>
+
+      </v-card>
+    </v-dialog>
+  </div>
 </template>
 
 <style lang="scss">
+.yaxisclick {
+  height: 100%;
+  width: 15px;
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  &:hover {
+    cursor: pointer
+  }
+}
 .line-chart {
   height: 100%;
-
   .line {
     fill: none;
     stroke-width: 1.5px;

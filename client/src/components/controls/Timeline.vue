@@ -133,6 +133,9 @@ export default {
       this.resizeTimer = setTimeout(this.initialize, 200);
     },
     onwheel(e) {
+      if (e.shiftKey) {
+        return;
+      }
       const extend = Math.round((this.endFrame - this.startFrame) * 0.2)
         * Math.sign(e.deltaY);
       const ratio = (e.layerX - this.$el.offsetLeft) / this.clientWidth;

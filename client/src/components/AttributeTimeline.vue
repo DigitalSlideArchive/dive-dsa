@@ -43,6 +43,8 @@ export default defineComponent({
     const attributesList = useAttributes();
     const addEditTimelineDialog = ref(false);
     const showGraphSettings = ref(false);
+    const showRangeSettings = ref(false);
+
     const defaultTimelineFilter = {
       appliedTo: ['all'],
       active: true, // if this filter is active
@@ -61,6 +63,7 @@ export default defineComponent({
     let originalName = 'default';
     let originalDefault = false;
     const editTimelineName = ref('default');
+    const yRange = ref([-1, -1]);
     const filterNames = computed(() => {
       const data = ['all'];
       return data.concat(attributesList.value.filter((item) => item.belongs === 'detection').map((item) => item.name));
@@ -69,6 +72,7 @@ export default defineComponent({
     const addEditTimeline = (item?: TimelineGraph) => {
       addEditTimelineDialog.value = true;
       editTimelineName.value = item ? item.name : 'default';
+      yRange.value = item && item.yRange ? item.yRange : [-1, -1];
       originalName = editTimelineName.value;
       originalDefault = item?.default || false;
       editTimelineDefault.value = originalDefault;
@@ -92,9 +96,9 @@ export default defineComponent({
         filter: editTimelineFilter.value,
         enabled: editTimelineEnabled.value,
         settings: editTimelineSettings.value,
+        yRange: yRange.value,
         default: setDefault,
       };
-      console.log(updateObject);
       setTimelineGraph(editTimelineName.value, updateObject);
       setTimelineEnabled(editTimelineName.value, editTimelineEnabled.value);
       addEditTimelineDialog.value = false;
@@ -183,6 +187,8 @@ export default defineComponent({
       timelineGraphs,
       showGraphSettings,
       editTimelineKey,
+      yRange,
+      showRangeSettings,
     };
   },
 });
@@ -425,6 +431,31 @@ export default defineComponent({
               class="pa-0 ma-0"
             />
           </v-row>
+          <h3>
+            Y-Range Settings <v-icon @click="showRangeSettings = !showRangeSettings">
+              {{ showRangeSettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+            </v-icon>
+          </h3>
+          <div
+            v-if="showRangeSettings"
+          >
+            <v-row>
+              <v-text-field
+                v-model.number="yRange[0]"
+                type="number"
+                label="Min"
+                hint="-1 will auto calculate"
+                persistent-hint
+              />
+              <v-text-field
+                v-model.number="yRange[1]"
+                type="number"
+                label="Max"
+                hint="-1 will auto calculate"
+                persistent-hint
+              />
+            </v-row>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />

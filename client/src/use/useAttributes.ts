@@ -23,6 +23,7 @@ export interface TimelineGraph {
   filter: AttributeKeyFilter;
   enabled: boolean;
   default?: boolean;
+  yRange?: number[];
   settings?: Record<string, TimelineGraphSettings>;
 }
 
@@ -437,7 +438,7 @@ export default function UseAttributes(
   }
 
   const attributeTimelineData = computed(() => {
-    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number}> = {};
+    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]}> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
     if (val !== undefined && selectedTrackId.value !== null) {
       const vals = Object.entries(timelineGraphs.value);
@@ -455,6 +456,7 @@ export default function UseAttributes(
                 data: numberVals,
                 begin: timelineData.begin,
                 end: timelineData.end,
+                yRange: graph.yRange,
               };
             }
           }
