@@ -9,6 +9,26 @@ This is the documentation site for DIVE-DSA (DIVE - Digital Slide Archive), whic
 
 ![Home](images/Banner.png)
 
+## DIVE-DSA Plugin
+
+DIVE-DSA can be installed as a plugin into the Digital Slide Archive.  When installed as a plugin it provides the capbilities to annotate and view videos/image sequences in the DIVE interface.
+
+To access the home of DIVE when installed on a server with Digital Slide Archive the endpoint `localhost:8080/dive` will bring you to the core DIVE interface.
+
+## Convert Videos to DIVE Format
+
+![Home](images/Plugin/ConvertToDive.png)
+
+
+When videos are annotated in DIVE they need to be first processed and converted into a Dataset.  A Dataset is a folder which includes the source video and a transcoded video if required.
+
+When The DIVE-DSA plugin is installed and there is a Girder Item which contains a standard video extension (.mp4, .wmv, .move, .avi, ...others) there will be a button which will allow you to 'Convert to DIVE'.
+This button will create a folder with the name `Video {filename}` and process the video.  It will also launch the DIVE interface and navigate to the parent folder.  Once the job is complete you can click on 'Launch Annotator' to view the video and annotate.  For more information please see [Video-Conversion](VideoConversion.md)
+
+## Open Existing DIVE Datasets
+
+Folders that have already been converted to DIVE can be open directly by clicking the 'Open in DIVE' button next to the folder name.  There is also an additional Open in DIVE button when viewing the contents of a folder that has been converted.
+
 
 ## Concepts and Definitions
 
@@ -31,3 +51,5 @@ This is the documentation site for DIVE-DSA (DIVE - Digital Slide Archive), whic
 **Interpolation** - The implicit bounding boxes between keyframes in a track.
 
 **Attributes** - Attributes are free-form secondary characteristics on both tracks and detections. For example, a `fish` type track may have an `is_adult` boolean attribute.
+
+

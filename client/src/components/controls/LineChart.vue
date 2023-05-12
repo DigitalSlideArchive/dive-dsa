@@ -303,11 +303,24 @@ export default Vue.extend({
   <div
     class="line-chart"
   >
-    <div
+    <v-tooltip
       v-if="atrributesChart"
-      class="yaxisclick"
-      @dblclick="doubleClick"
-    />
+      open-delay="100"
+      top
+    >
+      <template #activator="{ on }">
+        <div
+          class="yaxisclick"
+          v-on="on"
+          @dblclick="doubleClick"
+        />
+      </template>
+      <span
+        class="ma-0 pa-1"
+      >
+        Double Click to adjust the Y-Axis
+      </span>
+    </v-tooltip>
     <v-dialog
       v-model="adjustRange"
       width="400"
@@ -347,7 +360,6 @@ export default Vue.extend({
             Save
           </v-btn>
         </v-card-actions>
-
       </v-card>
     </v-dialog>
   </div>
@@ -356,12 +368,16 @@ export default Vue.extend({
 <style lang="scss">
 .yaxisclick {
   height: 100%;
-  width: 15px;
+  width: 20px;
   position: absolute;
   left: 0px;
   bottom: 0px;
+  background-color: transparent;
   &:hover {
-    cursor: pointer
+    cursor: pointer;
+    border: lightgreen solid 1px;
+    background-color: rgba(144,238,144,0.20);
+
   }
 }
 .line-chart {

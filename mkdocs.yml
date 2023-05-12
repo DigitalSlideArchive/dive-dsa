@@ -49,6 +49,9 @@ nav:
     - Home: index.md
     - Web Version: Web-Version.md
     - Annotation Quickstart: Annotation-QuickStart.md
+    - Technology Details:
+      - Video Processing: VideoConversion.md
+      - S3 Import: S3Import.md
     - User Interface Guide:
       - Introduction: Annotation-User-Interface-Overview.md
       - Navigation and Editing Bar: UI-Navigation-Editing-Bar.md

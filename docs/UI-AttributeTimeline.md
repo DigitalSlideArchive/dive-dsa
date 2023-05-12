@@ -26,6 +26,7 @@ Active timelines show up with their name in the Timeline at the bottom when a tr
 * *Enabled* - if this timeline will be enabled so users can access and view it.
 * *Timeline Filter* - Similar to the tool used for [Attribute Filtering](UI-AttributeFiltering.md).  This can be used to graph only a subset of detection attributes.
 * *Default Visible Timeline* - If this is set to true, when loaded the program will default to showing this in the [Timeline](UI-Timeline.md) instead of the Detection or Attribute Views.
+* *Y-Axis Range* - Ability to set a custom Y-Axis range.  If the values are left at -1, -1 it will auto calculate the range based on the values in the graph.
 
 ## Graph Settings
 
@@ -50,3 +51,13 @@ In the image above one of the graphed attributes will go from 1 to 0 at specific
 
 This is a simple way to get highlighted regions of a track to draw attention to the user.
 
+
+### Y-Axis Adjustments
+
+Besides setting the Y-Axis Range in the settings for the graph, the Y-Axis range can be adjusted at any time by hovering over the Y-Axis and double clicking.
+
+![Y-Axis Range Hover](images/AttributeTimeline/YAxisHover.png)
+
+![Y-Axis Adjustment](images/AttributeTimeline/YAxisAdjust.png)
+
+The Axis will update as you change the values and you can click Save to accept the new Axis range.  NOTE:  This will not change TimelineGraph Settings Y-Axis if they are set so reloading will not persist the new range.  It is meant to adjust the range on the fly for viewing data.

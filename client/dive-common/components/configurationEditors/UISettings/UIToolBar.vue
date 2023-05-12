@@ -13,7 +13,7 @@ export default defineComponent({
   setup() {
     const configMan = useConfiguration();
     const editVisTypes = ref(['bounding box', 'polygon', 'line']);
-    const visTypes = ref(['bounding_box', 'polygon', 'line', 'text', 'tooltip']);
+    const visTypes = ref(['bounding box', 'polygon', 'line', 'text', 'tooltip']);
     const transferArr = (data: boolean[], typesUsed: Ref<string[]>) => {
       const results: string[] = [];
       typesUsed.value.forEach((item, index) => {
