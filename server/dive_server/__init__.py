@@ -21,6 +21,7 @@ from .views_dataset import DatasetResource
 from .views_override import countJobs, use_private_queue
 from .views_rpc import RpcResource
 
+__version__ = "1.0.0"
 
 class GirderPlugin(plugin.GirderPlugin):
     DISPLAY_NAME = 'DIVE'
