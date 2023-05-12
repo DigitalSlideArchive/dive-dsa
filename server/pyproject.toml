@@ -76,5 +76,12 @@ dive_server = "dive_server:GirderPlugin"
 dive_tasks = "dive_tasks:DIVEPlugin"
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "setuptools"]
+requires = ["poetry-core>=1.0.0", "setuptools", "setuptools_scm[toml]>=6.2"]
 build-backend = "poetry.core.masonry.api"
+
+[project]
+# version = "0.0.1"  # Remove any existing version parameter.
+dynamic = ["version"]
+
+# pyproject.toml
+[tool.setuptools_scm]
