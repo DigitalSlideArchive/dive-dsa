@@ -58,6 +58,7 @@ typing-extensions = "^4.2.0"
 GPUtil = "^1.4.0"
 requests = ">=2.27.1"
 urllib3 = "<1.27"
+poetry-dynamic-versioning = {extras = ["plugin"], version = "^0.21.4"}
 
 [tool.poetry.group.dev.dependencies]
 numpy = "^1.21.4"
@@ -76,5 +77,13 @@ dive_server = "dive_server:GirderPlugin"
 dive_tasks = "dive_tasks:DIVEPlugin"
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "setuptools"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "any"
+metadata = true
+
+[tool.poetry-dynamic-versioning.substitution]
+files = ["dive_server/__init__.py", "dive_tasks/__init__.py"]

@@ -48,7 +48,9 @@ export interface AttributesFilterType {
   setTimelineDefault: (name: string) => void;
   removeTimelineFilter: (name: string) => void;
   attributeTimelineData:
-  Readonly<Ref<Record<string, { data: TimelineAttribute[]; begin: number; end: number}>>>;
+  Readonly<Ref<Record<string, {
+    data: TimelineAttribute[]; begin: number; end: number; yRange?: number[];
+  }>>>;
   timelineGraphs: Readonly<Ref<Record<string, TimelineGraph>>>;
   timelineEnabled: Readonly<Ref<Record<string, boolean>>>;
   timelineDefault: Readonly<Ref<string | null>>;
