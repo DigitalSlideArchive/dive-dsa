@@ -4,16 +4,18 @@ import {
 } from '@vue/composition-api';
 import {
   Attribute, AttributeShortcut, NumericAttributeEditorOptions, StringAttributeEditorOptions,
-} from 'vue-media-annotator/use/useAttributes';
+} from 'vue-media-annotator/use/AttributeTypes';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 import AttributeShortcuts from './AttributeShortcuts.vue';
+import AttributeRendering from './AttributeRendering.vue';
 
 
 export default defineComponent({
   name: 'AttributeSettings',
   components: {
     AttributeShortcuts,
+    AttributeRendering,
   },
   props: {
     selectedAttribute: {
@@ -35,6 +37,7 @@ export default defineComponent({
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
     const tempColor = ref(trackStyleManager.typeStyling.value.color(name.value));
     const areSettingsValid = ref(false);
+    const currentTab = ref('Main');
     const editor: Ref<
       undefined | StringAttributeEditorOptions | NumericAttributeEditorOptions
     > = ref(props.selectedAttribute.editor);
@@ -55,6 +58,8 @@ export default defineComponent({
       },
 
     });
+    const attributeRendering = ref(!!props.selectedAttribute.render);
+    const renderingVals = ref(props.selectedAttribute.render);
 
     function setDefaultValue() {
       name.value = '';
@@ -70,7 +75,7 @@ export default defineComponent({
       }
     }
 
-    async function submit() {
+    async function submit(close = true) {
       if (form.value && !form.value.validate()) {
         return;
       }
@@ -85,12 +90,13 @@ export default defineComponent({
         color: color.value ? color.value : tempColor.value,
         shortcuts: shortcuts.value,
         user: user.value ? true : undefined,
+        render: renderingVals.value,
       };
 
       if (addNew) {
-        emit('save', { data });
+        emit('save', { data, close });
       } else {
-        emit('save', { data, oldAttribute: props.selectedAttribute });
+        emit('save', { data, oldAttribute: props.selectedAttribute, close });
       }
     }
 
@@ -144,6 +150,40 @@ export default defineComponent({
       colorEditor.value = true;
     };
 
+    watch(renderingVals, () => {
+      submit(false);
+    });
+
+    watch(attributeRendering, () => {
+      if (renderingVals.value === undefined) {
+        renderingVals.value = {
+          typeFilter: ['all'],
+          displayName: props.selectedAttribute.name,
+          displayColor: 'auto',
+          displayTextSize: 32,
+          valueColor: 'auto',
+          valueTextSize: 32,
+          order: 0,
+          location: 'outside',
+          layout: 'vertical',
+          box: false,
+          boxColor: 'auto',
+          boxThickness: 1,
+          displayWidth: {
+            type: '%',
+            val: 10,
+          },
+          displayHeight: {
+            type: 'auto',
+            val: 10,
+          },
+        };
+      }
+      if (!attributeRendering.value) {
+        renderingVals.value = undefined;
+      }
+    });
+
     return {
       name,
       belongs,
@@ -155,6 +195,9 @@ export default defineComponent({
       editor,
       areSettingsValid,
       tempColor,
+      attributeRendering,
+      renderingVals,
+      currentTab,
       //computed
       textValues,
       shortcuts,
@@ -176,169 +219,195 @@ export default defineComponent({
     <v-card-title class="pb-0">
       Attributes
       <v-card-text>
-        <v-alert
-          v-if="error || !addNew"
-          :type="error ? 'error' : 'info'"
-        >
-          <div style="word-break: break-word;">
-            {{
-              error ? error :
-              'Changes to Attribute Datatypes or Names do not effect \
-               currently set attributes on tracks.'
-            }}
-          </div>
-        </v-alert>
-        <v-form
-          ref="form"
-          v-model="areSettingsValid"
-        >
-          <v-text-field
-            v-model="name"
-            label="Name"
-            :rules="[v => !!v || 'Name is required', v => !v.includes(' ') ||
-              'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
-            required
-          />
-          <v-select
-            :value="datatype"
-            :items="[
-              { text: 'Boolean', value: 'boolean' },
-              { text: 'Number', value: 'number' },
-              { text: 'Text', value: 'text' }
-            ]"
-            label="Datatype"
-            @change="typeChange"
-          />
-          <div v-if="datatype=== 'number'">
-            <v-radio-group
-              :value="(editor && editor.type) || 'combo'"
-              row
-              label="Display Type:"
-              @change="numericChange"
+        <v-card-title class="text-h6">
+          <v-tabs v-model="currentTab">
+            <v-tab> Main </v-tab>
+            <v-tab> Shortcuts </v-tab>
+            <v-tab> Rendering </v-tab>
+          </v-tabs>
+        </v-card-title>
+
+        <v-tabs-items v-model="currentTab">
+          <v-tab-item>
+            <v-alert
+              v-if="error || !addNew"
+              :type="error ? 'error' : 'info'"
             >
-              <v-radio
-                label="Input Box"
-                value="combo"
-              />
-              <v-radio
-                label="Slider"
-                value="slider"
-              />
-            </v-radio-group>
-          </div>
-          <div>
-            <v-checkbox
-              v-model="user"
-              label="User Attribute"
-              hint="Attribute data is saved per user instead of globally."
-              persistent-hint
-            />
-          </div>
-          <div v-if="datatype === 'number' && editor && editor.type === 'slider'">
-            <v-row class="pt-2">
+              <div style="word-break: break-word;">
+                {{
+                  error ? error :
+                  'Changes to Attribute Datatypes or Names do not effect \
+               currently set attributes on tracks.'
+                }}
+              </div>
+            </v-alert>
+            <v-form
+              ref="form"
+              v-model="areSettingsValid"
+            >
               <v-text-field
-                v-model.number="editor.range[0]"
-                dense
-                outlined
-                :step="editor.range[0]> 1 ? 1 : 0.01"
-                type="number"
-                label="Min"
-                :rules="[
-                  v => !isNaN(parseFloat(v))|| 'Number is required',
-                  v => v < editor.range[1] || 'Min needs to be smaller than the Max']"
-                :max="editor.range[1]"
-                hint="Min limit for slider"
-                persistent-hint
+                v-model="name"
+                label="Name"
+                :rules="[v => !!v || 'Name is required', v => !v.includes(' ') ||
+                  'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
+                required
               />
-              <v-text-field
-                v-model.number="editor.range[1]"
-                dense
-                outlined
-                :step="editor.range[1]> 1 ? 1 : 0.01"
-                type="number"
-                label="Max"
-                :rules="[
-                  v => !isNaN(parseFloat(v)) || 'Number is required',
-                  v => v > editor.range[0] || 'Max needs to be larger than the Min']"
-                :min="editor.range[0]"
-                hint="Max limit for slider"
-                persistent-hint
+              <v-select
+                :value="datatype"
+                :items="[
+                  { text: 'Boolean', value: 'boolean' },
+                  { text: 'Number', value: 'number' },
+                  { text: 'Text', value: 'text' }
+                ]"
+                label="Datatype"
+                @change="typeChange"
               />
+              <div v-if="datatype=== 'number'">
+                <v-radio-group
+                  :value="(editor && editor.type) || 'combo'"
+                  row
+                  label="Display Type:"
+                  @change="numericChange"
+                >
+                  <v-radio
+                    label="Input Box"
+                    value="combo"
+                  />
+                  <v-radio
+                    label="Slider"
+                    value="slider"
+                  />
+                </v-radio-group>
+              </div>
+              <div>
+                <v-checkbox
+                  v-model="user"
+                  label="User Attribute"
+                  hint="Attribute data is saved per user instead of globally."
+                  persistent-hint
+                />
+              </div>
+              <div v-if="datatype === 'number' && editor && editor.type === 'slider'">
+                <v-row class="pt-2">
+                  <v-text-field
+                    v-model.number="editor.range[0]"
+                    dense
+                    outlined
+                    :step="editor.range[0]> 1 ? 1 : 0.01"
+                    type="number"
+                    label="Min"
+                    :rules="[
+                      v => !isNaN(parseFloat(v))|| 'Number is required',
+                      v => v < editor.range[1] || 'Min needs to be smaller than the Max']"
+                    :max="editor.range[1]"
+                    hint="Min limit for slider"
+                    persistent-hint
+                  />
+                  <v-text-field
+                    v-model.number="editor.range[1]"
+                    dense
+                    outlined
+                    :step="editor.range[1]> 1 ? 1 : 0.01"
+                    type="number"
+                    label="Max"
+                    :rules="[
+                      v => !isNaN(parseFloat(v)) || 'Number is required',
+                      v => v > editor.range[0] || 'Max needs to be larger than the Min']"
+                    :min="editor.range[0]"
+                    hint="Max limit for slider"
+                    persistent-hint
+                  />
+                </v-row>
+                <v-row class="pt-2">
+                  <v-text-field
+                    v-model.number="editor.steps"
+                    dense
+                    outlined
+                    :step="editor.steps> 1 ? 1 : 0.01"
+                    type="number"
+                    :rules="[
+                      v => !isNaN(parseFloat(v)) || 'Number is required',
+                      v => v < (editor.range[1] - editor.range[0])
+                        || 'Steps should be smaller than the range']"
+                    label="Slider Step Interval"
+                    min="0"
+                    hint="Each movement will move X amount"
+                    persistent-hint
+                  />
+                </v-row>
+              </div>
+              <v-textarea
+                v-if="datatype === 'text'"
+                v-model="textValues"
+                label="Predefined values"
+                hint="Line separated values"
+                outlined
+                auto-grow
+                row-height="30"
+              />
+            </v-form>
+            <v-row
+              v-if="!colorEditor"
+              align="center"
+              justify="start"
+            >
+              <v-col
+                align-self="center"
+                cols="2"
+              >
+                <h2>
+                  Color:
+                </h2>
+              </v-col>
+              <v-col align-self="center">
+                <div
+                  v-if="!color"
+                  class="edit-color-box"
+                  :style="{
+                    backgroundColor: tempColor,
+                  }"
+                  @click="launchColorEditor"
+                /><div
+                  v-else
+                  class="edit-color-box"
+                  :style="{
+                    backgroundColor: color,
+                  }"
+                  @click="launchColorEditor"
+                />
+              </v-col>
+              <v-spacer />
             </v-row>
-            <v-row class="pt-2">
-              <v-text-field
-                v-model.number="editor.steps"
-                dense
-                outlined
-                :step="editor.steps> 1 ? 1 : 0.01"
-                type="number"
-                :rules="[
-                  v => !isNaN(parseFloat(v)) || 'Number is required',
-                  v => v < (editor.range[1] - editor.range[0])
-                    || 'Steps should be smaller than the range']"
-                label="Slider Step Interval"
-                min="0"
-                hint="Each movement will move X amount"
-                persistent-hint
-              />
+            <v-row v-if="colorEditor">
+              <v-spacer />
+              <v-col>
+                <v-color-picker
+                  v-model="color"
+                  hide-inputs
+                />
+              </v-col>
+              <v-spacer />
             </v-row>
-          </div>
-          <v-textarea
-            v-if="datatype === 'text'"
-            v-model="textValues"
-            label="Predefined values"
-            hint="Line separated values"
-            outlined
-            auto-grow
-            row-height="30"
-          />
-        </v-form>
-        <v-row
-          v-if="!colorEditor"
-          align="center"
-          justify="start"
-        >
-          <v-col
-            align-self="center"
-            cols="2"
-          >
-            <h2>
-              Color:
-            </h2>
-          </v-col>
-          <v-col align-self="center">
-            <div
-              v-if="!color"
-              class="edit-color-box"
-              :style="{
-                backgroundColor: tempColor,
-              }"
-              @click="launchColorEditor"
-            /><div
-              v-else
-              class="edit-color-box"
-              :style="{
-                backgroundColor: color,
-              }"
-              @click="launchColorEditor"
+          </v-tab-item>
+          <v-tab-item>
+            <attribute-shortcuts
+              v-model="shortcuts"
+              :value-type="datatype"
             />
-          </v-col>
-          <v-spacer />
-        </v-row>
-        <v-row v-if="colorEditor">
-          <v-spacer />
-          <v-col>
-            <v-color-picker
-              v-model="color"
-              hide-inputs
+          </v-tab-item>
+          <v-tab-item>
+            <v-switch
+              v-model="attributeRendering"
+              label="Rendering"
             />
-          </v-col>
-          <v-spacer />
-        </v-row>
-        <attribute-shortcuts
-          v-model="shortcuts"
-          :value-type="datatype"
-        />
+            <attribute-rendering
+              v-if="attributeRendering && renderingVals !== undefined"
+              v-model="renderingVals"
+              :attribute="selectedAttribute"
+            />
+          </v-tab-item>
+        </v-tabs-items>
+
         <v-card-actions>
           <v-row>
             <v-tooltip

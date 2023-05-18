@@ -16,15 +16,17 @@ export default defineComponent({
     const UIGroupManager = ref(configMan.getUISetting('UIGroupManager') as boolean);
     const UIAttributeDetails = ref(configMan.getUISetting('UIAttributeDetails') as boolean);
     const UIRevisionHistory = ref(configMan.getUISetting('UIRevisionHistory') as boolean);
+    const UIDatasetInfo = ref(configMan.getUISetting('UIDatasetInfo') as boolean);
 
     watch([UIThresholdControls, UIImageEnhancements,
-      UIGroupManager, UIAttributeDetails, UIRevisionHistory], () => {
+      UIGroupManager, UIAttributeDetails, UIRevisionHistory, UIDatasetInfo], () => {
       const data = {
         UIThresholdControls: UIThresholdControls.value ? undefined : false,
         UIImageEnhancements: UIImageEnhancements.value ? undefined : false,
         UIGroupManager: UIGroupManager.value ? undefined : false,
         UIAttributeDetails: UIAttributeDetails.value ? undefined : false,
         UIRevisionHistory: UIRevisionHistory.value ? undefined : false,
+        UIDatasetInfo: UIDatasetInfo.value ? undefined : false,
 
       };
       configMan.setUISettings('UIContextBar', data);
@@ -35,6 +37,7 @@ export default defineComponent({
       UIGroupManager,
       UIAttributeDetails,
       UIRevisionHistory,
+      UIDatasetInfo,
     };
   },
 
@@ -74,6 +77,12 @@ export default defineComponent({
           <v-switch
             v-model="UIRevisionHistory"
             label="Revision History"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UIDatasetInfo"
+            label="Dataset Info"
           />
         </v-row>
       </div>

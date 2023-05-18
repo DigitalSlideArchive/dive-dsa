@@ -57,6 +57,7 @@ import PrevNext from './PrevNext.vue';
 import AttributesSideBarVue from './AttributesSideBar.vue';
 import TypeThresholdVue from './TypeThreshold.vue';
 import AttributeUserReviewVue from './AttributeUserReview.vue';
+import DatasetInfo from './DatasetInfo.vue';
 
 export interface ImageDataItem {
   url: string;
@@ -666,10 +667,17 @@ export default defineComponent({
         }
         if (!configurationManager.getUISetting('UIAttributeUserReview')) {
           context.unregister({
-            description: 'Attrbute User Review',
+            description: 'Attribute User Review',
             component: AttributeUserReviewVue,
           });
         }
+        if (!configurationManager.getUISetting('UIDatasetInfo')) {
+          context.unregister({
+            description: 'Dataset Info',
+            component: DatasetInfo,
+          });
+        }
+
         if (!configurationManager.getUISetting('UIThresholdControls')) {
           context.unregister({
             description: 'Threshold Controls',

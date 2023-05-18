@@ -22,7 +22,7 @@ import {
   useSelectedCamera,
   useConfiguration,
 } from 'vue-media-annotator/provides';
-import { Attribute } from 'vue-media-annotator/use/useAttributes';
+import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 import TrackItem from 'vue-media-annotator/components/TrackItem.vue';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import TypePicker from 'vue-media-annotator/components/TypePicker.vue';
@@ -149,9 +149,10 @@ export default defineComponent({
     function editAttribute(attribute: Attribute) {
       editingAttribute.value = attribute;
     }
-    async function saveAttributeHandler({ data, oldAttribute }: {
+    async function saveAttributeHandler({ data, oldAttribute, close }: {
       oldAttribute?: Attribute;
       data: Attribute;
+      close: boolean;
     }) {
       editingError.value = null;
       if (!oldAttribute && attributes.value.some((attribute) => (
@@ -166,7 +167,7 @@ export default defineComponent({
       } catch (err) {
         editingError.value = err.message;
       }
-      if (!editingError.value) {
+      if (!editingError.value && close) {
         closeEditor();
       }
     }
@@ -534,7 +535,7 @@ export default defineComponent({
     <v-spacer />
     <v-dialog
       :value="editingAttribute != null"
-      max-width="550"
+      max-width="800"
       @click:outside="closeEditor"
       @keydown.esc.stop="closeEditor"
     >

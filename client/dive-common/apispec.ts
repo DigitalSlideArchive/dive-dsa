@@ -4,7 +4,7 @@ import { GroupData } from 'vue-media-annotator/Group';
 
 import { use } from 'vue-media-annotator/provides';
 import { TrackData } from 'vue-media-annotator/track';
-import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
+import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/AttributeTypes';
 import { CustomStyle } from 'vue-media-annotator/StyleManager';
 import { Configuration, DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 

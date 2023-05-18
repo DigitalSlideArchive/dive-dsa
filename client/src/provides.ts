@@ -12,11 +12,9 @@ import type { RectBounds } from './utils';
 import type {
   Attribute,
   AttributeFilter,
-  AttributeKeyFilter,
   TimelineAttribute,
-  TimeLineFilter,
   TimelineGraph,
-} from './use/useAttributes';
+} from './use/AttributeTypes';
 import type { Time } from './use/useTimeObserver';
 import type { ImageEnhancements } from './use/useImageEnhancements';
 import TrackFilterControls from './TrackFilterControls';

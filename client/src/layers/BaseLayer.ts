@@ -20,6 +20,8 @@ export interface LayerStyle<D> {
   fillOpacity?: StyleFunction<number, D> | PointFunction<number, D>;
   position?: (point: [number, number]) => { x: number; y: number };
   color?: (data: D) => string;
+  fontSize?: (data: D) => string;
+  lineHeight?: (data: D) => number;
   textOpacity?: (data: D) => number;
   offset?: (data: D) => { x: number; y: number };
   fill?: ObjectFunction<boolean, D> | boolean;

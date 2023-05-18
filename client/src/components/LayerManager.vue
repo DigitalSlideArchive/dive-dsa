@@ -4,6 +4,7 @@ import {
 } from '@vue/composition-api';
 
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { useStore } from 'platform/web-girder/store/types';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -15,6 +16,8 @@ import TailLayer from '../layers/AnnotationLayers/TailLayer';
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
 import { FrameDataTrack } from '../layers/LayerTypes';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
+import AttributeLayer from '../layers/AnnotationLayers/AttributeLayer';
+import AttributeBoxLayer from '../layers/AnnotationLayers/AttributeBoxLayer';
 import type { AnnotationId } from '../BaseAnnotation';
 import { geojsonToBound } from '../utils';
 import { VisibleAnnotationTypes } from '../layers';
@@ -35,6 +38,7 @@ import {
   useCameraStore,
   useSelectedCamera,
   useConfiguration,
+  useAttributes,
 } from '../provides';
 
 /** LayerManager is a component intended to be used as a child of an Annotator.
@@ -59,10 +63,12 @@ export default defineComponent({
 
   },
   setup(props) {
+    const store = useStore();
     const handler = useHandler();
     const cameraStore = useCameraStore();
     const selectedCamera = useSelectedCamera();
     const configMan = useConfiguration();
+    const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
@@ -125,12 +131,32 @@ export default defineComponent({
       formatter: props.formatTextRow,
     });
 
+    const attributeLayer = new AttributeLayer({
+      annotator,
+      stateStyling: trackStyleManager.stateStyles,
+      typeStyling: typeStylingRef,
+    });
+
+    const attributeBoxLayer = new AttributeBoxLayer({
+      annotator,
+      stateStyling: trackStyleManager.stateStyles,
+      typeStyling: typeStylingRef,
+    });
+
     const editAnnotationLayer = new EditAnnotationLayer({
       annotator,
       stateStyling: trackStyleManager.stateStyles,
       typeStyling: typeStylingRef,
       type: 'rectangle',
     });
+
+    const updateAttributes = () => {
+      const newList = attributes.value.filter((item) => item.render);
+      const user = store.state.User.user?.login as string || '';
+      attributeLayer.updateRenderAttributes(newList, user);
+      attributeBoxLayer.updateRenderAttributes(newList);
+    };
+    updateAttributes();
 
     const uiLayer = new UILayer(annotator);
     const hoverOvered: Ref<ToolTipWidgetData[]> = ref([]);
@@ -245,8 +271,12 @@ export default defineComponent({
       pointLayer.changeData(frameData);
       if (visibleModes.includes('text')) {
         textLayer.changeData(frameData);
+        attributeLayer.changeData(frameData);
+        attributeBoxLayer.changeData(frameData);
       } else {
         textLayer.disable();
+        attributeLayer.disable();
+        attributeBoxLayer.changeData(frameData);
       }
 
       if (selectedTrackId !== null) {
@@ -344,6 +374,20 @@ export default defineComponent({
       },
       { deep: true },
     );
+
+    watch(attributes, () => {
+      updateAttributes();
+      updateLayers(
+        frameNumberRef.value,
+        editingModeRef.value,
+        selectedTrackIdRef.value,
+        multiSeletListRef.value,
+        enabledTracksRef.value,
+        visibleModesRef.value,
+        selectedKeyRef.value,
+        props.colorBy,
+      );
+    });
 
     const Clicked = (trackId: number, editing: boolean) => {
       // If the camera isn't selected yet we ignore the click
