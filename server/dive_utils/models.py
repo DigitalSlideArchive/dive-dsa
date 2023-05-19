@@ -152,6 +152,7 @@ class RenderingDisplayDimension(BaseModel):
 
 class RenderingAttributes(BaseModel):
     typeFilter: List[str]
+    selected: Optional[bool]
     displayName: str
     displayColor: str
     displayTextSize: float
@@ -162,6 +163,8 @@ class RenderingAttributes(BaseModel):
     box: bool
     boxColor: str
     boxThickness: float
+    boxBackground: Optional[str]
+    boxOpacity: Optional[float]
     layout: Literal['vertical', 'horizontal']
     displayWidth: RenderingDisplayDimension
     displayHeight: RenderingDisplayDimension

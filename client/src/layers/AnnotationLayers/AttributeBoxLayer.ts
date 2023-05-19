@@ -13,6 +13,9 @@ interface RectGeoJSData{
   editing: boolean | string;
   styleType: [string, number] | null;
   lineColor: string;
+  lineThickness: number;
+  boxBackground?: string;
+  boxOpacity?: number;
   polygon: GeoJSON.Polygon;
 }
 
@@ -48,10 +51,13 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
           // So we need to go through the renderAttr and create a bounds for each renderAttr based on the settings
           const renderFiltered = this.renderAttributes.filter((item) => {
             if (item.render) {
-              if (!item.render.typeFilter.includes('all') && item.render.box) {
+              if (!item.render.typeFilter.includes('all')) {
                 return item.render.typeFilter.includes(track.styleType[0]);
               }
-              if (item.render.typeFilter.includes('all') && item.render.box) {
+              if (item.render.selected && !track.selected) {
+                return false;
+              }
+              if (item.render.typeFilter.includes('all')) {
                 return true;
               }
             }
@@ -59,16 +65,22 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
           });
           for (let i = 0; i < renderFiltered.length; i += 1) {
             const currentRender = renderFiltered[i].render;
-            if (currentRender) {
+            if (currentRender && currentRender.box) {
               const { newBounds } = calculateAttributeArea(track.features.bounds, renderFiltered[i].render, i, renderFiltered.length);
               const polygon = boundToGeojson(newBounds);
               const lineColor = currentRender.boxColor === 'auto' ? renderFiltered[i].color || 'white' : currentRender.boxColor;
+              const lineThickness = currentRender.boxThickness || 1;
+              const { boxBackground } = currentRender;
+              const { boxOpacity } = currentRender;
               const annotation: RectGeoJSData = {
                 trackId: track.track.id,
                 selected: track.selected,
                 editing: track.editing,
                 styleType: track.styleType,
                 lineColor,
+                lineThickness,
+                boxBackground,
+                boxOpacity,
                 polygon,
               };
               arr.push(annotation);
@@ -99,18 +111,27 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
         position: (point) => ({ x: point[0], y: point[1] }),
         strokeColor: (_point, _index, data) => data.lineColor,
         fill: (data) => {
+          if (data.boxOpacity) {
+            return !!data.boxOpacity;
+          }
           if (data.styleType) {
             return this.typeStyling.value.fill(data.styleType[0]);
           }
           return this.stateStyling.standard.fill;
         },
         fillColor: (_point, _index, data) => {
+          if (data.boxBackground) {
+            return data.boxBackground;
+          }
           if (data.styleType) {
             return this.typeStyling.value.color(data.styleType[0]);
           }
           return this.typeStyling.value.color('');
         },
         fillOpacity: (_point, _index, data) => {
+          if (data.boxOpacity) {
+            return data.boxOpacity;
+          }
           if (data.styleType) {
             return this.typeStyling.value.opacity(data.styleType[0]);
           }
@@ -118,6 +139,9 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
         },
         strokeOpacity: (_point, _index, data) => {
         // Reduce the rectangle opacity if a polygon is also drawn
+          if (data.boxOpacity) {
+            return data.boxOpacity;
+          }
           if (data.selected) {
             return this.stateStyling.selected.opacity;
           }
@@ -127,8 +151,18 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
 
           return this.stateStyling.standard.opacity;
         },
-        strokeOffset: this.stateStyling.standard.strokeWidth,
-        strokeWidth: this.stateStyling.standard.strokeWidth,
+        strokeOffset: (_point, _index, data) => {
+          if (data.lineThickness) {
+            return data.lineThickness;
+          }
+          return this.stateStyling.standard.strokeWidth;
+        },
+        strokeWidth: (_point, _index, data) => {
+          if (data.lineThickness) {
+            return data.lineThickness;
+          }
+          return this.stateStyling.standard.strokeWidth;
+        },
       };
     }
 }

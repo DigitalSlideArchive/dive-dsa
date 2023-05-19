@@ -37,6 +37,7 @@ export interface AttributeShortcut {
 
 export interface AttributeRendering {
     typeFilter: string[];
+    selected?: boolean;
     displayName: string;
     displayColor: 'auto' | string;
     displayTextSize: number;
@@ -47,6 +48,8 @@ export interface AttributeRendering {
     box: boolean;
     boxColor: 'auto' | string;
     boxThickness: number;
+    boxBackground?: string;
+    boxOpacity?: number;
     layout: 'vertical' | 'horizontal';
     displayWidth: {
       type: 'px' | '%';

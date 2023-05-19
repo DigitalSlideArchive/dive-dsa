@@ -151,7 +151,12 @@ export default defineComponent({
     });
 
     const updateAttributes = () => {
-      const newList = attributes.value.filter((item) => item.render);
+      const newList = attributes.value.filter((item) => item.render).sort((a, b) => {
+        if (a.render && b.render) {
+          return (a.render.order - b.render.order);
+        }
+        return 0;
+      });
       const user = store.state.User.user?.login as string || '';
       attributeLayer.updateRenderAttributes(newList, user);
       attributeBoxLayer.updateRenderAttributes(newList);

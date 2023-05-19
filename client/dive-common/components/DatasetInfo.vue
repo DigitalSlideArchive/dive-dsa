@@ -67,7 +67,7 @@ export default defineComponent({
                 :key="`datasetInfo_${name}`"
               >
                 <td>{{ name }}</td>
-                <td>{{ value }}</td>
+                <td>{{ value !== undefined ? value.toString() : '' }}</td>
               </tr>
             </tbody>
           </template>

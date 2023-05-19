@@ -85,9 +85,11 @@ function defaultFormatter(
     // figure out the attributes we are displaying:
     const renderFiltered = renderAttr.filter((item) => {
       if (item.render) {
-        console.log(item.render.typeFilter);
         if (!item.render.typeFilter.includes('all')) {
           return item.render.typeFilter.includes(annotation.styleType[0]);
+        }
+        if (item.render.selected && !annotation.selected) {
+          return false;
         }
         if (item.render.typeFilter.includes('all')) {
           return true;
@@ -95,7 +97,6 @@ function defaultFormatter(
       }
       return false;
     });
-    console.log(renderFiltered);
 
     for (let i = 0; i < renderFiltered.length; i += 1) {
       const currentRender = renderFiltered[i].render;
