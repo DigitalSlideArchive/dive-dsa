@@ -131,13 +131,13 @@ export default defineComponent({
       formatter: props.formatTextRow,
     });
 
-    const attributeLayer = new AttributeLayer({
+    const attributeBoxLayer = new AttributeBoxLayer({
       annotator,
       stateStyling: trackStyleManager.stateStyles,
       typeStyling: typeStylingRef,
     });
 
-    const attributeBoxLayer = new AttributeBoxLayer({
+    const attributeLayer = new AttributeLayer({
       annotator,
       stateStyling: trackStyleManager.stateStyles,
       typeStyling: typeStylingRef,
@@ -276,12 +276,12 @@ export default defineComponent({
       pointLayer.changeData(frameData);
       if (visibleModes.includes('text')) {
         textLayer.changeData(frameData);
-        attributeLayer.changeData(frameData);
         attributeBoxLayer.changeData(frameData);
+        attributeLayer.changeData(frameData);
       } else {
         textLayer.disable();
         attributeLayer.disable();
-        attributeBoxLayer.changeData(frameData);
+        attributeBoxLayer.disable();
       }
 
       if (selectedTrackId !== null) {
