@@ -485,12 +485,20 @@ export default function UseAttributes(
               } else if (typeof (val) === 'boolean') {
                 dataType = 'boolean';
               }
-
+              let baseColor = 'white';
+              if (baseAttribute?.color) {
+                baseColor = baseAttribute.color;
+              } else {
+                baseColor = trackStyleManager.typeStyling.value.color(key);
+              }
               valueMap[key] = {
                 data: [],
                 name: key,
+                color: baseColor,
                 type: dataType,
                 displayName,
+                start: track.begin,
+                end: track.end,
               };
             }
             // Now we need to push data in based on values and change only when value changes:
@@ -506,7 +514,7 @@ export default function UseAttributes(
               // First value
               valueMap[key].data.push({
                 begin: frame,
-                end: frame,
+                end: frame + 1,
                 value: val,
                 color,
               });
@@ -514,7 +522,7 @@ export default function UseAttributes(
               valueMap[key].data[valueMap[key].data.length - 1].end = frame;
               valueMap[key].data.push({
                 begin: frame,
-                end: frame,
+                end: frame + 1,
                 value: val,
                 color,
               });
@@ -601,6 +609,7 @@ export default function UseAttributes(
 
   const swimlaneEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
+    console.log(swimlaneGraphs.value);
     Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
       filters[key] = graph.enabled;
     });

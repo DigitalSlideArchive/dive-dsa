@@ -156,6 +156,9 @@ export interface SwimlaneAttribute{
     type: Attribute['datatype'];
     name: string;
     data: SwimlaneData[];
+    color: string;
     displayName?: boolean;
+    start: number;
+    end: number;
 
   }

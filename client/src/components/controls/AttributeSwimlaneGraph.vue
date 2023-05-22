@@ -63,21 +63,16 @@ export default Vue.extend({
       return null;
     },
     barData() {
-      const sorted = sortBy(this.data.values, (data) => data.range[0]);
       const bars = [];
-      sorted.forEach((event) => {
-        for (let i = 0, n = bars.length; i < n; i += 1) {
-          if (bars[i].endPosition < event.range[0]) {
-            bars[i].events.push(event);
-            // eslint-disable-next-line prefer-destructuring
-            bars[i].endPosition = event.range[1];
-            return;
-          }
-        }
+      Object.keys(this.data).forEach((key) => {
+        const bar = this.data[key];
+        const list = bar.data;
         bars.push({
-          startPoisiton: event.range[0],
-          endPosition: event.range[1],
-          events: [event],
+          name: bar.name,
+          startPosition: bar.start,
+          color: bar.color,
+          endPosition: bar.end,
+          subSections: list,
         });
       });
       return bars;
@@ -96,27 +91,16 @@ export default Vue.extend({
           [barData.startPoisiton, barData.endPosition],
         ))
         .forEach((barData, i) => {
-          barData.events
-            .filter((event) => intersect(
-              [startFrame_, endFrame_],
-              [event.range[0], event.range[1]],
-            ))
-            .forEach((event) => {
-              const frameWidth = (x(this.startFrame_ + 1) - x(this.startFrame_)) * 0.6;
-              bars.push({
-                left: x(event.range[0]),
-                right: x(event.range[1]),
-                minWidth: frameWidth,
-                top: i * 15 + 3,
-                color: event.color,
-                selected: event.selected,
-                name: event.name,
-                type: event.type,
-                id: event.id,
-                length: event.range[1] - event.range[0],
-                markers: event.markers,
-              });
-            });
+          const frameWidth = (x(this.startFrame_ + 1) - x(this.startFrame_)) * 0.6;
+          bars.push({
+            left: x(barData.startPosition),
+            right: x(barData.endPosition),
+            minWidth: frameWidth,
+            top: i * 15 + 3,
+            color: barData.color,
+            length: barData.endPosition - barData.startPosition,
+            subSections: barData.subSections,
+          });
         });
       return bars;
     },
@@ -167,55 +151,20 @@ export default Vue.extend({
       }
       canvas.width = this.clientWidth + this.margin;
       canvas.height = bars.slice(-1)[0].top + 15;
-      const muteOpacity = '30'; // Hex string: how much to mute regular colors: '#RRGGBB[AA]'
-      const selectedColor = this.$vuetify.theme.themes.dark.accent;
-      const overflow = 0.7; // How much of a frame-width each detection box should occupy
       const barHeight = 10;
       bars.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
-        if (!bar.selected) {
-          // If this bar is not selected
-          const typeColor = bar.color ? bar.color : '#4c9ac2';
-          const typeColorMuted = typeColor.concat(muteOpacity);
-          ctx.fillStyle = this.data.muted
-            ? typeColorMuted
-            : typeColor;
-          ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
-        } else if (bar.length === bar.markers.length - 1 || bar.markers.length === 0) {
-          // Else if Keyframe density is 100%
-          ctx.fillStyle = selectedColor;
-          ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
-          this.scrollToElement(bar);
-        } else {
-          // Else draw individual feature frame segments
-          // Decrease SelectedColor opacity to mute it.
-          ctx.fillStyle = selectedColor.concat(muteOpacity);
-          ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
-          const featureWidth = Math.min((barWidth / (bar.length - 1)) * overflow, 30);
-          // Draw bright markers for the keyframes
-          ctx.fillStyle = selectedColor;
-          bar.markers
-            .map(([f, interpolate]) => [this.x(f), interpolate])
-            .forEach(([pos, interpolate], i) => {
-              const barMiddle = bar.top + (barHeight / 2);
-              const next = bar.markers[i + 1];
-              ctx.fillRect(
-                // offset frame back 1/2 width so the cursor falls in the middle
-                pos,
-                bar.top,
-                featureWidth,
-                barHeight,
-              );
-              if (next && interpolate) {
-                const nextPos = this.x(next[0]);
-                ctx.strokeStyle = 'yellow';
-                ctx.moveTo(pos + featureWidth, barMiddle);
-                ctx.lineTo(nextPos, barMiddle);
-                ctx.stroke();
-              }
-            });
-          this.scrollToElement(bar);
-        }
+        // If this bar is not selected
+        ctx.strokeStyle = bar.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bar.left, bar.top, barWidth, barHeight);
+        bar.subSections.forEach((subSection) => {
+          const left = this.x(subSection.begin);
+          const right = this.x(subSection.end);
+          const width = right - left;
+          ctx.fillStyle = subSection.color;
+          ctx.fillRect(left, bar.top, width, barHeight);
+        });
       });
     },
     scrollToElement(selectedBar) {
