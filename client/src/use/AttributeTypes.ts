@@ -1,5 +1,17 @@
 import { LineChartData } from './useLineChart';
 
+export interface SwimlaneGraph {
+  name: string;
+  filter: AttributeKeyFilter;
+  enabled: boolean;
+  default?: boolean;
+  settings?: Record<string, SwimlaneGraphSettings>;
+}
+
+export interface SwimlaneGraphSettings {
+  displayName: boolean;
+}
+
 export interface TimelineGraphSettings {
     type: LineChartData['type'];
     area: boolean;
@@ -65,6 +77,7 @@ export interface Attribute {
     belongs: 'track' | 'detection';
     datatype: 'text' | 'number' | 'boolean';
     values?: string[];
+    valueColors?: Record<string, string>;
     name: string;
     key: string;
     color?: string;
@@ -89,6 +102,9 @@ export interface AttributeNumberFilter {
 
 export type TimeLineFilter =
     AttributeKeyFilter & { settings? : Record<string, TimelineGraphSettings> };
+
+export type SwimlaneFilter =
+    AttributeKeyFilter & { settings? : Record<string, SwimlaneGraphSettings> };
 
 export interface AttributeStringFilter {
     comp: '=' | '!=' | 'contains' | 'starts';
@@ -127,4 +143,19 @@ export interface TimelineAttribute {
     maxValue?: number;
     avgValue?: number;
     type: Attribute['datatype'];
+  }
+
+export interface SwimlaneData {
+    begin: number;
+    end: number;
+    value: string | boolean | number;
+    color?: string;
+  }
+
+export interface SwimlaneAttribute{
+    type: Attribute['datatype'];
+    name: string;
+    data: SwimlaneData[];
+    displayName?: boolean;
+
   }

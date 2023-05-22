@@ -50,13 +50,13 @@ import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import ImageEnhancementsVue from 'vue-media-annotator/components/ImageEnhancements.vue';
 import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
 import { useStore } from 'platform/web-girder/store/types';
-import AttributeShortcutToggle from './AttributeShortcutToggle.vue';
+import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
 import PrevNext from './PrevNext.vue';
-import AttributesSideBarVue from './AttributesSideBar.vue';
+import AttributesSideBarVue from './Attributes/AttributesSideBar.vue';
 import TypeThresholdVue from './TypeThreshold.vue';
-import AttributeUserReviewVue from './AttributeUserReview.vue';
+import AttributeUserReviewVue from './Attributes/AttributeUserReview.vue';
 import DatasetInfo from './DatasetInfo.vue';
 
 export interface ImageDataItem {
@@ -238,6 +238,7 @@ export default defineComponent({
       attributesList: attributes,
       loadAttributes,
       loadTimelines,
+      loadSwimlanes,
       loadFilters,
       setAttribute,
       deleteAttribute,
@@ -254,7 +255,14 @@ export default defineComponent({
       timelineGraphs,
       timelineEnabled,
       timelineDefault,
-
+      setSwimlaneEnabled,
+      setSwimlaneGraph,
+      setSwimlaneDefault,
+      removeSwimlaneFilter,
+      attributeSwimlaneData,
+      swimlaneGraphs,
+      swimlaneEnabled,
+      swimlaneDefault,
     } = useAttributes({
       markChangesPending,
       trackStyleManager,
@@ -569,6 +577,9 @@ export default defineComponent({
         if (configMeta.timelines) {
           loadTimelines(configMeta.timelines);
         }
+        if (configMeta.swimlanes) {
+          loadSwimlanes(configMeta.swimlanes);
+        }
         if (configMeta.filters) {
           loadFilters(configMeta.filters);
         }
@@ -763,6 +774,14 @@ export default defineComponent({
       timelineGraphs,
       timelineEnabled,
       timelineDefault,
+      setSwimlaneEnabled,
+      setSwimlaneGraph,
+      setSwimlaneDefault,
+      removeSwimlaneFilter,
+      attributeSwimlaneData,
+      swimlaneGraphs,
+      swimlaneEnabled,
+      swimlaneDefault,
     };
 
 

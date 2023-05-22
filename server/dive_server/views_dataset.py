@@ -43,7 +43,6 @@ def config_merge(a, b, path= None):
     return a
 
 
-
 class DatasetResource(Resource):
     """RESTful Dataset resource"""
 
@@ -70,6 +69,7 @@ class DatasetResource(Resource):
         # do we make this another resource in girder?
         self.route("PATCH", (":id", "attributes"), self.patch_attributes)
         self.route("PATCH", (":id", "timelines"), self.patch_timelines)
+        self.route("PATCH", (":id", "swimlanes"), self.patch_swimlanes)
         self.route("PATCH", (":id", "configuration"), self.patch_configuration)
         self.route("PATCH", (":id", "filters"), self.patch_filters)
 
@@ -538,6 +538,20 @@ class DatasetResource(Resource):
     def patch_timelines(self, folder, data):
         return crud_dataset.update_timelines(folder, data, False)
     
+    @access.user
+    @autoDescribeRoute(
+        Description("Update set of possible Swimlane Graphs")
+        .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
+        .jsonParam(
+            "data",
+            description="schema: SwimlaneUpdateArgs",
+            requireObject=True,
+            paramType="body",
+        )
+    )
+    def patch_swimlanes(self, folder, data):
+        return crud_dataset.update_swimlanes(folder, data, False)
+
     @access.user
     @autoDescribeRoute(
         Description("Update Configuration Settings")

@@ -2,7 +2,9 @@
 import { readonly, ref, Ref } from '@vue/composition-api';
 
 import Track, { TrackId } from 'vue-media-annotator/track';
-import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/AttributeTypes';
+import {
+  Attribute, AttributeFilter, SwimlaneGraph, TimelineGraph,
+} from 'vue-media-annotator/use/AttributeTypes';
 
 import { useApi, DatasetMetaMutable } from 'dive-common/apispec';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
@@ -17,6 +19,8 @@ interface ChangeMap {
   groupDelete: Set<AnnotationId>;
   timelineUpsert: Map<string, TimelineGraph>;
   timelineDelete: Set<string>;
+  swimlaneUpsert: Map<string, SwimlaneGraph>;
+  swimlaneDelete: Set<string>;
   filterUpsert: Map<string, AttributeFilter>;
   filterDelete: Set<string>;
   meta: number;
@@ -56,13 +60,15 @@ export default function useSave(
       groupDelete: new Set<AnnotationId>(),
       timelineUpsert: new Map<string, TimelineGraph>(),
       timelineDelete: new Set<string>(),
+      swimlaneUpsert: new Map<string, SwimlaneGraph>(),
+      swimlaneDelete: new Set<string>(),
       filterUpsert: new Map<string, AttributeFilter>(),
       filterDelete: new Set<string>(),
       meta: 0,
     },
   };
   const {
-    saveDetections, saveMetadata, saveAttributes, saveTimelines, saveFilters,
+    saveDetections, saveMetadata, saveAttributes, saveTimelines, saveFilters, saveSwimlanes,
   } = useApi();
 
   async function save(
@@ -124,6 +130,15 @@ export default function useSave(
           pendingChangeMap.timelineDelete.clear();
         }));
       }
+      if (pendingChangeMap.swimlaneUpsert.size || pendingChangeMap.swimlaneDelete.size) {
+        promiseList.push(saveSwimlanes(configurationId.value, {
+          upsert: Array.from(pendingChangeMap.swimlaneUpsert).map((pair) => pair[1]),
+          delete: Array.from(pendingChangeMap.swimlaneDelete),
+        }).then(() => {
+          pendingChangeMap.swimlaneUpsert.clear();
+          pendingChangeMap.swimlaneDelete.clear();
+        }));
+      }
       if (pendingChangeMap.filterUpsert.size || pendingChangeMap.filterDelete.size) {
         promiseList.push(saveFilters(configurationId.value, {
           upsert: Array.from(pendingChangeMap.filterUpsert).map((pair) => pair[1]),
@@ -149,6 +164,7 @@ export default function useSave(
       attribute,
       group,
       timeline,
+      swimlane,
       filter,
       cameraName = 'singleCam',
     }: {
@@ -157,6 +173,7 @@ export default function useSave(
       attribute?: Attribute;
       group?: Group;
       timeline?: TimelineGraph;
+      swimlane?: SwimlaneGraph;
       filter?: AttributeFilter;
       cameraName?: string;
     } = { action: 'meta' },
@@ -205,6 +222,14 @@ export default function useSave(
             pendingChangeMap.timelineUpsert,
             pendingChangeMap.timelineDelete,
           );
+        } else if (swimlane !== undefined) {
+          _updatePendingChangeMap(
+            swimlane.name,
+            swimlane,
+            action,
+            pendingChangeMap.swimlaneUpsert,
+            pendingChangeMap.swimlaneDelete,
+          );
         } else if (filter !== undefined) {
           _updatePendingChangeMap(
             `${filter.belongsTo}_${filter.dataType}_${filter.filterData.appliedTo.join('-')}`,
@@ -249,6 +274,8 @@ export default function useSave(
       groupDelete: new Set<AnnotationId>(),
       timelineUpsert: new Map<string, TimelineGraph>(),
       timelineDelete: new Set<string>(),
+      swimlaneUpsert: new Map<string, SwimlaneGraph>(),
+      swimlaneDelete: new Set<string>(),
       filterUpsert: new Map<string, AttributeFilter>(),
       filterDelete: new Set<string>(),
       meta: 0,

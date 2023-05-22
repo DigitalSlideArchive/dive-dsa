@@ -170,12 +170,11 @@ class RenderingAttributes(BaseModel):
     displayHeight: RenderingDisplayDimension
 
 
-
-
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
     datatype: Literal['text', 'number', 'boolean']
     values: Optional[List[str]]
+    valueColors: Optional[Dict[str, str]]
     name: str
     key: str
     color: Optional[str]
@@ -238,6 +237,16 @@ class TimeLineGraph(BaseModel):
     default: Optional[bool]
     yRange: Optional[List[float]]
     settings: Optional[Dict[str, TimeLineGraphSettings]]
+
+class SwimlaneGraphSettings(BaseModel):
+    displayName: bool
+
+class SwimlaneGraph(BaseModel):
+    enabled: bool
+    name: str
+    filter: AttributeKeyFilter
+    default: Optional[bool]
+    settings: Optional[Dict[str, SwimlaneGraphSettings]]
 
 
 class CustomStyle(BaseModel):
@@ -400,6 +409,7 @@ class MetadataMutable(BaseModel):
     confidenceFilters: Optional[Dict[str, float]]
     attributes: Optional[Dict[str, Attribute]]
     timelines: Optional[Dict[str, TimeLineGraph]]
+    swimlanes: Optional[Dict[str, SwimlaneGraph]]
     filters: Optional[Dict[str, AttributeFilter]]
     configuration: Optional[DIVEConfiguration]
 

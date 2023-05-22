@@ -7,7 +7,8 @@ import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtua
 import { useReadOnlyMode } from 'vue-media-annotator/provides';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import AttributeFilters from 'vue-media-annotator/components/AttributeFilters.vue';
-import AttributeTimeline from 'vue-media-annotator/components/AttributeTimeline.vue';
+import AttributeTimelineNumeric from 'vue-media-annotator/components/AttributeTimelineNumeric.vue';
+import AttributeTimelineString from 'vue-media-annotator/components/AttributeTimelineString.vue';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 
 export default defineComponent({
@@ -16,7 +17,8 @@ export default defineComponent({
   components: {
     StackedVirtualSidebarContainer,
     AttributeFilters,
-    AttributeTimeline,
+    AttributeTimelineNumeric,
+    AttributeTimelineString,
     TooltipBtn,
   },
 
@@ -26,7 +28,7 @@ export default defineComponent({
       default: 300,
     },
     subCategory: {
-      type: String as PropType<'Timeline' | 'Filtering'>,
+      type: String as PropType<'Timeline' | 'Filtering' | 'Swimlane'>,
       required: false,
     },
   },
@@ -35,7 +37,7 @@ export default defineComponent({
     const readOnlyMode = useReadOnlyMode();
     const { visible } = usePrompt();
     const currentMode = ref(props.subCategory);
-    const modes = ref(['Filtering', 'Timeline']);
+    const modes = ref(['Filtering', 'Timeline', 'Swimlane']);
     watch(() => props.subCategory, () => {
       if (props.subCategory !== undefined) {
         currentMode.value = props.subCategory;
@@ -84,6 +86,18 @@ export default defineComponent({
               @click="currentMode = 'Timeline'"
             />
           </div>
+          <div class="mx-1">
+            <tooltip-btn
+              icon="mdi-chart-timeline"
+              tooltip-text="Chart String/Boolean Attributes"
+              size="large"
+              outlined
+              :color="currentMode === 'Swimlane'? 'primary' : 'default'"
+
+              tile
+              @click="currentMode = 'Swimlane'"
+            />
+          </div>
         </v-row>
         <v-divider />
         <attribute-filters
@@ -92,8 +106,13 @@ export default defineComponent({
           :height="bottomHeight"
           :hotkeys-disabled="visible() || readOnlyMode"
         />
-        <attribute-timeline
+        <attribute-timeline-numeric
           v-if="currentMode === 'Timeline'"
+          class="flex-grow-0 flex-shrink-0"
+          :height="bottomHeight"
+        />
+        <attribute-timeline-string
+          v-if="currentMode === 'Swimlane'"
           class="flex-grow-0 flex-shrink-0"
           :height="bottomHeight"
         />

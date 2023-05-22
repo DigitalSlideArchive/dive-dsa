@@ -15,7 +15,7 @@ import {
   useConfiguration,
 } from 'vue-media-annotator/provides';
 import type { Attribute, AttributeFilter } from 'vue-media-annotator/use/AttributeTypes';
-import AttributeInput from 'dive-common/components/AttributeInput.vue';
+import AttributeInput from 'dive-common/components/Attributes/AttributeInput.vue';
 import PanelSubsection from 'dive-common/components/PanelSubsection.vue';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import context from 'dive-common/store/context';
