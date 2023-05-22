@@ -9,7 +9,7 @@ import {
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
   AttributeKeyFilter, TimeLineFilter, TimelineGraph, TimelineGraphSettings,
-} from 'vue-media-annotator/use/useAttributes';
+} from 'vue-media-annotator/use/AttributeTypes';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { useAttributesFilters, useAttributes } from '../provides';
 import TooltipBtn from './TooltipButton.vue';

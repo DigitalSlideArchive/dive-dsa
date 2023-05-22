@@ -1,7 +1,7 @@
 
 # Timeline Visualization ==:material-chart-line-variant:==
 
-The timeline visualization only applies to numeric and detection attributes currently.  It will graph the selected attributes in a chart at the bottom of the screen when a Track is selected. Currently only the selected Track will have it's attributes grahped.
+The timeline visualization only applies to numeric and detection attributes currently.  It will graph the selected attributes in a chart at the bottom of the screen when a Track is selected. Currently only the selected Track will have it's attributes graphed.
 
 A Key Filter is used to determine which attributes to graph.
 

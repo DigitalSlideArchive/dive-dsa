@@ -2,7 +2,7 @@
 import { readonly, ref, Ref } from '@vue/composition-api';
 
 import Track, { TrackId } from 'vue-media-annotator/track';
-import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/useAttributes';
+import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/AttributeTypes';
 
 import { useApi, DatasetMetaMutable } from 'dive-common/apispec';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';

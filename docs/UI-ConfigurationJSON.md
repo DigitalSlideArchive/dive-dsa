@@ -63,7 +63,8 @@ Below is the configuration JSON for a view with all of the items turned off
             "UIImageEnhancements": false,
             "UIGroupManager": false,
             "UIAttributeDetails": false,
-            "UIRevisionHistory": false
+            "UIRevisionHistory": false,
+            "UIDatasetInfo": false
         },
         "UITrackDetails": {
             "UITrackBrowser": false,

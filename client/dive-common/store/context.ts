@@ -7,6 +7,7 @@ import GroupSidebar from 'dive-common/components/GroupSidebar.vue';
 import AttributesSideBar from 'dive-common/components/AttributesSideBar.vue';
 import AtributeUserReview from 'dive-common/components/AttributeUserReview.vue';
 import MultiCamTools from 'dive-common/components/MultiCamTools.vue';
+import DatasetInfo from 'dive-common/components/DatasetInfo.vue';
 
 Vue.use(Install);
 
@@ -28,6 +29,10 @@ const state: ContextState = reactive({
 });
 
 const componentMap: Record<string, ComponentMapItem> = {
+  [DatasetInfo.name]: {
+    description: 'Dataset Info',
+    component: DatasetInfo,
+  },
   [TypeThreshold.name]: {
     description: 'Threshold Controls',
     component: TypeThreshold,

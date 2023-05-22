@@ -2,7 +2,7 @@
 import {
   computed, defineComponent, ref, PropType, Ref,
 } from '@vue/composition-api';
-import { AttributeShortcut } from 'vue-media-annotator/use/useAttributes';
+import { AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
 import { uniq } from 'lodash';

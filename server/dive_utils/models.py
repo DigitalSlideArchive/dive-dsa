@@ -146,6 +146,31 @@ class NumericAttributeOptions(BaseModel):
 class StringAttributeOptions(BaseModel):
     type: Literal['locked', 'freeform']
 
+class RenderingDisplayDimension(BaseModel):
+    type: Literal['px' ,'%', 'auto']
+    val: float
+
+class RenderingAttributes(BaseModel):
+    typeFilter: List[str]
+    selected: Optional[bool]
+    displayName: str
+    displayColor: str
+    displayTextSize: float
+    valueColor: str
+    valueTextSize: str
+    order: int
+    location: Literal['inside', 'outside']
+    box: bool
+    boxColor: str
+    boxThickness: float
+    boxBackground: Optional[str]
+    boxOpacity: Optional[float]
+    layout: Literal['vertical', 'horizontal']
+    displayWidth: RenderingDisplayDimension
+    displayHeight: RenderingDisplayDimension
+
+
+
 
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
@@ -157,7 +182,7 @@ class Attribute(BaseModel):
     user: Optional[bool]
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
-
+    render: Optional[RenderingAttributes]
 
 class AttributeNumberFilter(BaseModel):
     type: Literal['range', 'top']
@@ -278,6 +303,7 @@ class UIContextBar(BaseModel):
     UIGroupManager: Optional[bool]
     UIAttributeDetails: Optional[bool]
     UIRevisionHistory: Optional[bool]
+    UIDatasetInfo: Optional[bool]
 
 
 class UITrackDetails(BaseModel):

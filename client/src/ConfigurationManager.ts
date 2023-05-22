@@ -65,6 +65,7 @@ interface UIContextBar {
     UIAttributeDetails? : boolean;
     UIRevisionHistory? : boolean;
     UITrackList? : boolean;
+    UIDatasetInfo?: boolean;
 }
 
 interface UITrackDetails {
@@ -277,6 +278,7 @@ export default class ConfigurationManager {
 
 
   setUISettings(key: keyof UISettings, val: UIValue) {
+    console.log(this.configuration);
     if (this.configuration.value && !this.configuration.value.UISettings) {
       this.configuration.value.UISettings = {
         UITopBar: true,
