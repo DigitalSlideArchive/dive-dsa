@@ -462,6 +462,9 @@ export default function UseAttributes(
             let val: string | number | boolean | undefined;
             // Get user attribute if it exists:
             const baseAttribute = attributesList.value.find((item) => item.name === key);
+            if (baseAttribute?.datatype === 'number' || key === 'userAttributes') {
+              return;
+            }
             if (baseAttribute?.user && feature.attributes.userAttributes) {
               val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
             } else {

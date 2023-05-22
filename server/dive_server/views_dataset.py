@@ -238,6 +238,7 @@ class DatasetResource(Resource):
                 'configuration': baseFolder.get('meta', {}).get('configuration', {}),
                 'attributes': baseFolder.get('meta', {}).get('attributes', False),
                 'timelines': baseFolder.get('meta', {}).get('timelines', False),
+                'swimlanes': baseFolder.get('meta', {}).get('swimlanes', False),
                 'confidenceFilters': baseFolder.get('meta', {}).get('confidenceFilters', False),
                 'customTypeStyling': baseFolder.get('meta', {}).get('customTypeStyling', False),
                 'customGroupStyling': baseFolder.get('meta', {}).get('customGroupStyling', False),
@@ -261,6 +262,7 @@ class DatasetResource(Resource):
                     'configuration': parentFolder.get('meta', {}).get('configuration', {}),
                     'attributes': parentFolder.get('meta', {}).get('attributes', False),
                     'timelines': parentFolder.get('meta', {}).get('timelines', False),
+                    'swimlanes': parentFolder.get('meta', {}).get('swimlanes', False),
                     'confidenceFilters': parentFolder.get('meta', {}).get('confidenceFilters', False),
                     'customTypeStyling': parentFolder.get('meta', {}).get('customTypeStyling', False),
                     'customGroupStyling': parentFolder.get('meta', {}).get('customGroupStyling', False),
@@ -308,6 +310,7 @@ class DatasetResource(Resource):
         currentAttributes = {}
         currentConfiguration = {}
         currentTimelines = {}
+        currentSwimlanes = {}
         currentConfidenceFilters = {}
         currentCustomTypeStyling = {}
         currentCustomGroupStyling = {}
@@ -321,6 +324,8 @@ class DatasetResource(Resource):
                         currentAttributes = config_merge(item.get('attributes'), currentAttributes)
                     if item.get('timelines', False):
                         currentTimelines = config_merge(item.get('timelines'), currentTimelines)
+                    if item.get('swimlanes', False):
+                        currentSwimlanes = config_merge(item.get('swimlanes'), currentSwimlanes)
                     if item.get('confidenceFilters', False):
                         currentConfidenceFilters = config_merge(item.get('confidenceFilters'), currentConfidenceFilters)
                     if item.get('customTypeStyling', False):
@@ -333,6 +338,7 @@ class DatasetResource(Resource):
             currentConfiguration = baseMetaData.get('configuration', {})
             currentAttributes = baseMetaData.get('attributes', {})
             currentTimelines = baseMetaData.get('timelines', {})
+            currentSwimlanes = baseMetaData.get('swimlanes', {})
             currentConfidenceFilters = baseMetaData.get('confidenceFilters', {})
             currentCustomTypeStyling = baseMetaData.get('customTypeStyling', {})
             currentCustomGroupStyling = baseMetaData.get('customGroupStyling', {})
@@ -344,6 +350,8 @@ class DatasetResource(Resource):
             combinedConfiguration['configuration'] = currentConfiguration
         if bool(currentTimelines):
             combinedConfiguration['timelines'] = currentTimelines
+        if bool(currentSwimlanes):
+            combinedConfiguration['swimlanes'] = currentSwimlanes
         if bool(currentConfidenceFilters):
             combinedConfiguration['confidenceFilters'] = currentConfidenceFilters
         if bool(currentCustomTypeStyling):

@@ -59,7 +59,10 @@ export default defineComponent({
     const hasGroups = computed(
       () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
     );
-    const { timelineEnabled, attributeTimelineData, timelineDefault } = useAttributesFilters();
+    const {
+      timelineEnabled, attributeTimelineData,
+      timelineDefault, swimlaneEnabled, attributeSwimlaneData,
+    } = useAttributesFilters();
     if (timelineDefault.value !== null) {
       currentView.value = timelineDefault.value;
     }
@@ -94,7 +97,18 @@ export default defineComponent({
       });
       return list;
     });
-    const attributeData = computed(() => {
+
+    const enabledSwimlanes = computed(() => {
+      const list: string[] = [];
+      Object.entries(swimlaneEnabled.value).forEach(([key, enabled]) => {
+        if (enabled) {
+          list.push(key);
+        }
+      });
+      return list;
+    });
+
+    const attributeDataTimeline = computed(() => {
       const data: {
         startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[];
       }[] = [];
@@ -114,6 +128,8 @@ export default defineComponent({
 
       return data;
     });
+
+
     /**
      * Toggles on and off the individual timeline views
      * Resizing is handled by the Annator itself.
@@ -143,11 +159,13 @@ export default defineComponent({
       setSpeed,
       ticks,
       hasGroups,
-      attributeData,
+      attributeDataTimeline,
       enabledTimelines,
       selectedTrackIdRef,
       getUISetting,
       timelineDisabled,
+      swimlaneEnabled,
+      attributeSwimlaneData,
     };
   },
 });
@@ -418,9 +436,9 @@ export default defineComponent({
           :margin="margin"
           @select-track="$emit('select-group', $event)"
         />
-        <span v-if="attributeData.length">
+        <span v-if="attributeDataTimeline.length">
           <span
-            v-for="(data, index) in attributeData"
+            v-for="(data, index) in attributeDataTimeline"
             :key="`Timeline_${index}`"
           >
             <line-chart
