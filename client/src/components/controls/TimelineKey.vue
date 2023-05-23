@@ -66,7 +66,7 @@ export default defineComponent({
           >
             <span
               class="key-subitem"
-              :style="{color: subData.color, border: `1px solid ${subData.color}`, height:'20px', marginTop: '8px'}"
+              :style="{color: subData.color, border: `1px solid ${subData.color}`, height:'20px'}"
             >
               {{ subData.value }}</span>
           </v-row>
