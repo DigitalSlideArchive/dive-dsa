@@ -1,6 +1,7 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, computed, watch,
+  defineComponent, ref, PropType, computed, watch, Ref,
 } from '@vue/composition-api';
 import type { DatasetType } from 'dive-common/apispec';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
@@ -11,6 +12,7 @@ import {
   LineChart,
   Timeline,
   AttributeSwimlaneGraph,
+  TimelineKey,
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
@@ -26,6 +28,7 @@ export default defineComponent({
     LineChart,
     Timeline,
     AttributeSwimlaneGraph,
+    TimelineKey,
   },
   props: {
     lineChartData: {
@@ -58,6 +61,7 @@ export default defineComponent({
     const selectedTrackIdRef = useSelectedTrackId();
     const multiCam = ref(cameraStore.camMap.value.size > 1);
     const selectedCamera = useSelectedCamera();
+    const enabledKey = ref(true);
     const hasGroups = computed(
       () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
     );
@@ -148,6 +152,13 @@ export default defineComponent({
     const {
       maxFrame, frame, seek, volume, setVolume, setSpeed, speed,
     } = injectAggregateController().value;
+
+    // Timeline Ref
+    const timelineRef: Ref<typeof Timeline & {$el: HTMLElement} | null> = ref(null);
+    const controlsRef: Ref<typeof Controls & {$el: HTMLElement} | null> = ref(null);
+    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientHeight : 0));
+    const keyTop = computed(() => ((controlsRef.value !== null) ? controlsRef.value.$el.clientHeight : 0));
+    const keyWidth = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientWidth : 0));
     return {
       currentView,
       toggleView,
@@ -169,6 +180,13 @@ export default defineComponent({
       swimlaneEnabled,
       attributeSwimlaneData,
       enabledSwimlanes,
+      // Timeline Ref
+      controlsRef,
+      timelineRef,
+      keyHeight,
+      keyTop,
+      keyWidth,
+      enabledKey,
     };
   },
 });
@@ -179,7 +197,7 @@ export default defineComponent({
     dense
     style="position:absolute; bottom: 0px; padding: 0px; margin:0px;"
   >
-    <Controls>
+    <Controls ref="controlsRef">
       <template
         v-if="!timelineDisabled && getUISetting('UITimeline')"
         slot="timelineControls"
@@ -200,6 +218,25 @@ export default defineComponent({
             </template>
             <span>Collapse/Expand Timeline</span>
           </v-tooltip>
+          <v-tooltip
+            open-delay="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon
+                small
+                :color="enabledKey ? 'primary' : ''"
+                :disabled="!enabledSwimlanes.includes(currentView)"
+                class="ml-2"
+                v-on="on"
+                @click="enabledKey = !enabledKey"
+              >
+                mdi-key
+              </v-icon>
+            </template>
+            <span>Show Legend/Key</span>
+          </v-tooltip>
+
           <span v-if="(!collapsed)">
             <v-btn
               v-if="getUISetting('UIDetections')"
@@ -454,6 +491,7 @@ export default defineComponent({
     </Controls>
     <Timeline
       v-if="(!collapsed) && !timelineDisabled && getUISetting('UITimeline')"
+      ref="timelineRef"
       :max-frame="maxFrame"
       :frame="frame"
       :display="!collapsed"
@@ -570,6 +608,13 @@ export default defineComponent({
         </div>
       </template>
     </Timeline>
+    <timeline-key
+      v-if="enabledKey && enabledSwimlanes.includes(currentView)"
+      :client-height="keyHeight"
+      :client-top="keyTop"
+      :client-width="keyWidth"
+      :data="attributeSwimlaneData[currentView]"
+    />
   </v-col>
 </template>
 

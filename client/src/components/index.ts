@@ -13,6 +13,7 @@ import FileNameTimeDisplay from './controls/FileNameTimeDisplay.vue';
 import LineChart from './controls/LineChart.vue';
 import AttributeSwimlaneGraph from './controls/AttributeSwimlaneGraph.vue';
 import Timeline from './controls/Timeline.vue';
+import TimelineKey from './controls/TimelineKey.vue';
 
 import FilterList from './FilterList.vue';
 import GroupEditor from './GroupEditor.vue';
@@ -39,6 +40,7 @@ export {
   LineChart,
   Timeline,
   AttributeSwimlaneGraph,
+  TimelineKey,
   /* Components */
   FilterList,
   GroupEditor,

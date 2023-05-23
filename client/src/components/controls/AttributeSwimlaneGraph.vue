@@ -1,3 +1,4 @@
+<!-- eslint-disable max-len -->
 <script>
 import Vue from 'vue';
 import { throttle, debounce, sortBy } from 'lodash';
@@ -95,8 +96,9 @@ export default Vue.extend({
           bars.push({
             left: x(barData.startPosition),
             right: x(barData.endPosition),
+            name: barData.name,
             minWidth: frameWidth,
-            top: i * 15 + 3,
+            top: i * 30 + 3,
             color: barData.color,
             length: barData.endPosition - barData.startPosition,
             subSections: barData.subSections,
@@ -122,7 +124,7 @@ export default Vue.extend({
   },
   created() {
     this.update = throttle(this.update, 20);
-    this.detectBarHovering = debounce(this.detectBarHovering, 100);
+    this.detectBarHovering = debounce(this.detectBarHovering, 20);
     this.tooltipTimeoutHandle = null;
   },
   mounted() {
@@ -150,8 +152,8 @@ export default Vue.extend({
         return;
       }
       canvas.width = this.clientWidth + this.margin;
-      canvas.height = bars.slice(-1)[0].top + 15;
-      const barHeight = 10;
+      canvas.height = bars.slice(-1)[0].top + 30;
+      const barHeight = 20;
       bars.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
         // If this bar is not selected
@@ -193,11 +195,11 @@ export default Vue.extend({
     },
     detectBarHovering(e) {
       const { offsetX, offsetY } = e;
-      const remainder = offsetY % 15;
-      if (remainder > 10) {
+      const remainder = offsetY % 30;
+      if (remainder > 20) {
         return;
       }
-      const top = offsetY - (offsetY % 15) + 3;
+      const top = offsetY - (offsetY % 30) + 3;
       const bar = this.bars
         .filter((b) => b.top === top)
         .reverse()
@@ -207,11 +209,17 @@ export default Vue.extend({
         this.hoverTrack = null;
         return;
       }
+      const subSection = bar.subSections.find((b) => offsetX > this.x(b.begin) && offsetX < this.x(b.end));
+      const subDisplay = subSection ? subSection.value : 'None';
+      const subDisplayColor = subSection ? subSection.color : 'transparent';
       this.hoverTrack = bar.id;
       this.tooltip = {
         left: offsetX,
         top: offsetY,
-        content: `${bar.name} (${bar.type})`,
+        contentColor: bar.color,
+        subColor: subDisplayColor,
+        name: bar.name,
+        subDisplay,
       };
     },
   },
@@ -234,7 +242,22 @@ export default Vue.extend({
       class="tooltip"
       :style="tooltipComputed.style"
     >
-      {{ tooltipComputed.content }}
+      <v-row
+        dense
+        class="fill-height"
+      >
+        <span> {{ tooltipComputed.name }}</span>
+        <span
+          class="type-color-box"
+          :style="{backgroundColor: tooltipComputed.contentColor}"
+        />
+        :
+        <span> {{ tooltipComputed.subDisplay }}</span>
+        <span
+          class="type-color-box"
+          :style="{backgroundColor: tooltipComputed.subColor}"
+        />
+      </v-row>
     </div>
   </div>
 </template>
@@ -252,8 +275,17 @@ export default Vue.extend({
     background: black;
     border: 1px solid white;
     padding: 0px 5px;
-    font-size: 14px;
+    font-size: 20px;
+    font-weight: bold;
     z-index: 2;
   }
 }
+.type-color-box {
+  margin-right: 5px;
+  min-width: 10px;
+  max-width: 10px;
+  min-height: 10px;
+  max-height: 10px;
+}
+
 </style>
