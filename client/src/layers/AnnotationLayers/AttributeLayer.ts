@@ -141,7 +141,13 @@ function defaultFormatter(
           y: displayHeight,
           offsetX: 20,
         });
-        const valueColor = currentRender.valueColor === 'auto' ? renderAttr[i].color : currentRender.valueColor;
+        let valueColor = currentRender.valueColor === 'auto' ? renderAttr[i].color : currentRender.valueColor;
+        if (renderAttr[i].datatype === 'text' && currentRender.valueColor === 'auto' && renderAttr[i].valueColors && typeof value === 'string') {
+          const list = renderAttr[i].valueColors;
+          if (list) {
+            valueColor = list[value] || valueColor;
+          }
+        }
         const { valueTextSize } = currentRender;
         if (value === undefined) {
           value = '';

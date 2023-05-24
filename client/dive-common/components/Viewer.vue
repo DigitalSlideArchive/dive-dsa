@@ -263,6 +263,7 @@ export default defineComponent({
       swimlaneGraphs,
       swimlaneEnabled,
       swimlaneDefault,
+      getAttributeValueColor,
     } = useAttributes({
       markChangesPending,
       trackStyleManager,
@@ -782,6 +783,7 @@ export default defineComponent({
       swimlaneGraphs,
       swimlaneEnabled,
       swimlaneDefault,
+      getAttributeValueColor,
     };
 
 

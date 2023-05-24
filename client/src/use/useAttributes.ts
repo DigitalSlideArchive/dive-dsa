@@ -445,6 +445,16 @@ export default function UseAttributes(
     return null;
   });
 
+  const getAttributeValueColor = (attribute: Attribute, val: string) => {
+    if (attribute.datatype === 'text') {
+      if (attribute.valueColors && attribute.valueColors[val]) {
+        return attribute.valueColors[val];
+      }
+    }
+    return trackStyleManager.typeStyling.value.color(val);
+  };
+
+
   // SWIMLANE Settings
   function generateDetectionSwimlaneData(
     track: Track,
@@ -503,10 +513,8 @@ export default function UseAttributes(
             }
             // Now we need to push data in based on values and change only when value changes:
             let color = 'white';
-            if (baseAttribute?.valueColors && baseAttribute.valueColors[key]) {
-              color = baseAttribute.valueColors[key];
-            } else if (typeof val === 'string') {
-              color = trackStyleManager.typeStyling.value.color(val);
+            if (typeof val === 'string' && baseAttribute) {
+              color = getAttributeValueColor(baseAttribute, val);
             } else if (typeof val === 'boolean') {
               color = val ? 'green' : 'red';
             }
@@ -609,7 +617,6 @@ export default function UseAttributes(
 
   const swimlaneEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
-    console.log(swimlaneGraphs.value);
     Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
       filters[key] = graph.enabled;
     });
@@ -655,5 +662,7 @@ export default function UseAttributes(
     swimlaneGraphs,
     swimlaneEnabled,
     swimlaneDefault,
+    // Tools
+    getAttributeValueColor,
   };
 }
