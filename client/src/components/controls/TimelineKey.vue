@@ -24,7 +24,17 @@ export default defineComponent({
     },
   },
   setup() {
+    const uniqueKeys = (data: SwimlaneAttribute['data']) => {
+      const vals: {value: string; color: string}[] = [];
+      data.forEach((item) => {
+        if (vals.findIndex((findItem) => findItem.value === item.value) === -1) {
+          vals.push({ value: item.value.toString(), color: item.color || 'white' });
+        }
+      });
+      return vals;
+    };
     return {
+      uniqueKeys,
     };
   },
 });
@@ -37,8 +47,10 @@ export default defineComponent({
   >
     <v-row
       v-for="(item, key, index) in data"
-      :key="`${key}_${index}`"
+      :key="`${item}_${key}_${index}`"
       style="margin-top:3px"
+      align="center"
+      justify="center"
       dense
     >
       <v-tooltip
@@ -60,8 +72,10 @@ export default defineComponent({
         </template>
         <div>
           <v-row
-            v-for="subData in item.data"
+            v-for="subData in uniqueKeys(item.data)"
             :key="subData.value"
+            align="center"
+            justify="center"
             dense
           >
             <span
@@ -93,6 +107,7 @@ export default defineComponent({
 .key-text {
     width: 100%;
     height:100%;
+    padding-bottom: 5px;
 }
 .customTooltip {
     background: black;

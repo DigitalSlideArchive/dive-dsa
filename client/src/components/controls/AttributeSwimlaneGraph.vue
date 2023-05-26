@@ -245,6 +245,8 @@ export default Vue.extend({
       <v-row
         dense
         class="fill-height"
+        align="center"
+        justify="center"
       >
         <span> {{ tooltipComputed.name }}</span>
         <span
@@ -282,6 +284,7 @@ export default Vue.extend({
 }
 .type-color-box {
   margin-right: 5px;
+  margin-top:5px;
   min-width: 10px;
   max-width: 10px;
   min-height: 10px;

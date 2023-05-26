@@ -110,16 +110,45 @@ export default defineComponent({
     <h3> Attribute Value Colors</h3>
     <v-container class="attribute-colors">
       <v-row
-        v-for="(val,key) in attributeColors"
-        :key="val"
+        align="center"
+        justify="center"
+        style="border: 2px solid white;"
       >
         <v-spacer />
-        <v-col>
-          <div>
-            {{ key }}
+        <v-col
+          cols="3"
+          class="column"
+        >
+          Attribute Value
+        </v-col>
+        <v-col
+          cols="2"
+          class="column"
+        >
+          Color
+        </v-col>
+        <v-spacer />
+      </v-row>
+      <v-row
+        v-for="(val,key) in attributeColors"
+        :key="val"
+        align="center"
+        justify="center"
+        style="border: 1px solid white;"
+      >
+        <v-spacer />
+        <v-col
+          cols="3"
+          class="column"
+        >
+          <div class="value-text">
+            {{ key }}:
           </div>
         </v-col>
-        <v-col>
+        <v-col
+          cols="2"
+          class="column"
+        >
           <div>
             <div
               class="color-box mx-2 mt-2 edit-color-box"
@@ -170,6 +199,12 @@ export default defineComponent({
 </template>
 
 <style lang="scss">
+.column {
+  height: 100%;
+}
+.value-text {
+  font-size: 18px;
+}
 .attribute-colors {
   overflow-y:auto;
   max-height: 600px;
@@ -177,10 +212,10 @@ export default defineComponent({
 .color-box {
   display: inline-block;
   margin-left: 10px;
-  min-width: 30px;
-  max-width: 30px;
-  min-height: 30px;
-  max-height: 30px;
+  min-width: 20px;
+  max-width: 20px;
+  min-height: 20px;
+  max-height: 20px;
 }
 .edit-color-box {
   &:hover {

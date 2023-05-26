@@ -54,9 +54,15 @@ export default defineComponent({
     const store = useStore();
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-    const { attributeFilters, sortAndFilterAttributes, timelineEnabled } = useAttributesFilters();
+    const {
+      attributeFilters, sortAndFilterAttributes,
+      timelineEnabled, swimlaneEnabled,
+    } = useAttributesFilters();
     const timelineActive = computed(
       () => (Object.values(timelineEnabled.value).filter((item) => item).length),
+    );
+    const swimlaneActive = computed(
+      () => (Object.values(swimlaneEnabled.value).filter((item) => item).length),
     );
     const cameraStore = useCameraStore();
     const activeSettings = ref(true);
@@ -164,8 +170,8 @@ export default defineComponent({
     function openFilter() {
       context.openClose('AttributesSideBar', true, 'Filtering');
     }
-    function openTimeline() {
-      context.openClose('AttributesSideBar', true, 'Timeline');
+    function openTimeline(value: 'Timeline' | 'Swimlane') {
+      context.openClose('AttributesSideBar', true, value);
     }
 
     function getAttributeValue(attribute: Attribute) {
@@ -205,6 +211,7 @@ export default defineComponent({
       openFilter,
       openTimeline,
       timelineActive,
+      swimlaneActive,
       filtersActive,
       getUISetting,
     };
@@ -299,7 +306,14 @@ export default defineComponent({
           icon="mdi-chart-line-variant"
           :color="timelineActive ? 'primary' : 'default'"
           tooltip-text="Timeline Settings for Attributes"
-          @click="openTimeline"
+          @click="openTimeline('Timeline')"
+        />
+        <tooltip-btn
+          v-if="mode === 'Detection' && getUISetting('UIAttributeDetails') && user === ''"
+          icon="mdi-chart-timeline"
+          :color="swimlaneActive ? 'primary' : 'default'"
+          tooltip-text="Timeline Settings for Attributes"
+          @click="openTimeline('Swimlane')"
         />
         <div
           v-else
@@ -401,7 +415,7 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .attribute-header {
-  font-size: 12px;
+  font-size: 10px;
 }
 .attribute-item-value {
   max-width: 80%;

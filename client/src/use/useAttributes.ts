@@ -513,10 +513,10 @@ export default function UseAttributes(
             }
             // Now we need to push data in based on values and change only when value changes:
             let color = 'white';
-            if (typeof val === 'string' && baseAttribute) {
+            if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
               color = getAttributeValueColor(baseAttribute, val);
-            } else if (typeof val === 'boolean') {
-              color = val ? 'green' : 'red';
+            } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
+              color = val === 'true' ? 'green' : 'red';
             }
             if (valueMap[key].data.length === 0) {
               // First value
