@@ -138,7 +138,7 @@ export default defineComponent({
 
     /**
      * Toggles on and off the individual timeline views
-     * Resizing is handled by the Annator itself.
+     * Resizing is handled by the Annotator itself.
      */
     function toggleView(type: 'Detections' | 'Events' | 'Groups' | string) {
       currentView.value = type;
@@ -153,12 +153,19 @@ export default defineComponent({
       maxFrame, frame, seek, volume, setVolume, setSpeed, speed,
     } = injectAggregateController().value;
 
-    // Timeline Ref
+    // Timeline Key Sizing and Refs
     const timelineRef: Ref<typeof Timeline & {$el: HTMLElement} | null> = ref(null);
     const controlsRef: Ref<typeof Controls & {$el: HTMLElement} | null> = ref(null);
     const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientHeight : 0));
     const keyTop = computed(() => ((controlsRef.value !== null) ? controlsRef.value.$el.clientHeight : 0));
-    const keyWidth = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientWidth : 0));
+    const keyWidth = ref(0);
+    watch(() => timelineRef.value && timelineRef.value.$el.clientWidth, () => {
+      keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
+    });
+    const updateSizes = () => {
+      keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
+    };
+    const swimlaneOffset = ref(0);
     return {
       currentView,
       toggleView,
@@ -187,6 +194,8 @@ export default defineComponent({
       keyTop,
       keyWidth,
       enabledKey,
+      updateSizes,
+      swimlaneOffset,
     };
   },
 });
@@ -496,6 +505,7 @@ export default defineComponent({
       :frame="frame"
       :display="!collapsed"
       @seek="seek"
+      @resize="updateSizes"
     >
       <template
         #child="{
@@ -550,6 +560,7 @@ export default defineComponent({
               :data="data"
               :client-width="clientWidth"
               :margin="margin"
+              @scroll-swimlane="swimlaneOffset = $event"
             />
             <v-row v-else-if="currentView=== enabledSwimlanes[index]">
               <v-spacer />
@@ -613,6 +624,7 @@ export default defineComponent({
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"
+      :offset="swimlaneOffset"
       :data="attributeSwimlaneData[currentView]"
     />
   </v-col>

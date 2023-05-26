@@ -48,6 +48,7 @@ export default Vue.extend({
       startFrame_: this.startFrame,
       endFrame_: this.endFrame,
       hoverTrack: null,
+      scrollPos: 0,
     };
   },
   computed: {
@@ -132,6 +133,10 @@ export default Vue.extend({
     this.update();
   },
   methods: {
+    recordScroll(ev) {
+      this.recordScroll = ev.target.scrollTop;
+      this.$emit('scroll-swimlane', this.recordScroll);
+    },
     initialize() {
       const width = this.clientWidth;
       const x = d3
@@ -230,6 +235,7 @@ export default Vue.extend({
   <div
     class="event-chart"
     @mousewheel.prevent
+    @scroll="recordScroll"
   >
     <canvas
       ref="canvas"

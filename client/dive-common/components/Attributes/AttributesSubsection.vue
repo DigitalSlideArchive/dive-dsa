@@ -305,14 +305,14 @@ export default defineComponent({
           v-if="mode === 'Detection' && getUISetting('UIAttributeDetails') && user === ''"
           icon="mdi-chart-line-variant"
           :color="timelineActive ? 'primary' : 'default'"
-          tooltip-text="Timeline Settings for Attributes"
+          tooltip-text="Timeline Settings for Detection Attributes"
           @click="openTimeline('Timeline')"
         />
         <tooltip-btn
           v-if="mode === 'Detection' && getUISetting('UIAttributeDetails') && user === ''"
           icon="mdi-chart-timeline"
           :color="swimlaneActive ? 'primary' : 'default'"
-          tooltip-text="Timeline Settings for Attributes"
+          tooltip-text="Swimlane Settings for Detection Attributes"
           @click="openTimeline('Swimlane')"
         />
         <div

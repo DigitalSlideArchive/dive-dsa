@@ -1,6 +1,8 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
-import { defineComponent, PropType } from '@vue/composition-api';
+import {
+  defineComponent, PropType, ref, Ref, watch,
+} from '@vue/composition-api';
 import { SwimlaneAttribute } from 'vue-media-annotator/use/AttributeTypes';
 
 export default defineComponent({
@@ -22,8 +24,12 @@ export default defineComponent({
       type: Object as PropType<Record<string, SwimlaneAttribute>>,
       required: true,
     },
+    offset: {
+      type: Number,
+      default: 0,
+    },
   },
-  setup() {
+  setup(props) {
     const uniqueKeys = (data: SwimlaneAttribute['data']) => {
       const vals: {value: string; color: string}[] = [];
       data.forEach((item) => {
@@ -33,8 +39,15 @@ export default defineComponent({
       });
       return vals;
     };
+    const keyRef: Ref<HTMLElement | null> = ref(null);
+    watch(() => props.offset, () => {
+      if (keyRef.value !== null) {
+        keyRef.value.scrollTop = props.offset;
+      }
+    });
     return {
       uniqueKeys,
+      keyRef,
     };
   },
 });
@@ -42,8 +55,12 @@ export default defineComponent({
 
 <template>
   <div
-    class="key"
-    :style="{top: `${clientTop}px`, height: `${clientHeight-10}px`, right: `${clientWidth}px`}"
+    ref="keyRef"
+    class="key mb-5"
+    :style="{top: `${clientTop}px`, height: `${clientHeight-10}px`, maxHeight: `${clientHeight-10}px`, right: `${clientWidth}px`}"
+    @wheel.prevent
+    @touchmove.prevent
+    @scroll.prevent
   >
     <v-row
       v-for="(item, key, index) in data"
@@ -87,6 +104,7 @@ export default defineComponent({
         </div>
       </v-tooltip>
     </v-row>
+    <v-row class="my-5" />
   </div>
 </template>
 
@@ -127,7 +145,13 @@ export default defineComponent({
     font-size: 15px;
     font-weight: bolder;
     z-index: 2;
-    overflow-y:auto;
+    overflow-y:hidden;
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+
   }
+.key::-webkit-scrollbar{
+  display:none
+}
 
 </style>
