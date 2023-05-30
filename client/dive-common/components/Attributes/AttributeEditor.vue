@@ -9,6 +9,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
+import AttributeValueColors from './AttributeValueColors.vue';
 
 
 export default defineComponent({
@@ -16,6 +17,7 @@ export default defineComponent({
   components: {
     AttributeShortcuts,
     AttributeRendering,
+    AttributeValueColors,
   },
   props: {
     selectedAttribute: {
@@ -33,6 +35,8 @@ export default defineComponent({
     const name: Ref<string> = ref(props.selectedAttribute.name);
     const belongs: Ref<string> = ref(props.selectedAttribute.belongs);
     const datatype: Ref<string> = ref(props.selectedAttribute.datatype);
+    const attributeColors:
+      Ref<Record<string, string> | undefined> = ref(props.selectedAttribute.valueColors);
     const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
     const tempColor = ref(trackStyleManager.typeStyling.value.color(name.value));
@@ -85,6 +89,7 @@ export default defineComponent({
         belongs: belongs.value,
         datatype: datatype.value,
         values: datatype.value === 'text' && values ? values : [],
+        valueColors: attributeColors.value,
         key: `${belongs.value}_${name.value}`,
         editor: editor.value,
         color: color.value ? color.value : tempColor.value,
@@ -198,6 +203,7 @@ export default defineComponent({
       attributeRendering,
       renderingVals,
       currentTab,
+      attributeColors,
       //computed
       textValues,
       shortcuts,
@@ -224,6 +230,9 @@ export default defineComponent({
             <v-tab> Main </v-tab>
             <v-tab> Shortcuts </v-tab>
             <v-tab> Rendering </v-tab>
+            <v-tab v-if="datatype==='text'">
+              Value Colors
+            </v-tab>
           </v-tabs>
         </v-card-title>
 
@@ -404,6 +413,12 @@ export default defineComponent({
               v-if="attributeRendering && renderingVals !== undefined"
               v-model="renderingVals"
               :attribute="selectedAttribute"
+            />
+          </v-tab-item>
+          <v-tab-item v-if="datatype === 'text'">
+            <attribute-value-colors
+              :attribute="selectedAttribute"
+              @save="attributeColors = $event"
             />
           </v-tab-item>
         </v-tabs-items>

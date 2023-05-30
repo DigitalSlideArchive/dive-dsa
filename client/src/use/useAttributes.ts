@@ -11,7 +11,7 @@ import { LineChartData } from './useLineChart';
 import {
   Attribute, AttributeFilter, AttributeKeyFilter,
   AttributeStringFilter, AttributeNumberFilter,
-  TimelineGraph, TimelineAttribute, TimelineGraphSettings, TimeLineFilter,
+  TimelineGraph, TimelineAttribute, TimelineGraphSettings, TimeLineFilter, SwimlaneGraph, SwimlaneFilter, SwimlaneGraphSettings, SwimlaneAttribute,
 } from './AttributeTypes';
 
 /**
@@ -26,6 +26,7 @@ interface UseAttributesParams {
       action: 'upsert' | 'delete';
       attribute?: Attribute;
       timeline?: TimelineGraph;
+      swimlane?: SwimlaneGraph;
       filter?: AttributeFilter;
     }
   ) => void;
@@ -49,6 +50,7 @@ export default function UseAttributes(
   const attributes: Ref<Record<string, Attribute>> = ref({});
   const attributeFilters: Ref<AttributeFilter[]> = ref([]);
   const timelineGraphs: Ref<Record<string, TimelineGraph>> = ref({});
+  const swimlaneGraphs: Ref<Record<string, SwimlaneGraph>> = ref({});
 
   function loadAttributes(metadataAttributes: Record<string, Attribute>) {
     attributes.value = metadataAttributes;
@@ -63,6 +65,11 @@ export default function UseAttributes(
   function loadTimelines(timelines: Record<string, TimelineGraph>) {
     Object.entries(timelines).forEach(([key, item]) => {
       timelineGraphs.value[key] = item;
+    });
+  }
+  function loadSwimlanes(timelines: Record<string, SwimlaneGraph>) {
+    Object.entries(timelines).forEach(([key, item]) => {
+      swimlaneGraphs.value[key] = item;
     });
   }
 
@@ -265,6 +272,7 @@ export default function UseAttributes(
     return filteredAttributes;
   }
 
+  // ATTRIBUTE TIMELINE SECTION
   function generateDetectionTimelineData(
     track: Track,
     filter: TimeLineFilter,
@@ -437,9 +445,196 @@ export default function UseAttributes(
     return null;
   });
 
+  const getAttributeValueColor = (attribute: Attribute, val: string) => {
+    if (attribute.datatype === 'text') {
+      if (attribute.valueColors && attribute.valueColors[val]) {
+        return attribute.valueColors[val];
+      }
+    }
+    return trackStyleManager.typeStyling.value.color(val);
+  };
+
+
+  // SWIMLANE Settings
+  function generateDetectionSwimlaneData(
+    track: Track,
+    filter: SwimlaneFilter,
+    settings?: Record<string, SwimlaneGraphSettings>,
+  ) {
+    // So we need to generate a list of all of the attributres for the length of the track
+    const valueMap: Record<string, SwimlaneAttribute> = { };
+    track.features.forEach((feature) => {
+      const { frame } = feature;
+      let lastValue: string | boolean | number | undefined;
+      if (feature.attributes) {
+        Object.keys(feature.attributes).forEach((key) => {
+          if (feature.attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+            let val: string | number | boolean | undefined;
+            // Get user attribute if it exists:
+            const baseAttribute = attributesList.value.find((item) => item.name === key);
+            if (baseAttribute?.datatype === 'number' || key === 'userAttributes') {
+              return;
+            }
+            if (baseAttribute?.user && feature.attributes.userAttributes) {
+              val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
+            } else {
+              val = feature.attributes[key] as string | number | boolean | undefined;
+            }
+            if (val === undefined) {
+              return;
+            }
+            if (valueMap[key] === undefined) {
+              let dataType: Attribute['datatype'] = 'text';
+              let displayName;
+              if (settings && settings[key]) {
+                displayName = settings[key].displayName;
+              }
+
+              if (typeof (val) === 'number') {
+                dataType = 'number';
+              } else if (typeof (val) === 'boolean') {
+                dataType = 'boolean';
+              }
+              let baseColor = 'white';
+              if (baseAttribute?.color) {
+                baseColor = baseAttribute.color;
+              } else {
+                baseColor = trackStyleManager.typeStyling.value.color(key);
+              }
+              valueMap[key] = {
+                data: [],
+                name: key,
+                color: baseColor,
+                type: dataType,
+                displayName,
+                start: track.begin,
+                end: track.end,
+              };
+            }
+            // Now we need to push data in based on values and change only when value changes:
+            let color = 'white';
+            if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
+              color = getAttributeValueColor(baseAttribute, val);
+            } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
+              color = val === 'true' ? 'green' : 'red';
+            }
+            if (valueMap[key].data.length === 0) {
+              // First value
+              valueMap[key].data.push({
+                begin: frame,
+                end: frame + 1,
+                value: val,
+                color,
+              });
+            } else if (lastValue !== val && valueMap[key].data.length > 0) {
+              valueMap[key].data[valueMap[key].data.length - 1].end = frame;
+              valueMap[key].data.push({
+                begin: frame,
+                end: frame + 1,
+                value: val,
+                color,
+              });
+            }
+            lastValue = val;
+          }
+        });
+      }
+    });
+    return valueMap;
+  }
+
+  const attributeSwimlaneData = computed(() => {
+    const results: Record<string, Record<string, SwimlaneAttribute>> = {};
+    const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
+    if (val !== undefined && selectedTrackId.value !== null) {
+      const vals = Object.entries(swimlaneGraphs.value);
+      vals.forEach(([key, graph]) => {
+        if (graph.enabled) {
+          if (val !== undefined && selectedTrackId.value !== null) {
+            const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
+            if (selectedTrack) {
+              const swimlaneData = generateDetectionSwimlaneData(
+                selectedTrack, graph.filter, graph.settings,
+              );
+              results[key] = swimlaneData;
+            }
+          }
+        }
+      });
+      return results;
+    }
+    return {};
+  });
+  function setSwimlaneEnabled(name: string, val: boolean) {
+    if (swimlaneGraphs.value[name]) {
+      swimlaneGraphs.value[name].enabled = val;
+      markChangesPending({
+        action: 'upsert',
+        swimlane: swimlaneGraphs.value[name],
+      });
+    }
+  }
+
+  function setSwimlaneGraph(name: string, val: SwimlaneGraph) {
+    VueSet(swimlaneGraphs.value, name, val);
+    markChangesPending({
+      action: 'upsert',
+      swimlane: swimlaneGraphs.value[name],
+    });
+  }
+
+  function removeSwimlaneFilter(name: string) {
+    if (swimlaneGraphs.value[name]) {
+      const copy = cloneDeep(swimlaneGraphs.value[name]);
+      VueDel(swimlaneGraphs.value, name);
+      markChangesPending({
+        action: 'delete',
+        swimlane: copy,
+      });
+    }
+  }
+
+  function setSwimlaneDefault(name: string) {
+    if (swimlaneGraphs.value[name]) {
+      swimlaneGraphs.value[name].default = true;
+      VueSet(swimlaneGraphs.value, name, swimlaneGraphs.value[name]);
+      markChangesPending({
+        action: 'upsert',
+        swimlane: swimlaneGraphs.value[name],
+      });
+    }
+    // Unset other default Timelines
+    Object.entries(swimlaneGraphs.value).forEach(([disableName, graph]) => {
+      if (disableName !== name) {
+        markChangesPending({
+          action: 'upsert',
+          swimlane: graph,
+        });
+      }
+    });
+  }
+
+
+  const swimlaneEnabled = computed(() => {
+    const filters: Record<string, boolean> = {};
+    Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
+      filters[key] = graph.enabled;
+    });
+    return filters;
+  });
+
+  const swimlaneDefault = computed(() => {
+    const defVal = Object.entries(swimlaneGraphs.value).find(([_key, item]) => item.default);
+    if (defVal) {
+      return defVal[0];
+    }
+    return null;
+  });
+
   return {
     loadAttributes,
     loadTimelines,
+    loadSwimlanes,
     loadFilters,
     attributesList,
     setAttribute,
@@ -449,6 +644,7 @@ export default function UseAttributes(
     modifyAttributeFilter,
     attributeFilters,
     sortAndFilterAttributes,
+    // Timeline Settings
     setTimelineEnabled,
     setTimelineGraph,
     setTimelineDefault,
@@ -457,5 +653,16 @@ export default function UseAttributes(
     timelineGraphs,
     timelineEnabled,
     timelineDefault,
+    // Swimlane Settings
+    setSwimlaneEnabled,
+    setSwimlaneGraph,
+    setSwimlaneDefault,
+    removeSwimlaneFilter,
+    attributeSwimlaneData,
+    swimlaneGraphs,
+    swimlaneEnabled,
+    swimlaneDefault,
+    // Tools
+    getAttributeValueColor,
   };
 }

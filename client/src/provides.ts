@@ -12,6 +12,8 @@ import type { RectBounds } from './utils';
 import type {
   Attribute,
   AttributeFilter,
+  SwimlaneAttribute,
+  SwimlaneGraph,
   TimelineAttribute,
   TimelineGraph,
 } from './use/AttributeTypes';
@@ -52,6 +54,17 @@ export interface AttributesFilterType {
   timelineGraphs: Readonly<Ref<Record<string, TimelineGraph>>>;
   timelineEnabled: Readonly<Ref<Record<string, boolean>>>;
   timelineDefault: Readonly<Ref<string | null>>;
+  setSwimlaneEnabled: (name: string, val: boolean) => void;
+  setSwimlaneGraph: (name: string, filter: SwimlaneGraph) => void;
+  setSwimlaneDefault: (name: string) => void;
+  removeSwimlaneFilter: (name: string) => void;
+  attributeSwimlaneData:
+  Readonly<Ref<Record<string, Record<string, SwimlaneAttribute>>>>;
+  swimlaneGraphs: Readonly<Ref<Record<string, SwimlaneGraph>>>;
+  swimlaneEnabled: Readonly<Ref<Record<string, boolean>>>;
+  swimlaneDefault: Readonly<Ref<string | null>>;
+  getAttributeValueColor: (attribute: Attribute, val: string) => string;
+
 }
 
 const DatasetIdSymbol = Symbol('datasetID');

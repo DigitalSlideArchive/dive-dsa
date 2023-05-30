@@ -1,6 +1,7 @@
+<!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, computed, watch,
+  defineComponent, ref, PropType, computed, watch, Ref,
 } from '@vue/composition-api';
 import type { DatasetType } from 'dive-common/apispec';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
@@ -10,6 +11,8 @@ import {
   injectAggregateController,
   LineChart,
   Timeline,
+  AttributeSwimlaneGraph,
+  TimelineKey,
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
@@ -24,6 +27,8 @@ export default defineComponent({
     FileNameTimeDisplay,
     LineChart,
     Timeline,
+    AttributeSwimlaneGraph,
+    TimelineKey,
   },
   props: {
     lineChartData: {
@@ -56,10 +61,14 @@ export default defineComponent({
     const selectedTrackIdRef = useSelectedTrackId();
     const multiCam = ref(cameraStore.camMap.value.size > 1);
     const selectedCamera = useSelectedCamera();
+    const enabledKey = ref(true);
     const hasGroups = computed(
       () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
     );
-    const { timelineEnabled, attributeTimelineData, timelineDefault } = useAttributesFilters();
+    const {
+      timelineEnabled, attributeTimelineData,
+      timelineDefault, swimlaneEnabled, attributeSwimlaneData,
+    } = useAttributesFilters();
     if (timelineDefault.value !== null) {
       currentView.value = timelineDefault.value;
     }
@@ -94,7 +103,18 @@ export default defineComponent({
       });
       return list;
     });
-    const attributeData = computed(() => {
+
+    const enabledSwimlanes = computed(() => {
+      const list: string[] = [];
+      Object.entries(swimlaneEnabled.value).forEach(([key, enabled]) => {
+        if (enabled) {
+          list.push(key);
+        }
+      });
+      return list;
+    });
+
+    const attributeDataTimeline = computed(() => {
       const data: {
         startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[];
       }[] = [];
@@ -114,9 +134,11 @@ export default defineComponent({
 
       return data;
     });
+
+
     /**
      * Toggles on and off the individual timeline views
-     * Resizing is handled by the Annator itself.
+     * Resizing is handled by the Annotator itself.
      */
     function toggleView(type: 'Detections' | 'Events' | 'Groups' | string) {
       currentView.value = type;
@@ -130,6 +152,20 @@ export default defineComponent({
     const {
       maxFrame, frame, seek, volume, setVolume, setSpeed, speed,
     } = injectAggregateController().value;
+
+    // Timeline Key Sizing and Refs
+    const timelineRef: Ref<typeof Timeline & {$el: HTMLElement} | null> = ref(null);
+    const controlsRef: Ref<typeof Controls & {$el: HTMLElement} | null> = ref(null);
+    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientHeight : 0));
+    const keyTop = computed(() => ((controlsRef.value !== null) ? controlsRef.value.$el.clientHeight : 0));
+    const keyWidth = ref(0);
+    watch(() => timelineRef.value && timelineRef.value.$el.clientWidth, () => {
+      keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
+    });
+    const updateSizes = () => {
+      keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
+    };
+    const swimlaneOffset = ref(0);
     return {
       currentView,
       toggleView,
@@ -143,11 +179,23 @@ export default defineComponent({
       setSpeed,
       ticks,
       hasGroups,
-      attributeData,
+      attributeDataTimeline,
       enabledTimelines,
       selectedTrackIdRef,
       getUISetting,
       timelineDisabled,
+      swimlaneEnabled,
+      attributeSwimlaneData,
+      enabledSwimlanes,
+      // Timeline Ref
+      controlsRef,
+      timelineRef,
+      keyHeight,
+      keyTop,
+      keyWidth,
+      enabledKey,
+      updateSizes,
+      swimlaneOffset,
     };
   },
 });
@@ -158,7 +206,7 @@ export default defineComponent({
     dense
     style="position:absolute; bottom: 0px; padding: 0px; margin:0px;"
   >
-    <Controls>
+    <Controls ref="controlsRef">
       <template
         v-if="!timelineDisabled && getUISetting('UITimeline')"
         slot="timelineControls"
@@ -179,6 +227,25 @@ export default defineComponent({
             </template>
             <span>Collapse/Expand Timeline</span>
           </v-tooltip>
+          <v-tooltip
+            open-delay="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon
+                small
+                :color="enabledKey ? 'primary' : ''"
+                :disabled="!enabledSwimlanes.includes(currentView)"
+                class="ml-2"
+                v-on="on"
+                @click="enabledKey = !enabledKey"
+              >
+                mdi-key
+              </v-icon>
+            </template>
+            <span>Show Legend/Key</span>
+          </v-tooltip>
+
           <span v-if="(!collapsed)">
             <v-btn
               v-if="getUISetting('UIDetections')"
@@ -275,6 +342,66 @@ export default defineComponent({
                 </v-icon>{{ timelineName }}
               </v-btn>
             </span>
+            <span v-if="enabledSwimlanes.length > 2">
+              <v-menu
+                :close-on-content-click="true"
+                top
+                offset-y
+                nudge-left="3"
+                open-on-hover
+                close-delay="500"
+                open-delay="250"
+                rounded="lg"
+              >
+                <template v-slot:activator="{ on }">
+                  <v-btn
+                    depressed
+                    x-small
+                    :outlined="enabledSwimlanes.includes(currentView)"
+                    v-on="on"
+                  >
+                    <v-icon x-small>mdi-chart-timeline</v-icon>
+                    {{ enabledSwimlanes.includes(currentView) ? currentView : 'Attributes' }}
+                    <v-icon
+                      class="pa-0 pl-2"
+                      x-small
+                    >mdi-chevron-down-box</v-icon>
+                  </v-btn>
+                </template>
+                <v-card outlined>
+                  <v-list dense>
+                    <v-list-item
+                      v-for="swimlaneName in enabledSwimlanes"
+                      :key="swimlaneName"
+                      style="align-items:center"
+                      @click="currentView = swimlaneName"
+                    >
+                      <v-list-item-content>
+                        <v-list-item-title>{{ swimlaneName }}</v-list-item-title>
+                      </v-list-item-content>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-menu>
+            </span>
+            <span v-else>
+              <v-btn
+                v-for="swimlaneName in enabledSwimlanes"
+                :key="swimlaneName"
+                class="ml-1"
+                :class="{'timeline-button':currentView!==swimlaneName || collapsed}"
+                depressed
+                :outlined="currentView===swimlaneName && !collapsed"
+                x-small
+                tab-index="-1"
+                @click="toggleView(swimlaneName)"
+              >
+                <v-icon x-small>
+                  mdi-chart-timeline
+                </v-icon>{{ swimlaneName }}
+              </v-btn>
+            </span>
+
           </span>
         </div>
       </template>
@@ -373,10 +500,12 @@ export default defineComponent({
     </Controls>
     <Timeline
       v-if="(!collapsed) && !timelineDisabled && getUISetting('UITimeline')"
+      ref="timelineRef"
       :max-frame="maxFrame"
       :frame="frame"
       :display="!collapsed"
       @seek="seek"
+      @resize="updateSizes"
     >
       <template
         #child="{
@@ -418,9 +547,43 @@ export default defineComponent({
           :margin="margin"
           @select-track="$emit('select-group', $event)"
         />
-        <span v-if="attributeData.length">
+        <span v-if="attributeSwimlaneData">
           <span
-            v-for="(data, index) in attributeData"
+            v-for="(data, key, index) in attributeSwimlaneData"
+            :key="`Swimlane_${index}`"
+          >
+            <attribute-swimlane-graph
+              v-if="currentView=== enabledSwimlanes[index] && data"
+              :start-frame="startFrame"
+              :end-frame="endFrame"
+              :max-frame="childMaxFrame"
+              :data="data"
+              :client-width="clientWidth"
+              :margin="margin"
+              @scroll-swimlane="swimlaneOffset = $event"
+            />
+            <v-row v-else-if="currentView=== enabledSwimlanes[index]">
+              <v-spacer />
+              <h2>
+                No Data to Graph
+              </h2>
+              <v-spacer />
+            </v-row>
+
+          </span>
+        </span>
+        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
+          <v-row>
+            <v-spacer />
+            <h2>
+              Track needs to be selected to Graph Attributes
+            </h2>
+            <v-spacer />
+          </v-row>
+        </div>
+        <span v-if="attributeDataTimeline.length">
+          <span
+            v-for="(data, index) in attributeDataTimeline"
             :key="`Timeline_${index}`"
           >
             <line-chart
@@ -456,6 +619,14 @@ export default defineComponent({
         </div>
       </template>
     </Timeline>
+    <timeline-key
+      v-if="enabledKey && enabledSwimlanes.includes(currentView)"
+      :client-height="keyHeight"
+      :client-top="keyTop"
+      :client-width="keyWidth"
+      :offset="swimlaneOffset"
+      :data="attributeSwimlaneData[currentView]"
+    />
   </v-col>
 </template>
 

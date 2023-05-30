@@ -4,7 +4,10 @@ import { GroupData } from 'vue-media-annotator/Group';
 
 import { use } from 'vue-media-annotator/provides';
 import { TrackData } from 'vue-media-annotator/track';
-import { Attribute, AttributeFilter, TimelineGraph } from 'vue-media-annotator/use/AttributeTypes';
+import {
+  Attribute, AttributeFilter,
+  SwimlaneGraph, TimelineGraph,
+} from 'vue-media-annotator/use/AttributeTypes';
 import { CustomStyle } from 'vue-media-annotator/StyleManager';
 import { Configuration, DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 
@@ -48,6 +51,10 @@ interface SaveAttributeArgs {
 interface SaveTimelineArgs {
   delete: string[];
   upsert: TimelineGraph[];
+}
+interface SaveSwimlaneArgs {
+  delete: string[];
+  upsert: SwimlaneGraph[];
 }
 
 interface SaveFilterArgs {
@@ -110,10 +117,11 @@ interface DatasetMetaMutable {
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
   timelines?: Readonly<Record<string, TimelineGraph>>;
+  swimlanes?: Readonly<Record<string, SwimlaneGraph>>;
   filters?: Readonly<Record<string, AttributeFilter>>;
   configuration?: Configuration;
 }
-const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'timelines'];
+const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'timelines', 'swimlanes'];
 
 
 interface DatasetMeta {
@@ -141,6 +149,7 @@ interface Api {
   saveMetadata(datasetId: string, metadata: DatasetMetaMutable): Promise<unknown>;
   saveAttributes(datasetId: string, args: SaveAttributeArgs): Promise<unknown>;
   saveTimelines(datasetId: string, args: SaveTimelineArgs): Promise<unknown>;
+  saveSwimlanes(datasetId: string, args: SaveSwimlaneArgs): Promise<unknown>;
   saveFilters(datasetId: string, args: SaveFilterArgs): Promise<unknown>;
   saveConfiguration(datasetId: string, args: DiveConfiguration['metadata']['configuration']): Promise<unknown>;
   transferConfiguration(source: string, dest: string): Promise<unknown>;
@@ -184,6 +193,7 @@ export {
   SaveDetectionsArgs,
   SaveAttributeArgs,
   SaveTimelineArgs,
+  SaveSwimlaneArgs,
   SaveFilterArgs,
   MultiCamMedia,
   MediaImportResponse,

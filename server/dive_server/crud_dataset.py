@@ -219,6 +219,13 @@ class TimelineUpdateArgs(BaseModel):
     class Config:
         extra = 'forbid'
 
+class SwimlaneUpdateArgs(BaseModel):
+    upsert: List[models.SwimlaneGraph] = []
+    delete: List[str] = []
+
+    class Config:
+        extra = 'forbid'
+
 class FilterUpdateArgs(BaseModel):
     upsert: List[models.AttributeFilter] = []
     delete: List[str] = []
@@ -244,6 +251,29 @@ def update_timelines(dsFolder: types.GirderModel, data: dict, verify=True):
 
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'timelines': timelines_dict}, verify)
+
+    return {
+        "updated": upserted_len,
+        "deleted": deleted_len,
+    }
+
+def update_swimlanes(dsFolder: types.GirderModel, data: dict, verify=True):
+    """Upsert or delete attributes"""
+    if verify:
+        crud.verify_dataset(dsFolder)
+    validated: SwimlaneUpdateArgs = crud.get_validated_model(SwimlaneUpdateArgs, **data)
+    swimlanes_dict = fromMeta(dsFolder, 'swimlanes', {})
+
+    for swimlane_id in validated.delete:
+        swimlanes_dict.pop(str(swimlane_id), None)
+    for swimlane in validated.upsert:
+        swimlanes_dict[str(swimlane.name)] = swimlane.dict(exclude_none=True)
+
+    upserted_len = len(validated.upsert)
+    deleted_len = len(validated.delete)
+
+    if upserted_len or deleted_len:
+        update_metadata(dsFolder, {'swimlanes': swimlanes_dict}, verify)
 
     return {
         "updated": upserted_len,

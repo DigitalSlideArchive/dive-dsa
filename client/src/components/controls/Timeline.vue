@@ -131,6 +131,7 @@ export default {
       // Debounces resize to prevent it from be calling continuously.
       clearTimeout(this.resizeTimer);
       this.resizeTimer = setTimeout(this.initialize, 200);
+      this.$nextTick(() => this.$emit('resize'));
     },
     onwheel(e) {
       if (e.shiftKey) {

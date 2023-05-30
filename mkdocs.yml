@@ -63,6 +63,7 @@ nav:
         - Attributes: UI-Attributes.md
         - Attribute Filtering: UI-AttributeFiltering.md
         - Attribute Timeline: UI-AttributeTimeline.md
+        - Attribute Swimlane: UI-AttributeSwimlanes.md
         - Attribute Rendering: UI-AttributeRendering.md
       - Group Manager: UI-Group-Manager.md    
       - Dataset Info: UI-DatasetInfo.md

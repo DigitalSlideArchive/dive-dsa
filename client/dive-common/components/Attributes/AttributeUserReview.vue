@@ -5,7 +5,7 @@ import {
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { useAttributes, useCameraStore } from 'vue-media-annotator/provides';
-import AttributeSubsection from 'dive-common/components/AttributesSubsection.vue';
+import AttributeSubsection from 'dive-common/components/Attributes/AttributesSubsection.vue';
 
 export default defineComponent({
   name: 'AttributeUserReview',

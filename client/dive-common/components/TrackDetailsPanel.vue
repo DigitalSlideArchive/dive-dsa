@@ -28,9 +28,9 @@ import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import TypePicker from 'vue-media-annotator/components/TypePicker.vue';
 import RangeEditor from 'vue-media-annotator/components/RangeEditor.vue';
 
-import AttributeInput from 'dive-common/components/AttributeInput.vue';
-import AttributeEditor from 'dive-common/components/AttributeEditor.vue';
-import AttributeSubsection from 'dive-common/components/AttributesSubsection.vue';
+import AttributeInput from 'dive-common/components/Attributes/AttributeInput.vue';
+import AttributeEditor from 'dive-common/components/Attributes/AttributeEditor.vue';
+import AttributeSubsection from 'dive-common/components/Attributes/AttributesSubsection.vue';
 import ConfidenceSubsection from 'dive-common/components/ConfidenceSubsection.vue';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
