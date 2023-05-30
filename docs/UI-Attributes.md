@@ -104,7 +104,13 @@ In the upper right of the screen the keyboard icon is used to toggle on/off syst
 The info icon next to it will display a list of possible shortcuts that are set and will use the Description to explain what a shortcut does.
 
 
+## Attribute Value Colors
 
+![Edit Attribute Value Colors](images/Attributes/AttributeValueColors.png)
+
+Attributes that are of type text can have their colors preset and saved in the configuration file.  If your Attribute type is of type Text you have an additional tab that allows you to set the color for each state that is calculated to be in the system.
+
+These colors can be used in the Attribute Rendering or the Swimlane views for attributes to properly render the system.
 
 
 ## Setting Attribute Values

@@ -120,6 +120,7 @@ function openClose(active: string, action: boolean, subCategory?: string) {
   if (subCategory) {
     state.subCategory = subCategory;
   }
+  window.dispatchEvent(new Event('resize'));
 }
 
 export default {
