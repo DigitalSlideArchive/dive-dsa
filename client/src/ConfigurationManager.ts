@@ -1,6 +1,7 @@
 import { ref, Ref } from '@vue/composition-api';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
+import { TimeLineFilter } from './use/AttributeTypes';
 
 export interface DiveConfiguration {
   prevNext?: {
@@ -124,6 +125,7 @@ export interface Configuration {
   UISettings?: UISettings;
   actions?: DIVEAction[];
   shortcuts?: DIVEActionShortcut[];
+  filterTimelines?: TimeLineFilter[];
 }
 
 function flatMapGenerator(data: any, rootKey = '') {

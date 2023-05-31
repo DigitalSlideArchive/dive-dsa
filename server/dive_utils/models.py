@@ -392,12 +392,22 @@ class DIVEShortcut(BaseModel):
     description: str
     actions: List[DIVEActions]
 
+class FilterTimeline(BaseModel):
+    name: str
+    enabled: bool
+    typeFilter: Optional[List[str]]
+    frameRange: Optional[List[int]]
+    attributes: Optional[AttributeSelectAction]
+    confidenceFilter: Optional[float]
+    type: Optional[Literal['swimlane', 'detection']]
+
 
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]
     UISettings: Optional[UISettings]
     actions: Optional[List[DIVEActions]]
     shortcuts: Optional[List[DIVEShortcut]]
+    filterTimelines: Optional[List[FilterTimeline]]
 
 
 class MetadataMutable(BaseModel):
