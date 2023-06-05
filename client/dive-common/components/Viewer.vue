@@ -50,6 +50,8 @@ import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import ImageEnhancementsVue from 'vue-media-annotator/components/ImageEnhancements.vue';
 import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
 import { useStore } from 'platform/web-girder/store/types';
+import UseTimelineFilters from 'vue-media-annotator/use/useTimelineFilters';
+import { checkAttributes } from 'dive-common/use/useActions';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -305,6 +307,13 @@ export default defineComponent({
       }),
     });
 
+    const useTimelineFilters = UseTimelineFilters({
+      enabledTracks: trackFilters.enabledAnnotations,
+      selectedTrackIds: allSelectedIds,
+      typeStyling: trackStyleManager.typeStyling,
+      checkAttributes,
+    });
+
     async function trackSplit(trackId: AnnotationId | null, frame: number) {
       if (typeof trackId === 'number') {
         const track = cameraStore.getTrack(trackId, selectedCamera.value);
@@ -546,6 +555,9 @@ export default defineComponent({
             configurationManager.setConfigurationId(
               config.diveConfig.metadata.configuration.general.baseConfiguration,
             );
+          }
+          if (config.diveConfig.metadata.configuration.filterTimelines) {
+            useTimelineFilters.loadFilterTimelines(config.diveConfig.metadata.configuration.filterTimelines);
           }
         }
         const flatUIMap = configurationManager.getFlatUISettingMap();
@@ -814,6 +826,7 @@ export default defineComponent({
       },
       globalHandler,
       useAttributeFilters,
+      useTimelineFilters,
     );
 
     const { visible } = usePrompt();

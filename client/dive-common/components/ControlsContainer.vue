@@ -17,7 +17,7 @@ import {
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
-  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId,
+  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId, useTimelineFilters,
 } from '../../src/provides';
 
 export default defineComponent({
@@ -69,6 +69,7 @@ export default defineComponent({
       timelineEnabled, attributeTimelineData,
       timelineDefault, swimlaneEnabled, attributeSwimlaneData,
     } = useAttributesFilters();
+    const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     if (timelineDefault.value !== null) {
       currentView.value = timelineDefault.value;
     }
@@ -196,6 +197,9 @@ export default defineComponent({
       enabledKey,
       updateSizes,
       swimlaneOffset,
+      //filter Timelines
+      enabledFilterTimelines,
+      timelineFilterMap,
     };
   },
 });
@@ -283,6 +287,22 @@ export default defineComponent({
             >
               Groups
             </v-btn>
+            <v-btn
+              v-for="item in enabledFilterTimelines"
+              :key="`${item.name}`"
+              class="ml-1"
+              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
+              depressed
+              :outlined="currentView==='Groups' && !collapsed"
+              x-small
+              tab-index="-1"
+              @click="toggleView(item.name)"
+            >
+              <v-icon x-small>
+                mdi-filter
+              </v-icon>{{ item.name }}
+            </v-btn>
+
             <span v-if="enabledTimelines.length > 2">
               <v-menu
                 :close-on-content-click="true"
@@ -617,6 +637,23 @@ export default defineComponent({
             <v-spacer />
           </v-row>
         </div>
+        <span v-if="attributeSwimlaneData">
+          <span
+            v-for="(item) in enabledFilterTimelines"
+            :key="`filter_timeline_${item.name}`"
+          >
+            <event-chart
+              v-if="currentView===item.name && timelineFilterMap[item.name]"
+              :start-frame="startFrame"
+              :end-frame="endFrame"
+              :max-frame="childMaxFrame"
+              :data="timelineFilterMap[item.name]"
+              :client-width="clientWidth"
+              :margin="margin"
+              @select-track="$emit('select-group', $event)"
+            />
+          </span>
+        </span>
       </template>
     </Timeline>
     <timeline-key

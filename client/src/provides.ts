@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import {
   provide, inject, ref, Ref, reactive,
 } from '@vue/composition-api';
@@ -23,6 +24,8 @@ import TrackFilterControls from './TrackFilterControls';
 import GroupFilterControls from './GroupFilterControls';
 import CameraStore from './CameraStore';
 import ConfigurationManager from './ConfigurationManager';
+import { EventChartData } from './use/useEventChart';
+import type { FilterTimeline } from './use/useTimelineFilters';
 
 
 /**
@@ -65,6 +68,14 @@ export interface AttributesFilterType {
   swimlaneDefault: Readonly<Ref<string | null>>;
   getAttributeValueColor: (attribute: Attribute, val: string) => string;
 
+}
+
+const TimelineFiltersSymbol = Symbol('timelineFilters');
+export interface TimelineFiltersType {
+  eventChartDataMap: Readonly<Ref<Record<string, {muted: boolean; values: EventChartData[]}>>>;
+  timelines: Readonly<Ref<FilterTimeline[]>>;
+  enabledTimelines: Readonly<Ref<FilterTimeline[]>>;
+  loadFilterTimelines: (timelines: FilterTimeline[]) => void;
 }
 
 const DatasetIdSymbol = Symbol('datasetID');
@@ -335,7 +346,7 @@ function dummyState(): State {
  * @param {Handler} handler
  * @param {}
  */
-function provideAnnotator(state: State, handler: Handler, attributesFilters: AttributesFilterType) {
+function provideAnnotator(state: State, handler: Handler, attributesFilters: AttributesFilterType, timelineFilters: TimelineFiltersType) {
   provide(AnnotatorPreferencesSymbol, state.annotatorPreferences);
   provide(AttributesSymbol, state.attributes);
   provide(CameraStoreSymbol, state.cameraStore);
@@ -360,6 +371,7 @@ function provideAnnotator(state: State, handler: Handler, attributesFilters: Att
   provide(ImageEnhancementsSymbol, state.imageEnhancements);
   provide(HandlerSymbol, handler);
   provide(AttributesFilterSymbol, attributesFilters);
+  provide(TimelineFiltersSymbol, timelineFilters);
 }
 
 function _handleMissing(s: symbol): Error {
@@ -384,6 +396,10 @@ function useAttributes() {
 
 function useAttributesFilters() {
   return use<AttributesFilterType>(AttributesFilterSymbol);
+}
+
+function useTimelineFilters() {
+  return use<TimelineFiltersType>(TimelineFiltersSymbol);
 }
 
 function useCameraStore() {
@@ -499,4 +515,5 @@ export {
   useReadOnlyMode,
   useImageEnhancements,
   useAttributesFilters,
+  useTimelineFilters,
 };

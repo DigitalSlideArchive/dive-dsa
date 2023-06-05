@@ -5,7 +5,7 @@ import { AnnotationWithContext } from 'vue-media-annotator/BaseFilterControls';
 import { TypeStyling } from 'vue-media-annotator/StyleManager';
 import { intersection } from 'lodash';
 import { AttributeMatch, AttributeSelectAction } from '../../dive-common/use/useActions';
-import { Group, Track } from '..';
+import { Track } from '..';
 import { EventChartData } from './useEventChart';
 
 
@@ -104,7 +104,7 @@ export default function UseTimelineFilters<T extends BaseAnnotation>(
 ) {
   const timelines: Ref<FilterTimeline[]> = ref([]);
 
-  const loadData = (data: FilterTimeline[]) => {
+  const loadFilterTimelines = (data: FilterTimeline[]) => {
     timelines.value = data;
   };
 
@@ -112,13 +112,13 @@ export default function UseTimelineFilters<T extends BaseAnnotation>(
 
   // Create a mapping between timeline name and eventChart data for the timeline
   const eventChartDataMap = computed(() => {
-    const eventChartMap: Record<string, EventChartData[]> = {};
+    const eventChartMap: Record<string, {muted: boolean; values: EventChartData[]}> = {};
     const mapfunc = typeStyling.value.color;
     const selectedTrackIdsValue = selectedTrackIds.value;
     timelines.value.forEach((timeline) => {
       if (timeline.enabled) {
         // we calculate which tracks meet the criteria
-        eventChartMap[timeline.name] = [];
+        eventChartMap[timeline.name] = { muted: false, values: [] };
         const filteredTracks = filterFromTimeline(enabledTracks.value, timeline, checkAttributes);
         filteredTracks.forEach((filtered) => {
           // We only want to use Tracks that match the filter specified for the timelines that exist.
@@ -131,7 +131,7 @@ export default function UseTimelineFilters<T extends BaseAnnotation>(
           }
           if (confidencePairs.length) {
             const trackType = track.getType(filtered.context.confidencePairIndex)[0];
-            eventChartMap[timeline.name].push({
+            eventChartMap[timeline.name].values.push({
               id: track.id,
               name: `Track ${track.id}`,
               type: trackType,
@@ -147,14 +147,7 @@ export default function UseTimelineFilters<T extends BaseAnnotation>(
     return eventChartMap;
   });
 
-  const setTimeline = (timeline: FilterTimeline) => {
-    const index = timelines.value.findIndex((item: FilterTimeline) => (item.name === timeline.name));
-    if (index !== -1) {
-      timelines.value.splice(index, 1);
-    }
-  };
-
   return {
-    eventChartDataMap, timelines, loadData, enabledTimelines, setTimeline,
+    eventChartDataMap, timelines, loadFilterTimelines, enabledTimelines,
   };
 }
