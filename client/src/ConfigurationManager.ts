@@ -1,7 +1,7 @@
 import { ref, Ref } from '@vue/composition-api';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
-import { TimeLineFilter } from './use/AttributeTypes';
+import type { FilterTimeline } from './use/useTimelineFilters';
 
 export interface DiveConfiguration {
   prevNext?: {
@@ -125,7 +125,7 @@ export interface Configuration {
   UISettings?: UISettings;
   actions?: DIVEAction[];
   shortcuts?: DIVEActionShortcut[];
-  filterTimelines?: TimeLineFilter[];
+  filterTimelines?: FilterTimeline[];
 }
 
 function flatMapGenerator(data: any, rootKey = '') {
@@ -280,7 +280,6 @@ export default class ConfigurationManager {
 
 
   setUISettings(key: keyof UISettings, val: UIValue) {
-    console.log(this.configuration);
     if (this.configuration.value && !this.configuration.value.UISettings) {
       this.configuration.value.UISettings = {
         UITopBar: true,
@@ -366,6 +365,36 @@ export default class ConfigurationManager {
       } else if (shortcuts[index]) {
         const newShortcuts = shortcuts.splice(index, 1);
         this.configuration.value.shortcuts = newShortcuts;
+      }
+    }
+  }
+
+  updateFilterTimeline(val: FilterTimeline, index: number) {
+    if (this.configuration.value && !this.configuration.value?.filterTimelines) {
+      this.configuration.value.filterTimelines = [];
+    }
+    if (this.configuration.value?.filterTimelines) {
+      const { filterTimelines } = this.configuration.value;
+      if (filterTimelines && filterTimelines[index]) {
+        filterTimelines[index] = val;
+      } else {
+        filterTimelines.push(val);
+      }
+      this.configuration.value.filterTimelines = filterTimelines;
+    }
+  }
+
+  removeFilterTimeline(index: number) {
+    if (this.configuration.value && !this.configuration.value?.filterTimelines) {
+      this.configuration.value.filterTimelines = [];
+    }
+    if (this.configuration.value?.filterTimelines) {
+      const { filterTimelines } = this.configuration.value;
+      if (filterTimelines.length === 1) {
+        this.configuration.value.filterTimelines = [];
+      } else if (filterTimelines[index]) {
+        const newFilterTimelines = filterTimelines.splice(index, 1);
+        this.configuration.value.filterTimelines = newFilterTimelines;
       }
     }
   }

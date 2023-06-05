@@ -8,6 +8,7 @@ import ActionShortcuts from './ActionEditors/ActionShortcuts.vue';
 import TrackFilter from './ActionEditors/TrackFilter.vue';
 import ConfigurationSettings from './configurationEditors/configurationSettings.vue';
 import GeneralConfiguration from './configurationEditors/generalConfiguration.vue';
+import TimelineSettings from './configurationEditors/TimelineSettings.vue';
 import UiSettings from './configurationEditors/uiSettings.vue';
 
 export default defineComponent({
@@ -19,6 +20,7 @@ export default defineComponent({
     TrackFilter,
     ActionEditorSettings,
     ActionShortcuts,
+    TimelineSettings,
   },
   props: {
     buttonOptions: {
@@ -113,6 +115,9 @@ export default defineComponent({
           </v-row>
           <v-row>
             <action-shortcuts />
+          </v-row>
+          <v-row>
+            <timeline-settings />
           </v-row>
         </v-card-text>
       </v-card>

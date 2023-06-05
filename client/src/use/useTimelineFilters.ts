@@ -98,13 +98,17 @@ function filterFromTimeline(trackList: AnnotationWithContext<Track>[], filter: F
 }
 
 export default function UseTimelineFilters<T extends BaseAnnotation>(
-  { enabledTracks, selectedTrackIds, typeStyling, checkAttributes }: TimelineFilterParams<T>,
+  {
+    enabledTracks, selectedTrackIds, typeStyling, checkAttributes,
+  }: TimelineFilterParams<T>,
 ) {
   const timelines: Ref<FilterTimeline[]> = ref([]);
 
   const loadData = (data: FilterTimeline[]) => {
     timelines.value = data;
   };
+
+  const enabledTimelines = computed(() => (timelines.value.filter((item) => (item.enabled))));
 
   // Create a mapping between timeline name and eventChart data for the timeline
   const eventChartDataMap = computed(() => {
@@ -143,5 +147,14 @@ export default function UseTimelineFilters<T extends BaseAnnotation>(
     return eventChartMap;
   });
 
-  return { eventChartDataMap, timelines, loadData };
+  const setTimeline = (timeline: FilterTimeline) => {
+    const index = timelines.value.findIndex((item: FilterTimeline) => (item.name === timeline.name));
+    if (index !== -1) {
+      timelines.value.splice(index, 1);
+    }
+  };
+
+  return {
+    eventChartDataMap, timelines, loadData, enabledTimelines, setTimeline,
+  };
 }
