@@ -1,11 +1,8 @@
 <script lang="ts">
 import {
-  computed,
-  defineComponent, ref,
+  defineComponent, ref, Ref,
 } from '@vue/composition-api';
-import { Configuration, UISettings } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration } from 'vue-media-annotator/provides';
-import { TimeLineFilter } from 'vue-media-annotator/use/AttributeTypes';
 import { FilterTimeline } from 'vue-media-annotator/use/useTimelineFilters';
 import TimelineFilterSettings from './TimelineFilterSettings.vue';
 
