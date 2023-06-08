@@ -100,6 +100,7 @@ export default defineComponent({
 
       if (addNew) {
         emit('save', { data, close });
+        addNew = false;
       } else {
         emit('save', { data, oldAttribute: props.selectedAttribute, close });
       }
