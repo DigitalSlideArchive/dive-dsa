@@ -654,10 +654,19 @@ export default defineComponent({
             />
           </span>
         </span>
+        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
+          <v-row>
+            <v-spacer />
+            <h2>
+              Track needs to be selected to show Swimlane Attributes
+            </h2>
+            <v-spacer />
+          </v-row>
+        </div>
       </template>
     </Timeline>
     <timeline-key
-      v-if="enabledKey && enabledSwimlanes.includes(currentView)"
+      v-if="enabledKey && enabledSwimlanes.includes(currentView) && attributeSwimlaneData[currentView]"
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"
