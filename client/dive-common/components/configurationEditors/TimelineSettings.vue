@@ -58,7 +58,8 @@ export default defineComponent({
     };
 
     const saveChanges = () => {
-      const id = configMan.configuration.value?.general?.baseConfiguration;
+      const id = configMan.configuration.value?.general?.baseConfiguration
+         || (configMan.hierarchy.value?.length ? configMan.hierarchy.value[0].id : null);
       const config = configMan.configuration;
       if (id && config.value) {
         configMan.saveConfiguration(id, config.value);
