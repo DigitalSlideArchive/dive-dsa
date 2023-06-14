@@ -401,6 +401,17 @@ class FilterTimeline(BaseModel):
     confidenceFilter: Optional[float]
     type: Optional[Literal['swimlane', 'detection']]
 
+class TimelineDisplay(BaseModel):
+    maxHeight: float
+    order: int
+    name: str
+    dismissable: bool
+    type: Literal['event', 'detections', 'filter', 'swimlane', 'graph']
+
+class TimelineConfiguration(BaseModel):
+    maxHeight: float
+    timelines: List[TimelineDisplay]
+
 
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]
@@ -408,6 +419,7 @@ class DIVEConfiguration(BaseModel):
     actions: Optional[List[DIVEActions]]
     shortcuts: Optional[List[DIVEShortcut]]
     filterTimelines: Optional[List[FilterTimeline]]
+    timelineConfigs: Optional[TimelineConfiguration]
 
 
 class MetadataMutable(BaseModel):

@@ -16,6 +16,8 @@ import {
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import TimelineButtons from './TimelineButtons.vue';
+import TimelineCharts from './TimelineCharts.vue';
 import {
   useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId, useTimelineFilters,
 } from '../../src/provides';
@@ -29,6 +31,8 @@ export default defineComponent({
     Timeline,
     AttributeSwimlaneGraph,
     TimelineKey,
+    TimelineButtons,
+    TimelineCharts,
   },
   props: {
     lineChartData: {
@@ -249,180 +253,13 @@ export default defineComponent({
             </template>
             <span>Show Legend/Key</span>
           </v-tooltip>
-
-          <span v-if="(!collapsed)">
-            <v-btn
-              v-if="getUISetting('UIDetections')"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Detections' || collapsed}"
-              depressed
-              :outlined="currentView==='Detections' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView('Detections')"
-            >
-              Detections
-            </v-btn>
-            <v-btn
-              v-if="getUISetting('UIEvents')"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Events' || collapsed}"
-              depressed
-              :outlined="currentView==='Events' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView('Events')"
-            >
-              Events
-            </v-btn>
-            <v-btn
-              v-if="!multiCam && hasGroups"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
-              depressed
-              :outlined="currentView==='Groups' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView('Groups')"
-            >
-              Groups
-            </v-btn>
-            <v-btn
-              v-for="item in enabledFilterTimelines"
-              :key="`${item.name}`"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
-              depressed
-              :outlined="currentView==='Groups' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView(item.name)"
-            >
-              <v-icon x-small>
-                mdi-filter
-              </v-icon>{{ item.name }}
-            </v-btn>
-
-            <span v-if="enabledTimelines.length > 2">
-              <v-menu
-                :close-on-content-click="true"
-                top
-                offset-y
-                nudge-left="3"
-                open-on-hover
-                close-delay="500"
-                open-delay="250"
-                rounded="lg"
-              >
-                <template v-slot:activator="{ on }">
-                  <v-btn
-                    depressed
-                    x-small
-                    :outlined="enabledTimelines.includes(currentView)"
-                    v-on="on"
-                  >
-                    <v-icon x-small>mdi-chart-line-variant</v-icon>
-                    {{ enabledTimelines.includes(currentView) ? currentView : 'Attributes' }}
-                    <v-icon
-                      class="pa-0 pl-2"
-                      x-small
-                    >mdi-chevron-down-box</v-icon>
-                  </v-btn>
-                </template>
-                <v-card outlined>
-                  <v-list dense>
-                    <v-list-item
-                      v-for="timelineName in enabledTimelines"
-                      :key="timelineName"
-                      style="align-items:center"
-                      @click="currentView = timelineName"
-                    >
-                      <v-list-item-content>
-                        <v-list-item-title>{{ timelineName }}</v-list-item-title>
-                      </v-list-item-content>
-                    </v-list-item>
-                  </v-list>
-                </v-card>
-              </v-menu>
-            </span>
-            <span v-else>
-              <v-btn
-                v-for="timelineName in enabledTimelines"
-                :key="timelineName"
-                class="ml-1"
-                :class="{'timeline-button':currentView!==timelineName || collapsed}"
-                depressed
-                :outlined="currentView===timelineName && !collapsed"
-                x-small
-                tab-index="-1"
-                @click="toggleView(timelineName)"
-              >
-                <v-icon x-small>
-                  mdi-chart-line-variant
-                </v-icon>{{ timelineName }}
-              </v-btn>
-            </span>
-            <span v-if="enabledSwimlanes.length > 2">
-              <v-menu
-                :close-on-content-click="true"
-                top
-                offset-y
-                nudge-left="3"
-                open-on-hover
-                close-delay="500"
-                open-delay="250"
-                rounded="lg"
-              >
-                <template v-slot:activator="{ on }">
-                  <v-btn
-                    depressed
-                    x-small
-                    :outlined="enabledSwimlanes.includes(currentView)"
-                    v-on="on"
-                  >
-                    <v-icon x-small>mdi-chart-timeline</v-icon>
-                    {{ enabledSwimlanes.includes(currentView) ? currentView : 'Attributes' }}
-                    <v-icon
-                      class="pa-0 pl-2"
-                      x-small
-                    >mdi-chevron-down-box</v-icon>
-                  </v-btn>
-                </template>
-                <v-card outlined>
-                  <v-list dense>
-                    <v-list-item
-                      v-for="swimlaneName in enabledSwimlanes"
-                      :key="swimlaneName"
-                      style="align-items:center"
-                      @click="currentView = swimlaneName"
-                    >
-                      <v-list-item-content>
-                        <v-list-item-title>{{ swimlaneName }}</v-list-item-title>
-                      </v-list-item-content>
-                    </v-list-item>
-                  </v-list>
-                </v-card>
-              </v-menu>
-            </span>
-            <span v-else>
-              <v-btn
-                v-for="swimlaneName in enabledSwimlanes"
-                :key="swimlaneName"
-                class="ml-1"
-                :class="{'timeline-button':currentView!==swimlaneName || collapsed}"
-                depressed
-                :outlined="currentView===swimlaneName && !collapsed"
-                x-small
-                tab-index="-1"
-                @click="toggleView(swimlaneName)"
-              >
-                <v-icon x-small>
-                  mdi-chart-timeline
-                </v-icon>{{ swimlaneName }}
-              </v-btn>
-            </span>
-
-          </span>
+          <timeline-buttons
+            :collapsed="collapsed"
+            :current-view="currentView"
+            class="ml-2"
+            @toggle="toggleView($event)"
+            @collapse="collaped = $event"
+          />
         </div>
       </template>
       <template #middle>
@@ -537,132 +374,19 @@ export default defineComponent({
           margin,
         }"
       >
-        <line-chart
-          v-if="currentView==='Detections'"
+        <timeline-charts
+          :line-chart-data="lineChartData"
+          :event-chart-data="eventChartData"
+          :group-chart-data="groupChartData"
+          :current-view="currentView"
+          :collapsed="collapsed"
           :start-frame="startFrame"
           :end-frame="endFrame"
-          :max-frame="childMaxFrame"
-          :data="lineChartData"
+          :child-max-frame="childMaxFrame"
           :client-width="clientWidth"
           :client-height="clientHeight"
           :margin="margin"
         />
-        <event-chart
-          v-if="currentView==='Events'"
-          :start-frame="startFrame"
-          :end-frame="endFrame"
-          :max-frame="childMaxFrame"
-          :data="eventChartData"
-          :client-width="clientWidth"
-          :margin="margin"
-          @select-track="$emit('select-track', $event)"
-        />
-        <event-chart
-          v-if="currentView==='Groups'"
-          :start-frame="startFrame"
-          :end-frame="endFrame"
-          :max-frame="childMaxFrame"
-          :data="groupChartData"
-          :client-width="clientWidth"
-          :margin="margin"
-          @select-track="$emit('select-group', $event)"
-        />
-        <span v-if="attributeSwimlaneData">
-          <span
-            v-for="(data, key, index) in attributeSwimlaneData"
-            :key="`Swimlane_${index}`"
-          >
-            <attribute-swimlane-graph
-              v-if="currentView=== enabledSwimlanes[index] && data"
-              :start-frame="startFrame"
-              :end-frame="endFrame"
-              :max-frame="childMaxFrame"
-              :data="data"
-              :client-width="clientWidth"
-              :margin="margin"
-              @scroll-swimlane="swimlaneOffset = $event"
-            />
-            <v-row v-else-if="currentView=== enabledSwimlanes[index]">
-              <v-spacer />
-              <h2>
-                No Data to Graph
-              </h2>
-              <v-spacer />
-            </v-row>
-
-          </span>
-        </span>
-        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to Graph Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
-        <span v-if="attributeDataTimeline.length">
-          <span
-            v-for="(data, index) in attributeDataTimeline"
-            :key="`Timeline_${index}`"
-          >
-            <line-chart
-              v-if="currentView=== enabledTimelines[index] && data.data.length"
-              :start-frame="startFrame"
-              :end-frame="endFrame"
-              :max-frame="childMaxFrame"
-              :data="data.data"
-              :client-width="clientWidth"
-              :client-height="clientHeight"
-              :y-range="data.yRange"
-              :margin="margin"
-              :atrributes-chart="true"
-            />
-            <v-row v-else-if="currentView=== enabledTimelines[index]">
-              <v-spacer />
-              <h2>
-                No Data to Graph
-              </h2>
-              <v-spacer />
-            </v-row>
-
-          </span>
-        </span>
-        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to Graph Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
-        <span v-if="attributeSwimlaneData">
-          <span
-            v-for="(item) in enabledFilterTimelines"
-            :key="`filter_timeline_${item.name}`"
-          >
-            <event-chart
-              v-if="currentView===item.name && timelineFilterMap[item.name]"
-              :start-frame="startFrame"
-              :end-frame="endFrame"
-              :max-frame="childMaxFrame"
-              :data="timelineFilterMap[item.name]"
-              :client-width="clientWidth"
-              :margin="margin"
-              @select-track="$emit('select-group', $event)"
-            />
-          </span>
-        </span>
-        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to show Swimlane Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
       </template>
     </Timeline>
     <timeline-key

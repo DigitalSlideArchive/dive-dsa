@@ -4,12 +4,16 @@ import {
 } from '@vue/composition-api';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import { FilterTimeline } from 'vue-media-annotator/use/useTimelineFilters';
+import { TimelineConfiguration, TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
+import { cloneDeep } from 'lodash';
 import TimelineFilterSettings from './TimelineFilterSettings.vue';
+import TimelineConfigurationVue from './TimelineConfiguration.vue';
 
 export default defineComponent({
   name: 'TimelineSettings',
   components: {
     TimelineFilterSettings,
+    TimelineConfigurationVue,
   },
   props: {},
   setup() {
@@ -21,8 +25,9 @@ export default defineComponent({
       generalDialog.value = true;
     };
     const timelineFilters: Ref<FilterTimeline[]> = ref([]);
+    const timelineConfig: Ref<TimelineConfiguration> = ref({ maxHeight: 300, timelines: [] });
 
-    const updateActionList = () => {
+    const updateFilterList = () => {
       if (configMan.configuration.value?.filterTimelines) {
         const tempList: FilterTimeline[] = [];
         configMan.configuration.value.filterTimelines.forEach((item) => {
@@ -31,10 +36,15 @@ export default defineComponent({
         timelineFilters.value = tempList;
       }
     };
-    updateActionList();
+    updateFilterList();
+    const updateTimelineList = () => {
+      if (configMan.configuration.value && configMan.configuration.value.timelineConfigs) {
+        timelineConfig.value = cloneDeep(configMan.configuration.value.timelineConfigs);
+      }
+    };
+    updateTimelineList();
 
-
-    const addTimeline = () => {
+    const addTimelineFilter = () => {
       const index = timelineFilters.value.length - 1;
       const newTimeline: FilterTimeline = {
         name: 'default',
@@ -46,16 +56,38 @@ export default defineComponent({
         type: 'swimlane',
       };
       configMan.updateFilterTimeline(newTimeline, index);
-      updateActionList();
+      updateFilterList();
     };
-    const updateTimeline = ({ index, data }: {index: number; data: FilterTimeline}) => {
+    const updateTimelineFilter = ({ index, data }: {index: number; data: FilterTimeline}) => {
       configMan.updateFilterTimeline(data, index);
-      updateActionList();
+      updateFilterList();
     };
-    const deleteTimeline = (index: number) => {
+    const deleteTimelineFilter = (index: number) => {
       configMan.removeFilterTimeline(index);
-      updateActionList();
+      updateFilterList();
     };
+
+    const addTimelineConfig = ({ name, type }: {name: string; type: TimelineDisplay['type']}) => {
+      const index = timelineConfig.value.timelines.length - 1;
+      const newConfig: TimelineDisplay = {
+        name,
+        type,
+        maxHeight: 300,
+        dismissable: false,
+        order: 0,
+      };
+      configMan.updateTimelineDisplay(newConfig, index);
+      updateTimelineList();
+    };
+    const updateTimelineConfig = ({ index, data }: {index: number; data: TimelineDisplay}) => {
+      configMan.updateTimelineDisplay(data, index);
+      updateTimelineList();
+    };
+    const deleteTimelineConfig = (index: number) => {
+      configMan.removeTimelineDisplay(index);
+      updateTimelineList();
+    };
+
 
     const saveChanges = () => {
       const id = configMan.configuration.value?.general?.baseConfiguration
@@ -70,9 +102,13 @@ export default defineComponent({
     return {
       currentTab,
       timelineFilters,
-      updateTimeline,
-      deleteTimeline,
-      addTimeline,
+      timelineConfig,
+      updateTimelineFilter,
+      deleteTimelineFilter,
+      addTimelineFilter,
+      updateTimelineConfig,
+      deleteTimelineConfig,
+      addTimelineConfig,
       generalDialog,
       launchEditor,
       saveChanges,
@@ -128,16 +164,19 @@ export default defineComponent({
           </v-card-title>
           <v-tabs-items v-model="currentTab">
             <v-tab-item>
-              <p>
-                Main Settings will go here!!!
-              </p>
+              <timeline-configuration-vue
+                :timeline-config="timelineConfig"
+                @update-timeline="updateTimelineConfig($event)"
+                @delete-timeline="deleteTimelineConfig($event)"
+                @add-timeline="addTimelineConfig($event)"
+              />
             </v-tab-item>
             <v-tab-item>
               <timeline-filter-settings
                 :filter-timelines="timelineFilters"
-                @update-timeline="updateTimeline($event)"
-                @delete-timeline="deleteTimeline($event)"
-                @add-timeline="addTimeline()"
+                @update-timeline="updateTimelineFilter($event)"
+                @delete-timeline="deleteTimelineFilter($event)"
+                @add-timeline="addTimelineFilter()"
               />
             </v-tab-item>
           </v-tabs-items>
