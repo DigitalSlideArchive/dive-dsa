@@ -7,29 +7,22 @@ import type { DatasetType } from 'dive-common/apispec';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import {
   Controls,
-  EventChart,
   injectAggregateController,
-  LineChart,
   Timeline,
-  AttributeSwimlaneGraph,
   TimelineKey,
 } from 'vue-media-annotator/components';
-import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import TimelineButtons from './TimelineButtons.vue';
 import TimelineCharts from './TimelineCharts.vue';
 import {
-  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId, useTimelineFilters,
+  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId,
 } from '../../src/provides';
 
 export default defineComponent({
   components: {
     Controls,
-    EventChart,
     FileNameTimeDisplay,
-    LineChart,
     Timeline,
-    AttributeSwimlaneGraph,
     TimelineKey,
     TimelineButtons,
     TimelineCharts,
@@ -61,19 +54,18 @@ export default defineComponent({
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-    const cameraStore = useCameraStore();
-    const selectedTrackIdRef = useSelectedTrackId();
-    const multiCam = ref(cameraStore.camMap.value.size > 1);
-    const selectedCamera = useSelectedCamera();
     const enabledKey = ref(true);
-    const hasGroups = computed(
-      () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
-    );
     const {
-      timelineEnabled, attributeTimelineData,
-      timelineDefault, swimlaneEnabled, attributeSwimlaneData,
+      attributeSwimlaneData,
     } = useAttributesFilters();
-    const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
+
+    const timelineHeight = computed(() => {
+      if (configMan.configuration.value?.timelineConfigs?.maxHeight) {
+        return configMan.configuration.value?.timelineConfigs?.maxHeight;
+      }
+      return 175;
+    });
+    const { timelineEnabled, timelineDefault } = useAttributesFilters();
     if (timelineDefault.value !== null) {
       currentView.value = timelineDefault.value;
     }
@@ -98,48 +90,6 @@ export default defineComponent({
         timelineDisabled.value = true;
       }
     }
-    // Format the Attribute data if it is available
-    const enabledTimelines = computed(() => {
-      const list: string[] = [];
-      Object.entries(timelineEnabled.value).forEach(([key, enabled]) => {
-        if (enabled) {
-          list.push(key);
-        }
-      });
-      return list;
-    });
-
-    const enabledSwimlanes = computed(() => {
-      const list: string[] = [];
-      Object.entries(swimlaneEnabled.value).forEach(([key, enabled]) => {
-        if (enabled) {
-          list.push(key);
-        }
-      });
-      return list;
-    });
-
-    const attributeDataTimeline = computed(() => {
-      const data: {
-        startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[];
-      }[] = [];
-      Object.entries(attributeTimelineData.value).forEach(([key, timelineData]) => {
-        if (timelineEnabled.value[key]) {
-          const startFrame = timelineData.begin;
-          const endFrame = timelineData.end;
-          const timelineChartData = timelineData.data.map((item) => item.data);
-          data.push({
-            startFrame,
-            endFrame,
-            data: timelineChartData,
-            yRange: timelineData.yRange,
-          });
-        }
-      });
-
-      return data;
-    });
-
 
     /**
      * Toggles on and off the individual timeline views
@@ -175,7 +125,6 @@ export default defineComponent({
       currentView,
       toggleView,
       maxFrame,
-      multiCam,
       frame,
       seek,
       volume,
@@ -183,15 +132,8 @@ export default defineComponent({
       speed,
       setSpeed,
       ticks,
-      hasGroups,
-      attributeDataTimeline,
-      enabledTimelines,
-      selectedTrackIdRef,
       getUISetting,
       timelineDisabled,
-      swimlaneEnabled,
-      attributeSwimlaneData,
-      enabledSwimlanes,
       // Timeline Ref
       controlsRef,
       timelineRef,
@@ -201,9 +143,9 @@ export default defineComponent({
       enabledKey,
       updateSizes,
       swimlaneOffset,
-      //filter Timelines
-      enabledFilterTimelines,
-      timelineFilterMap,
+      //Timeline Config
+      timelineHeight,
+      attributeSwimlaneData,
     };
   },
 });
@@ -243,7 +185,6 @@ export default defineComponent({
               <v-icon
                 small
                 :color="enabledKey ? 'primary' : ''"
-                :disabled="!enabledSwimlanes.includes(currentView)"
                 class="ml-2"
                 v-on="on"
                 @click="enabledKey = !enabledKey"
@@ -361,6 +302,7 @@ export default defineComponent({
       :max-frame="maxFrame"
       :frame="frame"
       :display="!collapsed"
+      :timeline-height="timelineHeight"
       @seek="seek"
       @resize="updateSizes"
     >
@@ -390,7 +332,7 @@ export default defineComponent({
       </template>
     </Timeline>
     <timeline-key
-      v-if="enabledKey && enabledSwimlanes.includes(currentView) && attributeSwimlaneData[currentView]"
+      v-if="enabledKey"
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"

@@ -1,31 +1,16 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, computed, watch,
+  defineComponent, ref, computed, watch, Ref,
 } from '@vue/composition-api';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
-import {
-  Controls,
-  EventChart,
-  LineChart,
-  Timeline,
-  AttributeSwimlaneGraph,
-  TimelineKey,
-} from 'vue-media-annotator/components';
-import { TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { TimelineConfiguration, TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
   useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useTimelineFilters,
 } from '../../src/provides';
 
 export default defineComponent({
   components: {
-    Controls,
-    EventChart,
-    FileNameTimeDisplay,
-    LineChart,
-    Timeline,
-    AttributeSwimlaneGraph,
-    TimelineKey,
   },
   props: {
     collapsed: {
@@ -51,6 +36,17 @@ export default defineComponent({
     } = useAttributesFilters();
     const { enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
 
+    const timelineConfig: Ref<TimelineConfiguration | null> = ref(configMan.configuration.value?.timelineConfigs || null);
+
+    const timelineList = computed(() => {
+      const list: TimelineDisplay[] = [];
+      if (configMan.configuration.value?.timelineConfigs?.timelines) {
+        configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
+          list.push(item);
+        });
+      }
+      return list;
+    });
     const timelineBtns = computed(() => {
       const timelines: {name: string; type: TimelineDisplay['type']}[] = [];
       if (getUISetting('UIDetections')) {
@@ -115,6 +111,8 @@ export default defineComponent({
       timelineBtns,
       iconMap,
       currentViewType,
+      timelineConfig,
+      timelineList,
     };
   },
 });
@@ -161,7 +159,10 @@ export default defineComponent({
             class="mr-1"
             v-on="on"
           >
-            <v-icon v-if="iconMap[currentViewType]" x-small>{{ iconMap[currentViewType]}}</v-icon>
+            <v-icon
+              v-if="iconMap[currentViewType]"
+              x-small
+            >{{ iconMap[currentViewType] }}</v-icon>
             {{ currentView }}
             <v-icon
               class="pa-0 pl-2"

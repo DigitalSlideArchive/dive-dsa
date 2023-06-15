@@ -302,6 +302,7 @@ export default Vue.extend({
 <template>
   <div
     class="line-chart"
+    :style="`height: ${clientHeight}px;`"
   >
     <v-tooltip
       v-if="atrributesChart"

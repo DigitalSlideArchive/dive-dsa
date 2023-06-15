@@ -80,7 +80,15 @@ export default defineComponent({
       emit('delete-timeline', index);
     };
 
-    const addTimeline: Ref<{name: string; type: TimelineDisplay['type']} | null> = ref(null);
+    const addTimeline: Ref<string | null> = ref(null);
+
+    const returnTimelineType = (name: string | null) => {
+      if (name === null) {
+        return '';
+      }
+      const found = availableTimelines.value.find((item) => (item.name === name));
+      return found?.type || '';
+    };
 
     return {
       currentEditIndex,
@@ -97,6 +105,7 @@ export default defineComponent({
       availableTimelines,
       addTimeline,
       baseHeight,
+      returnTimelineType,
     };
   },
 });
@@ -117,7 +126,8 @@ export default defineComponent({
         </template>
       </v-select>
       <v-btn
-        @click="$emit('add-timeline', addTimeline)"
+        :disabled="!addTimeline"
+        @click="$emit('add-timeline', {name: addTimeline, type: returnTimelineType(addTimeline)})"
       >
         Add Timeline
       </v-btn>
@@ -125,7 +135,9 @@ export default defineComponent({
     <v-row dense>
       <v-text-field
         v-model.number="baseHeight"
+        type="number"
         label="Max Timeline Area Height"
+        @change="$emit('update-height', $event)"
       />
     </v-row>
     <v-row

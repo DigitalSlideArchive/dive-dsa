@@ -13,6 +13,10 @@ export default {
       type: Number,
       default: 0,
     },
+    timelineHeight: {
+      type: Number,
+      default: 175,
+    },
     display: {
       type: Boolean,
       default: true,
@@ -232,6 +236,7 @@ export default {
 <template>
   <div
     class="timeline"
+    :style="`height: ${timelineHeight}px`"
     @wheel="onwheel"
     @mouseup="containerMouseup"
     @mousemove="containerMousemove"

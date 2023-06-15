@@ -68,7 +68,7 @@ export default defineComponent({
     };
 
     const addTimelineConfig = ({ name, type }: {name: string; type: TimelineDisplay['type']}) => {
-      const index = timelineConfig.value.timelines.length - 1;
+      const index = timelineConfig.value.timelines.length;
       const newConfig: TimelineDisplay = {
         name,
         type,
@@ -88,15 +88,29 @@ export default defineComponent({
       updateTimelineList();
     };
 
-
-    const saveChanges = () => {
+    const saveChanges = (leaveOpen = false) => {
       const id = configMan.configuration.value?.general?.baseConfiguration
          || (configMan.hierarchy.value?.length ? configMan.hierarchy.value[0].id : null);
       const config = configMan.configuration;
       if (id && config.value) {
         configMan.saveConfiguration(id, config.value);
-        generalDialog.value = false;
+        if (!leaveOpen) {
+          generalDialog.value = false;
+        }
       }
+    };
+
+    const updateTimelineHeight = (height: number) => {
+      if (configMan.configuration.value && !configMan.configuration.value?.timelineConfigs) {
+        configMan.configuration.value.timelineConfigs = {
+          maxHeight: height,
+          timelines: [],
+        };
+      } else if (configMan.configuration.value && configMan.configuration.value.timelineConfigs) {
+        configMan.configuration.value.timelineConfigs.maxHeight = height;
+      }
+      saveChanges(true);
+      updateTimelineList();
     };
 
     return {
@@ -109,6 +123,7 @@ export default defineComponent({
       updateTimelineConfig,
       deleteTimelineConfig,
       addTimelineConfig,
+      updateTimelineHeight,
       generalDialog,
       launchEditor,
       saveChanges,
@@ -169,6 +184,7 @@ export default defineComponent({
                 @update-timeline="updateTimelineConfig($event)"
                 @delete-timeline="deleteTimelineConfig($event)"
                 @add-timeline="addTimelineConfig($event)"
+                @update-height="updateTimelineHeight($event)"
               />
             </v-tab-item>
             <v-tab-item>
