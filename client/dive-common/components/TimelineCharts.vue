@@ -3,6 +3,7 @@
 import {
   defineComponent, ref, PropType, computed, watch, Ref,
 } from '@vue/composition-api';
+import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import {
   Controls,
@@ -21,16 +22,18 @@ import {
 
 export default defineComponent({
   components: {
-    Controls,
     EventChart,
-    FileNameTimeDisplay,
     LineChart,
     Timeline,
     AttributeSwimlaneGraph,
-    TimelineKey,
     TimelineButtons,
+    TooltipBtn,
   },
   props: {
+    dismissedButtons: {
+      type: Array as PropType<string[]>,
+      required: true,
+    },
     lineChartData: {
       type: Array as PropType<unknown[]>,
       required: true,
@@ -76,7 +79,7 @@ export default defineComponent({
       required: true,
     },
   },
-  setup(_, { emit }) {
+  setup(props, { emit }) {
     const configMan = useConfiguration();
     const enabledKey = ref(true);
     const {
@@ -104,7 +107,9 @@ export default defineComponent({
           list.push(item);
         });
       }
-      return list;
+      list.sort((a, b) => (a.order - b.order));
+      const updatedList = list.filter((item) => !props.dismissedButtons.includes(item.name));
+      return updatedList;
     });
     const enabledSwimlanes = computed(() => {
       const list: string[] = [];
@@ -137,6 +142,13 @@ export default defineComponent({
       return data;
     });
 
+    const getTimelineHeight = (timeline: TimelineDisplay) => {
+      if (timeline.maxHeight === -1 && timelineList.value.length) {
+        return (props.clientHeight / timelineList.value.length) - 20;
+      }
+      return timeline.maxHeight - 20;
+    };
+
     return {
       attributeDataTimeline,
       swimlaneEnabled,
@@ -149,6 +161,7 @@ export default defineComponent({
       timelineFilterMap,
       selectedTrackIdRef,
       timelineList,
+      getTimelineHeight,
     };
   },
 });
@@ -161,6 +174,26 @@ export default defineComponent({
         v-for="timeline in timelineList"
         :key="timeline.name"
       >
+        <v-row
+          v-if="timelineList.length > 0"
+          dense
+          justify="center"
+          align="top"
+          style="max-height: 20px;"
+        >
+          <v-spacer />
+          <h4
+            class="timeline-header"
+          > {{ timeline.name }}</h4>
+          <v-spacer />
+          <tooltip-btn
+            v-if="timeline.dismissable"
+            icon="mdi-close"
+            tooltip-text="Hide Timeline"
+            @click="$emit('dismiss', timeline.name)"
+          />
+        </v-row>
+
         <line-chart
           v-if="timeline.name==='Detections'"
           :start-frame="startFrame"
@@ -168,7 +201,8 @@ export default defineComponent({
           :max-frame="childMaxFrame"
           :data="lineChartData"
           :client-width="clientWidth"
-          :client-height="clientHeight / timelineList.length"
+          :client-height="getTimelineHeight(timeline)"
+          :class="{'timeline-config': timelineList.length}"
           :margin="margin"
         />
         <event-chart
@@ -178,8 +212,9 @@ export default defineComponent({
           :max-frame="childMaxFrame"
           :data="eventChartData"
           :client-width="clientWidth"
-          :client-height="clientHeight / timelineList.length"
+          :client-height="getTimelineHeight(timeline)"
           :margin="margin"
+          :class="{'timeline-config': timelineList.length}"
           @select-track="$emit('select-track', $event)"
         />
         <event-chart
@@ -189,8 +224,9 @@ export default defineComponent({
           :max-frame="childMaxFrame"
           :data="groupChartData"
           :client-width="clientWidth"
-          :client-height="clientHeight / timelineList.length"
+          :client-height="getTimelineHeight(timeline)"
           :margin="margin"
+          :class="{'timeline-config': timelineList.length}"
           @select-track="$emit('select-group', $event)"
         />
         <span v-if="attributeSwimlaneData">
@@ -205,8 +241,9 @@ export default defineComponent({
               :max-frame="childMaxFrame"
               :data="data"
               :client-width="clientWidth"
-              :client-height="clientHeight / timelineList.length"
+              :client-height="getTimelineHeight(timeline)"
               :margin="margin"
+              :class="{'timeline-config': timelineList.length}"
               @scroll-swimlane="swimlaneOffset = $event"
             />
             <v-row v-else-if="timeline.name=== enabledSwimlanes[index]">
@@ -240,9 +277,10 @@ export default defineComponent({
               :max-frame="childMaxFrame"
               :data="data.data"
               :client-width="clientWidth"
-              :client-height="clientHeight / timelineList.length"
+              :client-height="getTimelineHeight(timeline)"
               :y-range="data.yRange"
               :margin="margin"
+              :class="{'timeline-config': timelineList.length}"
               :atrributes-chart="true"
             />
             <v-row v-else-if="timeline.name=== enabledTimelines[index]">
@@ -276,8 +314,9 @@ export default defineComponent({
               :max-frame="childMaxFrame"
               :data="timelineFilterMap[item.name]"
               :client-width="clientWidth"
-              :client-height="clientHeight / timelineList.length"
+              :client-height="getTimelineHeight(timeline)"
               :margin="margin"
+              :class="{'timeline-config': timelineList.length}"
               @select-track="$emit('select-group', $event)"
             />
           </span>
@@ -429,4 +468,11 @@ export default defineComponent({
 </template>
 
 <style lang="scss" scoped>
+.timeline-config {
+  border:1px solid white;
+}
+.timeline-header {
+  display:inline
+}
+
 </style>

@@ -137,6 +137,7 @@ export default defineComponent({
         v-model.number="baseHeight"
         type="number"
         label="Max Timeline Area Height"
+        style="max-width: 150px;"
         @change="$emit('update-height', $event)"
       />
     </v-row>
@@ -152,6 +153,14 @@ export default defineComponent({
         <span>Height:</span>
         {{ timeline.maxHeight }}
       </v-col>
+      <v-col>
+        <span>Order:</span>
+        {{ timeline.order }}
+      </v-col>
+      <v-col>
+        <span>Dismissable:</span>
+        {{ timeline.dismissable }}
+      </v-col>
       <v-spacer />
       <v-col>
         <v-icon @click="editTimeline(index)">
@@ -166,19 +175,30 @@ export default defineComponent({
       </v-col>
     </v-row>
     <div v-if="editingTimeline">
-      <v-card>
+      <v-card class="pt-3">
+        <v-card-title> Editing </v-card-title>
         <v-row dense>
-          <span> Name: {{ currentEditName }}</span>
-          <span> Type: {{ currentEditType }}</span>
+          <v-col><h2> Name: {{ currentEditName }}</h2></v-col>
+          <v-col>
+            <h2> Type: {{ currentEditType }}</h2>
+          </v-col>
         </v-row>
         <v-row dense>
           <v-text-field
             v-model.number="currentEditMaxHeight"
             label="Max Height"
+            class="px-2"
+            style="max-width:250px"
+            type="number"
+            hint="-1 is auto sizing"
+            persistent-hint
           />
           <v-text-field
             v-model.number="currentEditOrder"
             label="Order"
+            type="number"
+            class="px-2"
+            style="max-width:100px"
           />
         </v-row>
         <v-row dense>

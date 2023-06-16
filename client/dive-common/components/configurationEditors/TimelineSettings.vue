@@ -208,7 +208,7 @@ export default defineComponent({
           </v-btn>
           <v-btn
             color="primary"
-            @click="saveChanges"
+            @click="saveChanges()"
           >
             Save
           </v-btn>

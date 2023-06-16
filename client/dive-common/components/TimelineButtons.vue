@@ -1,7 +1,7 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, computed, watch, Ref,
+  defineComponent, ref, computed, Ref, PropType,
 } from '@vue/composition-api';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import { TimelineConfiguration, TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
@@ -13,6 +13,10 @@ export default defineComponent({
   components: {
   },
   props: {
+    dismissedButtons: {
+      type: Array as PropType<string[]>,
+      required: true,
+    },
     collapsed: {
       type: Boolean,
       default: false,
@@ -38,11 +42,11 @@ export default defineComponent({
 
     const timelineConfig: Ref<TimelineConfiguration | null> = ref(configMan.configuration.value?.timelineConfigs || null);
 
-    const timelineList = computed(() => {
-      const list: TimelineDisplay[] = [];
+    const timelineListBtns = computed(() => {
+      const list: {name: string; type: TimelineDisplay['type']; dismissed: boolean}[] = [];
       if (configMan.configuration.value?.timelineConfigs?.timelines) {
         configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
-          list.push(item);
+          list.push({ name: item.name, type: item.type, dismissed: props.dismissedButtons.includes(item.name) });
         });
       }
       return list;
@@ -112,7 +116,7 @@ export default defineComponent({
       iconMap,
       currentViewType,
       timelineConfig,
-      timelineList,
+      timelineListBtns,
     };
   },
 });
@@ -120,7 +124,66 @@ export default defineComponent({
 
 <template>
   <span v-if="(!collapsed)">
-    <span v-if="timelineBtns.length <= 3">
+    <span v-if="timelineListBtns">
+      <v-menu
+        :close-on-content-click="true"
+        top
+        offset-y
+        nudge-left="3"
+        open-on-hover
+        close-delay="500"
+        open-delay="250"
+        rounded="lg"
+      >
+        <template v-slot:activator="{ on }">
+          <v-btn
+            depressed
+            x-small
+            outlined
+            class="mr-1"
+            v-on="on"
+          >
+            Timelines
+            <v-icon
+              class="pa-0 pl-2"
+              x-small
+            >mdi-chevron-down-box</v-icon>
+          </v-btn>
+        </template>
+        <v-card outlined>
+          <v-list dense>
+            <v-list-item
+              v-for="item in timelineListBtns"
+              :key="item.name"
+              style="align-items:center"
+              @click="toggleView(item.name)"
+            >
+              <v-list-item-content>
+                <v-list-item-title>
+                  <v-icon
+                    v-if="iconMap[item.type]"
+                    x-small
+                    class="mr-1"
+                  >
+                    {{ iconMap[item.type] }}
+                  </v-icon>{{ item.name }}
+                  <v-btn
+                    v-if="item.dismissed"
+                    small
+                    color="success"
+                    class="mx-2"
+                    @click="$emit('enable', item.name)"
+                  > Enable</v-btn>
+
+                </v-list-item-title>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-card>
+      </v-menu>
+
+    </span>
+    <span v-else-if="timelineBtns.length <= 3">
       <v-btn
         v-for="item in timelineBtns"
         :key="item.name"
@@ -140,7 +203,7 @@ export default defineComponent({
         </v-icon>{{ item.name }}
       </v-btn>
     </span>
-    <span v-if="timelineBtns.length > 3">
+    <span v-else-if="timelineBtns.length > 3">
       <v-menu
         :close-on-content-click="true"
         top

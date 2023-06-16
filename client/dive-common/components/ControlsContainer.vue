@@ -55,6 +55,7 @@ export default defineComponent({
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const enabledKey = ref(true);
+    const dismissedButtons: Ref<string[]> = ref([]); // buttons that have been dismissed from the timelineConfig;
     const {
       attributeSwimlaneData,
     } = useAttributesFilters();
@@ -121,6 +122,17 @@ export default defineComponent({
       keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
     };
     const swimlaneOffset = ref(0);
+
+    const addDismissedButton = (name: string) => {
+      dismissedButtons.value.push(name);
+    };
+    const removeDismissedButton = (name: string) => {
+      const found = dismissedButtons.value.findIndex((item) => (name === item));
+      if (found !== -1) {
+        dismissedButtons.value.splice(found, 1);
+      }
+    };
+
     return {
       currentView,
       toggleView,
@@ -146,6 +158,9 @@ export default defineComponent({
       //Timeline Config
       timelineHeight,
       attributeSwimlaneData,
+      dismissedButtons,
+      addDismissedButton,
+      removeDismissedButton,
     };
   },
 });
@@ -195,11 +210,13 @@ export default defineComponent({
             <span>Show Legend/Key</span>
           </v-tooltip>
           <timeline-buttons
+            :dismissed-buttons="dismissedButtons"
             :collapsed="collapsed"
             :current-view="currentView"
             class="ml-2"
             @toggle="toggleView($event)"
             @collapse="collaped = $event"
+            @enable="removeDismissedButton($event)"
           />
         </div>
       </template>
@@ -328,17 +345,20 @@ export default defineComponent({
           :client-width="clientWidth"
           :client-height="clientHeight"
           :margin="margin"
+          :dismissed-buttons="dismissedButtons"
+          @select-track="$emit('select-track', $event)"
+          @dismiss="addDismissedButton($event)"
         />
       </template>
     </Timeline>
-    <timeline-key
+    <!-- <timeline-key
       v-if="enabledKey"
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"
       :offset="swimlaneOffset"
       :data="attributeSwimlaneData[currentView]"
-    />
+    /> -->
   </v-col>
 </template>
 
