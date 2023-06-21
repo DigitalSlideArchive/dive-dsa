@@ -351,14 +351,15 @@ export default defineComponent({
         />
       </template>
     </Timeline>
-    <!-- <timeline-key
+    <timeline-key
       v-if="enabledKey"
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"
       :offset="swimlaneOffset"
+      :dismissed-buttons="dismissedButtons"
       :data="attributeSwimlaneData[currentView]"
-    /> -->
+    />
   </v-col>
 </template>
 
