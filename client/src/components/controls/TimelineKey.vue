@@ -5,7 +5,10 @@ import {
   defineComponent, PropType, ref, Ref, watch,
 } from '@vue/composition-api';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
-import { useAttributesFilters, useConfiguration, useTimelineFilters } from 'vue-media-annotator/provides';
+import {
+  useAttributesFilters, useConfiguration, useSelectedTrackId,
+  useTimelineFilters,
+} from 'vue-media-annotator/provides';
 import { SwimlaneAttribute } from 'vue-media-annotator/use/AttributeTypes';
 import { EventChartData } from 'vue-media-annotator/use/useEventChart';
 
@@ -45,6 +48,7 @@ export default defineComponent({
     } = useAttributesFilters();
     const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     // Format the Attribute data if it is available
+    const selectedTrackIdRef = useSelectedTrackId();
 
     const enabledTimelines = computed(() => {
       const list: string[] = [];
@@ -142,6 +146,7 @@ export default defineComponent({
       timelineFilterMap,
       timelineList,
       getTimelineHeight,
+      selectedTrackIdRef,
     };
   },
 });
@@ -163,34 +168,34 @@ export default defineComponent({
           :key="timeline.name"
         >
           <v-row
-            v-if="timelineList.length > 0"
+            v-if="timelineList.length > 0 && !(selectedTrackIdRef == null && ['swimlane', 'graph'].includes(timeline.type))"
             dense
             justify="center"
-            style="max-height: 20px;"
+            style="max-height: 20px; white-space: nowrap;"
           >
             <h4> {{ timeline.name }}</h4>
           </v-row>
           <div
             v-if="timeline.name === 'Events'"
-            :style="`height:${getTimelineHeight(timeline)}px`"
+            :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
           >
             This is the Event timeline area
           </div>
           <div
             v-if="timeline.name === 'Groups'"
-            :style="`height:${getTimelineHeight(timeline)}px`"
+            :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
           >
             This is the Groups timeline area
           </div>
           <div
             v-if="timeline.name === 'Detections'"
-            :style="`height:${getTimelineHeight(timeline)}px`"
+            :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
           >
             This is the Groups timeline area
           </div>
           <span v-if="attributeSwimlaneData">
             <v-row
-              v-if="getTimelineByName(timeline.name, 'swimlane')"
+              v-if="getTimelineByName(timeline.name, 'swimlane') && selectedTrackIdRef !== null"
               :style="`height:${getTimelineHeight(timeline)}px`"
               justify="center"
               dense
@@ -238,7 +243,7 @@ export default defineComponent({
           </span>
           <span v-if="attributeTimelineData">
             <v-row
-              v-if="getTimelineByName(timeline.name, 'graph')"
+              v-if="getTimelineByName(timeline.name, 'graph') && selectedTrackIdRef !== null"
               justify="center"
               :style="`height:${getTimelineHeight(timeline)}px`"
 
@@ -266,7 +271,7 @@ export default defineComponent({
           <span v-if="timelineFilterMap">
             <v-row
               v-if="getTimelineByName(timeline.name, 'filter')"
-              :style="`height:${getTimelineHeight(timeline)}px`"
+              :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
               justify="center"
               dense
             >

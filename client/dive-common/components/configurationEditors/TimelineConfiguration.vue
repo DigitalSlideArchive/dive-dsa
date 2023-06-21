@@ -51,6 +51,7 @@ export default defineComponent({
         currentEditName.value = props.timelineConfig.timelines[index].name;
         currentEditMaxHeight.value = props.timelineConfig.timelines[index].maxHeight || 300;
         currentEditDismissable.value = props.timelineConfig.timelines[index].dismissable;
+        currentEditType.value = props.timelineConfig.timelines[index].type || 'event';
         currentEditOrder.value = props.timelineConfig.timelines[index].order;
       } else {
         currentEditIndex.value = 0;
