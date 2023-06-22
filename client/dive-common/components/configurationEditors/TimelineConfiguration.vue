@@ -139,6 +139,7 @@ export default defineComponent({
         type="number"
         label="Max Timeline Area Height"
         style="max-width: 150px;"
+        :rules="[v => ( v >= 50 ) || 'Value needs to be 50 or higher']"
         @change="$emit('update-height', $event)"
       />
     </v-row>
@@ -190,9 +191,11 @@ export default defineComponent({
             label="Max Height"
             class="px-2"
             style="max-width:250px"
+            min
             type="number"
             hint="-1 is auto sizing"
             persistent-hint
+            :rules="[v => ( v >= -1 ) || 'Value needs to be -1 or higher']"
           />
           <v-text-field
             v-model.number="currentEditOrder"

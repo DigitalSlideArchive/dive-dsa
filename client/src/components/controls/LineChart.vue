@@ -312,6 +312,7 @@ export default Vue.extend({
       <template #activator="{ on }">
         <div
           class="yaxisclick"
+          :style="`height: ${clientHeight}px;`"
           v-on="on"
           @dblclick="doubleClick"
         />
@@ -368,7 +369,6 @@ export default Vue.extend({
 
 <style lang="scss">
 .yaxisclick {
-  height: 100%;
   width: 20px;
   position: absolute;
   left: 0px;

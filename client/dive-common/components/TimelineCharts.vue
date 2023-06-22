@@ -99,10 +99,14 @@ export default defineComponent({
       });
       return list;
     });
+    const nudge = ref(-1);
 
+    watch(() => configMan.configuration.value?.timelineConfigs, () => {
+      nudge.value += 1;
+    }, { deep: true });
     const timelineList = computed(() => {
       const list: TimelineDisplay[] = [];
-      if (configMan.configuration.value?.timelineConfigs?.timelines) {
+      if (nudge.value !== null && configMan.configuration.value?.timelineConfigs?.timelines) {
         configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
           list.push(item);
         });
@@ -144,7 +148,17 @@ export default defineComponent({
 
     const getTimelineHeight = (timeline: TimelineDisplay) => {
       if (timeline.maxHeight === -1 && timelineList.value.length) {
-        return (props.clientHeight / timelineList.value.length) - 20;
+        // We really want the total height minus the defined heights
+        let definedHeights = 0;
+        let count = 1;
+        timelineList.value.forEach((item) => {
+          if (item.name !== timeline.name && item.maxHeight !== -1) {
+            definedHeights += item.maxHeight;
+          } else if (item.name !== timeline.name) {
+            count += 1;
+          }
+        });
+        return ((props.clientHeight - definedHeights) / count) - 20;
       }
       return timeline.maxHeight - 20;
     };

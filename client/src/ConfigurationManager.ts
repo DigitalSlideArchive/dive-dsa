@@ -429,7 +429,9 @@ export default class ConfigurationManager {
       } else {
         timelines.push(val);
       }
-      this.configuration.value.timelineConfigs.timelines = timelines;
+      const timelineBase = this.configuration.value.timelineConfigs;
+      timelineBase.timelines = timelines;
+      this.configuration.value = { ...this.configuration.value, timelineConfigs: timelineBase };
     }
   }
 

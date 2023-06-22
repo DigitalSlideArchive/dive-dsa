@@ -79,15 +79,6 @@ export default defineComponent({
       configMan.updateTimelineDisplay(newConfig, index);
       updateTimelineList();
     };
-    const updateTimelineConfig = ({ index, data }: {index: number; data: TimelineDisplay}) => {
-      configMan.updateTimelineDisplay(data, index);
-      updateTimelineList();
-    };
-    const deleteTimelineConfig = (index: number) => {
-      configMan.removeTimelineDisplay(index);
-      updateTimelineList();
-    };
-
     const saveChanges = (leaveOpen = false) => {
       const id = configMan.configuration.value?.general?.baseConfiguration
          || (configMan.hierarchy.value?.length ? configMan.hierarchy.value[0].id : null);
@@ -99,6 +90,16 @@ export default defineComponent({
         }
       }
     };
+
+    const updateTimelineConfig = ({ index, data }: {index: number; data: TimelineDisplay}) => {
+      configMan.updateTimelineDisplay(data, index);
+      updateTimelineList();
+    };
+    const deleteTimelineConfig = (index: number) => {
+      configMan.removeTimelineDisplay(index);
+      updateTimelineList();
+    };
+
 
     const updateTimelineHeight = (height: number) => {
       if (configMan.configuration.value && !configMan.configuration.value?.timelineConfigs) {
