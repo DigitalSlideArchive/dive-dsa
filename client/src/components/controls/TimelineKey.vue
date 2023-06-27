@@ -19,6 +19,10 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       required: true,
     },
+    currentView: {
+      type: String,
+      default: '',
+    },
     hoveredButtons: {
       type: Array as PropType<string[]>,
       required: false,
@@ -60,12 +64,41 @@ export default defineComponent({
       return list;
     });
 
+    const baseMap: Record<string, TimelineDisplay['type']> = {
+      Event: 'event',
+      Detection: 'detections',
+      Group: 'event',
+    };
+
     const timelineList = computed(() => {
       const list: TimelineDisplay[] = [];
       if (configMan.configuration.value?.timelineConfigs?.timelines) {
         configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
           list.push(item);
         });
+      } else if (props.currentView !== '') {
+        let type: TimelineDisplay['type'] = 'event';
+        if (baseMap[props.currentView]) {
+          type = baseMap[props.currentView];
+        }
+        if (timelineEnabled.value[props.currentView]) {
+          type = 'graph';
+        }
+        if (swimlaneEnabled.value[props.currentView]) {
+          type = 'swimlane';
+        }
+        if (timelineFilterMap.value[props.currentView]) {
+          type = 'filter';
+        }
+        const currentTimeline = {
+          maxHeight: props.clientHeight,
+          order: 0,
+          name: props.currentView,
+          dismissable: false,
+          type,
+        };
+
+        list.push(currentTimeline);
       }
       list.sort((a, b) => (a.order - b.order));
       const updatedList = list.filter((item) => !props.dismissedButtons.includes(item.name));
@@ -155,8 +188,8 @@ export default defineComponent({
 <template>
   <div
     ref="keyRef"
-    class="key mb-5"
-    :style="{top: `${clientTop}px`, height: `${clientHeight-10}px`, maxHeight: `${clientHeight-10}px`, right: `${clientWidth}px`}"
+    class="key"
+    :style="{top: `${clientTop}px`, height: `${clientHeight}px`, maxHeight: `${clientHeight}px`, right: `${clientWidth}px`}"
     @wheel.prevent
     @touchmove.prevent
     @scroll.prevent
@@ -166,6 +199,7 @@ export default defineComponent({
         <span
           v-for="timeline in timelineList"
           :key="timeline.name"
+          class="subKey"
         >
           <v-row
             v-if="timelineList.length > 0 && !(selectedTrackIdRef == null && ['swimlane', 'graph'].includes(timeline.type))"
@@ -175,28 +209,10 @@ export default defineComponent({
           >
             <h4> {{ timeline.name }}</h4>
           </v-row>
-          <div
-            v-if="timeline.name === 'Events'"
-            :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
-          >
-            This is the Event timeline area
-          </div>
-          <div
-            v-if="timeline.name === 'Groups'"
-            :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
-          >
-            This is the Groups timeline area
-          </div>
-          <div
-            v-if="timeline.name === 'Detections'"
-            :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
-          >
-            This is the Groups timeline area
-          </div>
           <span v-if="attributeSwimlaneData">
             <v-row
               v-if="getTimelineByName(timeline.name, 'swimlane') && selectedTrackIdRef !== null"
-              :style="`height:${getTimelineHeight(timeline)}px`"
+              :style="`min-height:${getTimelineHeight(timeline)}px`"
               justify="center"
               dense
             >
@@ -245,8 +261,7 @@ export default defineComponent({
             <v-row
               v-if="getTimelineByName(timeline.name, 'graph') && selectedTrackIdRef !== null"
               justify="center"
-              :style="`height:${getTimelineHeight(timeline)}px`"
-
+              :style="`min-height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
               dense
             >
               <span
@@ -271,7 +286,7 @@ export default defineComponent({
           <span v-if="timelineFilterMap">
             <v-row
               v-if="getTimelineByName(timeline.name, 'filter')"
-              :style="`height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
+              :style="`min-height:${getTimelineHeight(timeline)}px; max-height:${getTimelineHeight(timeline)}px; overflow-y: auto`"
               justify="center"
               dense
             >

@@ -3,11 +3,10 @@
 import {
   defineComponent, ref, computed, Ref, PropType,
 } from '@vue/composition-api';
-import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import { TimelineConfiguration, TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
   useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useTimelineFilters,
-} from '../../src/provides';
+} from '../../provides';
 
 export default defineComponent({
   components: {
@@ -42,6 +41,7 @@ export default defineComponent({
 
     const timelineConfig: Ref<TimelineConfiguration | null> = ref(configMan.configuration.value?.timelineConfigs || null);
 
+    const hasTimelineConfig = computed(() => configMan.configuration.value?.timelineConfigs?.timelines);
     const timelineListBtns = computed(() => {
       const list: {name: string; type: TimelineDisplay['type']; dismissed: boolean}[] = [];
       if (configMan.configuration.value?.timelineConfigs?.timelines) {
@@ -117,6 +117,7 @@ export default defineComponent({
       currentViewType,
       timelineConfig,
       timelineListBtns,
+      hasTimelineConfig,
     };
   },
 });
@@ -124,7 +125,7 @@ export default defineComponent({
 
 <template>
   <span v-if="(!collapsed)">
-    <span v-if="timelineListBtns">
+    <span v-if="hasTimelineConfig || timelineListBtns.length > 3">
       <v-menu
         :close-on-content-click="true"
         top

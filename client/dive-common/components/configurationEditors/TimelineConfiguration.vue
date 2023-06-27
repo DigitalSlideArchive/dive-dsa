@@ -163,6 +163,10 @@ export default defineComponent({
         <span>Dismissable:</span>
         {{ timeline.dismissable }}
       </v-col>
+      <v-col>
+        <span>Type:</span>
+        {{ timeline.type }}
+      </v-col>
       <v-spacer />
       <v-col>
         <v-icon @click="editTimeline(index)">

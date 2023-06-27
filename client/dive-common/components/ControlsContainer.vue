@@ -12,10 +12,10 @@ import {
   TimelineKey,
 } from 'vue-media-annotator/components';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
-import TimelineButtons from './TimelineButtons.vue';
-import TimelineCharts from './TimelineCharts.vue';
+import TimelineCharts from 'vue-media-annotator/components/controls/TimelineCharts.vue';
+import TimelineButtons from 'vue-media-annotator/components/controls/TimelineButtons.vue';
 import {
-  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId,
+  useAttributesFilters, useConfiguration,
 } from '../../src/provides';
 
 export default defineComponent({
@@ -110,9 +110,9 @@ export default defineComponent({
     } = injectAggregateController().value;
 
     // Timeline Key Sizing and Refs
-    const timelineRef: Ref<typeof Timeline & {$el: HTMLElement} | null> = ref(null);
+    const timelineRef: Ref<typeof Timeline & {$el: HTMLElement; clientHeight: number} | null> = ref(null);
     const controlsRef: Ref<typeof Controls & {$el: HTMLElement} | null> = ref(null);
-    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientHeight : 0));
+    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.clientHeight : 0));
     const keyTop = computed(() => ((controlsRef.value !== null) ? controlsRef.value.$el.clientHeight : 0));
     const keyWidth = ref(0);
     watch(() => timelineRef.value && timelineRef.value.$el.clientWidth, () => {
@@ -353,6 +353,7 @@ export default defineComponent({
     </Timeline>
     <timeline-key
       v-if="enabledKey"
+      :current-view="currentView"
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"

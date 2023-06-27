@@ -1,24 +1,21 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, computed, watch, Ref,
+  defineComponent, ref, PropType, computed, watch,
 } from '@vue/composition-api';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
-import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import {
-  Controls,
   EventChart,
   LineChart,
   Timeline,
   AttributeSwimlaneGraph,
-  TimelineKey,
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
 import TimelineButtons from './TimelineButtons.vue';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId, useTimelineFilters,
-} from '../../src/provides';
+} from '../../provides';
 
 export default defineComponent({
   components: {
@@ -192,7 +189,6 @@ export default defineComponent({
           v-if="timelineList.length > 0"
           dense
           justify="center"
-          align="top"
           style="max-height: 20px;"
         >
           <v-spacer />
@@ -243,7 +239,7 @@ export default defineComponent({
           :class="{'timeline-config': timelineList.length}"
           @select-track="$emit('select-group', $event)"
         />
-        <span v-if="attributeSwimlaneData">
+        <span v-if="Object.values(attributeSwimlaneData).length">
           <span
             v-for="(data, key, index) in attributeSwimlaneData"
             :key="`Swimlane_${index}`"
@@ -260,25 +256,8 @@ export default defineComponent({
               :class="{'timeline-config': timelineList.length}"
               @scroll-swimlane="swimlaneOffset = $event"
             />
-            <v-row v-else-if="timeline.name=== enabledSwimlanes[index]">
-              <v-spacer />
-              <h2>
-                No Data to Graph
-              </h2>
-              <v-spacer />
-            </v-row>
-
           </span>
         </span>
-        <div v-else-if="enabledTimelines.includes(timeline.name) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to Graph Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
         <span v-if="attributeDataTimeline.length">
           <span
             v-for="(data, index) in attributeDataTimeline"
@@ -307,16 +286,7 @@ export default defineComponent({
 
           </span>
         </span>
-        <div v-else-if="enabledTimelines.includes(timeline.name) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to Graph Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
-        <span v-if="attributeSwimlaneData">
+        <span v-if="enabledFilterTimelines">
           <span
             v-for="(item) in enabledFilterTimelines"
             :key="`filter_timeline_${item.name}`"
@@ -335,12 +305,16 @@ export default defineComponent({
             />
           </span>
         </span>
-        <div v-else-if="enabledTimelines.includes(timeline.name) && selectedTrackIdRef === null">
+        <div
+          v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
+          :class="{'timeline-config': timelineList.length}"
+          :style="`min-height:${getTimelineHeight(timeline)}px;max-height:${getTimelineHeight(timeline)}px;`"
+        >
           <v-row>
             <v-spacer />
-            <h2>
-              Track needs to be selected to show Swimlane Attributes
-            </h2>
+            <h3>
+              Track needs to be selected to show Attributes
+            </h3>
             <v-spacer />
           </v-row>
         </div>
@@ -379,7 +353,7 @@ export default defineComponent({
         :margin="margin"
         @select-track="$emit('select-group', $event)"
       />
-      <span v-if="attributeSwimlaneData">
+      <span v-if="Object.values(attributeSwimlaneData).length">
         <span
           v-for="(data, key, index) in attributeSwimlaneData"
           :key="`Swimlane_${index}`"
@@ -405,15 +379,16 @@ export default defineComponent({
 
         </span>
       </span>
-      <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
+      <div v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null">
         <v-row>
           <v-spacer />
           <h2>
-            Track needs to be selected to Graph Attributes
+            Track needs to be selected to Show Attributes
           </h2>
           <v-spacer />
         </v-row>
       </div>
+
       <span v-if="attributeDataTimeline.length">
         <span
           v-for="(data, index) in attributeDataTimeline"
