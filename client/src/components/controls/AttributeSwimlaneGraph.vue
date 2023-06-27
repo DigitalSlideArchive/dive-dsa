@@ -32,6 +32,10 @@ export default Vue.extend({
       type: Number,
       required: true,
     },
+    clientHeight: {
+      type: Number,
+      required: true,
+    },
     margin: {
       type: Number,
       default: 0,
@@ -234,6 +238,7 @@ export default Vue.extend({
 <template>
   <div
     class="event-chart"
+    :style="`height: ${clientHeight - 10}px;`"
     @mousewheel.prevent
     @scroll="recordScroll"
   >

@@ -122,7 +122,7 @@ export default defineComponent({
         class="pt-2"
       >
         <p>
-          One Timeline can be labeled ad the Default timeline which will
+          One Timeline can be labeled and the Default timeline which will
           automatically be open when loading the dataset
         </p>
         <v-switch

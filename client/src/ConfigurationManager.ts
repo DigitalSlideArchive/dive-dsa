@@ -115,6 +115,19 @@ export type UISettingsKey = keyof UISettings | keyof UITopBar | keyof UIToolBar
 type UIValue = UITopBar | UIToolBar
 | UISideBar | UIContextBar | UITrackDetails | UIControls | UITimeline | UIInteractions;
 
+export interface TimelineDisplay {
+  maxHeight: number;
+  order: number;
+  name: string;
+  dismissable: boolean;
+  type: 'event' | 'detections' | 'filter' | 'swimlane' | 'graph';
+}
+
+export interface TimelineConfiguration {
+  maxHeight: number;
+  timelines: TimelineDisplay[];
+}
+
 export interface Configuration {
   general?: {
     configurationMerge? : 'merge up' | 'merge down' | 'disabled';
@@ -126,6 +139,7 @@ export interface Configuration {
   actions?: DIVEAction[];
   shortcuts?: DIVEActionShortcut[];
   filterTimelines?: FilterTimeline[];
+  timelineConfigs?: TimelineConfiguration;
 }
 
 function flatMapGenerator(data: any, rootKey = '') {
@@ -395,6 +409,47 @@ export default class ConfigurationManager {
       } else if (filterTimelines[index]) {
         const newFilterTimelines = filterTimelines.splice(index, 1);
         this.configuration.value.filterTimelines = newFilterTimelines;
+      }
+    }
+  }
+
+
+  updateTimelineDisplay(val: TimelineDisplay, index: number) {
+    if (this.configuration.value && !this.configuration.value?.timelineConfigs) {
+      this.configuration.value.timelineConfigs = {
+        maxHeight: 300,
+        timelines: [],
+      };
+      this.configuration.value.timelineConfigs.timelines = [];
+    }
+    if (this.configuration.value?.timelineConfigs) {
+      const { timelines } = this.configuration.value.timelineConfigs;
+      if (timelines && timelines[index]) {
+        timelines[index] = val;
+      } else {
+        timelines.push(val);
+      }
+      const timelineBase = this.configuration.value.timelineConfigs;
+      timelineBase.timelines = timelines;
+      this.configuration.value = { ...this.configuration.value, timelineConfigs: timelineBase };
+    }
+  }
+
+  removeTimelineDisplay(index: number) {
+    if (this.configuration.value && !this.configuration.value?.timelineConfigs) {
+      this.configuration.value.timelineConfigs = {
+        maxHeight: 300,
+        timelines: [],
+      };
+      this.configuration.value.timelineConfigs.timelines = [];
+    }
+    if (this.configuration.value?.timelineConfigs) {
+      const { timelines } = this.configuration.value.timelineConfigs;
+      if (timelines.length === 1) {
+        this.configuration.value.timelineConfigs.timelines = [];
+      } else if (timelines[index]) {
+        const newTimelines = timelines.splice(index, 1);
+        this.configuration.value.timelineConfigs.timelines = newTimelines;
       }
     }
   }

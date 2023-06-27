@@ -7,28 +7,25 @@ import type { DatasetType } from 'dive-common/apispec';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import {
   Controls,
-  EventChart,
   injectAggregateController,
-  LineChart,
   Timeline,
-  AttributeSwimlaneGraph,
   TimelineKey,
 } from 'vue-media-annotator/components';
-import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import TimelineCharts from 'vue-media-annotator/components/controls/TimelineCharts.vue';
+import TimelineButtons from 'vue-media-annotator/components/controls/TimelineButtons.vue';
 import {
-  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useSelectedTrackId, useTimelineFilters,
+  useAttributesFilters, useConfiguration,
 } from '../../src/provides';
 
 export default defineComponent({
   components: {
     Controls,
-    EventChart,
     FileNameTimeDisplay,
-    LineChart,
     Timeline,
-    AttributeSwimlaneGraph,
     TimelineKey,
+    TimelineButtons,
+    TimelineCharts,
   },
   props: {
     lineChartData: {
@@ -57,19 +54,19 @@ export default defineComponent({
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-    const cameraStore = useCameraStore();
-    const selectedTrackIdRef = useSelectedTrackId();
-    const multiCam = ref(cameraStore.camMap.value.size > 1);
-    const selectedCamera = useSelectedCamera();
-    const enabledKey = ref(true);
-    const hasGroups = computed(
-      () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
-    );
+    const enabledKey = ref(false);
+    const dismissedButtons: Ref<string[]> = ref([]); // buttons that have been dismissed from the timelineConfig;
     const {
-      timelineEnabled, attributeTimelineData,
-      timelineDefault, swimlaneEnabled, attributeSwimlaneData,
+      attributeSwimlaneData,
     } = useAttributesFilters();
-    const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
+
+    const timelineHeight = computed(() => {
+      if (configMan.configuration.value?.timelineConfigs?.maxHeight) {
+        return configMan.configuration.value?.timelineConfigs?.maxHeight;
+      }
+      return 175;
+    });
+    const { timelineEnabled, timelineDefault } = useAttributesFilters();
     if (timelineDefault.value !== null) {
       currentView.value = timelineDefault.value;
     }
@@ -94,48 +91,6 @@ export default defineComponent({
         timelineDisabled.value = true;
       }
     }
-    // Format the Attribute data if it is available
-    const enabledTimelines = computed(() => {
-      const list: string[] = [];
-      Object.entries(timelineEnabled.value).forEach(([key, enabled]) => {
-        if (enabled) {
-          list.push(key);
-        }
-      });
-      return list;
-    });
-
-    const enabledSwimlanes = computed(() => {
-      const list: string[] = [];
-      Object.entries(swimlaneEnabled.value).forEach(([key, enabled]) => {
-        if (enabled) {
-          list.push(key);
-        }
-      });
-      return list;
-    });
-
-    const attributeDataTimeline = computed(() => {
-      const data: {
-        startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[];
-      }[] = [];
-      Object.entries(attributeTimelineData.value).forEach(([key, timelineData]) => {
-        if (timelineEnabled.value[key]) {
-          const startFrame = timelineData.begin;
-          const endFrame = timelineData.end;
-          const timelineChartData = timelineData.data.map((item) => item.data);
-          data.push({
-            startFrame,
-            endFrame,
-            data: timelineChartData,
-            yRange: timelineData.yRange,
-          });
-        }
-      });
-
-      return data;
-    });
-
 
     /**
      * Toggles on and off the individual timeline views
@@ -155,9 +110,9 @@ export default defineComponent({
     } = injectAggregateController().value;
 
     // Timeline Key Sizing and Refs
-    const timelineRef: Ref<typeof Timeline & {$el: HTMLElement} | null> = ref(null);
+    const timelineRef: Ref<typeof Timeline & {$el: HTMLElement; clientHeight: number} | null> = ref(null);
     const controlsRef: Ref<typeof Controls & {$el: HTMLElement} | null> = ref(null);
-    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.$el.clientHeight : 0));
+    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.clientHeight : 0));
     const keyTop = computed(() => ((controlsRef.value !== null) ? controlsRef.value.$el.clientHeight : 0));
     const keyWidth = ref(0);
     watch(() => timelineRef.value && timelineRef.value.$el.clientWidth, () => {
@@ -167,11 +122,21 @@ export default defineComponent({
       keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
     };
     const swimlaneOffset = ref(0);
+
+    const addDismissedButton = (name: string) => {
+      dismissedButtons.value.push(name);
+    };
+    const removeDismissedButton = (name: string) => {
+      const found = dismissedButtons.value.findIndex((item) => (name === item));
+      if (found !== -1) {
+        dismissedButtons.value.splice(found, 1);
+      }
+    };
+
     return {
       currentView,
       toggleView,
       maxFrame,
-      multiCam,
       frame,
       seek,
       volume,
@@ -179,15 +144,8 @@ export default defineComponent({
       speed,
       setSpeed,
       ticks,
-      hasGroups,
-      attributeDataTimeline,
-      enabledTimelines,
-      selectedTrackIdRef,
       getUISetting,
       timelineDisabled,
-      swimlaneEnabled,
-      attributeSwimlaneData,
-      enabledSwimlanes,
       // Timeline Ref
       controlsRef,
       timelineRef,
@@ -197,9 +155,12 @@ export default defineComponent({
       enabledKey,
       updateSizes,
       swimlaneOffset,
-      //filter Timelines
-      enabledFilterTimelines,
-      timelineFilterMap,
+      //Timeline Config
+      timelineHeight,
+      attributeSwimlaneData,
+      dismissedButtons,
+      addDismissedButton,
+      removeDismissedButton,
     };
   },
 });
@@ -239,7 +200,6 @@ export default defineComponent({
               <v-icon
                 small
                 :color="enabledKey ? 'primary' : ''"
-                :disabled="!enabledSwimlanes.includes(currentView)"
                 class="ml-2"
                 v-on="on"
                 @click="enabledKey = !enabledKey"
@@ -249,180 +209,15 @@ export default defineComponent({
             </template>
             <span>Show Legend/Key</span>
           </v-tooltip>
-
-          <span v-if="(!collapsed)">
-            <v-btn
-              v-if="getUISetting('UIDetections')"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Detections' || collapsed}"
-              depressed
-              :outlined="currentView==='Detections' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView('Detections')"
-            >
-              Detections
-            </v-btn>
-            <v-btn
-              v-if="getUISetting('UIEvents')"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Events' || collapsed}"
-              depressed
-              :outlined="currentView==='Events' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView('Events')"
-            >
-              Events
-            </v-btn>
-            <v-btn
-              v-if="!multiCam && hasGroups"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
-              depressed
-              :outlined="currentView==='Groups' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView('Groups')"
-            >
-              Groups
-            </v-btn>
-            <v-btn
-              v-for="item in enabledFilterTimelines"
-              :key="`${item.name}`"
-              class="ml-1"
-              :class="{'timeline-button':currentView!=='Groups' || collapsed}"
-              depressed
-              :outlined="currentView==='Groups' && !collapsed"
-              x-small
-              tab-index="-1"
-              @click="toggleView(item.name)"
-            >
-              <v-icon x-small>
-                mdi-filter
-              </v-icon>{{ item.name }}
-            </v-btn>
-
-            <span v-if="enabledTimelines.length > 2">
-              <v-menu
-                :close-on-content-click="true"
-                top
-                offset-y
-                nudge-left="3"
-                open-on-hover
-                close-delay="500"
-                open-delay="250"
-                rounded="lg"
-              >
-                <template v-slot:activator="{ on }">
-                  <v-btn
-                    depressed
-                    x-small
-                    :outlined="enabledTimelines.includes(currentView)"
-                    v-on="on"
-                  >
-                    <v-icon x-small>mdi-chart-line-variant</v-icon>
-                    {{ enabledTimelines.includes(currentView) ? currentView : 'Attributes' }}
-                    <v-icon
-                      class="pa-0 pl-2"
-                      x-small
-                    >mdi-chevron-down-box</v-icon>
-                  </v-btn>
-                </template>
-                <v-card outlined>
-                  <v-list dense>
-                    <v-list-item
-                      v-for="timelineName in enabledTimelines"
-                      :key="timelineName"
-                      style="align-items:center"
-                      @click="currentView = timelineName"
-                    >
-                      <v-list-item-content>
-                        <v-list-item-title>{{ timelineName }}</v-list-item-title>
-                      </v-list-item-content>
-                    </v-list-item>
-                  </v-list>
-                </v-card>
-              </v-menu>
-            </span>
-            <span v-else>
-              <v-btn
-                v-for="timelineName in enabledTimelines"
-                :key="timelineName"
-                class="ml-1"
-                :class="{'timeline-button':currentView!==timelineName || collapsed}"
-                depressed
-                :outlined="currentView===timelineName && !collapsed"
-                x-small
-                tab-index="-1"
-                @click="toggleView(timelineName)"
-              >
-                <v-icon x-small>
-                  mdi-chart-line-variant
-                </v-icon>{{ timelineName }}
-              </v-btn>
-            </span>
-            <span v-if="enabledSwimlanes.length > 2">
-              <v-menu
-                :close-on-content-click="true"
-                top
-                offset-y
-                nudge-left="3"
-                open-on-hover
-                close-delay="500"
-                open-delay="250"
-                rounded="lg"
-              >
-                <template v-slot:activator="{ on }">
-                  <v-btn
-                    depressed
-                    x-small
-                    :outlined="enabledSwimlanes.includes(currentView)"
-                    v-on="on"
-                  >
-                    <v-icon x-small>mdi-chart-timeline</v-icon>
-                    {{ enabledSwimlanes.includes(currentView) ? currentView : 'Attributes' }}
-                    <v-icon
-                      class="pa-0 pl-2"
-                      x-small
-                    >mdi-chevron-down-box</v-icon>
-                  </v-btn>
-                </template>
-                <v-card outlined>
-                  <v-list dense>
-                    <v-list-item
-                      v-for="swimlaneName in enabledSwimlanes"
-                      :key="swimlaneName"
-                      style="align-items:center"
-                      @click="currentView = swimlaneName"
-                    >
-                      <v-list-item-content>
-                        <v-list-item-title>{{ swimlaneName }}</v-list-item-title>
-                      </v-list-item-content>
-                    </v-list-item>
-                  </v-list>
-                </v-card>
-              </v-menu>
-            </span>
-            <span v-else>
-              <v-btn
-                v-for="swimlaneName in enabledSwimlanes"
-                :key="swimlaneName"
-                class="ml-1"
-                :class="{'timeline-button':currentView!==swimlaneName || collapsed}"
-                depressed
-                :outlined="currentView===swimlaneName && !collapsed"
-                x-small
-                tab-index="-1"
-                @click="toggleView(swimlaneName)"
-              >
-                <v-icon x-small>
-                  mdi-chart-timeline
-                </v-icon>{{ swimlaneName }}
-              </v-btn>
-            </span>
-
-          </span>
+          <timeline-buttons
+            :dismissed-buttons="dismissedButtons"
+            :collapsed="collapsed"
+            :current-view="currentView"
+            class="ml-2"
+            @toggle="toggleView($event)"
+            @collapse="collaped = $event"
+            @enable="removeDismissedButton($event)"
+          />
         </div>
       </template>
       <template #middle>
@@ -524,6 +319,7 @@ export default defineComponent({
       :max-frame="maxFrame"
       :frame="frame"
       :display="!collapsed"
+      :timeline-height="timelineHeight"
       @seek="seek"
       @resize="updateSizes"
     >
@@ -537,140 +333,32 @@ export default defineComponent({
           margin,
         }"
       >
-        <line-chart
-          v-if="currentView==='Detections'"
+        <timeline-charts
+          :line-chart-data="lineChartData"
+          :event-chart-data="eventChartData"
+          :group-chart-data="groupChartData"
+          :current-view="currentView"
+          :collapsed="collapsed"
           :start-frame="startFrame"
           :end-frame="endFrame"
-          :max-frame="childMaxFrame"
-          :data="lineChartData"
+          :child-max-frame="childMaxFrame"
           :client-width="clientWidth"
           :client-height="clientHeight"
           :margin="margin"
-        />
-        <event-chart
-          v-if="currentView==='Events'"
-          :start-frame="startFrame"
-          :end-frame="endFrame"
-          :max-frame="childMaxFrame"
-          :data="eventChartData"
-          :client-width="clientWidth"
-          :margin="margin"
+          :dismissed-buttons="dismissedButtons"
           @select-track="$emit('select-track', $event)"
+          @dismiss="addDismissedButton($event)"
         />
-        <event-chart
-          v-if="currentView==='Groups'"
-          :start-frame="startFrame"
-          :end-frame="endFrame"
-          :max-frame="childMaxFrame"
-          :data="groupChartData"
-          :client-width="clientWidth"
-          :margin="margin"
-          @select-track="$emit('select-group', $event)"
-        />
-        <span v-if="attributeSwimlaneData">
-          <span
-            v-for="(data, key, index) in attributeSwimlaneData"
-            :key="`Swimlane_${index}`"
-          >
-            <attribute-swimlane-graph
-              v-if="currentView=== enabledSwimlanes[index] && data"
-              :start-frame="startFrame"
-              :end-frame="endFrame"
-              :max-frame="childMaxFrame"
-              :data="data"
-              :client-width="clientWidth"
-              :margin="margin"
-              @scroll-swimlane="swimlaneOffset = $event"
-            />
-            <v-row v-else-if="currentView=== enabledSwimlanes[index]">
-              <v-spacer />
-              <h2>
-                No Data to Graph
-              </h2>
-              <v-spacer />
-            </v-row>
-
-          </span>
-        </span>
-        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to Graph Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
-        <span v-if="attributeDataTimeline.length">
-          <span
-            v-for="(data, index) in attributeDataTimeline"
-            :key="`Timeline_${index}`"
-          >
-            <line-chart
-              v-if="currentView=== enabledTimelines[index] && data.data.length"
-              :start-frame="startFrame"
-              :end-frame="endFrame"
-              :max-frame="childMaxFrame"
-              :data="data.data"
-              :client-width="clientWidth"
-              :client-height="clientHeight"
-              :y-range="data.yRange"
-              :margin="margin"
-              :atrributes-chart="true"
-            />
-            <v-row v-else-if="currentView=== enabledTimelines[index]">
-              <v-spacer />
-              <h2>
-                No Data to Graph
-              </h2>
-              <v-spacer />
-            </v-row>
-
-          </span>
-        </span>
-        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to Graph Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
-        <span v-if="attributeSwimlaneData">
-          <span
-            v-for="(item) in enabledFilterTimelines"
-            :key="`filter_timeline_${item.name}`"
-          >
-            <event-chart
-              v-if="currentView===item.name && timelineFilterMap[item.name]"
-              :start-frame="startFrame"
-              :end-frame="endFrame"
-              :max-frame="childMaxFrame"
-              :data="timelineFilterMap[item.name]"
-              :client-width="clientWidth"
-              :margin="margin"
-              @select-track="$emit('select-group', $event)"
-            />
-          </span>
-        </span>
-        <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-          <v-row>
-            <v-spacer />
-            <h2>
-              Track needs to be selected to show Swimlane Attributes
-            </h2>
-            <v-spacer />
-          </v-row>
-        </div>
       </template>
     </Timeline>
     <timeline-key
-      v-if="enabledKey && enabledSwimlanes.includes(currentView) && attributeSwimlaneData[currentView]"
+      v-if="enabledKey"
+      :current-view="currentView"
       :client-height="keyHeight"
       :client-top="keyTop"
       :client-width="keyWidth"
       :offset="swimlaneOffset"
+      :dismissed-buttons="dismissedButtons"
       :data="attributeSwimlaneData[currentView]"
     />
   </v-col>
