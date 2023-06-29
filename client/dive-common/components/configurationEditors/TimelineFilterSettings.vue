@@ -130,7 +130,7 @@ export default defineComponent({
       </v-col>
     </v-row>
     <div v-if="editingTimeline">
-      <v-card>
+      <v-card class="pa-3" style="border: 2px solid white">
         <v-row dense>
           <v-text-field
             v-model="currentEditName"

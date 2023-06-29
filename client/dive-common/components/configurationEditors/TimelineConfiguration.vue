@@ -114,7 +114,7 @@ export default defineComponent({
 
 <template>
   <v-card>
-    <h2>Filter Timelines</h2>
+    <h2>Custom Timeline List</h2>
     <v-row dense>
       <v-select
         v-model="addTimeline"
@@ -181,7 +181,7 @@ export default defineComponent({
       </v-col>
     </v-row>
     <div v-if="editingTimeline">
-      <v-card class="pt-3">
+      <v-card class="pa-3" style="border: 2px solid white;">
         <v-card-title> Editing </v-card-title>
         <v-row dense>
           <v-col><h2> Name: {{ currentEditName }}</h2></v-col>
