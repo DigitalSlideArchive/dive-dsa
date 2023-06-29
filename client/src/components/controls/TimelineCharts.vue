@@ -205,7 +205,7 @@ export default defineComponent({
         </v-row>
 
         <line-chart
-          v-if="timeline.name==='Detections'"
+          v-if="timeline.name==='detections'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
@@ -216,7 +216,7 @@ export default defineComponent({
           :margin="margin"
         />
         <event-chart
-          v-if="timeline.name==='Events'"
+          v-if="timeline.name==='events'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
@@ -322,7 +322,7 @@ export default defineComponent({
     </span>
     <span v-else>
       <line-chart
-        v-if="currentView==='Detections'"
+        v-if="currentView==='detections'"
         :start-frame="startFrame"
         :end-frame="endFrame"
         :max-frame="childMaxFrame"
