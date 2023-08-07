@@ -163,7 +163,11 @@ def convert_video(
             raise Exception('FPS lower than 1 is not supported')
 
         # lets determine if we don't need to transcode this file
-        if skip_transcoding and videostream[0]['codec_name'] == 'h264' and item['name'].endswith('.mp4'):
+        if (
+            skip_transcoding
+            and videostream[0]['codec_name'] == 'h264'
+            and item['name'].endswith('.mp4')
+        ):
             # Now we can update the meta data and push the values
             manager.updateStatus(JobStatus.PUSHING_OUTPUT)
             gc.addMetadataToItem(
@@ -189,10 +193,10 @@ def convert_video(
             return
         elif skip_transcoding:
             print('Transcoding cannot be skipped:')
-            if (videostream[0]['codec_name'] != 'h264'):
+            if videostream[0]['codec_name'] != 'h264':
                 print(f'Codec Name: {videostream[0]["codec_name"]}')
                 print('Codec name is not h264 so file will be transcoded')
-            if (not item['name'].endswith('.mp4')):
+            if not item['name'].endswith('.mp4'):
                 print(f'File Container is not .mp4: {item["name"]}')
 
         command = [

@@ -8,7 +8,6 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.token import Token
 
-from . import crud, crud_rpc
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     AssetstoreSourceMarker,
@@ -17,12 +16,14 @@ from dive_utils.constants import (
     DefaultVideoFPS,
     FPSMarker,
     ImageSequenceType,
+    MarkForPostProcess,
     TypeMarker,
     VideoType,
     imageRegex,
     videoRegex,
-    MarkForPostProcess,
 )
+
+from . import crud, crud_rpc
 
 
 class RpcResource(Resource):
@@ -181,5 +182,4 @@ class RpcResource(Resource):
         for subFolder in datasets:
             subFolder['meta']['MarkForPostProcess'] = False
             Folder().save(subFolder)
-            crud_rpc.postprocess(
-                self.getCurrentUser(), subFolder, skipJobs, skipTranscoding)
+            crud_rpc.postprocess(self.getCurrentUser(), subFolder, skipJobs, skipTranscoding)

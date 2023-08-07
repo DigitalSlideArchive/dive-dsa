@@ -1,19 +1,18 @@
+import json
 from typing import List, Optional
 
+from bson.objectid import ObjectId
 import cherrypy
-import json
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, rawResponse
 from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import RestException
+from girder.models.collection import Collection
 from girder.models.file import File
 from girder.models.folder import Folder
-from girder.models.user import User
-from girder.models.collection import Collection
 from girder.models.item import Item
-from bson.objectid import ObjectId
-
+from girder.models.user import User
 
 from dive_utils import constants, setContentDisposition
 from dive_utils.models import MetadataMutable
@@ -27,15 +26,17 @@ DatasetModelParam = {
     'required': True,
 }
 
-def config_merge(a, b, path= None):
+
+def config_merge(a, b, path=None):
     "merges b into a"
-    if path is None: path = []
+    if path is None:
+        path = []
     for key in b:
         if key in a:
             if isinstance(a[key], dict) and isinstance(b[key], dict):
                 config_merge(a[key], b[key], path + [str(key)])
             elif a[key] == b[key]:
-                pass # same leaf value
+                pass  # same leaf value
             else:
                 a[key] = b[key]
         else:
@@ -62,7 +63,15 @@ class DatasetResource(Resource):
         self.route("GET", (":id", "export_configuration"), self.export_configuration)
         self.route("GET", (":id", "media", ":mediaId", "download"), self.download_media)
         self.route("POST", ("validate_files",), self.validate_files)
-        self.route("POST", (":id", "transfer_config", ":dest",), self.transfer_config)
+        self.route(
+            "POST",
+            (
+                ":id",
+                "transfer_config",
+                ":dest",
+            ),
+            self.transfer_config,
+        )
 
         self.route("PATCH", (":id",), self.patch_metadata)
 
@@ -227,14 +236,17 @@ class DatasetResource(Resource):
         last = False
         baseFolder = folder
         configurationList = []
-        baseConfigurationId = None # lowest configurationId to start merge from
+        baseConfigurationId = None  # lowest configurationId to start merge from
         rootConfig = baseFolder.get('meta', {}).get('configuration', False)
         folderPairs = [
             {
-                'name' : baseFolder.get('name'),
-                'id' :str(baseFolder.get('_id')),
-                'owner' :baseFolder.get('creatorId',{}),
-                'baseConfiguration' : baseFolder.get('meta', {}).get('configuration', {}).get('general', {}).get('baseConfiguration', False),
+                'name': baseFolder.get('name'),
+                'id': str(baseFolder.get('_id')),
+                'owner': baseFolder.get('creatorId', {}),
+                'baseConfiguration': baseFolder.get('meta', {})
+                .get('configuration', {})
+                .get('general', {})
+                .get('baseConfiguration', False),
                 'configuration': baseFolder.get('meta', {}).get('configuration', {}),
                 'attributes': baseFolder.get('meta', {}).get('attributes', False),
                 'timelines': baseFolder.get('meta', {}).get('timelines', False),
@@ -246,7 +258,7 @@ class DatasetResource(Resource):
         ]
         baseParentType = baseFolder.get('baseParentType')
         baseParentId = baseFolder.get('baseParentId')
-        
+
         if rootConfig:
             configurationList.append(rootConfig)
         while baseFolder:
@@ -254,20 +266,30 @@ class DatasetResource(Resource):
             parentFolder = Folder().findOne({"_id": (parentFolderId)})
             if parentFolder:
                 folderPairs.append(
-                {
-                    'name': parentFolder.get('name'),
-                    'id': str(parentFolder.get('_id')),
-                    'owner': parentFolder.get('creatorId'),
-                    'baseConfiguration': parentFolder.get('meta', {}).get('configuration', {}).get('general', {}).get('baseConfiguration', False),
-                    'configuration': parentFolder.get('meta', {}).get('configuration', {}),
-                    'attributes': parentFolder.get('meta', {}).get('attributes', False),
-                    'timelines': parentFolder.get('meta', {}).get('timelines', False),
-                    'swimlanes': parentFolder.get('meta', {}).get('swimlanes', False),
-                    'confidenceFilters': parentFolder.get('meta', {}).get('confidenceFilters', False),
-                    'customTypeStyling': parentFolder.get('meta', {}).get('customTypeStyling', False),
-                    'customGroupStyling': parentFolder.get('meta', {}).get('customGroupStyling', False),
-                    'filters': parentFolder.get('meta', {}).get('filters', False),
-                })
+                    {
+                        'name': parentFolder.get('name'),
+                        'id': str(parentFolder.get('_id')),
+                        'owner': parentFolder.get('creatorId'),
+                        'baseConfiguration': parentFolder.get('meta', {})
+                        .get('configuration', {})
+                        .get('general', {})
+                        .get('baseConfiguration', False),
+                        'configuration': parentFolder.get('meta', {}).get('configuration', {}),
+                        'attributes': parentFolder.get('meta', {}).get('attributes', False),
+                        'timelines': parentFolder.get('meta', {}).get('timelines', False),
+                        'swimlanes': parentFolder.get('meta', {}).get('swimlanes', False),
+                        'confidenceFilters': parentFolder.get('meta', {}).get(
+                            'confidenceFilters', False
+                        ),
+                        'customTypeStyling': parentFolder.get('meta', {}).get(
+                            'customTypeStyling', False
+                        ),
+                        'customGroupStyling': parentFolder.get('meta', {}).get(
+                            'customGroupStyling', False
+                        ),
+                        'filters': parentFolder.get('meta', {}).get('filters', False),
+                    }
+                )
                 if parentFolder.get('_modelType', False) == 'folder':
                     meta = parentFolder.get('meta', False)
                     configuration = meta.get('configuration', False)
@@ -293,7 +315,11 @@ class DatasetResource(Resource):
                 baseConfigurationId = item['baseConfiguration']
                 baseConfigOwner = User().findOne({'_id': item['owner']})['login']
                 baseMetaData = item
-                possibleMerge = item.get('configuration', {}).get('general', {}).get('configurationMerge', False)
+                possibleMerge = (
+                    item.get('configuration', {})
+                    .get('general', {})
+                    .get('configurationMerge', False)
+                )
                 if possibleMerge:
                     mergeType = possibleMerge
                 break
@@ -319,7 +345,9 @@ class DatasetResource(Resource):
             for item in folderPairs:
                 if mergeType == 'merge up':
                     if item.get('configuration', False):
-                        currentConfiguration = config_merge(item.get('configuration'), currentConfiguration)
+                        currentConfiguration = config_merge(
+                            item.get('configuration'), currentConfiguration
+                        )
                     if item.get('attributes', False):
                         currentAttributes = config_merge(item.get('attributes'), currentAttributes)
                     if item.get('timelines', False):
@@ -327,11 +355,17 @@ class DatasetResource(Resource):
                     if item.get('swimlanes', False):
                         currentSwimlanes = config_merge(item.get('swimlanes'), currentSwimlanes)
                     if item.get('confidenceFilters', False):
-                        currentConfidenceFilters = config_merge(item.get('confidenceFilters'), currentConfidenceFilters)
+                        currentConfidenceFilters = config_merge(
+                            item.get('confidenceFilters'), currentConfidenceFilters
+                        )
                     if item.get('customTypeStyling', False):
-                        currentCustomTypeStyling = config_merge(item.get('customTypeStyling'), currentCustomTypeStyling)
+                        currentCustomTypeStyling = config_merge(
+                            item.get('customTypeStyling'), currentCustomTypeStyling
+                        )
                     if item.get('customGroupStyling', False):
-                        currentCustomGroupStyling = config_merge(item.get('customGroupStyling'), currentCustomGroupStyling)
+                        currentCustomGroupStyling = config_merge(
+                            item.get('customGroupStyling'), currentCustomGroupStyling
+                        )
                     if item.get('filters', False):
                         currentFilters = config_merge(item.get('filters'), currentFilters)
         else:
@@ -360,22 +394,29 @@ class DatasetResource(Resource):
             combinedConfiguration['customGroupStyling'] = currentCustomGroupStyling
         if bool(currentFilters):
             combinedConfiguration['filters'] = currentFilters
-                    
+
         hierarchy = []
         for item in folderPairs:
-            hierarchy.append({ 'name': item['name'], 'id': item['id'] })
+            hierarchy.append({'name': item['name'], 'id': item['id']})
         folderParentId = folder.get('parentId', False)
         folderParentType = folder.get('parentCollection', False)
         prev = None
         next = None
-        folderParent = Folder().load(str(folderParentId),level=AccessType.READ,user=user,force=True)
-        childFolders = list(Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]]))
+        folderParent = Folder().load(
+            str(folderParentId), level=AccessType.READ, user=user, force=True
+        )
+        childFolders = list(
+            Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]])
+        )
         for index, item in enumerate(childFolders):
             if item.get('_id') == folder.get('_id'):
                 if index > 0:
                     counter = 1
                     while index - counter >= 0:
-                        if childFolders[index - counter].get('meta',{}).get('annotate', False) is True:
+                        if (
+                            childFolders[index - counter].get('meta', {}).get('annotate', False)
+                            is True
+                        ):
                             prev = childFolders[index - counter]
                             break
                         counter -= 1
@@ -545,7 +586,7 @@ class DatasetResource(Resource):
     )
     def patch_timelines(self, folder, data):
         return crud_dataset.update_timelines(folder, data, False)
-    
+
     @access.user
     @autoDescribeRoute(
         Description("Update set of possible Swimlane Graphs")

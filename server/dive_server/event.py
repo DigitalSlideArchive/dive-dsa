@@ -10,21 +10,22 @@ from girder.models.user import User
 from girder.settings import SettingKey
 from girder.utility.mail_utils import renderTemplate, sendMail
 
-from . import crud_rpc
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     AssetstoreSourceMarker,
     AssetstoreSourcePathMarker,
-    MarkForPostProcess,
     DatasetMarker,
     DefaultVideoFPS,
     FPSMarker,
     ImageSequenceType,
+    MarkForPostProcess,
     TypeMarker,
     VideoType,
     imageRegex,
     videoRegex,
 )
+
+from . import crud_rpc
 
 
 def send_new_user_email(event):
@@ -69,7 +70,7 @@ def process_assetstore_import(event, meta: dict):
         foldername = f'Video {item["name"]}'
         # resuse existing folder if it already exists with same name
         dest = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
-        now = datetime.now() 
+        now = datetime.now()
         if now - dest['created'] > timedelta(hours=1):
             # Remove the old  referenced item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
@@ -98,14 +99,15 @@ def process_assetstore_import(event, meta: dict):
         if not asbool(fromMeta(folder, DatasetMarker)):
             folder["meta"].update(
                 {
-                    TypeMarker: dataset_type, # Sets to video
+                    TypeMarker: dataset_type,  # Sets to video
                     FPSMarker: -1,  # auto calculate the FPS from import
                     AssetstoreSourcePathMarker: root,
-                    MarkForPostProcess: True, # skip transcode or transcode if required
+                    MarkForPostProcess: True,  # skip transcode or transcode if required
                     **meta,
                 }
             )
             Folder().save(folder)
+
 
 def convert_video_recrusive(folder, user):
     subFolders = list(Folder().childFolders(folder, 'folder', user))

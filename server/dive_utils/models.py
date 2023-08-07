@@ -146,9 +146,11 @@ class NumericAttributeOptions(BaseModel):
 class StringAttributeOptions(BaseModel):
     type: Literal['locked', 'freeform']
 
+
 class RenderingDisplayDimension(BaseModel):
-    type: Literal['px' ,'%', 'auto']
+    type: Literal['px', '%', 'auto']
     val: float
+
 
 class RenderingAttributes(BaseModel):
     typeFilter: List[str]
@@ -182,6 +184,7 @@ class Attribute(BaseModel):
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
     render: Optional[RenderingAttributes]
+
 
 class AttributeNumberFilter(BaseModel):
     type: Literal['range', 'top']
@@ -238,8 +241,10 @@ class TimeLineGraph(BaseModel):
     yRange: Optional[List[float]]
     settings: Optional[Dict[str, TimeLineGraphSettings]]
 
+
 class SwimlaneGraphSettings(BaseModel):
     displayName: bool
+
 
 class SwimlaneGraph(BaseModel):
     enabled: bool
@@ -337,9 +342,11 @@ class UITimeline(BaseModel):
     UIDetections: Optional[bool]
     UIEvents: Optional[bool]
 
+
 class UIInteractions(BaseModel):
     UISelection: Optional[bool]
     UIEditing: Optional[bool]
+
 
 class UISettings(BaseModel):
     UITopBar: Optional[Union[bool, UITopBar]]
@@ -392,6 +399,7 @@ class DIVEShortcut(BaseModel):
     description: str
     actions: List[DIVEActions]
 
+
 class FilterTimeline(BaseModel):
     name: str
     enabled: bool
@@ -401,12 +409,14 @@ class FilterTimeline(BaseModel):
     confidenceFilter: Optional[float]
     type: Optional[Literal['swimlane', 'detection']]
 
+
 class TimelineDisplay(BaseModel):
     maxHeight: float
     order: int
     name: str
     dismissable: bool
     type: Literal['event', 'detections', 'filter', 'swimlane', 'graph']
+
 
 class TimelineConfiguration(BaseModel):
     maxHeight: float
@@ -475,6 +485,7 @@ class MediaResource(BaseModel):
 class DatasetSourceMedia(BaseModel):
     imageData: List[MediaResource]
     video: Optional[MediaResource]
+    overlays: Optional[MediaResource]
 
 
 class PrivateQueueEnabledResponse(BaseModel):
