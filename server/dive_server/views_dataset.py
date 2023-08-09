@@ -14,7 +14,7 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.user import User
 
-from dive_utils import constants, setContentDisposition
+from dive_utils import constants, setContentDisposition, TRUTHY_META_VALUES
 from dive_utils.models import MetadataMutable
 
 from . import crud, crud_dataset
@@ -145,7 +145,14 @@ class DatasetResource(Resource):
     )
     def download_media(self, folder, item):
         root = crud.getCloneRoot(self.getCurrentUser(), folder)
-        if item["folderId"] == root["_id"]:
+        overlayFolder = Folder().findOne(
+            {
+                'parentId': root['_id'],
+                f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
+            }
+        )
+
+        if item["folderId"] == root["_id"] or item["folderId"] == overlayFolder["_id"]:
             files = list(Item().childFiles(item))
             if len(files) != 1:
                 raise RestException('Expected one file', code=400)

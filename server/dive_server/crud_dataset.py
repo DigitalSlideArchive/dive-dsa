@@ -139,26 +139,30 @@ def get_media(
         raise ValueError(f'Unrecognized source type: {source_type}')
 
     # get references to any overlay media in the system
-    overlayFolder = Folder().find(
+    overlayFolder = Folder().findOne(
         {
             'parentId': crud.getCloneRoot(user, dsFolder)['_id'],
-            f'meta.{constants.OverlayVideoFolderMarker}': TRUTHY_META_VALUES,
+            f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
         }
     )
-    overlayItems = Folder().find(
-        {
-            'folderId': str(overlayFolder["_id"]),
-            f'meta.{constants.OverlayVideoItemMarker}': TRUTHY_META_VALUES,
-        }
-    )
-    overlays = [
-        models.MediaResource(
-            id=str(media["_id"]),
-            url=get_url(dsFolder, media),
-            filename=media['name'],
+    overlays = None
+    if overlayFolder:
+        overlayItems = Item().find(
+            {
+                'folderId': overlayFolder["_id"],
+                f'meta.{constants.OverlayVideoItemMarker}': {'$in': TRUTHY_META_VALUES},
+            }
         )
-        for media in overlayItems
-    ]
+        overlays = []
+        for media in overlayItems:
+            print(media)
+            overlays.append(
+                models.MediaResource(
+                    id=str(media["_id"]),
+                    url=get_url(dsFolder, media),
+                    filename=media['name'],
+                )
+            )
 
     return models.DatasetSourceMedia(
         imageData=imageData,

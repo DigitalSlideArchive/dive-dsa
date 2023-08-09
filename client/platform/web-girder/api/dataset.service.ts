@@ -54,6 +54,7 @@ interface MediaResource extends FrameImage {
 export interface DatasetSourceMedia {
   imageData: MediaResource[];
   video?: MediaResource;
+  overlays?: MediaResource[];
 }
 
 function getDatasetMedia(folderId: string) {
