@@ -2,6 +2,7 @@ import { MediaController } from 'vue-media-annotator/components/annotators/media
 import { Ref, watch } from '@vue/composition-api';
 import { TypeStyling } from '../../StyleManager';
 
+
 export default class VideoLayer {
     annotator: MediaController;
 
@@ -65,7 +66,6 @@ export default class VideoLayer {
       this.opacity = opacity;
       this.featureLayer.opacity(this.opacity / 100.0);
       watch(this.annotator.playing, () => {
-        console.log(`Playing changed: ${this.annotator.playing.value}`);
         if (this.video !== null) {
           if (this.annotator.playing.value && this.video.paused) {
             this.video.currentTime = this.annotator.currentTime.value;
@@ -77,7 +77,6 @@ export default class VideoLayer {
         }
       });
       watch(this.annotator.frame, () => {
-        console.log(`Frame Change: ${this.annotator.frame.value}`);
         if (!this.annotator.playing.value && this.video !== null) {
           this.video.currentTime = this.annotator.currentTime.value;
         }
@@ -88,9 +87,40 @@ export default class VideoLayer {
       this.featureLayer.visible(true);
       this.opacity = opacity;
       this.featureLayer.opacity(opacity / 100.0);
+      this.replaceColor();
     }
 
     disable() {
       this.featureLayer.visible(false);
+    }
+
+    replaceColor() {
+      if (this.featureLayer.canvas()) {
+        const canvas = this.featureLayer.canvas()[0] as HTMLCanvasElement;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const { data } = imageData;
+        const targetRed = 0; // Replace with the target color's red value
+        const targetGreen = 0; // Replace with the target color's green value
+        const targetBlue = 0; // Replace with the target color's blue value
+
+        const targetColorThreshold = 100; // You can adjust this threshold to
+        // allow for slight color variations
+
+        for (let i = 0; i < data.length; i += 4) {
+          const red = data[i];
+          const green = data[i + 1];
+          const blue = data[i + 2];
+
+          if (
+            Math.abs(red - targetRed) <= targetColorThreshold
+        && Math.abs(green - targetGreen) <= targetColorThreshold
+        && Math.abs(blue - targetBlue) <= targetColorThreshold
+          ) {
+            data[i + 3] = 0; // Set alpha (transparency) to 0
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
     }
 }
