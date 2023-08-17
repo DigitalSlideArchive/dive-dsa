@@ -10,5 +10,6 @@ export interface AnnotatorPreferences {
   };
   overlays: {
     opacity: number;
+    colorTransparency: boolean;
   };
 }

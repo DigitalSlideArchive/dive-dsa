@@ -62,7 +62,9 @@ export default defineComponent({
       default: 'singleCam',
     },
     overlays: {
-      type: Array as PropType<{filename: string; id: string; url: string}[]>,
+      type: Array as PropType<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {filename: string; id: string; url: string; metadata?: Record<string, any>}[]>,
       default: () => [],
     },
   },
@@ -103,7 +105,11 @@ export default defineComponent({
     const videoLayer = new VideoLayer({ annotator, typeStyling: typeStylingRef });
 
     if (props.overlays && props.overlays.length) {
-      videoLayer.initialize({ url: props.overlays[0].url, opacity: 0.55 });
+      videoLayer.initialize({
+        url: props.overlays[0].url,
+        opacity: props.overlays[0].metadata?.opacity || 1.0,
+        metadata: props.overlays[0].metadata,
+      });
     }
 
     const rectAnnotationLayer = new RectangleLayer({
@@ -287,6 +293,7 @@ export default defineComponent({
         videoLayer.updateSettings(
           frame,
           annotatorPrefs.value.overlays.opacity,
+          annotatorPrefs.value.overlays.colorTransparency,
         );
       } else {
         videoLayer.disable();

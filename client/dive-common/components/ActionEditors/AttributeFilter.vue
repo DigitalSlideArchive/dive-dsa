@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   computed,
-  defineComponent, ref, watch, Ref, PropType,
+  defineComponent, ref, Ref, PropType,
 } from '@vue/composition-api';
 import {
   AttributeMatch, AttributeSelectAction, MatchOperator,
@@ -45,6 +45,7 @@ export default defineComponent({
     const editingOps = ref(['=', '!=', '>', '<', '>=', '<=', 'range', 'in']);
     const editingAtrOp: Ref<MatchOperator> = ref('=');
     const editingAtrVal: Ref<string[] | string | number | number[]> = ref('');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const addAttribute = (type: 'track' | 'detection', editing?: string) => {
       creatingAttribute.value = true;
       creatingAtrType.value = type;

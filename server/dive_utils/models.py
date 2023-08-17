@@ -480,6 +480,7 @@ class MediaResource(BaseModel):
     url: str
     id: str
     filename: str
+    metadata: Optional[dict]
 
 
 class DatasetSourceMedia(BaseModel):

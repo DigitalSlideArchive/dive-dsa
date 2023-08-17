@@ -2,13 +2,13 @@
 <script lang="ts">
 import {
   computed,
-  defineComponent, ref, watch, Ref, PropType,
+  defineComponent, ref, Ref, PropType,
 } from '@vue/composition-api';
 import {
   AttributeMatch, AttributeSelectAction, MatchOperator, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
-  useAttributes, useCameraStore, useConfiguration, useTrackFilters, useTrackStyleManager,
+  useAttributes, useTrackFilters, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 
 
@@ -23,12 +23,10 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const configMan = useConfiguration();
     const typeStylingRef = useTrackStyleManager().typeStyling;
 
     const attributes = useAttributes();
     const generalDialog = ref(false);
-    const cameraStore = useCameraStore();
     const trackFilterControls = useTrackFilters();
     const types = computed(() => trackFilterControls.allTypes.value);
 
@@ -41,25 +39,6 @@ export default defineComponent({
 
     const attributeFilters: Ref<AttributeSelectAction> = ref(props.data.attributes || {});
 
-    const testFilter = (type = 'track') => {
-      // build action filter
-      const selectTrackAction: TrackSelectAction = {
-        typeFilter: typeFilter.value,
-        confidenceFilter: confidenceNumber.value,
-        startTrack: startTrack.value,
-        startFrame: startFrame.value,
-        Nth: Nth.value,
-        attributes: attributeFilters.value,
-        direction: direction.value,
-        type: 'TrackSelection',
-      };
-      if (type === 'track') {
-        const result = cameraStore.getTrackFromAction(selectTrackAction);
-      }
-      if (type === 'frame') {
-        const result = cameraStore.getFrameFomAction(selectTrackAction);
-      }
-    };
     const creatingAtrType: Ref<'track' | 'detection'> = ref('track');
     // Editing Atribute Filters:
     const attributeList = computed(() => attributes.value.filter((item) => item.belongs === creatingAtrType.value).map((item) => item.name));
@@ -75,6 +54,7 @@ export default defineComponent({
     const editingOps = ref(['=', '!=', '>', '<', '>=', '<=', 'range', 'in']);
     const editingAtrOp: Ref<MatchOperator> = ref('=');
     const editingAtrVal: Ref<string[] | string | number | number[]> = ref('');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const addAttribute = (type: 'track' | 'detection', editing?: string) => {
       creatingAttribute.value = true;
       creatingAtrType.value = type;
@@ -175,7 +155,6 @@ export default defineComponent({
       startFrame,
       Nth,
       direction,
-      testFilter,
       creatingAttribute,
       attributeTypes,
       creatingAtrType,
@@ -401,8 +380,8 @@ export default defineComponent({
             <v-select
               v-model="editingAtrOp"
               :items="editingOps"
-              @change="changeAttributeType"
               label="Operator"
+              @change="changeAttributeType"
             />
           </v-row>
           <v-row dense>

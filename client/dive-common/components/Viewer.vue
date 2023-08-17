@@ -992,6 +992,7 @@ export default defineComponent({
           class="mx-2"
         />
         <v-icon
+          v-if="getUISetting('UIContextBar') && Object.values(context.componentMap).length"
           @click="context.toggle()"
         >
           {{ context.state.active ? 'mdi-chevron-right-box' : 'mdi-chevron-left-box' }}
@@ -1102,7 +1103,10 @@ export default defineComponent({
                   updateTime, frameRate, originalFps, camera, brightness, intercept }"
                 @loaded="runActions"
               >
-                <LayerManager :camera="camera" :overlays="overlays" />
+                <LayerManager
+                  :camera="camera"
+                  :overlays="overlays"
+                />
               </component>
             </div>
           </div>

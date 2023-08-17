@@ -6,7 +6,6 @@ import {
   defineComponent,
   Ref,
   PropType,
-  del as VueDel,
 } from '@vue/composition-api';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
@@ -14,7 +13,6 @@ import {
   SwimlaneFilter,
   SwimlaneGraphSettings,
 } from 'vue-media-annotator/use/AttributeTypes';
-import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { useAttributesFilters, useAttributes } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 

@@ -51,8 +51,8 @@ export default Vue.extend({
       default: () => ({ before: 20, after: 10 }),
     },
     overlaySettings: {
-      type: Object as PropType<{ opacity: number }>,
-      default: () => ({ opacity: 0.25 }),
+      type: Object as PropType<{ opacity: number; colorTransparency: boolean }>,
+      default: () => ({ opacity: 0.25, colorTransparency: false }),
     },
     overlays: {
       type: Array as PropType<{filename: string; url: string; id: string}[]>,
@@ -362,7 +362,7 @@ export default Vue.extend({
           >
             <label for="overlay-opacity">Opacity: {{ overlaySettings.opacity }}%</label>
             <input
-              id="foverlay-opacity"
+              id="overlay-opacity"
               type="range"
               name="overlay-opacity"
               class="tail-slider-width"
@@ -373,6 +373,12 @@ export default Vue.extend({
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, opacity: Number.parseFloat($event.target.value) })"
             >
+            <v-checkbox
+              :input-value="overlaySettings.colorTransparency"
+              label="Color Transparency"
+              @change="$emit('update:overlay-settings', {
+                ...overlaySettings, colorTransparency: $event })"
+            />
           </v-card>
         </v-menu>
 

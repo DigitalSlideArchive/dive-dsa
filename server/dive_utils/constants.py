@@ -84,6 +84,7 @@ OriginalFPSStringMarker = "originalFpsString"
 ConfidenceFiltersMarker = "confidenceFilters"
 OverlayVideoFolderMarker = "overlayVideo"
 OverlayVideoItemMarker = "overlayVideoItem"
+OverlayMetadataMarker = "overlayMetadata"
 
 # Other constants
 TrainedPipelineCategory = "trained"

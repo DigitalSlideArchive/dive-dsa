@@ -76,7 +76,7 @@ export default defineComponent({
       required: true,
     },
   },
-  setup(props, { emit }) {
+  setup(props) {
     const configMan = useConfiguration();
     const enabledKey = ref(true);
     const {

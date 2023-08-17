@@ -161,6 +161,7 @@ def get_media(
                     id=str(media["_id"]),
                     url=get_url(dsFolder, media),
                     filename=media['name'],
+                    metadata=media.get('meta', {}).get(constants.OverlayMetadataMarker, None)
                 )
             )
 

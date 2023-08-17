@@ -229,6 +229,7 @@ export default defineComponent({
     </template>
     <template #title-right>
       <DIVETools
+        v-if="enabledFeatures['toolbox']"
         :button-options="buttonOptions"
         :menu-options="menuOptions"
       />

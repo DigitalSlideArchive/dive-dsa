@@ -3,8 +3,7 @@
 import {
   defineComponent, ref, PropType, Ref, computed,
 } from '@vue/composition-api';
-import { Configuration, UISettings } from 'vue-media-annotator/ConfigurationManager';
-import { useConfiguration, useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
+import { useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { FilterTimeline } from 'vue-media-annotator/use/useTimelineFilters';
 import AttributeFilter from '../ActionEditors/AttributeFilter.vue';
 
@@ -130,7 +129,10 @@ export default defineComponent({
       </v-col>
     </v-row>
     <div v-if="editingTimeline">
-      <v-card class="pa-3" style="border: 2px solid white">
+      <v-card
+        class="pa-3"
+        style="border: 2px solid white"
+      >
         <v-row dense>
           <v-text-field
             v-model="currentEditName"

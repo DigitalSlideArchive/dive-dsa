@@ -77,6 +77,7 @@ function defaultFormatter(
   annotation: FrameDataTrack,
   renderAttr: Attribute[],
   user: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   typeStyling: TypeStyling,
 ): AttributeTextData[] | null {
   if (annotation.features && annotation.features.bounds) {

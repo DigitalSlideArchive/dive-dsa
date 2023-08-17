@@ -438,7 +438,7 @@ export default function UseAttributes(
   });
 
   const timelineDefault = computed(() => {
-    const defVal = Object.entries(timelineGraphs.value).find(([_key, item]) => item.default);
+    const defVal = Object.entries(timelineGraphs.value).find(([, item]) => item.default);
     if (defVal) {
       return defVal[0];
     }
@@ -624,7 +624,7 @@ export default function UseAttributes(
   });
 
   const swimlaneDefault = computed(() => {
-    const defVal = Object.entries(swimlaneGraphs.value).find(([_key, item]) => item.default);
+    const defVal = Object.entries(swimlaneGraphs.value).find(([, item]) => item.default);
     if (defVal) {
       return defVal[0];
     }

@@ -12,6 +12,7 @@ interface PromptParams {
   positiveButton?: string;
   negativeButton?: string;
   valueType?: 'text' | 'number' | 'boolean';
+  valueList?: string[];
   confirm?: boolean;
 }
 
@@ -33,6 +34,7 @@ class PromptService {
     confirm: boolean,
     resolve: (value: boolean) => unknown,
     valueType?: 'text' | 'number' | 'boolean',
+    valueList?: string[],
   ): void {
     this.component.title = title;
     this.component.text = text;
@@ -43,6 +45,7 @@ class PromptService {
     this.component.value = null;
     this.component.functions.resolve = resolve;
     this.component.show = true;
+    this.component.valueList = valueList;
   }
 
   show({
@@ -71,10 +74,12 @@ class PromptService {
     negativeButton = 'Cancel',
     valueType = 'text',
     confirm = false,
+    valueList = undefined,
   }: PromptParams): Promise<boolean | number | string | null> {
     return new Promise<boolean | number | string | null>((resolve) => {
       if (!this.component.show) {
-        this.set(title, text, positiveButton, negativeButton, confirm, resolve, valueType);
+        this.set(title, text, positiveButton, negativeButton,
+          confirm, resolve, valueType, valueList);
         return this.component.value;
       }
       const unwatch = watch(this.component.show, () => {

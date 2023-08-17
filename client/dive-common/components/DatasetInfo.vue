@@ -23,12 +23,13 @@ export default defineComponent({
 
   setup() {
     const store = useStore();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datasetInfo: Ref<Record<string, any>> = ref({});
     const getMetadata = async () => {
       if (store.state.Dataset.meta) {
         const resp = await getFolder(store.state.Dataset.meta?.id);
-        console.log(resp);
         if (resp.data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           datasetInfo.value = resp.data.meta.datasetInfo as Record<string, any>;
         }
       }

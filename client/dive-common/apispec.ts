@@ -128,7 +128,10 @@ interface DatasetMeta {
   id: Readonly<string>;
   imageData: Readonly<FrameImage[]>;
   videoUrl: Readonly<string | undefined>;
-  overlays?: Readonly<{url: string; filename: string; id: string}[] | undefined>;
+  overlays?: Readonly<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    url: string; filename: string; id: string; metadata?: Record<string, any>;
+  }[] | undefined>;
   type: Readonly<DatasetType | 'multi'>;
   fps: Readonly<number>; // this will become mutable in the future.
   name: Readonly<string>;
