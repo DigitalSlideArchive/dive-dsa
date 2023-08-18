@@ -76,6 +76,8 @@ nav:
     - Keyboard Shortcut Reference: Mouse-Keyboard-Shortcuts.md
     - Screenshots: Screenshots.md
     - Support: Support.md
+    - Experimental: Experimental.md
+
   - Data Formats: DataFormats.md
   - Administrator Guide:
     - Running with Docker Compose: Deployment-Docker-Compose.md
