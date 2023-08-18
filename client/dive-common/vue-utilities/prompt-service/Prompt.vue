@@ -16,6 +16,7 @@ export default defineComponent({
     const confirm = ref(false);
     const valueType: Ref<'text' | 'number' | 'boolean' | undefined > = ref(undefined);
     const value: Ref<string | boolean | number| null> = ref(null);
+    const valueList: Ref<string[] | undefined> = ref(undefined);
 
     /**
      * Placeholder resolver function.  Wrapped in object so that
@@ -104,6 +105,7 @@ export default defineComponent({
       }
     });
 
+
     return {
       show,
       title,
@@ -115,6 +117,7 @@ export default defineComponent({
       functions,
       value,
       valueType,
+      valueList,
       clickPositive,
       clickNegative,
       select,
@@ -157,9 +160,17 @@ export default defineComponent({
         {{ text }}
         <v-row v-if="valueType !== undefined">
           <v-text-field
-            v-if="valueType === 'text'"
+            v-if="valueType === 'text' && !valueList"
             ref="input"
             v-model="value"
+            autofocus
+          />
+          <v-select
+            v-if="valueType === 'text' && valueList && valueList.length"
+            ref="input"
+            v-model="value"
+            :items="valueList"
+            outlined
             autofocus
           />
           <v-text-field

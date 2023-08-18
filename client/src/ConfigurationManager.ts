@@ -142,7 +142,9 @@ export interface Configuration {
   timelineConfigs?: TimelineConfiguration;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function flatMapGenerator(data: any, rootKey = '') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let flatMap: Record<string, any> = {};
   Object.entries(data).forEach(([key, subData]) => {
     if (typeof (subData) === 'object') {

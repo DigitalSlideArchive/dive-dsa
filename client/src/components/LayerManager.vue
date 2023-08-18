@@ -15,6 +15,7 @@ import TailLayer from '../layers/AnnotationLayers/TailLayer';
 
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
 import { FrameDataTrack } from '../layers/LayerTypes';
+import VideoLayer from '../layers/MediaLayers/videoLayer';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
 import AttributeLayer from '../layers/AnnotationLayers/AttributeLayer';
 import AttributeBoxLayer from '../layers/AnnotationLayers/AttributeBoxLayer';
@@ -60,7 +61,12 @@ export default defineComponent({
       type: String,
       default: 'singleCam',
     },
-
+    overlays: {
+      type: Array as PropType<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {filename: string; id: string; url: string; metadata?: Record<string, any>}[]>,
+      default: () => [],
+    },
   },
   setup(props) {
     const store = useStore();
@@ -95,6 +101,16 @@ export default defineComponent({
     const annotator = injectAggregateController().value.getController(props.camera);
     const frameNumberRef = annotator.frame;
     const flickNumberRef = annotator.flick;
+
+    const videoLayer = new VideoLayer({ annotator, typeStyling: typeStylingRef });
+
+    if (props.overlays && props.overlays.length) {
+      videoLayer.initialize({
+        url: props.overlays[0].url,
+        opacity: props.overlays[0].metadata?.opacity || 1.0,
+        metadata: props.overlays[0].metadata,
+      });
+    }
 
     const rectAnnotationLayer = new RectangleLayer({
       annotator,
@@ -273,6 +289,16 @@ export default defineComponent({
       } else {
         tailLayer.disable();
       }
+      if (visibleModes.includes('overlays')) {
+        videoLayer.updateSettings(
+          frame,
+          annotatorPrefs.value.overlays.opacity,
+          annotatorPrefs.value.overlays.colorTransparency,
+        );
+      } else {
+        videoLayer.disable();
+      }
+
       pointLayer.changeData(frameData);
       if (visibleModes.includes('text')) {
         textLayer.changeData(frameData);

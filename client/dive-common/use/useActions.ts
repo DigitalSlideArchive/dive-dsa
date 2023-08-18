@@ -1,5 +1,4 @@
 /* eslint-disable max-len */
-import { Ref } from '@vue/composition-api';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 interface Action {
@@ -10,6 +9,7 @@ export type MatchOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'range' | 'in
 
 export interface AttributeMatch {
     op?: MatchOperator;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     val: any; //number, string, array of numbers or strings
 }
 

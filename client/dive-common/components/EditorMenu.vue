@@ -50,6 +50,14 @@ export default Vue.extend({
       type: Object as PropType<{ before: number; after: number }>,
       default: () => ({ before: 20, after: 10 }),
     },
+    overlaySettings: {
+      type: Object as PropType<{ opacity: number; colorTransparency: boolean }>,
+      default: () => ({ opacity: 0.25, colorTransparency: false }),
+    },
+    overlays: {
+      type: Array as PropType<{filename: string; url: string; id: string}[]>,
+      default: () => [],
+    },
     getUISetting: {
       type: Function,
       required: true,
@@ -329,6 +337,51 @@ export default Vue.extend({
             >
           </v-card>
         </v-menu>
+        <v-menu
+          v-if="overlays.length"
+          open-on-hover
+          bottom
+          offset-y
+          :close-on-content-click="false"
+        >
+          <template #activator="{ on, attrs }">
+            <v-btn
+              v-bind="attrs"
+              :color="isVisible('overlays') ? 'grey darken-2' : ''"
+              class="mx-1 mode-button"
+              small
+              v-on="on"
+              @click="toggleVisible('overlays')"
+            >
+              <v-icon>mdi-layers</v-icon>
+            </v-btn>
+          </template>
+          <v-card
+            class="pa-4 flex-column d-flex"
+            outlined
+          >
+            <label for="overlay-opacity">Opacity: {{ overlaySettings.opacity }}%</label>
+            <input
+              id="overlay-opacity"
+              type="range"
+              name="overlay-opacity"
+              class="tail-slider-width"
+              label
+              min="0"
+              max="100"
+              :value="overlaySettings.opacity"
+              @input="$emit('update:overlay-settings', {
+                ...overlaySettings, opacity: Number.parseFloat($event.target.value) })"
+            >
+            <v-checkbox
+              :input-value="overlaySettings.colorTransparency"
+              label="Color Transparency"
+              @change="$emit('update:overlay-settings', {
+                ...overlaySettings, colorTransparency: $event })"
+            />
+          </v-card>
+        </v-menu>
+
       </span>
     </div>
   </v-row>

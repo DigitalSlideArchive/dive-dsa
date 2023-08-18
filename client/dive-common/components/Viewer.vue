@@ -117,6 +117,7 @@ export default defineComponent({
     const datasetName = ref('');
     const saveInProgress = ref(false);
     const videoUrl: Ref<Record<string, string>> = ref({});
+    const overlays: Ref<Readonly<{url: string; filename: string; id: string}[] | undefined>> = ref(undefined);
     const {
       loadDetections, loadMetadata, saveMetadata, saveConfiguration, transferConfiguration,
     } = useApi();
@@ -616,6 +617,9 @@ export default defineComponent({
           if (subCameraMeta.videoUrl) {
             videoUrl.value[camera] = subCameraMeta.videoUrl;
           }
+          if (subCameraMeta.overlays) {
+            overlays.value = subCameraMeta.overlays;
+          }
           cameraStore.addCamera(camera);
           addSaveCamera(camera);
           // eslint-disable-next-line no-await-in-loop
@@ -874,6 +878,7 @@ export default defineComponent({
       selectedKey,
       trackFilters,
       videoUrl,
+      overlays,
       visibleModes,
       frameRate: time.frameRate,
       originalFps: time.originalFps,
@@ -948,11 +953,12 @@ export default defineComponent({
           v-if="getUISetting('UIToolBar')"
           v-bind="{
             editingMode, visibleModes, editingTrack, recipes,
-            multiSelectActive, editingDetails,
+            multiSelectActive, editingDetails, overlays,
             groupEditActive: editingGroupId !== null,
           }"
           :get-u-i-setting="getUISetting"
           :tail-settings.sync="clientSettings.annotatorPreferences.trackTails"
+          :overlay-settings.sync="clientSettings.annotatorPreferences.overlays"
           @set-annotation-state="handler.setAnnotationState"
           @exit-edit="handler.trackAbort"
         >
@@ -986,6 +992,7 @@ export default defineComponent({
           class="mx-2"
         />
         <v-icon
+          v-if="getUISetting('UIContextBar') && Object.values(context.componentMap).length"
           @click="context.toggle()"
         >
           {{ context.state.active ? 'mdi-chevron-right-box' : 'mdi-chevron-left-box' }}
@@ -1096,7 +1103,10 @@ export default defineComponent({
                   updateTime, frameRate, originalFps, camera, brightness, intercept }"
                 @loaded="runActions"
               >
-                <LayerManager :camera="camera" />
+                <LayerManager
+                  :camera="camera"
+                  :overlays="overlays"
+                />
               </component>
             </div>
           </div>

@@ -8,4 +8,8 @@ export interface AnnotatorPreferences {
     before: number;
     after: number;
   };
+  overlays: {
+    opacity: number;
+    colorTransparency: boolean;
+  };
 }

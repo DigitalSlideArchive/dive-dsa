@@ -1,7 +1,7 @@
 <!-- eslint-disable max-len -->
 <script>
 import Vue from 'vue';
-import { throttle, debounce, sortBy } from 'lodash';
+import { throttle, debounce } from 'lodash';
 import * as d3 from 'd3';
 
 function intersect(range1, range2) {

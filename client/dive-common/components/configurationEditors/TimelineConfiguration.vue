@@ -5,7 +5,6 @@ import {
 } from '@vue/composition-api';
 import { TimelineConfiguration, TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
 import { useTimelineFilters, useAttributesFilters } from 'vue-media-annotator/provides';
-import { FilterTimeline } from 'vue-media-annotator/use/useTimelineFilters';
 
 export default defineComponent({
   name: 'TimelineConfiguration',
@@ -34,10 +33,10 @@ export default defineComponent({
       timelineFilters.timelines.value.forEach((timeline) => {
         base.push({ name: timeline.name, type: 'filter' });
       });
-      Object.entries(timelineGraphs.value).forEach(([name, _val]) => {
+      Object.entries(timelineGraphs.value).forEach(([name]) => {
         base.push({ name, type: 'graph' });
       });
-      Object.entries(swimlaneGraphs.value).forEach(([name, _val]) => {
+      Object.entries(swimlaneGraphs.value).forEach(([name]) => {
         base.push({ name, type: 'swimlane' });
       });
       const filtered = base.filter((item) => (props.timelineConfig.timelines.findIndex((timeline) => (timeline.name === item.name)) === -1));
@@ -181,7 +180,10 @@ export default defineComponent({
       </v-col>
     </v-row>
     <div v-if="editingTimeline">
-      <v-card class="pa-3" style="border: 2px solid white;">
+      <v-card
+        class="pa-3"
+        style="border: 2px solid white;"
+      >
         <v-card-title> Editing </v-card-title>
         <v-row dense>
           <v-col><h2> Name: {{ currentEditName }}</h2></v-col>

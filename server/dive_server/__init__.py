@@ -14,7 +14,7 @@ from dive_utils import constants
 
 from .client_webroot import ClientWebroot
 from .crud_annotation import GroupItem, RevisionLogItem, TrackItem
-from .event import process_fs_import, process_s3_import, send_new_user_email, DIVES3Imports
+from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new_user_email
 from .views_annotation import AnnotationResource
 from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
@@ -22,6 +22,7 @@ from .views_override import countJobs, use_private_queue
 from .views_rpc import RpcResource
 
 __version__ = "1.0.0"
+
 
 class GirderPlugin(plugin.GirderPlugin):
     DISPLAY_NAME = 'DIVE'

@@ -55,7 +55,9 @@ export default defineComponent({
         type: string;
         value: string;
         dataType: 'number' | 'text' | 'boolean';
-        description: string; belongs: 'track' | 'detection'; name: string;}[] = [];
+        description: string; belongs: 'track' | 'detection'; name: string;
+        list?: string[];
+      }[] = [];
       attributes.value.forEach((attribute) => {
         if (attribute.shortcuts && attribute.shortcuts.length > 0) {
           attribute.shortcuts.forEach((shortcut) => {
@@ -73,6 +75,7 @@ export default defineComponent({
               belongs: attribute.belongs,
               dataType: attribute.datatype,
               name: attribute.name,
+              list: attribute.values,
             });
           });
         }
@@ -154,12 +157,12 @@ export default defineComponent({
           handler = async () => {
             const val = await inputValue({
               title: `Set ${shortcut.name} Value`,
-              text: 'Set the Attribute Value below',
+              text: shortcut.list ? 'Press Spacebar to choose a selection, then Enter to select' : 'Set the Attribute Value below',
               positiveButton: 'Save',
               negativeButton: 'Cancel',
               confirm: true,
               valueType: shortcut.dataType,
-
+              valueList: shortcut.list,
             });
             if (val !== null) {
               updateAttribute({

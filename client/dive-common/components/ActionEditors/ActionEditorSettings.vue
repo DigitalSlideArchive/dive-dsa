@@ -1,14 +1,13 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  computed,
-  defineComponent, ref, watch, Ref,
+  defineComponent, ref, Ref,
 } from '@vue/composition-api';
 import {
-  AttributeMatch, AttributeSelectAction, DIVEAction, MatchOperator, TrackSelectAction,
+  DIVEAction, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
-  useAttributes, useCameraStore, useConfiguration, useTrackFilters, useTrackStyleManager,
+  useAttributes, useConfiguration, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 import ActionEditor from './ActionEditor.vue';
 import TrackFilter from './TrackFilter.vue';

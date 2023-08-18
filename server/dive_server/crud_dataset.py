@@ -138,9 +138,37 @@ def get_media(
     else:
         raise ValueError(f'Unrecognized source type: {source_type}')
 
+    # get references to any overlay media in the system
+    overlayFolder = Folder().findOne(
+        {
+            'parentId': crud.getCloneRoot(user, dsFolder)['_id'],
+            f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
+    overlays = None
+    if overlayFolder:
+        overlayItems = Item().find(
+            {
+                'folderId': overlayFolder["_id"],
+                f'meta.{constants.OverlayVideoItemMarker}': {'$in': TRUTHY_META_VALUES},
+            }
+        )
+        overlays = []
+        for media in overlayItems:
+            print(media)
+            overlays.append(
+                models.MediaResource(
+                    id=str(media["_id"]),
+                    url=get_url(dsFolder, media),
+                    filename=media['name'],
+                    metadata=media.get('meta', {}).get(constants.OverlayMetadataMarker, None),
+                )
+            )
+
     return models.DatasetSourceMedia(
         imageData=imageData,
         video=videoResource,
+        overlays=overlays,
     )
 
 
@@ -171,13 +199,14 @@ class AttributeUpdateArgs(BaseModel):
     class Config:
         extra = 'forbid'
 
+
 def transfer_config(source: types.GirderModel, dest: types.GirderModel):
-    attributes = source.get('meta',{}).get('attributes', {})
-    timelines = source.get('meta',{}).get('timelines', {})
-    customGroupStyling = source.get('meta',{}).get('customGroupStyling', {})
-    customTypeStyling = source.get('meta',{}).get('customTypeStyling', {})
-    confidenceFilters = source.get('meta',{}).get('confidenceFilters', {})
-    filters = source.get('meta',{}).get('filters', {})
+    attributes = source.get('meta', {}).get('attributes', {})
+    timelines = source.get('meta', {}).get('timelines', {})
+    customGroupStyling = source.get('meta', {}).get('customGroupStyling', {})
+    customTypeStyling = source.get('meta', {}).get('customTypeStyling', {})
+    confidenceFilters = source.get('meta', {}).get('confidenceFilters', {})
+    filters = source.get('meta', {}).get('filters', {})
     data = {
         'attributes': attributes,
         'timelines': timelines,
@@ -212,6 +241,7 @@ def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):
         "deleted": deleted_len,
     }
 
+
 class TimelineUpdateArgs(BaseModel):
     upsert: List[models.TimeLineGraph] = []
     delete: List[str] = []
@@ -219,12 +249,14 @@ class TimelineUpdateArgs(BaseModel):
     class Config:
         extra = 'forbid'
 
+
 class SwimlaneUpdateArgs(BaseModel):
     upsert: List[models.SwimlaneGraph] = []
     delete: List[str] = []
 
     class Config:
         extra = 'forbid'
+
 
 class FilterUpdateArgs(BaseModel):
     upsert: List[models.AttributeFilter] = []
@@ -256,6 +288,7 @@ def update_timelines(dsFolder: types.GirderModel, data: dict, verify=True):
         "updated": upserted_len,
         "deleted": deleted_len,
     }
+
 
 def update_swimlanes(dsFolder: types.GirderModel, data: dict, verify=True):
     """Upsert or delete attributes"""
@@ -306,15 +339,13 @@ def update_filters(dsFolder: types.GirderModel, data: dict, verify=True):
     }
 
 
-
 def update_configuration(dsFolder: types.GirderModel, data: dict, verify=True):
     if verify:
         crud.verify_dataset(dsFolder)
     configuration = fromMeta(dsFolder, 'configuration', {})
     update_metadata(dsFolder, {'configuration': data}, verify)
-    return {
-        'updated': data
-    }
+    return {'updated': data}
+
 
 def export_datasets_zipstream(
     dsFolders: List[types.GirderModel],

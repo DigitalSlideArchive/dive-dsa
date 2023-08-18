@@ -1,4 +1,5 @@
 import logging
+
 from girder_worker import GirderWorkerPluginABC
 
 __version__ = "1.0.0"
@@ -6,11 +7,9 @@ __version__ = "1.0.0"
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
 
 try:
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import version as _importlib_version
+    from importlib.metadata import PackageNotFoundError, version as _importlib_version
 except ImportError:
-    from importlib_metadata import PackageNotFoundError
-    from importlib_metadata import version as _importlib_version
+    from importlib_metadata import PackageNotFoundError, version as _importlib_version
 try:
     __version__ = _importlib_version(__name__)
 except PackageNotFoundError:
