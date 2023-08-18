@@ -14,7 +14,7 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.user import User
 
-from dive_utils import constants, setContentDisposition, TRUTHY_META_VALUES
+from dive_utils import TRUTHY_META_VALUES, constants, setContentDisposition
 from dive_utils.models import MetadataMutable
 
 from . import crud, crud_dataset
