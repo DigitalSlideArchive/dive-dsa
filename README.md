@@ -2,25 +2,22 @@
 
 DIVE is a web interface for performing data management, video annotation, and running a portion of the algorithms stored within the [VIAME](https://github.com/VIAME/VIAME) repository. When compiled, docker instances for DIVE can be run either as local servers or online in web services. A sample instance of DIVE is running on a public server at [viame.kitware.com](https://viame.kitware.com).
 
+THis is a version of DIVE that integrates with [Digital Slide Archive](https://digitalslidearchive.github.io/digital_slide_archive/).  There are features and differences with the core DIVE functionality.  The DIVE-DSA user guide lists all new features and functionality.
+
 ![docs/images/Banner.png](docs/images/Banner.png)
 
 ## Features
 
 * video annotation
 * still image (and image sequence) annotation
-* deep integration with [VIAME](https://github.com/VIAME/VIAME) computer vision analysis tools
 * single-frame boxes, polygons, and lines
 * multi-frame bounding box tracks with interpolation
 * Automatic transcoding to support most video formats
 * Customizable labeling with text, numeric, multiple-choice attributes
 
-## Documentation
+## DIVE-DSA Documentation
 
-* [Client User Guide](https://kitware.github.io/dive/)
-* [Client Development Docs](client/README.md)
-* [Server Development Docs](server/README.md)
-* [Deployment Overview](https://kitware.github.io/dive/Deployment-Overview/)
-* [Running with Docker Compose](https://kitware.github.io/dive/Deployment-Docker-Compose/)
+* [User Guide] (https://bryonlewis.github.io/dive-dsa/)
 
 ## Technologies Used
 
