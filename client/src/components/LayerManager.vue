@@ -505,10 +505,99 @@ export default defineComponent({
     };
     rectAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
     polyAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
+
+    // Data for the video Opacity Filter:
+    // Templating is there for multiple colors but only support a single coor for now
+    const videoLayerTransparencyVals = computed(() => {
+      const transparencyArray: number[][][] = [];
+      videoLayer.transparency.forEach((transparencyColor) => {
+        const colorVals: number[][] = [];
+        for (let i = 0; i < transparencyColor.rgb.length; i += 1) {
+          const colorArray: number[] = new Array(255).fill(0);
+          colorArray[transparencyColor.rgb[i]] = 1;
+          const variance = transparencyColor.variance || 0;
+          for (let j = 1; j <= variance; j += 1) {
+            if (transparencyColor.rgb[i] - j >= 0) {
+              colorArray[transparencyColor.rgb[i] - j] = 1;
+            }
+            if (transparencyColor.rgb[i] + j < 255) {
+              colorArray[transparencyColor.rgb[i] + j] = 1;
+            }
+          }
+          colorVals.push(colorArray);
+        }
+        transparencyArray.push(colorVals);
+      });
+      return transparencyArray;
+    });
+    const videoLayerColorTransparencyOn = computed(
+      () => annotatorPrefs.value.overlays.colorTransparency,
+    );
+    return {
+      videoLayerTransparencyVals,
+      videoLayerColorTransparencyOn,
+    };
   },
 });
 </script>
 
 <template>
-  <div />
+  <div>
+    <svg
+      v-if="videoLayerColorTransparencyOn && videoLayerTransparencyVals.length"
+      width="0"
+      height="0"
+      style="position: absolute; top: -1px; left: -1px"
+    >
+      <defs>
+        <filter
+          id="color-replace"
+          color-interpolation-filters="sRGB"
+        >
+          <!-- Replace rgb(87,78,29) with blue. -->
+          <feComponentTransfer>
+            <feFuncR
+              type="discrete"
+              :tableValues="videoLayerTransparencyVals[0][0]"
+            />
+            <feFuncG
+              type="discrete"
+              :tableValues="videoLayerTransparencyVals[0][1]"
+            />
+            <feFuncB
+              type="discrete"
+              :tableValues="videoLayerTransparencyVals[0][2]"
+            />
+          </feComponentTransfer>
+
+          <feColorMatrix
+            type="matrix"
+            values="1 0 0 0 0
+                    0 1 0 0 0
+                    0 0 1 0 0
+                    1 1 1 1 -3"
+            result="selectedColor"
+          />
+
+          <feComposite
+            operator="out"
+            in="SourceGraphic"
+            result="notSelectedColor"
+          />
+          <feFlood
+            flood-color="white"
+            flood-opacity="0.0"
+          />
+          <feComposite
+            operator="in"
+            in2="selectedColor"
+          />
+          <feComposite
+            operator="over"
+            in2="notSelectedColor"
+          />
+        </filter>
+      </defs>
+    </svg>
+  </div>
 </template>
