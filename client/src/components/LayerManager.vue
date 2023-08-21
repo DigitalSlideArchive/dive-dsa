@@ -20,7 +20,7 @@ import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
 import AttributeLayer from '../layers/AnnotationLayers/AttributeLayer';
 import AttributeBoxLayer from '../layers/AnnotationLayers/AttributeBoxLayer';
 import type { AnnotationId } from '../BaseAnnotation';
-import { geojsonToBound } from '../utils';
+import { geojsonToBound, hexToRgb } from '../utils';
 import { VisibleAnnotationTypes } from '../layers';
 import UILayer from '../layers/UILayers/UILayer';
 import ToolTipWidget from '../layers/UILayers/ToolTipWidget.vue';
@@ -506,28 +506,41 @@ export default defineComponent({
     rectAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
     polyAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
 
+    const generateSVGArray = (rgb: number[], variance: number) => {
+      const colorVals: number[][] = [];
+      for (let i = 0; i < rgb.length; i += 1) {
+        const colorArray: number[] = new Array(255).fill(0);
+        colorArray[rgb[i]] = 1;
+        for (let j = 1; j <= variance; j += 1) {
+          if (rgb[i] - j >= 0) {
+            colorArray[rgb[i] - j] = 1;
+          }
+          if (rgb[i] + j < 255) {
+            colorArray[rgb[i] + j] = 1;
+          }
+        }
+        colorVals.push(colorArray);
+      }
+      return colorVals;
+    };
     // Data for the video Opacity Filter:
     // Templating is there for multiple colors but only support a single coor for now
     const videoLayerTransparencyVals = computed(() => {
       const transparencyArray: number[][][] = [];
-      videoLayer.transparency.forEach((transparencyColor) => {
-        const colorVals: number[][] = [];
-        for (let i = 0; i < transparencyColor.rgb.length; i += 1) {
-          const colorArray: number[] = new Array(255).fill(0);
-          colorArray[transparencyColor.rgb[i]] = 1;
-          const variance = transparencyColor.variance || 0;
-          for (let j = 1; j <= variance; j += 1) {
-            if (transparencyColor.rgb[i] - j >= 0) {
-              colorArray[transparencyColor.rgb[i] - j] = 1;
-            }
-            if (transparencyColor.rgb[i] + j < 255) {
-              colorArray[transparencyColor.rgb[i] + j] = 1;
-            }
-          }
-          colorVals.push(colorArray);
-        }
+      if (annotatorPrefs.value.overlays.overrideValue) {
+        const rgb = annotatorPrefs.value.overlays.overrideColor
+          ? hexToRgb(annotatorPrefs.value.overlays.overrideColor) : [0, 0, 0];
+        const variance = annotatorPrefs.value.overlays.overrideVariance || 0;
+        const colorVals = generateSVGArray(rgb, variance);
         transparencyArray.push(colorVals);
-      });
+      } else {
+        videoLayer.transparency.forEach((transparencyColor) => {
+          const { rgb } = transparencyColor;
+          const variance = transparencyColor.variance || 0;
+          const colorVals = generateSVGArray(rgb, variance);
+          transparencyArray.push(colorVals);
+        });
+      }
       return transparencyArray;
     });
     const videoLayerColorTransparencyOn = computed(
