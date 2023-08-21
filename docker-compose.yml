@@ -9,6 +9,7 @@ x-worker: &base-worker
   image:  ghcr.io/bryonlewis/dive-dsa/dive-dsa-worker:${TAG:-latest}
   volumes:
     - addons:/tmp/addons:ro # readonly
+    - /var/run/docker.sock:/var/run/docker.sock
   labels:
     - "com.centurylinklabs.watchtower.enable=true"
   depends_on:
@@ -95,6 +96,7 @@ services:
     volumes:
       # readwrite because this worker does addon updates
       - addons:/tmp/addons:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - "WORKER_WATCHING_QUEUES=celery"
       - "WORKER_CONCURRENCY=${DEFAULT_WORKER_CONCURRENCY:-3}"
