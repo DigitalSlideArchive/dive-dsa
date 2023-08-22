@@ -5,6 +5,7 @@ import Vue, { PropType } from 'vue';
 import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
+import { hexToRgb } from 'vue-media-annotator/utils';
 
 interface ButtonData {
   id: string;
@@ -51,8 +52,19 @@ export default Vue.extend({
       default: () => ({ before: 20, after: 10 }),
     },
     overlaySettings: {
-      type: Object as PropType<{ opacity: number; colorTransparency: boolean }>,
-      default: () => ({ opacity: 0.25, colorTransparency: false }),
+      type: Object as PropType<{
+        opacity: number;
+        colorTransparency: boolean;
+        overrideValue?: boolean;
+        overrideColor?: string;
+        overrideVariance?: number; }>,
+      default: () => ({
+        opacity: 0.25,
+        colorTransparency: false,
+        overrideValue: false,
+        overrideColor: 'white',
+        overrideVariance: 0,
+      }),
     },
     overlays: {
       type: Array as PropType<{filename: string; url: string; id: string}[]>,
@@ -79,6 +91,7 @@ export default Vue.extend({
           LineString: 'Click endpoints to select for deletion.',
         },
       },
+      overrideOverlay: false,
     };
   },
   computed: {
@@ -203,6 +216,17 @@ export default Vue.extend({
           visible: this.visibleModes.concat([mode]),
         });
       }
+    },
+    copyJSON() {
+      const variance = this.overlaySettings.overrideVariance;
+      const rgb = hexToRgb(this.overlaySettings.overrideColor || '#000000');
+      const obj = {
+        transparency: {
+          rgb,
+          variance,
+        },
+      };
+      navigator.clipboard.writeText(JSON.stringify(obj));
     },
   },
 });
@@ -360,7 +384,23 @@ export default Vue.extend({
             class="pa-4 flex-column d-flex"
             outlined
           >
-            <label for="overlay-opacity">Opacity: {{ overlaySettings.opacity }}%</label>
+            <v-row dense>
+              <label for="overlay-opacity">Opacity: {{ overlaySettings.opacity }}%</label>
+              <v-tooltip
+                open-delay="100"
+                bottom
+              >
+                <template #activator="{ on }">
+                  <v-icon
+                    class="ml-2"
+                    v-on="on"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+                <span>Change the opacity of the overlay video</span>
+              </v-tooltip>
+            </v-row>
             <input
               id="overlay-opacity"
               type="range"
@@ -373,12 +413,102 @@ export default Vue.extend({
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, opacity: Number.parseFloat($event.target.value) })"
             >
-            <v-checkbox
-              :input-value="overlaySettings.colorTransparency"
-              label="Color Transparency"
-              @change="$emit('update:overlay-settings', {
-                ...overlaySettings, colorTransparency: $event })"
+            <v-row dense>
+              <v-checkbox
+                :input-value="overlaySettings.colorTransparency"
+                label="Color Transparency"
+                @change="$emit('update:overlay-settings', {
+                  ...overlaySettings, colorTransparency: $event })"
+              />
+              <v-tooltip
+                open-delay="100"
+                bottom
+              >
+                <template #activator="{ on }">
+                  <v-icon
+                    class="ml-2"
+                    v-on="on"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+                <span>If the video has color opacity metadat this
+                  will replace that color with transparency</span>
+              </v-tooltip>
+            </v-row>
+            <v-row dense>
+              <v-checkbox
+                v-if="overlaySettings.colorTransparency"
+                :input-value="overlaySettings.overrideValue"
+                label="Override"
+                @change="$emit('update:overlay-settings', {
+                  ...overlaySettings, overrideValue: $event })"
+              />
+              <v-tooltip
+                open-delay="100"
+                bottom
+              >
+                <template #activator="{ on }">
+                  <v-icon
+                    class="ml-2"
+                    v-on="on"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+                <span>Allows you override the color and transparency set in
+                  the metadata for testing new values</span>
+              </v-tooltip>
+            </v-row>
+            <label
+              v-if="overlaySettings.overrideValue"
+              for="overlay-variance"
+            >Variance: {{ overlaySettings.overrideVariance }}</label>
+            <input
+              v-if="overlaySettings.overrideValue"
+              id="overlay-variance"
+              type="range"
+              name="overlay-variance"
+              class="tail-slider-width"
+              label="Variance"
+              min="0"
+              max="255"
+              :value="overlaySettings.overrideVariance || 0"
+              @input="$emit('update:overlay-settings', {
+                ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
+            >
+            <v-color-picker
+              v-if="overlaySettings.overrideValue"
+              :value="overlaySettings.overrideColor || 'white'"
+              hide-inputs
+              @input="$emit('update:overlay-settings', {
+                ...overlaySettings, overrideColor: $event })"
             />
+            <v-row dense>
+              <v-spacer />
+              <v-tooltip
+                open-delay="100"
+                bottom
+              >
+                <template #activator="{ on }">
+                  <v-btn
+                    class="ml-2"
+                    v-on="on"
+                    @click="copyJSON"
+                  >
+                    Copy:
+                    <v-icon>
+                      mdi-content-copy
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <span>Copies the override values to a JSON string to be used in the metadata</span>
+              </v-tooltip>
+              <v-spacer />
+
+            </v-row>
+
+
           </v-card>
         </v-menu>
 

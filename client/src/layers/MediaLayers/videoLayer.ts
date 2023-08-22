@@ -30,8 +30,6 @@ export default class VideoLayer {
 
     transparency: Transparency[];
 
-    ctx: CanvasRenderingContext2D | null;
-
     constructor({
       annotator,
       typeStyling,
@@ -45,7 +43,6 @@ export default class VideoLayer {
       this.width = 0;
       this.height = 0;
       this.transparency = [];
-      this.ctx = null;
     }
 
     loadedMetadata() {
@@ -64,6 +61,7 @@ export default class VideoLayer {
           ])
           .draw();
       }
+      this.featureLayer.node().css('filter', 'url(#color-replace)');
     }
 
     initialize({ url, opacity, metadata }:
@@ -84,8 +82,6 @@ export default class VideoLayer {
       this.video.addEventListener('loadedmetadata', () => this.loadedMetadata());
       this.opacity = opacity;
       this.featureLayer.opacity(this.opacity / 100.0);
-      const canvas = this.featureLayer.canvas()[0] as HTMLCanvasElement;
-      this.ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
       watch(this.annotator.playing, () => {
         if (this.video !== null) {
           if (this.annotator.playing.value && this.video.paused) {
@@ -110,45 +106,13 @@ export default class VideoLayer {
       this.opacity = opacity;
       this.featureLayer.opacity(opacity / 100.0);
       if (colorTransparency) {
-        this.featureLayer.map().scheduleAnimationFrame(() => this.replaceColors());
+        this.featureLayer.node().css('filter', 'url(#color-replace)');
       }
     }
 
     disable() {
       if (this.featureLayer) {
         this.featureLayer.visible(false);
-      }
-    }
-
-    replaceColors() {
-      if (this.ctx) {
-        const imageData = this.ctx.getImageData(0, 0, this.width, this.height);
-        const { data } = imageData;
-        this.transparency.forEach((transparency) => {
-          const targetRed = transparency.rgb[0]; // Replace with the target color's red value
-          const targetGreen = transparency.rgb[1]; // Replace with the target color's green value
-          const targetBlue = transparency.rgb[2]; // Replace with the target color's blue value
-
-          const targetColorThreshold = transparency?.variance || 0;
-          // allow for slight color variations
-
-          for (let i = 0; i < data.length; i += 4) {
-            const red = data[i];
-            const green = data[i + 1];
-            const blue = data[i + 2];
-
-            if (
-              Math.abs(red - targetRed) <= targetColorThreshold
-        && Math.abs(green - targetGreen) <= targetColorThreshold
-        && Math.abs(blue - targetBlue) <= targetColorThreshold
-            ) {
-              data[i + 3] = 0; // Set alpha (transparency) to 0
-            }
-          }
-        });
-        if (this.ctx) {
-          this.ctx.putImageData(imageData, 0, 0);
-        }
       }
     }
 }

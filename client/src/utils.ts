@@ -152,6 +152,21 @@ function getResponseError(error: AxiosError): string {
   return String(response?.data?.message || response?.data || error);
 }
 
+function hexToRgb(source: string) {
+  // Remove the '#' if it's included in the hex string
+  const hex = source.replace(/^#/, '');
+
+  // Parse the hex string into R, G, and B components
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Create an array with the RGB values
+  const rgbArray = [r, g, b];
+
+  return rgbArray;
+}
+
 export {
   getResponseError,
   boundToGeojson,
@@ -162,4 +177,5 @@ export {
   removePoint,
   reOrderBounds,
   reOrdergeoJSON,
+  hexToRgb,
 };

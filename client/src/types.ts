@@ -11,5 +11,8 @@ export interface AnnotatorPreferences {
   overlays: {
     opacity: number;
     colorTransparency: boolean;
+    overrideValue?: boolean;
+    overrideColor?: string;
+    overrideVariance?: number;
   };
 }
