@@ -20,11 +20,11 @@ Having the above requirements met there will be a new icon in the visibile for t
 
 The Video Layer can be toggled on/off like any other annotation.
 - *Opacity* - The global opacity of the video overlay
-- *Color Transparency* - If there is metadata value set with transparency this will attempt to replace the color in the video and make it transparent.  **NOTE** THIS IS AN EXPERIMENTAL FEATURE WHICH CURRENTLY HAS PERFORMANCE ISSUES AND POTENTIALLY FLASHES
+- *Color Transparency* - If there is metadata value set with transparency this will attempt to replace the color in the video and make it transparent.
+- *Override* - Allows for specifying the current variance and color independently from the JSON file.  It's used to figure out the settings that you want to use for the system.  You can then click on the copy button to copy the JSON and past it into the metadata fro the video.
 
 ### Video Overlay Color Transparency
 
-**NOTE** THIS IS AN EXPERIMENTAL FEATURE WHICH CURRENTLY HAS PERFORMANCE ISSUES AND POTENTIALLY FLASHES
 Utilizing another Metadata field on the video overlay item (`overlayVideoItem: true`) you can specify colors to be replaced in the video and made transparent.
 This is configured by adding a new Metadata tag to the video Item : `overlayMetadata: true`
 
@@ -38,5 +38,5 @@ This is configured by adding a new Metadata tag to the video Item : `overlayMeta
     ]
 }
 ```
-Multiple colors can be added to transparency where each color has an RGB array value of 0-255.
+Right now it only supports the first color in the array.
 Variance allows a +/- variance to the exact color that is selected.
