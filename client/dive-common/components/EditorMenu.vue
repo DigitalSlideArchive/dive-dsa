@@ -445,6 +445,7 @@ export default Vue.extend({
                   ...overlaySettings, overrideValue: $event })"
               />
               <v-tooltip
+                v-if="overlaySettings.colorTransparency"
                 open-delay="100"
                 bottom
               >
@@ -461,11 +462,11 @@ export default Vue.extend({
               </v-tooltip>
             </v-row>
             <label
-              v-if="overlaySettings.overrideValue"
+              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
               for="overlay-variance"
             >Variance: {{ overlaySettings.overrideVariance }}</label>
             <input
-              v-if="overlaySettings.overrideValue"
+              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
               id="overlay-variance"
               type="range"
               name="overlay-variance"
@@ -478,13 +479,16 @@ export default Vue.extend({
                 ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
             >
             <v-color-picker
-              v-if="overlaySettings.overrideValue"
+              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
               :value="overlaySettings.overrideColor || 'white'"
               hide-inputs
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, overrideColor: $event })"
             />
-            <v-row dense>
+            <v-row
+              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
+              dense
+            >
               <v-spacer />
               <v-tooltip
                 open-delay="100"
