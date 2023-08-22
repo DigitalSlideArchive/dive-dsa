@@ -20,12 +20,14 @@ export interface LayerStyle<D> {
   fillOpacity?: StyleFunction<number, D> | PointFunction<number, D>;
   position?: (point: [number, number]) => { x: number; y: number };
   color?: (data: D) => string;
-  fontSize?: (data: D) => string;
+  fontSize?: (data: D) => string | undefined;
   lineHeight?: (data: D) => number;
   textOpacity?: (data: D) => number;
   offset?: (data: D) => { x: number; y: number };
   fill?: ObjectFunction<boolean, D> | boolean;
   radius?: PointFunction<number, D> | number;
+  textAlign?: ((data: D) => string) | string;
+  textScaled?: ((data: D) => number | undefined) | number | undefined;
   [x: string]: unknown;
 }
 
