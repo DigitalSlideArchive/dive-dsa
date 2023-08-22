@@ -643,18 +643,6 @@ test = ["pretend", "pytest (>=6.2.0)", "pytest-benchmark", "pytest-cov", "pytest
 test-randomorder = ["pytest-randomly"]
 
 [[package]]
-name = "ctk-cli"
-version = "1.5"
-description = "Python interface for inspecting and running CLI modules (as defined by CommonTK)"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "ctk-cli-1.5.tar.gz", hash = "sha256:63afcf2826d867e608f1542db7493a23466e49b7a7ed611e0f098dae33404645"},
-    {file = "ctk_cli-1.5-py3-none-any.whl", hash = "sha256:8391d7b35813fb5f2a3b528db6c127c77134a3373a900b328ac3d1213019854a"},
-]
-
-[[package]]
 name = "decorator"
 version = "5.1.1"
 description = "Decorators for Humans"
@@ -899,28 +887,6 @@ files = [
 
 [package.dependencies]
 girder = ">=3"
-
-[[package]]
-name = "girder-slicer-cli-web"
-version = "1.3.5"
-description = "A girder plugin for exposing slicer CLIs over the web"
-category = "main"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "girder-slicer-cli-web-1.3.5.tar.gz", hash = "sha256:b69509e3759fc9a5287b0b3f5749c815fee02740345ab7ad82f8b119b1e61c77"},
-    {file = "girder_slicer_cli_web-1.3.5-py2.py3-none-any.whl", hash = "sha256:1dfd1f0fdc4feded7c3672b11a073fee12bb8178b0e6991be5c57c4bb403419a"},
-]
-
-[package.dependencies]
-ctk-cli = "*"
-jinja2 = "*"
-jsonschema = "*"
-pyyaml = "*"
-
-[package.extras]
-girder = ["docker (>=2.6.0)", "girder (>=3.0.4)", "girder-jobs (>=3.0.3)", "girder-worker[girder] (>=0.6.0)"]
-worker = ["docker (>=2.6.0)", "girder-worker[worker] (>=0.6.0)"]
 
 [[package]]
 name = "girder-worker"
@@ -2932,4 +2898,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.10"
-content-hash = "e1abab170686e3b54769a785ef429fe1294fc25420f626161ed23eb1c0452252"
+content-hash = "4349009b1a4acbea1df733f3ade62a7d10fbe847f7ca8fa1710e73360858ba7e"
