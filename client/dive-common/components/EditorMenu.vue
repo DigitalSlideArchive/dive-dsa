@@ -445,6 +445,7 @@ export default Vue.extend({
                   ...overlaySettings, overrideValue: $event })"
               />
               <v-tooltip
+                v-if="overlaySettings.colorTransparency"
                 open-delay="100"
                 bottom
               >
@@ -484,7 +485,10 @@ export default Vue.extend({
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, overrideColor: $event })"
             />
-            <v-row dense>
+            <v-row
+              v-if="overlaySettings.overrideValue"
+              dense
+            >
               <v-spacer />
               <v-tooltip
                 open-delay="100"
