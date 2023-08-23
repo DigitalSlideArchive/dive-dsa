@@ -52,15 +52,6 @@ ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
-# Create user "dive" 1099:1099 to align with base image permissions.
-# https://github.com/VIAME/VIAME/blob/master/cmake/build_server_docker.sh#L123
-RUN useradd --create-home --uid 1099 --shell=/bin/bash dive
-# Create a directory for VIAME Addons
-RUN install -g dive -o dive -d /tmp/addons
-
-# Switch to the new user
-USER dive
-
 # Setup the path of the incoming python installation
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
 

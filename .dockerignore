@@ -2,3 +2,4 @@ assetstore
 db
 logs
 **/node_modules
+.env
