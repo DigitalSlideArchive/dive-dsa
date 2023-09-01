@@ -96,16 +96,15 @@ services:
     << : *base-worker
     deploy: {}
     volumes:
-      # readwrite because this worker does addon updates
-      - addons:/tmp/addons:rw
       - /var/run/docker.sock:/var/run/docker.sock
+      # Needed to allow transferring data to slicer_cli_web docker containers
+      - ${TMPDIR:-/tmp}:${TMPDIR:-/tmp}
     environment:
       - "DSA_USER=${DSA_USER:-}"
       - "WORKER_WATCHING_QUEUES=celery"
       - "WORKER_CONCURRENCY=${DEFAULT_WORKER_CONCURRENCY:-3}"
       - "CELERY_BROKER_URL=${CELERY_BROKER_URL:-amqp://guest:guest@rabbit/default}"
-
+      - "TMPDIR="
 volumes:
-  addons:
   mongo_db:
   girder_assetstore:
