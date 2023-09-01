@@ -294,6 +294,7 @@ export default defineComponent({
           frame,
           annotatorPrefs.value.overlays.opacity,
           annotatorPrefs.value.overlays.colorTransparency,
+          annotatorPrefs.value.overlays.colorScale,
         );
       } else {
         videoLayer.disable();
@@ -546,9 +547,44 @@ export default defineComponent({
     const videoLayerColorTransparencyOn = computed(
       () => annotatorPrefs.value.overlays.colorTransparency,
     );
+    const colorScaleOn = computed(
+      () => annotatorPrefs.value.overlays.colorScale,
+    );
+
+    const colorScaleMatrix = computed(() => {
+      if (annotatorPrefs.value.overlays.colorScale) {
+        const color2 = annotatorPrefs.value.overlays.blackColorScale;
+        const color1 = annotatorPrefs.value.overlays.whiteColorScale;
+        if (color1 !== undefined && color2 !== undefined) {
+          const rgb1 = [
+            parseInt(color1.slice(1, 3), 16) / 255.0,
+            parseInt(color1.slice(3, 5), 16) / 255.0,
+            parseInt(color1.slice(5, 7), 16) / 255.0,
+          ];
+          const rgb2 = [
+            parseInt(color2.slice(1, 3), 16) / 255.0,
+            parseInt(color2.slice(3, 5), 16) / 255.0,
+            parseInt(color2.slice(5, 7), 16) / 255.0,
+          ];
+          const scale = 1;
+          const shift = 0;
+          const matrix = [
+            (rgb1[0] - rgb2[0]) * scale, 0, 0, 0, rgb2[0] * scale + shift,
+            (rgb1[1] - rgb2[1]) * scale, 0, 0, 0, rgb2[1] * scale + shift,
+            (rgb1[2] - rgb2[2]) * scale, 0, 0, 0, rgb2[2] * scale + shift,
+            0, 0, 0, 1, 0,
+          ];
+          return matrix;
+        }
+      }
+      return [];
+    });
+
     return {
       videoLayerTransparencyVals,
       videoLayerColorTransparencyOn,
+      colorScaleOn,
+      colorScaleMatrix,
     };
   },
 });
@@ -557,13 +593,13 @@ export default defineComponent({
 <template>
   <div>
     <svg
-      v-if="videoLayerColorTransparencyOn && videoLayerTransparencyVals.length"
       width="0"
       height="0"
       style="position: absolute; top: -1px; left: -1px"
     >
       <defs>
         <filter
+          v-if="videoLayerColorTransparencyOn && videoLayerTransparencyVals.length"
           id="color-replace"
           color-interpolation-filters="sRGB"
         >
@@ -608,6 +644,22 @@ export default defineComponent({
           <feComposite
             operator="over"
             in2="notSelectedColor"
+          />
+        </filter>
+        <filter
+          v-if="colorScaleOn"
+          id="colorScaleFilter"
+          filterUnits="objectBoundingBox"
+          x="0%"
+          y="0%"
+          width="100%"
+          height="100%"
+        >
+          <feColorMatrix
+            id="colorScale"
+            in="SourceGraphic"
+            type="matrix"
+            :values="colorScaleMatrix"
           />
         </filter>
       </defs>

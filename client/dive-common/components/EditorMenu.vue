@@ -57,13 +57,20 @@ export default Vue.extend({
         colorTransparency: boolean;
         overrideValue?: boolean;
         overrideColor?: string;
-        overrideVariance?: number; }>,
+        overrideVariance?: number;
+        colorScale?: boolean;
+        blackColorScale?: string;
+        whiteColorScale?: string;
+     }>,
       default: () => ({
         opacity: 0.25,
         colorTransparency: false,
         overrideValue: false,
         overrideColor: 'white',
         overrideVariance: 0,
+        colorScale: false,
+        blackColorScale: '#FF0000',
+        whiteColorScale: '#00FF00',
       }),
     },
     overlays: {
@@ -485,6 +492,56 @@ export default Vue.extend({
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, overrideColor: $event })"
             />
+            <v-row dense>
+              <v-checkbox
+                :input-value="overlaySettings.colorScale"
+                label="Color Scaling"
+                @change="$emit('update:overlay-settings', {
+                  ...overlaySettings, colorScale: $event })"
+              />
+              <v-tooltip
+                v-if="overlaySettings.colorTransparency"
+                open-delay="100"
+                bottom
+              >
+                <template #activator="{ on }">
+                  <v-icon
+                    class="ml-2"
+                    v-on="on"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+                <span>Create a custom color scale to replace the Black to White defaults</span>
+              </v-tooltip>
+            </v-row>
+            <v-row
+              v-if="overlaySettings.colorScale"
+              dense
+            >
+              <span> Black Color Replacement:</span>
+              <v-color-picker
+                :value="overlaySettings.blackColorScale || '#00FF00'"
+                hide-inputs
+                @input="$emit('update:overlay-settings', {
+                  ...overlaySettings, blackColorScale: $event })"
+              />
+
+            </v-row>
+            <v-row
+              v-if="overlaySettings.colorScale"
+              dense
+            >
+              <span> White Color Replacement:</span>
+              <v-color-picker
+                :value="overlaySettings.whiteColorScale || '#FF0000'"
+                hide-inputs
+                @input="$emit('update:overlay-settings', {
+                  ...overlaySettings, whiteColorScale: $event })"
+              />
+
+            </v-row>
+
             <v-row
               v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
               dense

@@ -101,12 +101,20 @@ export default class VideoLayer {
       });
     }
 
-    updateSettings(frame: number, opacity: number, colorTransparency: boolean) {
+    updateSettings(
+      frame: number,
+      opacity: number,
+      colorTransparency: boolean,
+      colorScale: boolean,
+    ) {
       this.featureLayer.visible(true);
       this.opacity = opacity;
       this.featureLayer.opacity(opacity / 100.0);
       if (colorTransparency) {
         this.featureLayer.node().css('filter', 'url(#color-replace)');
+      }
+      if (colorScale) {
+        this.featureLayer.node().css('filter', 'url(#colorScaleFilter)');
       }
     }
 

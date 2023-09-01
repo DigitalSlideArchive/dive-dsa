@@ -307,7 +307,7 @@ function dummyState(): State {
     lookupGroups: cameraStore.lookupGroups,
   });
   return {
-    annotatorPreferences: ref({ trackTails: { before: 20, after: 10 }, overlays: { opacity: 25, colorTransparency: false } }),
+    annotatorPreferences: ref({ trackTails: { before: 20, after: 10 }, overlays: { opacity: 25, colorTransparency: false, colorScale: false } }),
     attributes: ref([]),
     cameraStore,
     configurationManager,
