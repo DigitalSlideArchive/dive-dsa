@@ -47,7 +47,7 @@ export default defineComponent({
     const editSwimlaneName = ref(props.swimlaneGraph.name || 'default');
     const filterNames = computed(() => {
       const data = ['all'];
-      return data.concat(attributesList.value.filter((item) => item.belongs === 'detection' && item.datatype !== 'number').map((item) => item.name));
+      return data.concat(attributesList.value.filter((item) => item.belongs === 'detection').map((item) => item.name));
     });
 
     const editingGraphSettings = ref(false);
