@@ -86,6 +86,9 @@ export default Vue.extend({
     return {
       toolTipForce: false,
       toolTimeTimeout: 0,
+      editBlackColorScale: false,
+      editWhiteColorScale: false,
+      editTransparentcolor: false,
       modeToolTips: {
         Creating: {
           rectangle: 'Drag to draw rectangle. Press ESC to exit.',
@@ -374,6 +377,7 @@ export default Vue.extend({
           bottom
           offset-y
           :close-on-content-click="false"
+          :close-on-click="false"
         >
           <template #activator="{ on, attrs }">
             <v-btn
@@ -485,13 +489,29 @@ export default Vue.extend({
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
             >
-            <v-color-picker
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
-              :value="overlaySettings.overrideColor || 'white'"
-              hide-inputs
-              @input="$emit('update:overlay-settings', {
-                ...overlaySettings, overrideColor: $event })"
-            />
+            <v-row
+              v-if="overlaySettings.colorTransparency"
+              dense
+              align="center"
+            >
+              <span> Transparency Color:</span>
+              <div
+                class="color-box mx-2 edit-color-box"
+                :style="{
+                  backgroundColor: overlaySettings.overrideColor ,
+                }"
+                @click="editTransparentcolor = !editTransparentcolor"
+              />
+
+              <v-color-picker
+                v-if="overlaySettings.colorTransparency
+                  && overlaySettings.overrideValue && editTransparentcolor"
+                :value="overlaySettings.overrideColor || 'white'"
+                hide-inputs
+                @input="$emit('update:overlay-settings', {
+                  ...overlaySettings, overrideColor: $event })"
+              />
+            </v-row>
             <v-row dense>
               <v-checkbox
                 :input-value="overlaySettings.colorScale"
@@ -518,22 +538,43 @@ export default Vue.extend({
             <v-row
               v-if="overlaySettings.colorScale"
               dense
+              align="center"
             >
               <span> Black Color Replacement:</span>
+              <div
+                class="color-box mx-2 edit-color-box"
+                :style="{
+                  backgroundColor: overlaySettings.blackColorScale ,
+                }"
+                @click="editBlackColorScale = !editBlackColorScale"
+              />
               <v-color-picker
+                v-if="editBlackColorScale"
                 :value="overlaySettings.blackColorScale || '#00FF00'"
                 hide-inputs
                 @input="$emit('update:overlay-settings', {
                   ...overlaySettings, blackColorScale: $event })"
               />
 
+
             </v-row>
             <v-row
               v-if="overlaySettings.colorScale"
               dense
+              class="mt-2"
+              align="center"
             >
               <span> White Color Replacement:</span>
+              <div
+                class="color-box mx-2 edit-color-box"
+                :style="{
+                  backgroundColor: overlaySettings.whiteColorScale ,
+                }"
+                @click="editWhiteColorScale = !editWhiteColorScale"
+              />
+
               <v-color-picker
+                v-if="editWhiteColorScale"
                 :value="overlaySettings.whiteColorScale || '#FF0000'"
                 hide-inputs
                 @input="$emit('update:overlay-settings', {
@@ -595,4 +636,19 @@ export default Vue.extend({
 .tail-slider-width {
   width: 240px;
 }
+.color-box {
+  display: inline-block;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  border: 1px solid white;
+}
+.edit-color-box {
+  &:hover {
+    cursor: pointer;
+    border: 2px solid white
+  }
+}
+
 </style>
