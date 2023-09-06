@@ -57,6 +57,7 @@ export interface AttributeRendering {
     valueTextSize: number;
     order: number;
     location: 'inside' | 'outside';
+    corner?: 'NW' | 'SE' |'SW';
     box: boolean;
     boxColor: 'auto' | string;
     boxThickness: number;

@@ -112,6 +112,11 @@ Attributes that are of type text can have their colors preset and saved in the c
 
 These colors can be used in the Attribute Rendering or the Swimlane views for attributes to properly render the system.
 
+![Edit Attribute Value Number Colors](images/Attributes/AttributeValueNumberColors.png)
+
+Added the capability to create color gradients for Attribute Values.  This will allow numerical values to have custom color gradients which can be used in swimlanes, or in displaying the values of attributes as well.
+
+This works by configuring numerical values and assigning them a color.  The color gradient will be automatically generated from the values.  If the options for color is left as auto in Attribute Rendering, or if a Swimlane is chosen it will utilize these color gradient scales.
 
 ## Setting Attribute Values
 

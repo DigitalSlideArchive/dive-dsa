@@ -24,6 +24,8 @@ Clicking on the settings will bring up the Settings Editor for attributes.
 
 Simply use the key filter to select the attributes you whish to graph and configure it to be enabled or default to show the graph button in the timeline area.
 
+If you are creating a swimlane for a numerical attribute, utilize the value colors to create a color gradient which can be used to represent the values.
+
 ## Swimlane Key
 
 ![Swimlane Key](images/AttributeTimeline/SwimlaneKey.png)

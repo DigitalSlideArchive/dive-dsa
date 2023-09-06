@@ -5,6 +5,7 @@ import {
 } from '@vue/composition-api';
 import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import * as d3 from 'd3';
 import { StyleManager, Track } from '..';
 import CameraStore from '../CameraStore';
 import { LineChartData } from './useLineChart';
@@ -454,12 +455,36 @@ export default function UseAttributes(
     return trackStyleManager.typeStyling.value.color(val);
   };
 
+  const numericalColorScaling = computed(() => {
+    const autoColorIndex: Record<string, (data: string | number | boolean) => string> = {};
+    Object.entries(attributes.value).forEach(([baseKey, item]) => {
+      autoColorIndex[baseKey] = ((data: string | number | boolean) => {
+        if (item.datatype === 'number' && item.valueColors && Object.keys(item.valueColors).length) {
+          const colorArr = Object.entries(item.valueColors as Record<string, string>)
+            .map(([key, val]) => ({ key: parseFloat(key), val }));
+          colorArr.sort((a, b) => a.key - b.key);
+
+          const colorNums = colorArr.map((map) => map.key);
+          const colorVals = colorArr.map((map) => map.val);
+          const colorScale = d3.scaleLinear()
+            .domain(colorNums)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .range(colorVals as any);
+          return colorScale(data as number).toString() || item.color || 'white';
+        }
+        return item.color || trackStyleManager.typeStyling.value.color(data.toString());
+      });
+    });
+    return autoColorIndex;
+  });
+
 
   // SWIMLANE Settings
   function generateDetectionSwimlaneData(
     track: Track,
     filter: SwimlaneFilter,
     settings?: Record<string, SwimlaneGraphSettings>,
+    colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, SwimlaneAttribute> = { };
@@ -472,7 +497,7 @@ export default function UseAttributes(
             let val: string | number | boolean | undefined;
             // Get user attribute if it exists:
             const baseAttribute = attributesList.value.find((item) => item.name === key);
-            if (baseAttribute?.datatype === 'number' || key === 'userAttributes') {
+            if (key === 'userAttributes') {
               return;
             }
             if (baseAttribute?.user && feature.attributes.userAttributes) {
@@ -501,6 +526,7 @@ export default function UseAttributes(
               } else {
                 baseColor = trackStyleManager.typeStyling.value.color(key);
               }
+
               valueMap[key] = {
                 data: [],
                 name: key,
@@ -513,6 +539,9 @@ export default function UseAttributes(
             }
             // Now we need to push data in based on values and change only when value changes:
             let color = 'white';
+            if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
+              color = colorScalingNumbers[baseAttribute.key](val);
+            }
             if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
               color = getAttributeValueColor(baseAttribute, val);
             } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
@@ -554,7 +583,7 @@ export default function UseAttributes(
             const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
             if (selectedTrack) {
               const swimlaneData = generateDetectionSwimlaneData(
-                selectedTrack, graph.filter, graph.settings,
+                selectedTrack, graph.filter, graph.settings, numericalColorScaling.value,
               );
               results[key] = swimlaneData;
             }
