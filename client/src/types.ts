@@ -14,5 +14,8 @@ export interface AnnotatorPreferences {
     overrideValue?: boolean;
     overrideColor?: string;
     overrideVariance?: number;
+    colorScale: boolean;
+    blackColorScale?: string;
+    whiteColorScale?: string;
   };
 }
