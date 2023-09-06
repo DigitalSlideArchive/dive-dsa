@@ -6,6 +6,7 @@ import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
+import { colors } from 'vuetify/lib';
 
 interface ButtonData {
   id: string;
@@ -230,11 +231,16 @@ export default Vue.extend({
     copyJSON() {
       const variance = this.overlaySettings.overrideVariance;
       const rgb = hexToRgb(this.overlaySettings.overrideColor || '#000000');
+      const colorScale = {
+        black: this.overlaySettings.blackColorScale,
+        white: this.overlaySettings.whiteColorScale,
+      };
       const obj = {
-        transparency: {
+        transparency: [{
           rgb,
           variance,
-        },
+        }],
+        colorScale: this.overlaySettings.colorScale ? colorScale : undefined,
       };
       navigator.clipboard.writeText(JSON.stringify(obj));
     },
@@ -584,7 +590,8 @@ export default Vue.extend({
             </v-row>
 
             <v-row
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
+              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue
+                || overlaySettings.colorScale"
               dense
             >
               <v-spacer />

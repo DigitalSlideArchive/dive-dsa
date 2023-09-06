@@ -7,6 +7,14 @@ interface Transparency {
   rgb: [number, number, number];
   variance?: number;
 }
+
+interface OverlayMetadata {
+  transparency?: Transparency[];
+  colorScale?: {
+    black: string;
+    white: string;
+  };
+}
 export default class VideoLayer {
     annotator: MediaController;
 
@@ -28,7 +36,7 @@ export default class VideoLayer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: Record<string, any>;
 
-    transparency: Transparency[];
+    overlayMetadata: OverlayMetadata;
 
     constructor({
       annotator,
@@ -42,7 +50,7 @@ export default class VideoLayer {
       this.video = null;
       this.width = 0;
       this.height = 0;
-      this.transparency = [];
+      this.overlayMetadata = {};
     }
 
     loadedMetadata() {
@@ -68,8 +76,8 @@ export default class VideoLayer {
        // eslint-disable-next-line @typescript-eslint/no-explicit-any
        {url: string; opacity: number; metadata?: Record<string, any>}) {
       this.metadata = metadata;
-      if (this.metadata?.transparency) {
-        this.transparency = this.metadata.transparency as Transparency[];
+      if (this.metadata) {
+        this.overlayMetadata = this.metadata as OverlayMetadata;
       }
       this.featureLayer = this.annotator.geoViewerRef.value.createLayer('feature', {
         features: ['quad.video'],

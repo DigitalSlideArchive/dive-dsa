@@ -534,8 +534,8 @@ export default defineComponent({
         const variance = annotatorPrefs.value.overlays.overrideVariance || 0;
         const colorVals = generateSVGArray(rgb, variance);
         transparencyArray.push(colorVals);
-      } else {
-        videoLayer.transparency.forEach((transparencyColor) => {
+      } else if (videoLayer.overlayMetadata.transparency) {
+        videoLayer.overlayMetadata.transparency.forEach((transparencyColor) => {
           const { rgb } = transparencyColor;
           const variance = transparencyColor.variance || 0;
           const colorVals = generateSVGArray(rgb, variance);
@@ -545,16 +545,28 @@ export default defineComponent({
       return transparencyArray;
     });
     const videoLayerColorTransparencyOn = computed(
-      () => annotatorPrefs.value.overlays.colorTransparency,
+      () => annotatorPrefs.value.overlays.colorTransparency
+      || videoLayer.overlayMetadata.transparency,
     );
     const colorScaleOn = computed(
-      () => annotatorPrefs.value.overlays.colorScale,
+      () => !!(annotatorPrefs.value.overlays.colorScale
+        || (videoLayer.overlayMetadata.colorScale)),
     );
 
     const colorScaleMatrix = computed(() => {
-      if (annotatorPrefs.value.overlays.colorScale) {
-        const color2 = annotatorPrefs.value.overlays.blackColorScale;
-        const color1 = annotatorPrefs.value.overlays.whiteColorScale;
+      if (annotatorPrefs.value.overlays.colorScale
+        || (videoLayer.overlayMetadata.colorScale)) {
+        let color2 = '#000000';
+        let color1 = '#FFFFFF';
+        if (annotatorPrefs.value.overlays.colorScale
+          && annotatorPrefs.value.overlays.blackColorScale
+          && annotatorPrefs.value.overlays.whiteColorScale) {
+          color2 = annotatorPrefs.value.overlays.blackColorScale;
+          color1 = annotatorPrefs.value.overlays.whiteColorScale;
+        } else if (videoLayer.overlayMetadata.colorScale) {
+          color2 = videoLayer.overlayMetadata.colorScale.black;
+          color1 = videoLayer.overlayMetadata.colorScale.white;
+        }
         if (color1 !== undefined && color2 !== undefined) {
           const rgb1 = [
             parseInt(color1.slice(1, 3), 16) / 255.0,
