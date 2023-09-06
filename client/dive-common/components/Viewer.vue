@@ -117,7 +117,8 @@ export default defineComponent({
     const datasetName = ref('');
     const saveInProgress = ref(false);
     const videoUrl: Ref<Record<string, string>> = ref({});
-    const overlays: Ref<Readonly<{url: string; filename: string; id: string}[] | undefined>> = ref(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const overlays: Ref<Readonly<{url: string; filename: string; id: string; metadata?: Record<string, any>}[] | undefined>> = ref(undefined);
     const {
       loadDetections, loadMetadata, saveMetadata, saveConfiguration, transferConfiguration,
     } = useApi();
@@ -211,6 +212,39 @@ export default defineComponent({
     });
 
     clientSettingsSetup(trackFilters.allTypes);
+
+    function rgbToHex(r: number, g: number, b: number) {
+      // eslint-disable-next-line no-bitwise, no-mixed-operators
+      return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
+    }
+
+    watch(overlays, () => {
+      // Make sure clientSettings utilize overlays
+      if (overlays.value && overlays.value[0].metadata) {
+        const overlayData = overlays.value[0].metadata;
+        let transparentHex = '#000000';
+        if (overlayData.transparency) {
+          const baseHex = overlayData.transparency.rgb;
+          transparentHex = rgbToHex(baseHex[0], baseHex[1], baseHex[2]);
+        }
+        let blackHex = '#000000';
+        let whiteHex = '#FFFFFF';
+        if (overlayData.colorScale) {
+          blackHex = overlayData.colorScale.black;
+          whiteHex = overlayData.colorScale.white;
+        }
+        clientSettings.annotatorPreferences.overlays = {
+          opacity: clientSettings.annotatorPreferences.overlays.opacity,
+          colorTransparency: !!(overlayData.transparency),
+          overrideValue: !!(overlayData.transparency),
+          overrideColor: transparentHex,
+          overrideVariance: (overlayData.transparency?.variance || 0),
+          colorScale: !!(overlayData.colorScale),
+          blackColorScale: blackHex,
+          whiteColorScale: whiteHex,
+        };
+      }
+    });
 
     // Provides wrappers for actions to integrate with settings
     const {
@@ -845,6 +879,8 @@ export default defineComponent({
         }
       }
     };
+
+
     return {
       /* props */
       aggregateController,
