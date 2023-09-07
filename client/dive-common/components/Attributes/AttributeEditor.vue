@@ -10,6 +10,7 @@ import { useTrackStyleManager } from 'vue-media-annotator/provides';
 import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
 import AttributeValueColors from './AttributeValueColors.vue';
+import AttributeNumberValueColors from './AttributeNumberColors.vue';
 
 
 export default defineComponent({
@@ -18,6 +19,7 @@ export default defineComponent({
     AttributeShortcuts,
     AttributeRendering,
     AttributeValueColors,
+    AttributeNumberValueColors,
   },
   props: {
     selectedAttribute: {
@@ -231,7 +233,7 @@ export default defineComponent({
             <v-tab> Main </v-tab>
             <v-tab> Shortcuts </v-tab>
             <v-tab> Rendering </v-tab>
-            <v-tab v-if="datatype==='text'">
+            <v-tab v-if="datatype=== 'text' || datatype === 'number'">
               Value Colors
             </v-tab>
           </v-tabs>
@@ -418,6 +420,12 @@ export default defineComponent({
           </v-tab-item>
           <v-tab-item v-if="datatype === 'text'">
             <attribute-value-colors
+              :attribute="selectedAttribute"
+              @save="attributeColors = $event"
+            />
+          </v-tab-item>
+          <v-tab-item v-else-if="datatype === 'number'">
+            <attribute-number-value-colors
               :attribute="selectedAttribute"
               @save="attributeColors = $event"
             />

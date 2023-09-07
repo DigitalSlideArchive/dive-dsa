@@ -6,6 +6,7 @@ import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
+import { colors } from 'vuetify/lib';
 
 interface ButtonData {
   id: string;
@@ -57,13 +58,20 @@ export default Vue.extend({
         colorTransparency: boolean;
         overrideValue?: boolean;
         overrideColor?: string;
-        overrideVariance?: number; }>,
+        overrideVariance?: number;
+        colorScale?: boolean;
+        blackColorScale?: string;
+        whiteColorScale?: string;
+     }>,
       default: () => ({
         opacity: 0.25,
         colorTransparency: false,
         overrideValue: false,
         overrideColor: 'white',
         overrideVariance: 0,
+        colorScale: false,
+        blackColorScale: '#FF0000',
+        whiteColorScale: '#00FF00',
       }),
     },
     overlays: {
@@ -79,6 +87,9 @@ export default Vue.extend({
     return {
       toolTipForce: false,
       toolTimeTimeout: 0,
+      editBlackColorScale: false,
+      editWhiteColorScale: false,
+      editTransparentcolor: false,
       modeToolTips: {
         Creating: {
           rectangle: 'Drag to draw rectangle. Press ESC to exit.',
@@ -220,11 +231,16 @@ export default Vue.extend({
     copyJSON() {
       const variance = this.overlaySettings.overrideVariance;
       const rgb = hexToRgb(this.overlaySettings.overrideColor || '#000000');
+      const colorScale = {
+        black: this.overlaySettings.blackColorScale,
+        white: this.overlaySettings.whiteColorScale,
+      };
       const obj = {
-        transparency: {
+        transparency: [{
           rgb,
           variance,
-        },
+        }],
+        colorScale: this.overlaySettings.colorScale ? colorScale : undefined,
       };
       navigator.clipboard.writeText(JSON.stringify(obj));
     },
@@ -367,6 +383,7 @@ export default Vue.extend({
           bottom
           offset-y
           :close-on-content-click="false"
+          :close-on-click="false"
         >
           <template #activator="{ on, attrs }">
             <v-btn
@@ -478,15 +495,103 @@ export default Vue.extend({
               @input="$emit('update:overlay-settings', {
                 ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
             >
-            <v-color-picker
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
-              :value="overlaySettings.overrideColor || 'white'"
-              hide-inputs
-              @input="$emit('update:overlay-settings', {
-                ...overlaySettings, overrideColor: $event })"
-            />
             <v-row
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
+              v-if="overlaySettings.colorTransparency"
+              dense
+              align="center"
+            >
+              <span> Transparency Color:</span>
+              <div
+                class="color-box mx-2 edit-color-box"
+                :style="{
+                  backgroundColor: overlaySettings.overrideColor ,
+                }"
+                @click="editTransparentcolor = !editTransparentcolor"
+              />
+
+              <v-color-picker
+                v-if="overlaySettings.colorTransparency
+                  && overlaySettings.overrideValue && editTransparentcolor"
+                :value="overlaySettings.overrideColor || 'white'"
+                hide-inputs
+                @input="$emit('update:overlay-settings', {
+                  ...overlaySettings, overrideColor: $event })"
+              />
+            </v-row>
+            <v-row dense>
+              <v-checkbox
+                :input-value="overlaySettings.colorScale"
+                label="Color Scaling"
+                @change="$emit('update:overlay-settings', {
+                  ...overlaySettings, colorScale: $event })"
+              />
+              <v-tooltip
+                v-if="overlaySettings.colorTransparency"
+                open-delay="100"
+                bottom
+              >
+                <template #activator="{ on }">
+                  <v-icon
+                    class="ml-2"
+                    v-on="on"
+                  >
+                    mdi-information
+                  </v-icon>
+                </template>
+                <span>Create a custom color scale to replace the Black to White defaults</span>
+              </v-tooltip>
+            </v-row>
+            <v-row
+              v-if="overlaySettings.colorScale"
+              dense
+              align="center"
+            >
+              <span> Black Color Replacement:</span>
+              <div
+                class="color-box mx-2 edit-color-box"
+                :style="{
+                  backgroundColor: overlaySettings.blackColorScale ,
+                }"
+                @click="editBlackColorScale = !editBlackColorScale"
+              />
+              <v-color-picker
+                v-if="editBlackColorScale"
+                :value="overlaySettings.blackColorScale || '#00FF00'"
+                hide-inputs
+                @input="$emit('update:overlay-settings', {
+                  ...overlaySettings, blackColorScale: $event })"
+              />
+
+
+            </v-row>
+            <v-row
+              v-if="overlaySettings.colorScale"
+              dense
+              class="mt-2"
+              align="center"
+            >
+              <span> White Color Replacement:</span>
+              <div
+                class="color-box mx-2 edit-color-box"
+                :style="{
+                  backgroundColor: overlaySettings.whiteColorScale ,
+                }"
+                @click="editWhiteColorScale = !editWhiteColorScale"
+              />
+
+              <v-color-picker
+                v-if="editWhiteColorScale"
+                :value="overlaySettings.whiteColorScale || '#FF0000'"
+                hide-inputs
+                @input="$emit('update:overlay-settings', {
+                  ...overlaySettings, whiteColorScale: $event })"
+              />
+
+            </v-row>
+
+            <v-row
+              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue
+                || overlaySettings.colorScale"
               dense
             >
               <v-spacer />
@@ -538,4 +643,19 @@ export default Vue.extend({
 .tail-slider-width {
   width: 240px;
 }
+.color-box {
+  display: inline-block;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  border: 1px solid white;
+}
+.edit-color-box {
+  &:hover {
+    cursor: pointer;
+    border: 2px solid white
+  }
+}
+
 </style>
