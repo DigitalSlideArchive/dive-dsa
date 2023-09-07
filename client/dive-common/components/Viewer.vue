@@ -223,8 +223,8 @@ export default defineComponent({
       if (overlays.value && overlays.value[0].metadata) {
         const overlayData = overlays.value[0].metadata;
         let transparentHex = '#000000';
-        if (overlayData.transparency) {
-          const baseHex = overlayData.transparency.rgb;
+        if (overlayData.transparency?.length) {
+          const baseHex = overlayData.transparency[0].rgb;
           transparentHex = rgbToHex(baseHex[0], baseHex[1], baseHex[2]);
         }
         let blackHex = '#000000';
