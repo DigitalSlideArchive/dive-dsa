@@ -257,7 +257,7 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
               .domain(colorNums)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .range(colorVals as any);
-            return colorScale(data as number).toString() || item.color || 'white';
+            return (data !== undefined && colorScale(data as number).toString()) || item.color || 'white';
           }
           return item.color || 'white';
         });

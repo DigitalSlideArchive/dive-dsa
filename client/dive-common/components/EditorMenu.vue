@@ -6,7 +6,6 @@ import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
-import { colors } from 'vuetify/lib';
 
 interface ButtonData {
   id: string;
