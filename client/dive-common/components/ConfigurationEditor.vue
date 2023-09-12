@@ -45,9 +45,19 @@ export default defineComponent({
       if (girderRest.user) {
         ownerAdmin = girderRest.user.admin;
       }
-      if (configMan.baseConfigurationOwner.value === girderRest.user.login) {
+      const id = girderRest.user._id;
+      const groups = girderRest.user.groups as string[];
+      console.log(configMan.configOwners.value);
+      console.log(id);
+      console.log(groups);
+      if (configMan.configOwners.value.users.findIndex((item) => item.id === id) !== -1) {
         ownerAdmin = true;
       }
+      groups.forEach((group) => {
+        if (configMan.configOwners.value.groups.findIndex((item) => item.id === group) !== -1) {
+          ownerAdmin = true;
+        }
+      });
       return ownerAdmin;
     });
     const menuOpen = ref(false);
