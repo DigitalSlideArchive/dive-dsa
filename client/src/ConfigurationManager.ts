@@ -423,6 +423,7 @@ export default class ConfigurationManager {
 
 
   updateTimelineDisplay(val: TimelineDisplay, index: number) {
+    console.log(this.configuration.value);
     if (this.configuration.value && !this.configuration.value?.timelineConfigs) {
       this.configuration.value.timelineConfigs = {
         maxHeight: 300,

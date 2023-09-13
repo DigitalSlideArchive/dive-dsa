@@ -47,9 +47,6 @@ export default defineComponent({
       }
       const id = girderRest.user._id;
       const groups = girderRest.user.groups as string[];
-      console.log(configMan.configOwners.value);
-      console.log(id);
-      console.log(groups);
       if (configMan.configOwners.value.users.findIndex((item) => item.id === id) !== -1) {
         ownerAdmin = true;
       }
