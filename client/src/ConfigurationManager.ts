@@ -12,7 +12,7 @@ export interface DiveConfiguration {
   metadata: {
     configuration?: Configuration;
   };
-  baseConfigurationOwner: string;
+  configOwners: {users: {name: string; id: string}[]; groups: {name: string; id: string}[]};
 }
 
 
@@ -182,7 +182,10 @@ export default class ConfigurationManager {
 
   configurationId: Ref<Readonly<string>>;
 
-  baseConfigurationOwner: Ref<Readonly<string>>;
+  configOwners: Ref<Readonly<{
+    users: {name: string; id: string}[];
+    groups: {name: string; id: string}[];
+  }>>;
 
 
   constructor(
@@ -205,7 +208,7 @@ export default class ConfigurationManager {
     this.hierarchy = ref(null);
     this.configuration = ref(null);
     this.prevNext = ref(null);
-    this.baseConfigurationOwner = ref('');
+    this.configOwners = ref({ users: [], groups: [] });
   }
 
   saveConfiguration(id: string, config?: Configuration) {
@@ -217,8 +220,11 @@ export default class ConfigurationManager {
     this.hierarchy.value = data;
   }
 
-  setBaseConfigurationOwner(data: string) {
-    this.baseConfigurationOwner.value = data;
+  setConfigOwners(data: {
+    users: {name: string; id: string}[];
+    groups: {name: string; id: string}[];
+  }) {
+    this.configOwners.value = data;
   }
 
   setPrevNext(data: DiveConfiguration['prevNext']) {
@@ -417,6 +423,7 @@ export default class ConfigurationManager {
 
 
   updateTimelineDisplay(val: TimelineDisplay, index: number) {
+    console.log(this.configuration.value);
     if (this.configuration.value && !this.configuration.value?.timelineConfigs) {
       this.configuration.value.timelineConfigs = {
         maxHeight: 300,

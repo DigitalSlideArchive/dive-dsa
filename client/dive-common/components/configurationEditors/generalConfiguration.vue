@@ -60,6 +60,11 @@ export default defineComponent({
       }
     };
 
+    // On launch if the configuration is not set we configure it
+    if (configMan.configuration.value === null) {
+      saveChanges();
+    }
+
     const transferProgress = ref(false);
     const transferConfig = () => {
       transferProgress.value = true;

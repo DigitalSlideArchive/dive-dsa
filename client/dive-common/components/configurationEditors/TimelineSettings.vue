@@ -72,7 +72,7 @@ export default defineComponent({
       const newConfig: TimelineDisplay = {
         name,
         type,
-        maxHeight: 300,
+        maxHeight: -1,
         dismissable: false,
         order: 0,
       };

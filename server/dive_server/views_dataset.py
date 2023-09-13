@@ -312,15 +312,13 @@ class DatasetResource(Resource):
                 baseFolder = None
         # Now we have a list of configurations, find the lowest one with the baseConfiguration str and the merge type
         baseConfigurationId = folder.get('_id')
-        baseConfigOwner = ''
+        configOwners = None
         baseConfiguration = None
         baseMetaData = {}
-        baseConfigOwner = self.getCurrentUser().get('login')
         mergeType = 'disabled'
         for item in folderPairs:
             if item.get('baseConfiguration', False) == item['id']:
                 baseConfigurationId = item['baseConfiguration']
-                baseConfigOwner = User().findOne({'_id': item['owner']})['login']
                 baseMetaData = item
                 possibleMerge = (
                     item.get('configuration', {})
@@ -331,8 +329,29 @@ class DatasetResource(Resource):
                     mergeType = possibleMerge
                 break
 
+        accessList = (Folder().getFullAccessList(folder))
+        accessUsers = accessList['users']
+        userList = []
+        for user in accessUsers:
+            if user['level'] == 2:
+                userList.append({
+                    "name": user['login'],
+                    "id": str(user["id"]),
+                })
+        accessGroups = accessList['groups']
+        groupList = []
+        for group in accessGroups:
+            if group['level'] == 2:
+                groupList.append({
+                    "name": group['name'],
+                    "id": str(group["id"]),
+                })
+
+        configOwners = {
+            "users": userList,
+            "groups": groupList,
+        }
         if baseConfigurationId == folder.get('_id'):
-            baseConfigOwner = User().findOne({'_id': folder['creatorId']})['login']
             baseMetaData = folder.get('meta', {})
 
         # now that we have the folder with the lowest baseConfiguration Set
@@ -449,7 +468,7 @@ class DatasetResource(Resource):
             }
 
         returnVal = {
-            'baseConfigurationOwner': baseConfigOwner,
+            'configOwners': configOwners,
             "prevNext": prevNext,
             'hierarchy': hierarchy,
             'metadata': combinedConfiguration,
