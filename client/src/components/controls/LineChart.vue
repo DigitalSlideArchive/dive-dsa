@@ -128,7 +128,7 @@ export default Vue.extend({
       this.x = x;
       const maxVal = d3.max(this.data, (datum) => d3.max(datum.values, (d) => d[1]));
       const minVal = d3.min(this.data, (datum) => d3.min(datum.values, (d) => d[1]));
-      let max = maxVal;
+      let max = maxVal * 1.10;
       let min = minVal;
       if (this.currentRange !== undefined) {
         if (this.currentRange[0] !== -1) {
@@ -146,7 +146,7 @@ export default Vue.extend({
       if (this.atrributesChart) {
         y = d3
           .scaleLinear()
-          .domain([min, Math.max(max * 1.2, 1.0)])
+          .domain([min, Math.max(max * 1.0, 1.0)])
           .range([height, 0]);
       }
 
