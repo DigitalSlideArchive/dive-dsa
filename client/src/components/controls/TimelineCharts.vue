@@ -200,7 +200,7 @@ export default defineComponent({
             v-if="timeline.dismissable"
             icon="mdi-close"
             tooltip-text="Hide Timeline"
-            @click="$emit('dismiss', timeline.name)"
+            @click="$emit('dismiss', {name: timeline.name, height: getTimelineHeight(timeline)})"
           />
         </v-row>
 

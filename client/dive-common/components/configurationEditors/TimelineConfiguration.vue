@@ -147,7 +147,7 @@ export default defineComponent({
       :key="timeline.name"
       dense
     >
-      <v-col>
+      <v-col cols="3">
         {{ timeline.name }}
       </v-col>
       <v-col>
