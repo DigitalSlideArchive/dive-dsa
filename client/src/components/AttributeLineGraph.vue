@@ -47,8 +47,8 @@ export default defineComponent({
     const originalName = props.timelineGraph.name;
     const originalDefault = props.timelineGraph.default || false;
     const editTimelineName = ref(props.timelineGraph.name || 'default');
-    const yRange = ref([-1, -1]);
-    const ticks = ref(-1);
+    const yRange = ref(props.timelineGraph.yRange || [-1, -1]);
+    const ticks = ref(props.timelineGraph.ticks || -1);
     const filterNames = computed(() => {
       const data = ['all'];
       return data.concat(attributesList.value.filter((item) => item.belongs === 'detection' && item.datatype === 'number').map((item) => item.name));

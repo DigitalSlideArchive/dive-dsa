@@ -105,11 +105,11 @@ export default Vue.extend({
   },
   mounted() {
     this.initialize();
+    this.currentTicks = this.ticks;
   },
   methods: {
     initialize() {
       this.currentRange = this.yRange;
-      this.currentTicks = this.ticks;
       d3.select(this.$el)
         .select('svg')
         .remove();
