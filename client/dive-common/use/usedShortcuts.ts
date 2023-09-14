@@ -3,6 +3,7 @@ const usedShortcuts = [
   { key: 'a', description: 'Attribute Tab' },
   { key: 'm', description: 'Group Add' },
   { key: 'shift+m', description: 'Commit Merge' },
+  { key: 'shift+t', description: 'Collapse/Expand Timeline' },
   { key: 'up', description: 'Select Previous Track' },
   { key: 'down', description: 'Select Next Track' },
   { key: 'delete', description: 'Delete Track' },
