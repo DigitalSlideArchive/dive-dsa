@@ -48,6 +48,7 @@ export default defineComponent({
     const originalDefault = props.timelineGraph.default || false;
     const editTimelineName = ref(props.timelineGraph.name || 'default');
     const yRange = ref([-1, -1]);
+    const ticks = ref(-1);
     const filterNames = computed(() => {
       const data = ['all'];
       return data.concat(attributesList.value.filter((item) => item.belongs === 'detection' && item.datatype === 'number').map((item) => item.name));
@@ -70,6 +71,7 @@ export default defineComponent({
         enabled: editTimelineEnabled.value,
         settings: editTimelineSettings.value,
         yRange: yRange.value,
+        ticks: ticks.value,
         default: setDefault,
       };
       setTimelineGraph(editTimelineName.value, updateObject);
@@ -155,6 +157,7 @@ export default defineComponent({
       showGraphSettings,
       editTimelineKey,
       yRange,
+      ticks,
       showRangeSettings,
     };
   },
@@ -361,6 +364,14 @@ export default defineComponent({
             v-model.number="yRange[1]"
             type="number"
             label="Max"
+            hint="-1 will auto calculate"
+            persistent-hint
+            class="mx-2"
+          />
+          <v-text-field
+            v-model.number="ticks"
+            type="number"
+            label="Ticks"
             hint="-1 will auto calculate"
             persistent-hint
           />

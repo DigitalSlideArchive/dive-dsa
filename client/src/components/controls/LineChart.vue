@@ -30,6 +30,10 @@ export default Vue.extend({
       type: Array,
       default: () => [-1, -1],
     },
+    ticks: {
+      type: Number,
+      default: () => -1,
+    },
     margin: {
       type: Number,
       default: 0,
@@ -52,6 +56,7 @@ export default Vue.extend({
       adjustRange: false,
       tempRange: [-1, -1],
       currentRange: [-1, -1],
+      currentTicks: -1,
     };
   },
   computed: {
@@ -82,7 +87,15 @@ export default Vue.extend({
       this.initialize();
       this.update();
     },
+    ticks() {
+      this.initialize();
+      this.update();
+    },
     currentRange() {
+      this.initialize();
+      this.update();
+    },
+    currentTicks() {
       this.initialize();
       this.update();
     },
@@ -96,6 +109,7 @@ export default Vue.extend({
   methods: {
     initialize() {
       this.currentRange = this.yRange;
+      this.currentTicks = this.ticks;
       d3.select(this.$el)
         .select('svg')
         .remove();
@@ -148,6 +162,9 @@ export default Vue.extend({
         .attr('transform', 'translate(0,-1)');
 
       const axis = d3.axisRight(y).tickSize(width);
+      if (this.currentTicks > 0) {
+        axis.ticks(this.currentTicks);
+      }
       svg
         .append('g')
         .attr('class', 'axis-y')
@@ -342,6 +359,15 @@ export default Vue.extend({
               v-model.number="currentRange[1]"
               type="number"
               label="Max"
+              hint="-1 will auto calculate"
+              persistent-hint
+            />
+          </v-row>
+          <v-row>
+            <v-text-field
+              v-model.number="currentTicks"
+              type="number"
+              label="Tick Count"
               hint="-1 will auto calculate"
               persistent-hint
             />

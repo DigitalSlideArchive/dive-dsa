@@ -124,7 +124,7 @@ export default defineComponent({
 
     const attributeDataTimeline = computed(() => {
       const data: {
-        startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[];
+        startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[]; ticks?: number;
       }[] = [];
       Object.entries(attributeTimelineData.value).forEach(([key, timelineData]) => {
         if (timelineEnabled.value[key]) {
@@ -136,6 +136,7 @@ export default defineComponent({
             endFrame,
             data: timelineChartData,
             yRange: timelineData.yRange,
+            ticks: timelineData.ticks,
           });
         }
       });
@@ -272,6 +273,7 @@ export default defineComponent({
               :client-width="clientWidth"
               :client-height="getTimelineHeight(timeline)"
               :y-range="data.yRange"
+              :ticks="data.ticks || -1"
               :margin="margin"
               :class="{'timeline-config': timelineList.length}"
               :atrributes-chart="true"
@@ -403,6 +405,7 @@ export default defineComponent({
             :client-width="clientWidth"
             :client-height="clientHeight"
             :y-range="data.yRange"
+            :ticks="data.ticks"
             :margin="margin"
             :atrributes-chart="true"
           />

@@ -27,6 +27,7 @@ export interface TimelineGraph {
     enabled: boolean;
     default?: boolean;
     yRange?: number[];
+    ticks?: number;
     settings?: Record<string, TimelineGraphSettings>;
   }
 
