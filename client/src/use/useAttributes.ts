@@ -351,7 +351,7 @@ export default function UseAttributes(
   }
 
   const attributeTimelineData = computed(() => {
-    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]}> = {};
+    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]; ticks?: number}> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
     if (val !== undefined && selectedTrackId.value !== null) {
       const vals = Object.entries(timelineGraphs.value);
@@ -370,6 +370,7 @@ export default function UseAttributes(
                 begin: timelineData.begin,
                 end: timelineData.end,
                 yRange: graph.yRange,
+                ticks: graph.ticks,
               };
             }
           }

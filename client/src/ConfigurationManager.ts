@@ -456,8 +456,7 @@ export default class ConfigurationManager {
       if (timelines.length === 1) {
         this.configuration.value.timelineConfigs.timelines = [];
       } else if (timelines[index]) {
-        const newTimelines = timelines.splice(index, 1);
-        this.configuration.value.timelineConfigs.timelines = newTimelines;
+        timelines.splice(index, 1);
       }
     }
   }

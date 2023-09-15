@@ -797,6 +797,10 @@ export default defineComponent({
       if (controlsRef.value) observer.unobserve(controlsRef.value.$el);
     });
 
+    const updateTimelineHeight = async () => {
+      await nextTick();
+      handleResize();
+    };
     const globalHandler = {
       ...handler,
       save,
@@ -927,6 +931,7 @@ export default defineComponent({
       save,
       saveThreshold,
       updateTime,
+      updateTimelineHeight,
       // multicam
       multiCamList,
       defaultCamera,
@@ -1152,6 +1157,7 @@ export default defineComponent({
             :collapsed.sync="controlsCollapsed"
             v-bind="{ lineChartData, eventChartData, groupChartData, datasetType }"
             @select-track="handler.trackSelect"
+            @timeline-height="updateTimelineHeight()"
           />
         </div>
         <div

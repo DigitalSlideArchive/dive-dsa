@@ -240,6 +240,7 @@ class TimeLineGraph(BaseModel):
     filter: AttributeKeyFilter
     default: Optional[bool]
     yRange: Optional[List[float]]
+    ticks: Optional[float]
     settings: Optional[Dict[str, TimeLineGraphSettings]]
 
 

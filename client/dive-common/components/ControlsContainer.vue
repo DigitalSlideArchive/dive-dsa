@@ -56,13 +56,18 @@ export default defineComponent({
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const enabledKey = ref(false);
     const dismissedButtons: Ref<string[]> = ref([]); // buttons that have been dismissed from the timelineConfig;
+    const dismissedHeights: Ref<{name: string; height: number}[]> = ref([]);
     const {
       attributeSwimlaneData,
     } = useAttributesFilters();
 
     const timelineHeight = computed(() => {
       if (configMan.configuration.value?.timelineConfigs?.maxHeight) {
-        return configMan.configuration.value?.timelineConfigs?.maxHeight;
+        let max = configMan.configuration.value?.timelineConfigs?.maxHeight;
+        dismissedHeights.value.forEach((item) => {
+          max -= item.height;
+        });
+        return max;
       }
       return 175;
     });
@@ -123,15 +128,24 @@ export default defineComponent({
     };
     const swimlaneOffset = ref(0);
 
-    const addDismissedButton = (name: string) => {
+    const addDismissedButton = ({ name, height }: {name: string; height: number}) => {
       dismissedButtons.value.push(name);
+      dismissedHeights.value.push({ name, height });
     };
     const removeDismissedButton = (name: string) => {
       const found = dismissedButtons.value.findIndex((item) => (name === item));
       if (found !== -1) {
         dismissedButtons.value.splice(found, 1);
       }
+      const heightIndex = dismissedHeights.value.findIndex((item) => (name === item.name));
+      if (heightIndex !== -1) {
+        dismissedHeights.value.splice(heightIndex, 1);
+      }
     };
+
+    watch(timelineHeight, () => {
+      emit('timeline-height', timelineHeight.value);
+    });
 
     return {
       currentView,
@@ -183,6 +197,7 @@ export default defineComponent({
           >
             <template #activator="{ on }">
               <v-icon
+                v-mousetrap="{ bind: 'shift+t', handler: () => $emit('update:collapsed', !collapsed) }"
                 small
                 v-on="on"
                 @click="$emit('update:collapsed', !collapsed)"

@@ -27,6 +27,9 @@ export default defineComponent({
             {
               name: 'Select Track', icon: 'mdi-keyboard', actions: ['Up/Down Arrows'], description: 'Select Track',
             },
+            {
+              name: 'Toggle Timeline', icon: 'mdi-keyboard', actions: ['Shift + T'], description: 'Collapse/Expand Timeline',
+            },
           ],
         },
         {
