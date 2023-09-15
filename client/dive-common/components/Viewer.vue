@@ -301,6 +301,7 @@ export default defineComponent({
       swimlaneEnabled,
       swimlaneDefault,
       getAttributeValueColor,
+      attributeKeyVisible,
     } = useAttributes({
       markChangesPending,
       trackStyleManager,
@@ -762,6 +763,10 @@ export default defineComponent({
           .concat(". If you don't know how to resolve this, please contact the server administrator.");
         throw err;
       }
+      if (attributeKeyVisible.value) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        globalHandler.setAnnotationState({ visible: ['rectangle', 'Polygon', 'LineString', 'text', 'attributeKey'] });
+      }
     };
     loadData();
     const reloadAnnotations = async () => {
@@ -884,7 +889,6 @@ export default defineComponent({
       }
     };
 
-
     return {
       /* props */
       aggregateController,
@@ -926,6 +930,7 @@ export default defineComponent({
       readonlyState,
       brightness,
       intercept,
+      attributeKeyVisible,
       /* methods */
       handler: globalHandler,
       save,
@@ -1000,6 +1005,7 @@ export default defineComponent({
           :get-u-i-setting="getUISetting"
           :tail-settings.sync="clientSettings.annotatorPreferences.trackTails"
           :overlay-settings.sync="clientSettings.annotatorPreferences.overlays"
+          :attribute-key="attributeKeyVisible"
           @set-annotation-state="handler.setAnnotationState"
           @exit-edit="handler.trackAbort"
         >

@@ -87,6 +87,7 @@ export interface Attribute {
     editor?: NumericAttributeEditorOptions | StringAttributeEditorOptions;
     shortcuts?: AttributeShortcut[];
     render?: AttributeRendering;
+    colorKey?: boolean;
   }
 
 export type Attributes = Record<string, Attribute>;

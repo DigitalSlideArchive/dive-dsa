@@ -35,10 +35,11 @@ export default defineComponent({
     const { prompt } = usePrompt();
     const trackStyleManager = useTrackStyleManager();
     const name: Ref<string> = ref(props.selectedAttribute.name);
-    const belongs: Ref<string> = ref(props.selectedAttribute.belongs);
-    const datatype: Ref<string> = ref(props.selectedAttribute.datatype);
+    const belongs: Ref<Attribute['belongs']> = ref(props.selectedAttribute.belongs);
+    const datatype: Ref<Attribute['datatype']> = ref(props.selectedAttribute.datatype);
     const attributeColors:
       Ref<Record<string, string> | undefined> = ref(props.selectedAttribute.valueColors);
+    const colorKey = ref(props.selectedAttribute.colorKey || false);
     const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
     const tempColor = ref(trackStyleManager.typeStyling.value.color(name.value));
@@ -86,7 +87,7 @@ export default defineComponent({
         return;
       }
 
-      const data = {
+      const data: Attribute = {
         name: name.value,
         belongs: belongs.value,
         datatype: datatype.value,
@@ -99,7 +100,9 @@ export default defineComponent({
         user: user.value ? true : undefined,
         render: renderingVals.value,
       };
-
+      if (colorKey.value) {
+        data.colorKey = true;
+      }
       if (addNew) {
         emit('save', { data, close });
         addNew = false;
@@ -192,6 +195,11 @@ export default defineComponent({
       }
     });
 
+    const saveAttributeValueColors = (data:
+       { colorValues: Record<string, string>; colorKey?: boolean }) => {
+      attributeColors.value = data.colorValues;
+      colorKey.value = !!data.colorKey;
+    };
     return {
       name,
       belongs,
@@ -218,6 +226,7 @@ export default defineComponent({
       typeChange,
       numericChange,
       launchColorEditor,
+      saveAttributeValueColors,
     };
   },
 });
@@ -421,13 +430,13 @@ export default defineComponent({
           <v-tab-item v-if="datatype === 'text'">
             <attribute-value-colors
               :attribute="selectedAttribute"
-              @save="attributeColors = $event"
+              @save="saveAttributeValueColors($event)"
             />
           </v-tab-item>
           <v-tab-item v-else-if="datatype === 'number'">
             <attribute-number-value-colors
               :attribute="selectedAttribute"
-              @save="attributeColors = $event"
+              @save="saveAttributeValueColors($event)"
             />
           </v-tab-item>
         </v-tabs-items>

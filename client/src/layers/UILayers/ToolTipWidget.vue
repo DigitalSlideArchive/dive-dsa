@@ -9,7 +9,7 @@ import { ToolTipWidgetData } from './UILayerTypes';
   on a GeoJS canvas element.  To ensure reactivity between the main Vue App
   and this element the props are passed in the initalization function instead of on a template.
   This is why reactivate data in this component is utilizing PropType<Ref<data>>.
-  All references to reactive PropType<Ref<data>> need to be derefernced in the template as well.
+  All references to reactive PropType<Ref<data>> need to be dereferenced in the template as well.
  */
 export default defineComponent({
   name: 'ToolTipWidget',
