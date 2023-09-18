@@ -171,12 +171,6 @@ export default defineComponent({
           cols="4"
           class=" d-flex justify-center align-center"
         >
-          <span>:</span>
-        </v-col>
-        <v-col
-          cols="4"
-          class=" d-flex justify-center align-center"
-        >
           <span
             :style="{ color: color }"
             class="pb-1"
