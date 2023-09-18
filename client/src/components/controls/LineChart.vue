@@ -53,6 +53,7 @@ export default Vue.extend({
   },
   data() {
     return {
+      chartTop: 0,
       adjustRange: false,
       tempRange: [-1, -1],
       currentRange: [-1, -1],
@@ -106,6 +107,9 @@ export default Vue.extend({
   mounted() {
     this.initialize();
     this.currentTicks = this.ticks;
+    if (this.$refs.chart) {
+      this.chartTop = this.$refs.chart.offsetTop;
+    }
   },
   methods: {
     initialize() {
@@ -318,6 +322,7 @@ export default Vue.extend({
 
 <template>
   <div
+    ref="chart"
     class="line-chart"
     :style="`height: ${clientHeight}px;`"
   >
@@ -329,7 +334,7 @@ export default Vue.extend({
       <template #activator="{ on }">
         <div
           class="yaxisclick"
-          :style="`height: ${clientHeight}px;`"
+          :style="`height: ${clientHeight}px; top:${chartTop}px`"
           v-on="on"
           @dblclick="doubleClick"
         />

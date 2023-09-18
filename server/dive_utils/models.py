@@ -185,6 +185,7 @@ class Attribute(BaseModel):
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
     render: Optional[RenderingAttributes]
+    colorKey: Optional[bool]
 
 
 class AttributeNumberFilter(BaseModel):

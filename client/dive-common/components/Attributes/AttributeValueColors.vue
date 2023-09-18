@@ -1,7 +1,7 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, Ref,
+  defineComponent, ref, PropType, Ref, watch,
 } from '@vue/composition-api';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
@@ -30,6 +30,8 @@ export default defineComponent({
     const editingColor = ref(false);
     const currentEditColor = ref('white');
     const currentEditKey: Ref<null | string> = ref(null);
+
+    const colorKey = ref(props.attribute.colorKey || false);
 
     const getActualValues = () => {
       // Need to go through all tracks with the attribute and get their values.
@@ -83,19 +85,31 @@ export default defineComponent({
       currentEditColor.value = attributeColors.value[key];
     };
 
+    const updateColors = () => {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean } = {
+        colorValues: attributeColors.value,
+      };
+      if (colorKey.value) {
+        data.colorKey = true;
+      }
+      emit('save', data);
+    };
+
     const saveEditingColor = () => {
       if (currentEditKey.value !== null) {
         attributeColors.value[currentEditKey.value] = currentEditColor.value;
         currentEditKey.value = null;
         currentEditColor.value = 'white';
         editingColor.value = false;
-        emit('save', attributeColors.value);
+        updateColors();
       }
     };
+    watch(colorKey, () => updateColors());
     return {
       attributeColors,
       editingColor,
       currentEditColor,
+      colorKey,
       setEditingColor,
       saveEditingColor,
       getActualValues,
@@ -158,6 +172,14 @@ export default defineComponent({
           </div>
         </v-col>
         <v-spacer />
+      </v-row>
+      <v-row dense>
+        <v-checkbox
+          v-model="colorKey"
+          label="Color Key"
+          hint="Render a key for the color values"
+          persistent-hint
+        />
       </v-row>
     </v-container>
 

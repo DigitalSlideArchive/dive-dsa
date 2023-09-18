@@ -53,6 +53,8 @@ export default defineComponent({
     const currentEditColor = ref('#FF0000');
     const currentEditIndex: Ref<number> = ref(0);
     const currentEditKey: Ref<number> = ref(0);
+    const colorKey = ref(props.attribute.colorKey || false);
+
     const setEditingColor = (index: number) => {
       editingColor.value = true;
       currentEditIndex.value = index;
@@ -64,22 +66,33 @@ export default defineComponent({
         currentEditColor.value = '#FF0000';
       }
     };
+
+    const updateColors = () => {
+      const mapper: Record<string, string> = {};
+      attributeColors.value.forEach((item) => {
+        mapper[item.key] = item.val;
+      });
+
+      const data: { colorValues: Record<string, string>; colorKey?: boolean } = {
+        colorValues: mapper,
+      };
+      if (colorKey.value) {
+        data.colorKey = true;
+      }
+      emit('save', data);
+    };
     const saveEditingColor = () => {
       if (currentEditIndex.value !== null) {
-        const mapper: Record<string, string> = {};
         if (!attributeColors.value[currentEditIndex.value]) {
           attributeColors.value.push({ key: currentEditKey.value, val: currentEditColor.value });
         } else {
           attributeColors.value[currentEditIndex.value] = { key: currentEditKey.value, val: currentEditColor.value };
         }
         attributeColors.value.sort((a, b) => a.key - b.key);
-        attributeColors.value.forEach((item) => {
-          mapper[item.key] = item.val;
-        });
         currentEditIndex.value = 0;
-        currentEditColor.value = '#FF0000';
+        currentEditColor.value = 'white';
         editingColor.value = false;
-        emit('save', mapper);
+        updateColors();
         if (attributeColors.value.length) {
           recalculateGradient();
         }
@@ -110,19 +123,17 @@ export default defineComponent({
     const deleteGradient = (index: number) => {
       attributeColors.value.splice(index, 1);
       attributeColors.value.sort((a, b) => a.key - b.key);
-      const mapper: Record<string, string> = {};
-      attributeColors.value.forEach((item) => {
-        mapper[item.key] = item.val;
-      });
       currentEditIndex.value = 0;
       currentEditColor.value = 'white';
       editingColor.value = false;
-      emit('save', mapper);
+      updateColors();
       if (attributeColors.value.length) {
         recalculateGradient();
       }
     };
     const validForm = ref(false);
+    watch(colorKey, () => updateColors());
+
     return {
       attributeColors,
       editingColor,
@@ -131,6 +142,7 @@ export default defineComponent({
       currentEditKey,
       gradientSVG,
       validForm,
+      colorKey,
       setEditingColor,
       saveEditingColor,
       addColor,
@@ -223,6 +235,14 @@ export default defineComponent({
           width="300"
           height="30"
           class="ml-3"
+        />
+      </v-row>
+      <v-row dense>
+        <v-checkbox
+          v-model="colorKey"
+          label="Color Key"
+          hint="Render a key for the color values"
+          persistent-hint
         />
       </v-row>
     </v-container>

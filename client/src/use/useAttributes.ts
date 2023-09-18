@@ -661,6 +661,10 @@ export default function UseAttributes(
     return null;
   });
 
+  const attributeKeyVisible = computed(() => (
+    Object.values(attributes.value).findIndex((attr) => attr.colorKey) !== -1
+  ));
+
   return {
     loadAttributes,
     loadTimelines,
@@ -694,5 +698,7 @@ export default function UseAttributes(
     swimlaneDefault,
     // Tools
     getAttributeValueColor,
+    // Attribute Key Visislbe
+    attributeKeyVisible,
   };
 }
