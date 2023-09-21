@@ -186,6 +186,7 @@ class Attribute(BaseModel):
     shortcuts: Optional[List[ShortcutAttributeOptions]]
     render: Optional[RenderingAttributes]
     colorKey: Optional[bool]
+    valueOrder: Optional[Dict[str, int]]
 
 
 class AttributeNumberFilter(BaseModel):

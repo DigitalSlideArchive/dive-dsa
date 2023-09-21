@@ -167,7 +167,7 @@ export default Vue.extend({
 
       const axis = d3.axisRight(y).tickSize(width);
       if (this.currentTicks > 0) {
-        axis.ticks(this.currentTicks);
+        axis.tickValues(d3.ticks(min, max, this.currentTicks));
       }
       svg
         .append('g')

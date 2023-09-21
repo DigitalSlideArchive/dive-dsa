@@ -39,6 +39,7 @@ export default defineComponent({
     const datatype: Ref<Attribute['datatype']> = ref(props.selectedAttribute.datatype);
     const attributeColors:
       Ref<Record<string, string> | undefined> = ref(props.selectedAttribute.valueColors);
+    let valueOrder: Record<string, number> | undefined;
     const colorKey = ref(props.selectedAttribute.colorKey || false);
     const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
@@ -100,6 +101,9 @@ export default defineComponent({
         user: user.value ? true : undefined,
         render: renderingVals.value,
       };
+      if (valueOrder) {
+        data.valueOrder = valueOrder;
+      }
       if (colorKey.value) {
         data.colorKey = true;
       }
@@ -109,6 +113,7 @@ export default defineComponent({
       } else {
         emit('save', { data, oldAttribute: props.selectedAttribute, close });
       }
+      valueOrder = undefined;
     }
 
     async function deleteAttribute() {
@@ -196,9 +201,19 @@ export default defineComponent({
     });
 
     const saveAttributeValueColors = (data:
-       { colorValues: Record<string, string>; colorKey?: boolean }) => {
+       {
+        colorValues: Record<string, string>;
+        colorKey?: boolean;
+        valueOrder?: Record<string, number>;
+      }) => {
       attributeColors.value = data.colorValues;
       colorKey.value = !!data.colorKey;
+      if (data.valueOrder) {
+        valueOrder = data.valueOrder;
+      }
+      if (valueOrder && Object.entries(valueOrder).length === 0) {
+        valueOrder = undefined;
+      }
     };
     return {
       name,
