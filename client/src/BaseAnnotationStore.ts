@@ -192,7 +192,8 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
     if (tracksFound.length) {
       [returnTrack] = tracksFound;
     }
-    if (!trackAction.attributes && foundFrame === -1) {
+    if ((!trackAction.attributes || !Object.values(trackAction.attributes).length)
+      && foundFrame === -1) {
       const foundTrack = this.annotationMap.get(returnTrack);
       if (foundTrack) {
         foundFrame = foundTrack.begin;

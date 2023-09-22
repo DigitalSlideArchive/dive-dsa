@@ -321,6 +321,7 @@ export default defineComponent({
         setBrightnessFilter(props.brightness !== undefined);
         data.ready = true;
         seek(0);
+        emit('loaded');
       });
     }
     function init() {

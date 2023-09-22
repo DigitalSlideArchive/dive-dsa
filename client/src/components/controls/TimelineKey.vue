@@ -104,13 +104,23 @@ export default defineComponent({
       const updatedList = list.filter((item) => !props.dismissedButtons.includes(item.name));
       return updatedList;
     });
-    const uniqueKeys = (data: SwimlaneAttribute['data']) => {
-      const vals: {value: string; color: string}[] = [];
+    const uniqueKeys = (data: SwimlaneAttribute['data'], order?: Record<string, number>) => {
+      const vals: {value: string; color: string; order?: number}[] = [];
       data.forEach((item) => {
         if (vals.findIndex((findItem) => findItem.value === item.value) === -1) {
-          vals.push({ value: item.value.toString(), color: item.color || 'white' });
+          if (!order || (order && order[item.value.toString()] !== undefined)) {
+            vals.push({ value: item.value.toString(), color: item.color || 'white', order: order && order[item.value.toString()] });
+          }
         }
       });
+      if (order) {
+        vals.sort((a, b) => {
+          if (a.order !== undefined && b.order !== undefined) {
+            return a.order - b.order;
+          }
+          return 0;
+        });
+      }
       return vals;
     };
 
@@ -165,9 +175,20 @@ export default defineComponent({
       return false;
     };
 
+    const getMinMax = (data: SwimlaneAttribute['data']) => {
+      let min = Infinity;
+      let max = -Infinity;
+      data.forEach((item) => {
+        min = Math.min(min, item.value as number);
+        max = Math.max(max, item.value as number);
+      });
+      return `Range from ${min.toFixed(2)} to ${max.toFixed(2)}`;
+    };
+
 
     return {
       uniqueKeys,
+      getMinMax,
       uniqueFilterItems,
       getTimelineByName,
       keyRef,
@@ -238,9 +259,9 @@ export default defineComponent({
                       > {{ subKey }}</span>
                     </div>
                   </template>
-                  <div>
+                  <div v-if="subItem.type === 'text'">
                     <v-row
-                      v-for="subData in uniqueKeys(subItem.data)"
+                      v-for="subData in uniqueKeys(subItem.data, subItem.order)"
                       :key="subData.value"
                       justify="center"
                       dense
@@ -251,6 +272,9 @@ export default defineComponent({
                       >
                         {{ subData.value }}</span>
                     </v-row>
+                  </div>
+                  <div v-else>
+                    {{ getMinMax(subItem.data) }}
                   </div>
                 </v-tooltip>
               </span>

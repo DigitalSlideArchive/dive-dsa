@@ -129,7 +129,7 @@ export default defineComponent({
     const deleteValue = (key: string) => {
       VueDel(attributeColors.value, key);
       if (attributeOrder.value[key]) {
-        VueDel(attributeColors.value, key);
+        VueDel(attributeOrder.value, key);
       }
       updateColors();
     };

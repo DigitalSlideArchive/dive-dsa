@@ -164,5 +164,6 @@ export interface SwimlaneAttribute{
     displayName?: boolean;
     start: number;
     end: number;
+    order?: Record<string, number>;
 
   }
