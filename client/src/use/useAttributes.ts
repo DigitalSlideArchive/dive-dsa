@@ -351,7 +351,7 @@ export default function UseAttributes(
   }
 
   const attributeTimelineData = computed(() => {
-    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]}> = {};
+    const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]; ticks?: number}> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
     if (val !== undefined && selectedTrackId.value !== null) {
       const vals = Object.entries(timelineGraphs.value);
@@ -370,6 +370,7 @@ export default function UseAttributes(
                 begin: timelineData.begin,
                 end: timelineData.end,
                 yRange: graph.yRange,
+                ticks: graph.ticks,
               };
             }
           }
@@ -526,7 +527,6 @@ export default function UseAttributes(
               } else {
                 baseColor = trackStyleManager.typeStyling.value.color(key);
               }
-
               valueMap[key] = {
                 data: [],
                 name: key,
@@ -535,6 +535,7 @@ export default function UseAttributes(
                 displayName,
                 start: track.begin,
                 end: track.end,
+                order: baseAttribute?.valueOrder,
               };
             }
             // Now we need to push data in based on values and change only when value changes:
@@ -660,6 +661,10 @@ export default function UseAttributes(
     return null;
   });
 
+  const attributeKeyVisible = computed(() => (
+    Object.values(attributes.value).findIndex((attr) => attr.colorKey) !== -1
+  ));
+
   return {
     loadAttributes,
     loadTimelines,
@@ -693,5 +698,7 @@ export default function UseAttributes(
     swimlaneDefault,
     // Tools
     getAttributeValueColor,
+    // Attribute Key Visislbe
+    attributeKeyVisible,
   };
 }

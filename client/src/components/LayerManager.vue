@@ -5,6 +5,7 @@ import {
 
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
+import geo, { GeoEvent } from 'geojs';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -22,9 +23,10 @@ import AttributeBoxLayer from '../layers/AnnotationLayers/AttributeBoxLayer';
 import type { AnnotationId } from '../BaseAnnotation';
 import { geojsonToBound, hexToRgb } from '../utils';
 import { VisibleAnnotationTypes } from '../layers';
-import UILayer from '../layers/UILayers/UILayer';
+import ToolTipLayer from '../layers/UILayers/ToolTipLayer';
 import ToolTipWidget from '../layers/UILayers/ToolTipWidget.vue';
 import { ToolTipWidgetData } from '../layers/UILayers/UILayerTypes';
+import AttributeColorKey from '../layers/UILayers/AttributeColorKey.vue';
 import {
   useHandler,
   useSelectedTrackId,
@@ -48,6 +50,9 @@ import {
  *  LayerManager emits high-level events when track features get selected or updated.
  */
 export default defineComponent({
+  components: {
+    AttributeColorKey,
+  },
   props: {
     formatTextRow: {
       type: Function as PropType<FormatTextRow | undefined>,
@@ -179,7 +184,7 @@ export default defineComponent({
     };
     updateAttributes();
 
-    const uiLayer = new UILayer(annotator);
+    const toolTipLayer = new ToolTipLayer(annotator);
     const hoverOvered: Ref<ToolTipWidgetData[]> = ref([]);
     const toolTipWidgetProps = {
       color: typeStylingRef.value.color,
@@ -187,8 +192,9 @@ export default defineComponent({
       selected: selectedTrackIdRef,
       stateStyling: trackStyleManager.stateStyles,
     };
-    uiLayer.addDOMWidget('customToolTip', ToolTipWidget, toolTipWidgetProps, { x: 10, y: 10 });
+    toolTipLayer.addDOMWidget('customToolTip', ToolTipWidget, toolTipWidgetProps, { x: 10, y: 10 });
 
+    const includesAttributeKey = computed(() => visibleModesRef.value.includes('attributeKey'));
     function updateLayers(
       frame: number,
       editingTrack: false | EditAnnotationTypes,
@@ -208,6 +214,7 @@ export default defineComponent({
       if (!inlcudesTooltip) {
         hoverOvered.value = [];
       }
+
       const frameData = [] as FrameDataTrack[];
       const editingTracks = [] as FrameDataTrack[];
       if (currentFrameIds === undefined) {
@@ -502,7 +509,7 @@ export default defineComponent({
         }
       });
       hoverOvered.value = hoveredVals.sort((a, b) => a.maxX - b.maxX);
-      uiLayer.setToolTipWidget('customToolTip', (hoverOvered.value.length > 0));
+      toolTipLayer.setToolTipWidget('customToolTip', (hoverOvered.value.length > 0));
     };
     rectAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
     polyAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
@@ -592,11 +599,20 @@ export default defineComponent({
       return [];
     });
 
+    const maxHeight = ref(annotator.geoViewerRef.value.size().height);
+
+    annotator.geoViewerRef.value.geoOn(geo.event.resize, (e: GeoEvent) => {
+      maxHeight.value = e.height as number;
+    });
+
     return {
       videoLayerTransparencyVals,
       videoLayerColorTransparencyOn,
       colorScaleOn,
       colorScaleMatrix,
+      includesAttributeKey,
+      attributes,
+      maxHeight,
     };
   },
 });
@@ -604,6 +620,15 @@ export default defineComponent({
 
 <template>
   <div>
+    <div
+      v-if="includesAttributeKey"
+      style="position: absolute; top: 0px; right: 0px"
+    >
+      <AttributeColorKey
+        :attributes="attributes"
+        :max-height="maxHeight"
+      />
+    </div>
     <svg
       width="0"
       height="0"

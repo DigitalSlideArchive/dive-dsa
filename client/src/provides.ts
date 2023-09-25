@@ -52,7 +52,7 @@ export interface AttributesFilterType {
   removeTimelineFilter: (name: string) => void;
   attributeTimelineData:
   Readonly<Ref<Record<string, {
-    data: TimelineAttribute[]; begin: number; end: number; yRange?: number[];
+    data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]; ticks?: number;
   }>>>;
   timelineGraphs: Readonly<Ref<Record<string, TimelineGraph>>>;
   timelineEnabled: Readonly<Ref<Record<string, boolean>>>;

@@ -6,7 +6,6 @@ import { Mousetrap } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
-import { colors } from 'vuetify/lib';
 
 interface ButtonData {
   id: string;
@@ -14,6 +13,7 @@ interface ButtonData {
   type?: VisibleAnnotationTypes;
   active: boolean;
   mousetrap?: Mousetrap[];
+  tooltip?: string;
   click: () => void;
 }
 
@@ -45,6 +45,10 @@ export default Vue.extend({
       default: false,
     },
     groupEditActive: {
+      type: Boolean,
+      default: false,
+    },
+    attributeKey: {
       type: Boolean,
       default: false,
     },
@@ -141,12 +145,13 @@ export default Vue.extend({
     },
     viewButtons(): ButtonData[] {
       /* Only geometry primitives can be visible types right now */
-      return [
+      const buttons: ButtonData[] = [
         {
           id: 'rectangle',
           type: 'rectangle',
           icon: 'mdi-vector-square',
           active: this.isVisible('rectangle'),
+          tooltip: 'Bounding Box Annotation',
           click: () => this.toggleVisible('rectangle'),
         },
         {
@@ -154,6 +159,7 @@ export default Vue.extend({
           type: 'Polygon',
           icon: 'mdi-vector-polygon',
           active: this.isVisible('Polygon'),
+          tooltip: 'Polygon Annotation',
           click: () => this.toggleVisible('Polygon'),
         },
         {
@@ -161,6 +167,7 @@ export default Vue.extend({
           type: 'LineString',
           active: this.isVisible('LineString'),
           icon: 'mdi-vector-line',
+          tooltip: '2-Point Line',
           click: () => this.toggleVisible('LineString'),
         },
         {
@@ -168,6 +175,7 @@ export default Vue.extend({
           type: 'text',
           active: this.isVisible('text'),
           icon: 'mdi-format-text',
+          tooltip: 'Confidence/Attribute Text Display',
           click: () => this.toggleVisible('text'),
         },
         {
@@ -175,9 +183,21 @@ export default Vue.extend({
           type: 'tooltip',
           active: this.isVisible('tooltip'),
           icon: 'mdi-tooltip-text-outline',
+          tooltip: 'Tooltip Information about Hovered over annotations',
           click: () => this.toggleVisible('tooltip'),
         },
       ];
+      if (this.attributeKey) {
+        buttons.push({
+          id: 'attributeKey',
+          type: 'attributeKey',
+          active: this.isVisible('attributeKey'),
+          icon: 'mdi-view-list',
+          tooltip: 'Attribute Colors Key',
+          click: () => this.toggleVisible('attributeKey'),
+        });
+      }
+      return buttons;
     },
     mousetrap(): Mousetrap[] {
       return flatten(this.editButtons.map((b) => b.mousetrap || []));
@@ -316,8 +336,25 @@ export default Vue.extend({
           v-for="(button, index) in viewButtons"
           :key="button.id"
         >
+          <v-tooltip
+            v-if="button.tooltip &&
+              (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
+          >
+            <template #activator="{ on }">
+              <v-btn
+                :color="button.active ? 'grey darken-2' : ''"
+                class="mx-1 mode-button"
+                small
+                v-on="on"
+                @click="button.click"
+              >
+                <v-icon>{{ button.icon }}</v-icon>
+              </v-btn>
+            </template>
+            <span> {{ button.tooltip }}</span>
+          </v-tooltip>
           <v-btn
-            v-if="getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index]"
+            v-else-if="getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index]"
             :color="button.active ? 'grey darken-2' : ''"
             class="mx-1 mode-button"
             small

@@ -30,6 +30,10 @@ export default Vue.extend({
       type: Array,
       default: () => [-1, -1],
     },
+    ticks: {
+      type: Number,
+      default: () => -1,
+    },
     margin: {
       type: Number,
       default: 0,
@@ -49,9 +53,11 @@ export default Vue.extend({
   },
   data() {
     return {
+      chartTop: 0,
       adjustRange: false,
       tempRange: [-1, -1],
       currentRange: [-1, -1],
+      currentTicks: -1,
     };
   },
   computed: {
@@ -82,7 +88,15 @@ export default Vue.extend({
       this.initialize();
       this.update();
     },
+    ticks() {
+      this.initialize();
+      this.update();
+    },
     currentRange() {
+      this.initialize();
+      this.update();
+    },
+    currentTicks() {
       this.initialize();
       this.update();
     },
@@ -92,6 +106,10 @@ export default Vue.extend({
   },
   mounted() {
     this.initialize();
+    this.currentTicks = this.ticks;
+    if (this.$refs.chart) {
+      this.chartTop = this.$refs.chart.offsetTop;
+    }
   },
   methods: {
     initialize() {
@@ -114,7 +132,7 @@ export default Vue.extend({
       this.x = x;
       const maxVal = d3.max(this.data, (datum) => d3.max(datum.values, (d) => d[1]));
       const minVal = d3.min(this.data, (datum) => d3.min(datum.values, (d) => d[1]));
-      let max = maxVal;
+      let max = maxVal * 1.10;
       let min = minVal;
       if (this.currentRange !== undefined) {
         if (this.currentRange[0] !== -1) {
@@ -132,7 +150,7 @@ export default Vue.extend({
       if (this.atrributesChart) {
         y = d3
           .scaleLinear()
-          .domain([min, Math.max(max * 1.2, 1.0)])
+          .domain([min, Math.max(max * 1.0, 1.0)])
           .range([height, 0]);
       }
 
@@ -148,6 +166,9 @@ export default Vue.extend({
         .attr('transform', 'translate(0,-1)');
 
       const axis = d3.axisRight(y).tickSize(width);
+      if (this.currentTicks > 0) {
+        axis.tickValues(d3.ticks(min, max, this.currentTicks));
+      }
       svg
         .append('g')
         .attr('class', 'axis-y')
@@ -301,6 +322,7 @@ export default Vue.extend({
 
 <template>
   <div
+    ref="chart"
     class="line-chart"
     :style="`height: ${clientHeight}px;`"
   >
@@ -312,7 +334,7 @@ export default Vue.extend({
       <template #activator="{ on }">
         <div
           class="yaxisclick"
-          :style="`height: ${clientHeight}px;`"
+          :style="`height: ${clientHeight}px; top:${chartTop}px`"
           v-on="on"
           @dblclick="doubleClick"
         />
@@ -342,6 +364,15 @@ export default Vue.extend({
               v-model.number="currentRange[1]"
               type="number"
               label="Max"
+              hint="-1 will auto calculate"
+              persistent-hint
+            />
+          </v-row>
+          <v-row>
+            <v-text-field
+              v-model.number="currentTicks"
+              type="number"
+              label="Tick Count"
               hint="-1 will auto calculate"
               persistent-hint
             />

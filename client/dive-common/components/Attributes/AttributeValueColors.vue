@@ -1,12 +1,15 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, Ref,
+  defineComponent, ref, PropType, Ref, watch, del as VueDel,
 } from '@vue/composition-api';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { useCameraStore, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
+
+import { isHexColorCode } from 'vue-media-annotator/utils';
+
 
 export default defineComponent({
   name: 'AttributeValueColors',
@@ -27,9 +30,12 @@ export default defineComponent({
     const predeterminedValues = ref(props.attribute.values || []);
 
     const attributeColors = ref(props.attribute.valueColors || {});
+    const attributeOrder = ref(props.attribute.valueOrder || {});
     const editingColor = ref(false);
     const currentEditColor = ref('white');
     const currentEditKey: Ref<null | string> = ref(null);
+
+    const colorKey = ref(props.attribute.colorKey || false);
 
     const getActualValues = () => {
       // Need to go through all tracks with the attribute and get their values.
@@ -83,22 +89,65 @@ export default defineComponent({
       currentEditColor.value = attributeColors.value[key];
     };
 
+    const updateColors = () => {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean; valueOrder?: Record<string, number> } = {
+        colorValues: attributeColors.value,
+        valueOrder: attributeOrder.value,
+      };
+      if (colorKey.value) {
+        data.colorKey = true;
+      }
+      emit('save', data);
+    };
+
     const saveEditingColor = () => {
       if (currentEditKey.value !== null) {
         attributeColors.value[currentEditKey.value] = currentEditColor.value;
         currentEditKey.value = null;
         currentEditColor.value = 'white';
         editingColor.value = false;
-        emit('save', attributeColors.value);
+        updateColors();
       }
     };
+    const saveColorHex = (key: string, hex: string) => {
+      if (isHexColorCode(hex)) {
+        attributeColors.value[key] = hex;
+        updateColors();
+      }
+    };
+
+    const setOrder = (key: string, order: number) => {
+      if (order === -1) {
+        VueDel(attributeColors.value, key);
+        updateColors();
+      } else {
+        attributeOrder.value[key] = order;
+        updateColors();
+      }
+    };
+
+    const deleteValue = (key: string) => {
+      VueDel(attributeColors.value, key);
+      if (attributeOrder.value[key]) {
+        VueDel(attributeOrder.value, key);
+      }
+      updateColors();
+    };
+
+
+    watch(colorKey, () => updateColors());
     return {
       attributeColors,
       editingColor,
       currentEditColor,
+      attributeOrder,
+      colorKey,
       setEditingColor,
       saveEditingColor,
       getActualValues,
+      saveColorHex,
+      setOrder,
+      deleteValue,
     };
   },
 });
@@ -124,6 +173,22 @@ export default defineComponent({
           class="column"
         >
           Color
+        </v-col>
+        <v-col
+          class="column"
+        >
+          Hex Value
+        </v-col>
+        <v-col
+          class="column"
+        >
+          Order
+        </v-col>
+        <v-col
+          cols="1"
+          class="column"
+        >
+          Remove
         </v-col>
         <v-spacer />
       </v-row>
@@ -157,7 +222,40 @@ export default defineComponent({
             />
           </div>
         </v-col>
+        <v-col>
+          <v-text-field
+            :value="val"
+            label="Hex Color"
+            @change="saveColorHex(key, $event)"
+          />
+        </v-col>
+        <v-col>
+          <v-text-field
+            type="number"
+            :value="attributeOrder[key] || -1"
+            :rules="[v => v >= -1 || 'Value must be greater than -1']"
+            label="Order"
+            @change="setOrder(key, $event)"
+          />
+        </v-col>
+        <v-col cols="1">
+          <v-icon
+            color="error"
+            @click="deleteValue(key)"
+          >
+            mdi-delete
+          </v-icon>
+        </v-col>
+
         <v-spacer />
+      </v-row>
+      <v-row dense>
+        <v-checkbox
+          v-model="colorKey"
+          label="Color Key"
+          hint="Render a key for the color values"
+          persistent-hint
+        />
       </v-row>
     </v-container>
 

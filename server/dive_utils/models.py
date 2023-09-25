@@ -185,6 +185,8 @@ class Attribute(BaseModel):
     editor: Optional[Union[NumericAttributeOptions, StringAttributeOptions]]
     shortcuts: Optional[List[ShortcutAttributeOptions]]
     render: Optional[RenderingAttributes]
+    colorKey: Optional[bool]
+    valueOrder: Optional[Dict[str, int]]
 
 
 class AttributeNumberFilter(BaseModel):
@@ -240,6 +242,7 @@ class TimeLineGraph(BaseModel):
     filter: AttributeKeyFilter
     default: Optional[bool]
     yRange: Optional[List[float]]
+    ticks: Optional[float]
     settings: Optional[Dict[str, TimeLineGraphSettings]]
 
 

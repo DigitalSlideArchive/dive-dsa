@@ -5,6 +5,7 @@ import {
 } from '@vue/composition-api';
 import * as d3 from 'd3';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
+import { isHexColorCode } from 'vue-media-annotator/utils';
 
 export default defineComponent({
   name: 'AttributeNumberValueColors',
@@ -53,6 +54,8 @@ export default defineComponent({
     const currentEditColor = ref('#FF0000');
     const currentEditIndex: Ref<number> = ref(0);
     const currentEditKey: Ref<number> = ref(0);
+    const colorKey = ref(props.attribute.colorKey || false);
+
     const setEditingColor = (index: number) => {
       editingColor.value = true;
       currentEditIndex.value = index;
@@ -64,22 +67,33 @@ export default defineComponent({
         currentEditColor.value = '#FF0000';
       }
     };
+
+    const updateColors = () => {
+      const mapper: Record<string, string> = {};
+      attributeColors.value.forEach((item) => {
+        mapper[item.key] = item.val;
+      });
+
+      const data: { colorValues: Record<string, string>; colorKey?: boolean } = {
+        colorValues: mapper,
+      };
+      if (colorKey.value) {
+        data.colorKey = true;
+      }
+      emit('save', data);
+    };
     const saveEditingColor = () => {
       if (currentEditIndex.value !== null) {
-        const mapper: Record<string, string> = {};
         if (!attributeColors.value[currentEditIndex.value]) {
           attributeColors.value.push({ key: currentEditKey.value, val: currentEditColor.value });
         } else {
           attributeColors.value[currentEditIndex.value] = { key: currentEditKey.value, val: currentEditColor.value };
         }
         attributeColors.value.sort((a, b) => a.key - b.key);
-        attributeColors.value.forEach((item) => {
-          mapper[item.key] = item.val;
-        });
         currentEditIndex.value = 0;
-        currentEditColor.value = '#FF0000';
+        currentEditColor.value = 'white';
         editingColor.value = false;
-        emit('save', mapper);
+        updateColors();
         if (attributeColors.value.length) {
           recalculateGradient();
         }
@@ -110,19 +124,28 @@ export default defineComponent({
     const deleteGradient = (index: number) => {
       attributeColors.value.splice(index, 1);
       attributeColors.value.sort((a, b) => a.key - b.key);
-      const mapper: Record<string, string> = {};
-      attributeColors.value.forEach((item) => {
-        mapper[item.key] = item.val;
-      });
       currentEditIndex.value = 0;
       currentEditColor.value = 'white';
       editingColor.value = false;
-      emit('save', mapper);
+      updateColors();
       if (attributeColors.value.length) {
         recalculateGradient();
       }
     };
+
+    const saveColorHex = (index: number, hex: string) => {
+      if (isHexColorCode(hex)) {
+        attributeColors.value[index] = { key: index, val: hex };
+        updateColors();
+        if (attributeColors.value.length) {
+          recalculateGradient();
+        }
+      }
+    };
+
     const validForm = ref(false);
+    watch(colorKey, () => updateColors());
+
     return {
       attributeColors,
       editingColor,
@@ -131,10 +154,12 @@ export default defineComponent({
       currentEditKey,
       gradientSVG,
       validForm,
+      colorKey,
       setEditingColor,
       saveEditingColor,
       addColor,
       deleteGradient,
+      saveColorHex,
     };
   },
 });
@@ -161,6 +186,12 @@ export default defineComponent({
         >
           Color
         </v-col>
+        <v-col
+          class="column"
+        >
+          Hex Value
+        </v-col>
+
         <v-spacer />
         <v-col />
       </v-row>
@@ -194,6 +225,13 @@ export default defineComponent({
             />
           </div>
         </v-col>
+        <v-col>
+          <v-text-field
+            :value="val"
+            label="Hex Color"
+            @change="saveColorHex(index, $event)"
+          />
+        </v-col>
         <v-spacer />
         <v-col>
           <v-btn
@@ -223,6 +261,14 @@ export default defineComponent({
           width="300"
           height="30"
           class="ml-3"
+        />
+      </v-row>
+      <v-row dense>
+        <v-checkbox
+          v-model="colorKey"
+          label="Color Key"
+          hint="Render a key for the color values"
+          persistent-hint
         />
       </v-row>
     </v-container>

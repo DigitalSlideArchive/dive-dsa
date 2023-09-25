@@ -167,6 +167,14 @@ function hexToRgb(source: string) {
   return rgbArray;
 }
 
+function isHexColorCode(input: string) {
+  // Define a regular expression pattern for valid hex color codes
+  const hexColorPattern = /^#([0-9A-Fa-f]{3}){1,2}$/;
+
+  // Test the input string against the pattern
+  return hexColorPattern.test(input);
+}
+
 export {
   getResponseError,
   boundToGeojson,
@@ -178,4 +186,5 @@ export {
   reOrderBounds,
   reOrdergeoJSON,
   hexToRgb,
+  isHexColorCode,
 };

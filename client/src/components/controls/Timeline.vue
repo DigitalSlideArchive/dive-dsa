@@ -56,6 +56,11 @@ export default {
     },
   },
   watch: {
+    timelineHeight() {
+      this.$nextTick(() => {
+        this.initialize();
+      });
+    },
     maxFrame(value) {
       this.endFrame = value;
       this.init = true;
