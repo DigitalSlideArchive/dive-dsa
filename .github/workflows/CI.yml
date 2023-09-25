@@ -11,7 +11,7 @@ jobs:
         working-directory: client
     strategy:
       matrix:
-        target: ['web', 'lib']
+        target: ['web']
 
     name: Client Tests
     runs-on: ubuntu-latest
@@ -55,10 +55,6 @@ jobs:
       run: yarn build:web
       env:
         SENTRY_AUTH_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.SENTRY_AUTH_TOKEN || '' }}
-    - 
-      name: Build lib
-      if: ${{ matrix.target == 'lib' }}
-      run: yarn build:lib
   test-server:
     name: Server Tests
     runs-on: ubuntu-latest
