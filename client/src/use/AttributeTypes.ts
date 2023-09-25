@@ -80,6 +80,7 @@ export interface Attribute {
     datatype: 'text' | 'number' | 'boolean';
     values?: string[];
     valueColors?: Record<string, string>;
+    valueOrder?: Record<string, number>;
     name: string;
     key: string;
     color?: string;
@@ -163,5 +164,6 @@ export interface SwimlaneAttribute{
     displayName?: boolean;
     start: number;
     end: number;
+    order?: Record<string, number>;
 
   }

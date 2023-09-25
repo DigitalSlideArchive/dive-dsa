@@ -5,6 +5,7 @@ import {
 } from '@vue/composition-api';
 import * as d3 from 'd3';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
+import { isHexColorCode } from 'vue-media-annotator/utils';
 
 export default defineComponent({
   name: 'AttributeNumberValueColors',
@@ -131,6 +132,17 @@ export default defineComponent({
         recalculateGradient();
       }
     };
+
+    const saveColorHex = (index: number, hex: string) => {
+      if (isHexColorCode(hex)) {
+        attributeColors.value[index] = { key: index, val: hex };
+        updateColors();
+        if (attributeColors.value.length) {
+          recalculateGradient();
+        }
+      }
+    };
+
     const validForm = ref(false);
     watch(colorKey, () => updateColors());
 
@@ -147,6 +159,7 @@ export default defineComponent({
       saveEditingColor,
       addColor,
       deleteGradient,
+      saveColorHex,
     };
   },
 });
@@ -173,6 +186,12 @@ export default defineComponent({
         >
           Color
         </v-col>
+        <v-col
+          class="column"
+        >
+          Hex Value
+        </v-col>
+
         <v-spacer />
         <v-col />
       </v-row>
@@ -205,6 +224,13 @@ export default defineComponent({
               @click="setEditingColor(index)"
             />
           </div>
+        </v-col>
+        <v-col>
+          <v-text-field
+            :value="val"
+            label="Hex Color"
+            @change="saveColorHex(index, $event)"
+          />
         </v-col>
         <v-spacer />
         <v-col>

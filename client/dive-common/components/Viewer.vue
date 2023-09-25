@@ -43,10 +43,12 @@ import ControlsContainer from 'dive-common/components/ControlsContainer.vue';
 import Sidebar from 'dive-common/components/Sidebar.vue';
 import { useModeManager, useSave } from 'dive-common/use';
 import clientSettingsSetup, { clientSettings } from 'dive-common/store/settings';
-import { useApi, FrameImage, DatasetType } from 'dive-common/apispec';
+import {
+  useApi, FrameImage, DatasetType, DatasetMeta, DatasetMetaMutable,
+} from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
-import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { DiveConfiguration, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import ImageEnhancementsVue from 'vue-media-annotator/components/ImageEnhancements.vue';
 import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
 import { useStore } from 'platform/web-girder/store/types';
@@ -565,39 +567,53 @@ export default defineComponent({
       selectCamera(camera, event?.button === 2);
       ctx.emit('change-camera', camera);
     };
+
+    const initializeConfig = (config: { metadata: DatasetMeta & DatasetMetaMutable;
+    diveConfig: DiveConfiguration & {metadata: DatasetMetaMutable}; }) => {
+      const meta = config.metadata;
+      const configMeta = Object.keys(config.diveConfig.metadata).length ? config.diveConfig.metadata : config.metadata;
+      if (config.diveConfig.prevNext) {
+        configurationManager.setPrevNext(config.diveConfig.prevNext);
+      }
+      if (config.diveConfig.hierarchy) {
+        configurationManager.setHierarchy(config.diveConfig.hierarchy);
+      }
+      if (config.diveConfig.configOwners) {
+        configurationManager.setConfigOwners(config.diveConfig.configOwners);
+      }
+      if (config.diveConfig.metadata.configuration) {
+        configurationManager.setConfiguration(
+          config.diveConfig.metadata.configuration,
+        );
+
+        if (config.diveConfig.metadata.configuration.general?.baseConfiguration) {
+          configurationManager.setConfigurationId(
+            config.diveConfig.metadata.configuration.general.baseConfiguration,
+          );
+        }
+        if (config.diveConfig.metadata.configuration.filterTimelines) {
+          useTimelineFilters.loadFilterTimelines(config.diveConfig.metadata.configuration.filterTimelines);
+        }
+      }
+      const flatUIMap = configurationManager.getFlatUISettingMap();
+      ctx.emit('get-ui-settings', flatUIMap);
+      return { meta, configMeta };
+    };
     /** Trigger data load */
     const loadData = async () => {
       try {
         // Close and reset sideBar
         context.resetActive();
-        const config = await loadMetadata(datasetId.value);
-        const meta = config.metadata;
-        const configMeta = Object.keys(config.diveConfig.metadata).length ? config.diveConfig.metadata : config.metadata;
-        if (config.diveConfig.prevNext) {
-          configurationManager.setPrevNext(config.diveConfig.prevNext);
+        let config = await loadMetadata(datasetId.value);
+        let { meta, configMeta } = initializeConfig(config);
+        // Sets a configuration if it isn't initialized and reloads it
+        if (!configurationManager.configuration.value) {
+          configurationManager.saveConfiguration(datasetId.value, configMeta.configuration);
+          config = await loadMetadata(datasetId.value);
+          const initResults = initializeConfig(config);
+          meta = initResults.meta;
+          configMeta = initResults.configMeta;
         }
-        if (config.diveConfig.hierarchy) {
-          configurationManager.setHierarchy(config.diveConfig.hierarchy);
-        }
-        if (config.diveConfig.configOwners) {
-          configurationManager.setConfigOwners(config.diveConfig.configOwners);
-        }
-        if (config.diveConfig.metadata.configuration) {
-          configurationManager.setConfiguration(
-            config.diveConfig.metadata.configuration,
-          );
-
-          if (config.diveConfig.metadata.configuration.general?.baseConfiguration) {
-            configurationManager.setConfigurationId(
-              config.diveConfig.metadata.configuration.general.baseConfiguration,
-            );
-          }
-          if (config.diveConfig.metadata.configuration.filterTimelines) {
-            useTimelineFilters.loadFilterTimelines(config.diveConfig.metadata.configuration.filterTimelines);
-          }
-        }
-        const flatUIMap = configurationManager.getFlatUISettingMap();
-        ctx.emit('get-ui-settings', flatUIMap);
         const defaultCameraMeta = meta.multiCamMedia?.cameras[meta.multiCamMedia.defaultDisplay];
         baseMulticamDatasetId.value = datasetId.value;
         if (defaultCameraMeta !== undefined && meta.multiCamMedia) {

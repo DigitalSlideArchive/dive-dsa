@@ -26,19 +26,30 @@ export default defineComponent({
   },
   setup(props) {
     const stringValueColors = computed(() => {
-      const data: { name: string; values: Record<string, string>}[] = [];
+      const data: { displayName: string; name: string; values: [string, string][]}[] = [];
       props.attributes.forEach((attribute) => {
         if (attribute.datatype === 'text' && attribute.colorKey && attribute.valueColors) {
+          const displayName = attribute.render?.displayName || attribute.name;
+          const values = Object.entries(attribute.valueColors);
+          values.sort((a, b) => {
+            if (attribute.valueOrder && attribute.valueOrder[a[0]] && attribute.valueOrder[b[0]]) {
+              return attribute.valueOrder[a[0]] - attribute.valueOrder[b[0]];
+            }
+            return 0;
+          });
           data.push({
+            displayName,
             name: attribute.name,
-            values: attribute.valueColors,
+            values,
           });
         }
       });
       return data;
     });
     const numberValueColors = computed(() => {
-      const data: { name: string; values: Record<string, string>; range: [number, number]}[] = [];
+      const data: { displayName: string;
+        name: string; values: Record<string, string>; range: [number, number];
+      }[] = [];
       let min = Infinity;
       let max = -Infinity;
       props.attributes.forEach((attribute) => {
@@ -48,7 +59,9 @@ export default defineComponent({
             min = Math.min(min, num);
             max = Math.max(max, num);
           });
+          const displayName = attribute.render?.displayName || attribute.name;
           data.push({
+            displayName,
             name: attribute.name,
             values: attribute.valueColors,
             range: [min, max],
@@ -124,7 +137,7 @@ export default defineComponent({
         justify="center"
       >
         <b>
-          {{ item.name }}
+          {{ item.displayName }}
         </b>
       </v-row>
       <v-row
@@ -152,11 +165,11 @@ export default defineComponent({
         justify="center"
       >
         <b>
-          {{ item.name }}
+          {{ item.displayName }}
         </b>
       </v-row>
       <v-row
-        v-for="(color, value) in item.values"
+        v-for="[value, color] in item.values"
         :key="`${value}_${color}`"
         dense
         justify="center"

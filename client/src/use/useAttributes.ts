@@ -527,7 +527,6 @@ export default function UseAttributes(
               } else {
                 baseColor = trackStyleManager.typeStyling.value.color(key);
               }
-
               valueMap[key] = {
                 data: [],
                 name: key,
@@ -536,6 +535,7 @@ export default function UseAttributes(
                 displayName,
                 start: track.begin,
                 end: track.end,
+                order: baseAttribute?.valueOrder,
               };
             }
             // Now we need to push data in based on values and change only when value changes:
