@@ -19,10 +19,12 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 0,
                         "bounds": [884, 510, 1219, 737],
+                        "attributes": {},
                     },
                     {
                         "frame": 1,
                         "bounds": [111, 222, 3333, 444],
+                        "attributes": {},
                     },
                 ],
                 "begin": 0,
@@ -36,6 +38,7 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 0,
                         "bounds": [747, 457, 1039, 633],
+                        "attributes": {},
                     }
                 ],
                 "begin": 0,
@@ -61,11 +64,13 @@ test_tuple: List[Tuple[dict, list, list]] = [
                         "frame": 1,
                         "bounds": [2, 2, 4, 4],
                         "interpolate": True,
+                        "attributes": {},
                     },
                     {
                         "frame": 3,
                         "bounds": [4, 4, 8, 8],
                         "interpolate": True,
+                        "attributes": {},
                     },
                 ],
                 "confidencePairs": [["foo", 0.2], ["bar", 0.9], ["baz", 0.1]],
@@ -90,6 +95,7 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 1,
                         "bounds": [2, 2, 4, 4],
+                        "attributes": {},
                         "interpolate": True,
                         "geometry": {
                             "type": "FeatureCollection",
@@ -127,6 +133,7 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 3,
                         "bounds": [4, 4, 8, 8],
+                        "attributes": {},
                         "interpolate": True,
                         "geometry": {
                             "type": "FeatureCollection",
@@ -204,10 +211,12 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 0,
                         "bounds": [884, 510, 1219, 737],
+                        "attributes": {},
                     },
                     {
                         "frame": 1,
                         "bounds": [111, 222, 3333, 444],
+                        "attributes": {},
                     },
                 ],
                 "begin": 0,
@@ -221,6 +230,7 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 0,
                         "bounds": [747, 457, 1039, 633],
+                        "attributes": {},
                     }
                 ],
                 "begin": 0,
@@ -243,10 +253,12 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 0,
                         "bounds": [884, 510, 1219, 737],
+                        "attributes": {},
                     },
                     {
                         "frame": 1,
                         "bounds": [111, 222, 3333, 444],
+                        "attributes": {},
                     },
                 ],
                 "begin": 0,
@@ -260,6 +272,7 @@ test_tuple: List[Tuple[dict, list, list]] = [
                     {
                         "frame": 0,
                         "bounds": [747, 457, 1039, 633],
+                        "attributes": {},
                     }
                 ],
                 "begin": 0,

@@ -329,23 +329,27 @@ class DatasetResource(Resource):
                     mergeType = possibleMerge
                 break
 
-        accessList = (Folder().getFullAccessList(folder))
+        accessList = Folder().getFullAccessList(folder)
         accessUsers = accessList['users']
         userList = []
         for user in accessUsers:
             if user['level'] == 2:
-                userList.append({
-                    "name": user['login'],
-                    "id": str(user["id"]),
-                })
+                userList.append(
+                    {
+                        "name": user['login'],
+                        "id": str(user["id"]),
+                    }
+                )
         accessGroups = accessList['groups']
         groupList = []
         for group in accessGroups:
             if group['level'] == 2:
-                groupList.append({
-                    "name": group['name'],
-                    "id": str(group["id"]),
-                })
+                groupList.append(
+                    {
+                        "name": group['name'],
+                        "id": str(group["id"]),
+                    }
+                )
 
         configOwners = {
             "users": userList,
