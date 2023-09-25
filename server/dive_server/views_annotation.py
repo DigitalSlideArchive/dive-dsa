@@ -9,7 +9,7 @@ from girder.constants import AccessType, TokenScope
 from girder.exceptions import RestException
 from girder.models.folder import Folder
 
-from dive_utils import constants, setContentDisposition
+from dive_utils import constants, models, setContentDisposition
 
 from . import crud, crud_annotation
 

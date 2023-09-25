@@ -2,7 +2,6 @@
 from enum import Enum
 import functools
 import os
-from pathlib import Path
 from typing import List, Type
 
 from girder.constants import AccessType
