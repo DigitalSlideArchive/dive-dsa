@@ -82,26 +82,6 @@ poetry run tox -e docs
 poetry run tox -e builddocs
 ```
 
-## Integration Testing
-
-Get an API key from production Girder. **DO NOT** use a full-scoped token, use a read only token.
-
-```bash
-# start the server
-docker-compose up -d
-
-# set an API key from production girder
-export GIRDER_API_KEY=CHANGEME
-
-# run the tests
-poetry run tox -e testintegration
-
-# run only a particular test (be mindful of dependencies)
-poetry run tox -e testintegration -- -k test_pipelines
-```
-
-After integration tests are complete, visually inspect the results to make sure all jobs completed, new datasets open correctly, etc.
-
 ## Debug utils and command line tools
 
 ``` bash
