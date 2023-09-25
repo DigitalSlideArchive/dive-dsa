@@ -1,29 +1,14 @@
-from typing import List
-
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.token import Token
 
 from dive_utils import asbool, fromMeta
-from dive_utils.constants import (
-    AssetstoreSourceMarker,
-    AssetstoreSourcePathMarker,
-    DatasetMarker,
-    DefaultVideoFPS,
-    FPSMarker,
-    ImageSequenceType,
-    MarkForPostProcess,
-    TypeMarker,
-    VideoType,
-    imageRegex,
-    videoRegex,
-)
+from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker
 
-from . import crud, crud_rpc
+from . import crud_rpc
 
 
 class RpcResource(Resource):

@@ -15,7 +15,6 @@ from dive_utils.constants import (
     AssetstoreSourceMarker,
     AssetstoreSourcePathMarker,
     DatasetMarker,
-    DefaultVideoFPS,
     FPSMarker,
     ImageSequenceType,
     MarkForPostProcess,

@@ -342,7 +342,6 @@ def update_filters(dsFolder: types.GirderModel, data: dict, verify=True):
 def update_configuration(dsFolder: types.GirderModel, data: dict, verify=True):
     if verify:
         crud.verify_dataset(dsFolder)
-    configuration = fromMeta(dsFolder, 'configuration', {})
     update_metadata(dsFolder, {'configuration': data}, verify)
     return {'updated': data}
 

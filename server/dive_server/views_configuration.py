@@ -1,19 +1,11 @@
-import csv
-import os
-from typing import Dict, List
-from urllib.parse import urlparse
-
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
 from girder.models.setting import Setting
-from girder.models.token import Token
 from girder.utility import setting_utilities
-import requests
 
-from dive_server import crud, crud_rpc
-from dive_tasks import tasks
-from dive_utils import constants, models, types
+from dive_server import crud
+from dive_utils import constants, models
 
 
 @setting_utilities.validator({constants.SETTINGS_CONST_JOBS_CONFIGS})

@@ -2,12 +2,8 @@ from contextlib import suppress
 import json
 import os
 from pathlib import Path
-import shlex
-import shutil
 import tempfile
-from typing import Dict, List, Tuple
-from urllib import request
-from urllib.parse import urlparse
+from typing import Dict, List
 import zipfile
 
 from GPUtil import getGPUs

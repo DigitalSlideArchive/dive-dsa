@@ -1,18 +1,15 @@
 import json
 from typing import List, Optional
 
-from bson.objectid import ObjectId
 import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, rawResponse
 from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import RestException
-from girder.models.collection import Collection
 from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.user import User
 
 from dive_utils import TRUTHY_META_VALUES, constants, setContentDisposition
 from dive_utils.models import MetadataMutable
@@ -28,7 +25,7 @@ DatasetModelParam = {
 
 
 def config_merge(a, b, path=None):
-    "merges b into a"
+    """Merges b into a"""
     if path is None:
         path = []
     for key in b:
@@ -240,7 +237,6 @@ class DatasetResource(Resource):
     )
     def get_configuration(self, folder):
         user = self.getCurrentUser()
-        last = False
         baseFolder = folder
         configurationList = []
         baseConfigurationId = None  # lowest configurationId to start merge from
@@ -263,9 +259,6 @@ class DatasetResource(Resource):
                 'customGroupStyling': baseFolder.get('meta', {}).get('customGroupStyling', False),
             }
         ]
-        baseParentType = baseFolder.get('baseParentType')
-        baseParentId = baseFolder.get('baseParentId')
-
         if rootConfig:
             configurationList.append(rootConfig)
         while baseFolder:
@@ -310,10 +303,10 @@ class DatasetResource(Resource):
                 baseFolder = parentFolder
             else:
                 baseFolder = None
-        # Now we have a list of configurations, find the lowest one with the baseConfiguration str and the merge type
+        # Now we have a list of configurations, find the lowest
+        # one with the baseConfiguration str and the merge type
         baseConfigurationId = folder.get('_id')
         configOwners = None
-        baseConfiguration = None
         baseMetaData = {}
         mergeType = 'disabled'
         for item in folderPairs:
@@ -329,23 +322,27 @@ class DatasetResource(Resource):
                     mergeType = possibleMerge
                 break
 
-        accessList = (Folder().getFullAccessList(folder))
+        accessList = Folder().getFullAccessList(folder)
         accessUsers = accessList['users']
         userList = []
         for user in accessUsers:
             if user['level'] == 2:
-                userList.append({
-                    "name": user['login'],
-                    "id": str(user["id"]),
-                })
+                userList.append(
+                    {
+                        "name": user['login'],
+                        "id": str(user["id"]),
+                    }
+                )
         accessGroups = accessList['groups']
         groupList = []
         for group in accessGroups:
             if group['level'] == 2:
-                groupList.append({
-                    "name": group['name'],
-                    "id": str(group["id"]),
-                })
+                groupList.append(
+                    {
+                        "name": group['name'],
+                        "id": str(group["id"]),
+                    }
+                )
 
         configOwners = {
             "users": userList,
