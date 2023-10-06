@@ -222,11 +222,16 @@ class DatasetResource(Resource):
         setContentDisposition(f'{folder["name"]}.config.json')
         # A dataset configuration consists of MetadataMutable properties.
         expose = MetadataMutable.schema()['properties'].keys()
-        return crud_dataset.get_dataset(folder, self.getCurrentUser()).json(
+        data = crud_dataset.get_dataset(folder, self.getCurrentUser()).json(
             exclude_none=True,
             include=expose,
             indent=2,
         )
+        loaded = json.loads(data)
+        # remove the baseConfiguration Id so it is portable
+        if loaded.get('configuration', {}).get('general', {}).get('baseConfiguration', False):
+            del loaded['configuration']['general']['baseConfiguration']
+        return json.dumps(loaded, indent=2)
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @rawResponse
