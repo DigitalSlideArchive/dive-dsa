@@ -65,12 +65,12 @@ export default function UseAttributes(
 
   function loadTimelines(timelines: Record<string, TimelineGraph>) {
     Object.entries(timelines).forEach(([key, item]) => {
-      timelineGraphs.value[key] = item;
+      VueSet(timelineGraphs.value, key, item);
     });
   }
   function loadSwimlanes(timelines: Record<string, SwimlaneGraph>) {
     Object.entries(timelines).forEach(([key, item]) => {
-      swimlaneGraphs.value[key] = item;
+      VueSet(swimlaneGraphs.value, key, item);
     });
   }
 
