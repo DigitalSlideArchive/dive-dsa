@@ -232,7 +232,7 @@ export default defineComponent({
         <v-col>
           <v-text-field
             type="number"
-            :value="attributeOrder[key] || -1"
+            :value="attributeOrder[key] !== undefined ? attributeOrder[key] : -1"
             :rules="[v => v >= -1 || 'Value must be greater than -1']"
             label="Order"
             @change="setOrder(key, $event)"

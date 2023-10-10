@@ -81,21 +81,24 @@ export default defineComponent({
       }
     });
     const timelineDisabled = ref(false);
-    if (timelineDefault.value === null && !getUISetting('UIEvents') && !getUISetting('UIDetections')) {
-      const entries = Object.entries(timelineEnabled.value);
-      let found = false;
-      for (let i = 0; i < entries.length; i += 1) {
-        const key = entries[i][0];
-        if (key) {
-          currentView.value = key;
-          found = true;
-          break;
+    const isTimelineEnabled = () => {
+      if (timelineDefault.value === null && !getUISetting('UIEvents') && !getUISetting('UIDetections')) {
+        const entries = Object.entries(timelineEnabled.value);
+        let found = false;
+        for (let i = 0; i < entries.length; i += 1) {
+          const key = entries[i][0];
+          if (key) {
+            currentView.value = key;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          timelineDisabled.value = true;
         }
       }
-      if (!found) {
-        timelineDisabled.value = true;
-      }
-    }
+    };
+    watch(timelineEnabled, () => isTimelineEnabled());
 
     /**
      * Toggles on and off the individual timeline views
