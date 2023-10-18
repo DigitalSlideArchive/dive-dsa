@@ -44,7 +44,10 @@ export default defineComponent({
 </script>
 
 <template>
-  <v-row dense>
+  <v-row
+    dense
+    class="flex-nowrap"
+  >
     <span class="mr-4">
       <tooltip-btn
         v-if="previous"
@@ -56,7 +59,7 @@ export default defineComponent({
         :to="`/viewer/${previous.id}`"
       />
     </span>
-    <slot class="pa-10" />
+    <slot name="middle" />
     <span class="ml-4">
       <tooltip-btn
         v-if="next"

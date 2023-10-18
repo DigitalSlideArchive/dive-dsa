@@ -972,12 +972,19 @@ export default defineComponent({
 
 <template>
   <v-main class="viewer">
-    <v-app-bar app>
+    <v-app-bar
+      app
+      class="flex-nowrap"
+    >
       <slot name="title" />
       <prev-next
         v-if="getUISetting('UINextPrev')"
         class="pr-2"
-      />
+      >
+        <template #middle>
+          <slot name="prevnextmiddle" />
+        </template>
+      </prev-next>
       <span
         class="title pl-3 flex-row"
         style="white-space:nowrap;overflow:hidden;text-overflow: ellipsis;"
