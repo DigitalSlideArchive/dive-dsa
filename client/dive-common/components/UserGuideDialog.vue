@@ -30,6 +30,9 @@ export default defineComponent({
             {
               name: 'Toggle Timeline', icon: 'mdi-keyboard', actions: ['Shift + T'], description: 'Collapse/Expand Timeline',
             },
+            {
+              name: 'Next/Prev Dataset', icon: 'mdi-keyboard', actions: ['[ or ]'], description: 'Navigate to the next or previous dataset',
+            },
           ],
         },
         {

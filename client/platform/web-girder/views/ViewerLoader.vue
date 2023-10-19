@@ -18,6 +18,7 @@ import Export from './Export.vue';
 import Clone from './Clone.vue';
 import ViewerAlert from './ViewerAlert.vue';
 import RevisionHistory from './RevisionHistory.vue';
+import AnnotationDataBrowser from './AnnotationDataBrowser.vue';
 
 const buttonOptions = {
   text: true,
@@ -54,6 +55,7 @@ export default defineComponent({
     ViewerAlert,
     DIVETools,
     ConfigurationEditor,
+    AnnotationDataBrowser,
     ...context.getComponents(),
   },
 
@@ -226,6 +228,11 @@ export default defineComponent({
         </v-tab>
         <JobsTab v-if="enabledFeatures.jobs" />
       </v-tabs>
+    </template>
+    <template #prevnextmiddle>
+      <annotation-data-browser
+        :dataset-id="id"
+      />
     </template>
     <template #title-right>
       <DIVETools

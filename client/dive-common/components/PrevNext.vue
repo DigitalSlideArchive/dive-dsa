@@ -26,7 +26,7 @@ export default defineComponent({
       default: 'Title',
     },
   },
-  setup() {
+  setup(_props, { root }) {
     const configMap = useConfiguration();
 
     const previous = ref(configMap.prevNext.value?.previous);
@@ -35,19 +35,28 @@ export default defineComponent({
       previous.value = configMap.prevNext.value?.previous;
       next.value = configMap.prevNext.value?.next;
     });
+
+    const gotoId = (id: string) => {
+      root.$router.push({ name: 'viewer', params: { id } });
+    };
     return {
       previous,
       next,
+      gotoId,
     };
   },
 });
 </script>
 
 <template>
-  <v-row dense>
+  <v-row
+    dense
+    class="flex-nowrap"
+  >
     <span class="mr-4">
       <tooltip-btn
         v-if="previous"
+        v-mousetrap="{bind: '[', handler: () => previous && gotoId(previous.id)}"
         class="mr-4"
         icon="mdi-chevron-left"
         :tooltip-text="`Go to Previous Dataset: ${previous.name}`"
@@ -56,10 +65,11 @@ export default defineComponent({
         :to="`/viewer/${previous.id}`"
       />
     </span>
-    <slot class="pa-10" />
+    <slot name="middle" />
     <span class="ml-4">
       <tooltip-btn
         v-if="next"
+        v-mousetrap="{bind: ']', handler: () => next && gotoId(next.id)}"
         class="pl-4"
         icon="mdi-chevron-right"
         :tooltip-text="`Go to Next Dataset: ${next.name}`"

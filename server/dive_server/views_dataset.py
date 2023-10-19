@@ -447,7 +447,7 @@ class DatasetResource(Resource):
                         ):
                             prev = childFolders[index - counter]
                             break
-                        counter -= 1
+                        counter += 1
                 if index + 1 < len(childFolders):
                     counter = 1
                     while index + counter < len(childFolders):
