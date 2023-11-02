@@ -172,9 +172,12 @@ class RenderingAttributes(BaseModel):
     displayWidth: RenderingDisplayDimension
     displayHeight: RenderingDisplayDimension
 
+
 class ColorKeySettings(BaseModel):
-    display: Literal['static' , 'selected']
+    display: Literal['static', 'selected']
     trackFilter: List[str]
+
+
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
     datatype: Literal['text', 'number', 'boolean']
