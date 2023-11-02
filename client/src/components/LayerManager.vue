@@ -613,6 +613,7 @@ export default defineComponent({
       includesAttributeKey,
       attributes,
       maxHeight,
+      selectedTrackIdRef,
     };
   },
 });
@@ -627,6 +628,7 @@ export default defineComponent({
       <AttributeColorKey
         :attributes="attributes"
         :max-height="maxHeight"
+        :selected-track-id="selectedTrackIdRef"
       />
     </div>
     <svg

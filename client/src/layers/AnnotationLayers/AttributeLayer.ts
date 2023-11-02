@@ -163,6 +163,14 @@ function defaultFormatter(
 
         const displayColor = currentRender.displayColor === 'auto' ? renderAttr[i].color : currentRender.displayColor;
         const { displayTextSize } = currentRender;
+        if (currentRender.selected && !annotation.selected) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (!currentRender.typeFilter.includes('all') && !currentRender.typeFilter.includes(annotation.track.getType()[0])) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
         arr.push({
           selected: annotation.selected,
           editing: annotation.editing,

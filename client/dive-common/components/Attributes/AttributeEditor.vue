@@ -41,6 +41,7 @@ export default defineComponent({
       Ref<Record<string, string> | undefined> = ref(props.selectedAttribute.valueColors);
     let valueOrder: Record<string, number> | undefined;
     const colorKey = ref(props.selectedAttribute.colorKey || false);
+    const colorKeySettings = ref(props.selectedAttribute.colorKeySettings || undefined);
     const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
     const tempColor = ref(trackStyleManager.typeStyling.value.color(name.value));
@@ -106,6 +107,9 @@ export default defineComponent({
       }
       if (colorKey.value) {
         data.colorKey = true;
+      }
+      if (colorKeySettings.value) {
+        data.colorKeySettings = colorKeySettings.value;
       }
       if (addNew) {
         emit('save', { data, close });
@@ -205,9 +209,11 @@ export default defineComponent({
         colorValues: Record<string, string>;
         colorKey?: boolean;
         valueOrder?: Record<string, number>;
+        colorKeySettings?: Attribute['colorKeySettings'];
       }) => {
       attributeColors.value = data.colorValues;
       colorKey.value = !!data.colorKey;
+      colorKeySettings.value = data.colorKeySettings;
       if (data.valueOrder) {
         valueOrder = data.valueOrder;
       }

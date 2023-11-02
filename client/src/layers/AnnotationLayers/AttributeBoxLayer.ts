@@ -66,6 +66,14 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
           for (let i = 0; i < renderFiltered.length; i += 1) {
             const currentRender = renderFiltered[i].render;
             if (currentRender && currentRender.box) {
+              if (currentRender.selected && !track.selected) {
+                // eslint-disable-next-line no-continue
+                continue;
+              }
+              if (!currentRender.typeFilter.includes('all') && !currentRender.typeFilter.includes(track.track.getType()[0])) {
+                // eslint-disable-next-line no-continue
+                continue;
+              }
               const { newBounds } = calculateAttributeArea(track.features.bounds, renderFiltered[i].render, i, renderFiltered.length);
               const polygon = boundToGeojson(newBounds);
               const lineColor = currentRender.boxColor === 'auto' ? renderFiltered[i].color || 'white' : currentRender.boxColor;

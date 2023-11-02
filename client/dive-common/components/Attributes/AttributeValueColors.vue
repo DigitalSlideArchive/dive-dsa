@@ -1,11 +1,11 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, Ref, watch, del as VueDel,
+  defineComponent, ref, PropType, Ref, watch, del as VueDel, computed,
 } from '@vue/composition-api';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
-import { useCameraStore, useTrackStyleManager } from 'vue-media-annotator/provides';
+import { useCameraStore, useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 
 import { isHexColorCode } from 'vue-media-annotator/utils';
@@ -22,6 +22,9 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const typeStylingRef = useTrackStyleManager().typeStyling;
+    const trackFilterControls = useTrackFilters();
+    const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
+
     const cameraStore = useCameraStore();
     const store = useStore();
     const user = (store.state.User.user?.login || '') as string;
@@ -36,6 +39,8 @@ export default defineComponent({
     const currentEditKey: Ref<null | string> = ref(null);
 
     const colorKey = ref(props.attribute.colorKey || false);
+    const colorKeySettings = ref(props.attribute.colorKeySettings || undefined);
+    const toggleKeySettings = ref(false);
 
     const getActualValues = () => {
       // Need to go through all tracks with the attribute and get their values.
@@ -90,12 +95,15 @@ export default defineComponent({
     };
 
     const updateColors = () => {
-      const data: { colorValues: Record<string, string>; colorKey?: boolean; valueOrder?: Record<string, number> } = {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean; valueOrder?: Record<string, number>; colorKeySettings?: Attribute['colorKeySettings'] } = {
         colorValues: attributeColors.value,
         valueOrder: attributeOrder.value,
       };
       if (colorKey.value) {
         data.colorKey = true;
+      }
+      if (colorKeySettings.value) {
+        data.colorKeySettings = colorKeySettings.value;
       }
       emit('save', data);
     };
@@ -135,19 +143,47 @@ export default defineComponent({
     };
 
 
+    const setKeySettings = () => {
+      toggleKeySettings.value = !toggleKeySettings.value;
+      if (toggleKeySettings.value) {
+        if (props.attribute.colorKeySettings === undefined) {
+          colorKeySettings.value = {
+            display: 'static',
+            trackFilter: ['all'],
+          };
+        }
+      } else {
+        colorKeySettings.value = undefined;
+      }
+    };
+
+    const deleteChip = (item: string) => {
+      if (colorKeySettings.value) {
+        colorKeySettings.value.trackFilter.splice(colorKeySettings.value.trackFilter.findIndex((data) => data === item));
+      }
+    };
+
+
     watch(colorKey, () => updateColors());
+    watch(colorKeySettings, () => updateColors(), { deep: true });
     return {
       attributeColors,
       editingColor,
       currentEditColor,
       attributeOrder,
       colorKey,
+      toggleKeySettings,
+      colorKeySettings,
+      typeStylingRef,
+      types,
       setEditingColor,
       saveEditingColor,
       getActualValues,
       saveColorHex,
       setOrder,
       deleteValue,
+      setKeySettings,
+      deleteChip,
     };
   },
 });
@@ -255,7 +291,61 @@ export default defineComponent({
           label="Color Key"
           hint="Render a key for the color values"
           persistent-hint
+          dense
         />
+        <v-btn
+          icon
+          :color="toggleKeySettings ? 'primary' : ''"
+          @click="setKeySettings()"
+        >
+          <v-icon>
+            mdi-cog
+          </v-icon>
+        </v-btn>
+      </v-row>
+      <v-row
+        v-if="toggleKeySettings && colorKeySettings"
+        dense
+      >
+        <v-radio-group
+          v-model="colorKeySettings.display"
+          class="pr-2"
+        >
+          <v-radio
+            label="Static"
+            value="static"
+            hint="Always display key"
+            persistent-hint
+          />
+          <v-radio
+            value="selected"
+            label="Selected"
+            hint="Only show when track is selected"
+            persistent-hint
+          />
+        </v-radio-group>
+        <v-select
+          v-model="colorKeySettings.trackFilter"
+          :items="types"
+          multiple
+          clearable
+          deletable-chips
+          chips
+          label="Filter Types"
+          class="mx-2"
+          style="max-width:250px"
+        >
+          <template #selection="{ item }">
+            <v-chip
+              close
+              :color="typeStylingRef.color(item)"
+              text-color="gray"
+              @click:close="deleteChip(item)"
+            >
+              {{ item }}
+            </v-chip>
+          </template>
+        </v-select>
       </v-row>
     </v-container>
 

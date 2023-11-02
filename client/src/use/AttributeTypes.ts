@@ -89,6 +89,7 @@ export interface Attribute {
     shortcuts?: AttributeShortcut[];
     render?: AttributeRendering;
     colorKey?: boolean;
+    colorKeySettings?: {display: 'static' | 'selected'; trackFilter: string[] };
   }
 
 export type Attributes = Record<string, Attribute>;

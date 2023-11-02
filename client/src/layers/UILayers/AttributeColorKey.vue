@@ -1,9 +1,11 @@
 <script lang="ts">
 import {
   computed,
-  defineComponent, onMounted, PropType, Ref, ref,
+  defineComponent, onMounted, PropType, Ref, ref, watch,
 } from '@vue/composition-api';
 import * as d3 from 'd3';
+import { nextTick } from 'process';
+import { useCameraStore } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 /*
   This Component will be mounted indepedently of the main Vue App
@@ -23,11 +25,29 @@ export default defineComponent({
       type: Number,
       required: true,
     },
+    selectedTrackId: {
+      type: null as unknown as PropType<number | null>,
+      required: true,
+    },
   },
   setup(props) {
+    const camStore = useCameraStore();
     const stringValueColors = computed(() => {
       const data: { displayName: string; name: string; values: [string, string][]}[] = [];
       props.attributes.forEach((attribute) => {
+        // First we filter on the colorKey Settings
+        if (attribute.colorKeySettings !== undefined && attribute.colorKeySettings.display !== 'static') {
+          // We check to see if the selected Track has the type
+          if (props.selectedTrackId === null) {
+            return;
+          }
+          const track = camStore.getAnyTrack(props.selectedTrackId);
+          if (!attribute.colorKeySettings.trackFilter.includes('all')) {
+            if (!attribute.colorKeySettings.trackFilter.includes(track.getType()[0])) {
+              return;
+            }
+          }
+        }
         if (attribute.datatype === 'text' && attribute.colorKey && attribute.valueColors) {
           const displayName = attribute.render?.displayName || attribute.name;
           const values = Object.entries(attribute.valueColors);
@@ -53,6 +73,18 @@ export default defineComponent({
       let min = Infinity;
       let max = -Infinity;
       props.attributes.forEach((attribute) => {
+        if (attribute.colorKeySettings !== undefined && attribute.colorKeySettings.display !== 'static') {
+          // We check to see if the selected Track has the type
+          if (props.selectedTrackId === null) {
+            return;
+          }
+          const track = camStore.getAnyTrack(props.selectedTrackId);
+          if (!attribute.colorKeySettings.trackFilter.includes('all')) {
+            if (!attribute.colorKeySettings.trackFilter.includes(track.getType()[0])) {
+              return;
+            }
+          }
+        }
         if (attribute.datatype === 'number' && attribute.colorKey && attribute.valueColors) {
           Object.keys(attribute.valueColors).forEach((item) => {
             const num = parseFloat(item);
@@ -93,8 +125,7 @@ export default defineComponent({
           .attr('stop-color', (d) => d);
       }
     };
-
-    onMounted(() => {
+    const drawGradients = () => {
       numberValueColors.value.forEach((item) => {
         const svg = d3.select(`#gradientImage_${item.name}`);
         svg
@@ -111,6 +142,13 @@ export default defineComponent({
           .style('fill', `url(#color-gradient_${item.name})`);
         recalculateGradient(item.name);
       });
+    };
+
+    watch(numberValueColors, () => {
+      nextTick(() => drawGradients());
+    });
+    onMounted(() => {
+      drawGradients();
     });
     return {
       stringValueColors,
@@ -123,6 +161,7 @@ export default defineComponent({
 
 <template>
   <v-card
+    v-if="numberValueColors.length && stringValueColors.length"
     dark
     :style="`max-height:${maxHeight}px;
      overflow-y:scroll; z-index:20; min-width:250px; border: 3px white solid;`"

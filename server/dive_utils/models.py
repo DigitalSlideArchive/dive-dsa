@@ -172,7 +172,9 @@ class RenderingAttributes(BaseModel):
     displayWidth: RenderingDisplayDimension
     displayHeight: RenderingDisplayDimension
 
-
+class ColorKeySettings(BaseModel):
+    display: Literal['static' , 'selected']
+    trackFilter: List[str]
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
     datatype: Literal['text', 'number', 'boolean']
@@ -186,6 +188,7 @@ class Attribute(BaseModel):
     shortcuts: Optional[List[ShortcutAttributeOptions]]
     render: Optional[RenderingAttributes]
     colorKey: Optional[bool]
+    colorKeySettings: Optional[ColorKeySettings]
     valueOrder: Optional[Dict[str, int]]
 
 

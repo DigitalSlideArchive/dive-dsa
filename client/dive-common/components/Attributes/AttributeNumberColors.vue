@@ -1,9 +1,10 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, PropType, Ref, watch, onMounted,
+  defineComponent, ref, PropType, Ref, watch, onMounted, computed,
 } from '@vue/composition-api';
 import * as d3 from 'd3';
+import { useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 import { isHexColorCode } from 'vue-media-annotator/utils';
 
@@ -17,8 +18,12 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const attributeColors: Ref<{key: number; val: string}[]> = ref([]);
+    const typeStylingRef = useTrackStyleManager().typeStyling;
+    const trackFilterControls = useTrackFilters();
+    const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
+
     const recalculateGradient = () => {
-      const linearGradient = d3.select('linearGradient');
+      const linearGradient = d3.select('#color-gradient');
       const domain = attributeColors.value.map((item) => item.key);
       const colorScale = d3.scaleLinear()
         .domain(domain)
@@ -55,6 +60,8 @@ export default defineComponent({
     const currentEditIndex: Ref<number> = ref(0);
     const currentEditKey: Ref<number> = ref(0);
     const colorKey = ref(props.attribute.colorKey || false);
+    const colorKeySettings = ref(props.attribute.colorKeySettings || undefined);
+    const toggleKeySettings = ref(false);
 
     const setEditingColor = (index: number) => {
       editingColor.value = true;
@@ -74,11 +81,14 @@ export default defineComponent({
         mapper[item.key] = item.val;
       });
 
-      const data: { colorValues: Record<string, string>; colorKey?: boolean } = {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean; colorKeySettings?: Attribute['colorKeySettings'] } = {
         colorValues: mapper,
       };
       if (colorKey.value) {
         data.colorKey = true;
+      }
+      if (colorKeySettings.value) {
+        data.colorKeySettings = colorKeySettings.value;
       }
       emit('save', data);
     };
@@ -116,7 +126,7 @@ export default defineComponent({
       svg.append('rect')
         .attr('width', 300)
         .attr('height', 30)
-        .style('fill', 'url(#color-gradient)');
+        .style('fill', 'url("#color-gradient")');
       if (attributeColors.value.length) {
         recalculateGradient();
       }
@@ -145,6 +155,28 @@ export default defineComponent({
 
     const validForm = ref(false);
     watch(colorKey, () => updateColors());
+    watch(colorKeySettings, () => updateColors(), { deep: true });
+
+    const setKeySettings = () => {
+      toggleKeySettings.value = !toggleKeySettings.value;
+      if (toggleKeySettings.value) {
+        if (props.attribute.colorKeySettings === undefined) {
+          colorKeySettings.value = {
+            display: 'static',
+            trackFilter: ['all'],
+          };
+        }
+      } else {
+        colorKeySettings.value = undefined;
+      }
+    };
+
+    const deleteChip = (item: string) => {
+      if (colorKeySettings.value) {
+        colorKeySettings.value.trackFilter.splice(colorKeySettings.value.trackFilter.findIndex((data) => data === item));
+      }
+    };
+
 
     return {
       attributeColors,
@@ -155,11 +187,17 @@ export default defineComponent({
       gradientSVG,
       validForm,
       colorKey,
+      colorKeySettings,
+      toggleKeySettings,
+      typeStylingRef,
+      types,
       setEditingColor,
       saveEditingColor,
       addColor,
       deleteGradient,
       saveColorHex,
+      setKeySettings,
+      deleteChip,
     };
   },
 });
@@ -227,7 +265,7 @@ export default defineComponent({
         </v-col>
         <v-col>
           <v-text-field
-            :value="val"
+            :value="item.val"
             label="Hex Color"
             @change="saveColorHex(index, $event)"
           />
@@ -269,7 +307,61 @@ export default defineComponent({
           label="Color Key"
           hint="Render a key for the color values"
           persistent-hint
+          dense
         />
+        <v-btn
+          icon
+          :color="toggleKeySettings ? 'primary' : ''"
+          @click="setKeySettings()"
+        >
+          <v-icon>
+            mdi-cog
+          </v-icon>
+        </v-btn>
+      </v-row>
+      <v-row
+        v-if="toggleKeySettings && colorKeySettings"
+        dense
+      >
+        <v-radio-group
+          v-model="colorKeySettings.display"
+          class="pr-2"
+        >
+          <v-radio
+            label="Static"
+            value="static"
+            hint="Always display key"
+            persistent-hint
+          />
+          <v-radio
+            value="selected"
+            label="Selected"
+            hint="Only show when track is selected"
+            persistent-hint
+          />
+        </v-radio-group>
+        <v-select
+          v-model="colorKeySettings.trackFilter"
+          :items="types"
+          multiple
+          clearable
+          deletable-chips
+          chips
+          label="Filter Types"
+          class="mx-2"
+          style="max-width:250px"
+        >
+          <template #selection="{ item }">
+            <v-chip
+              close
+              :color="typeStylingRef.color(item)"
+              text-color="gray"
+              @click:close="deleteChip(item)"
+            >
+              {{ item }}
+            </v-chip>
+          </template>
+        </v-select>
       </v-row>
     </v-container>
 
