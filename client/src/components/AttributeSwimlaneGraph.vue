@@ -13,7 +13,10 @@ import {
   SwimlaneFilter,
   SwimlaneGraphSettings,
 } from 'vue-media-annotator/use/AttributeTypes';
-import { useAttributesFilters, useAttributes } from '../provides';
+import {
+  useAttributesFilters, useAttributes,
+  useTrackStyleManager, useTrackFilters,
+} from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
 
@@ -37,11 +40,17 @@ export default defineComponent({
     const attributesList = useAttributes();
     const showGraphSettings = ref(false);
     const showRangeSettings = ref(false);
+    const showDisplaySettings = ref(false);
+    const typeStylingRef = useTrackStyleManager().typeStyling;
+    const trackFilterControls = useTrackFilters();
+    const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
 
     const editSwimlaneFilter: Ref<SwimlaneFilter> = ref(props.swimlaneGraph.filter);
     const editSwimlaneSettings: Ref<Record<string, SwimlaneGraphSettings>> = ref(props.swimlaneGraph.settings || {});
     const editSwimlaneenabled = ref(props.swimlaneGraph.enabled);
     const editSwimlaneDefault = ref(props.swimlaneGraph.default || false);
+    const editSwimlaneDisplay: Ref<SwimlaneGraph['displaySettings']> = ref(props.swimlaneGraph.displaySettings || { display: 'static' as 'static' | 'selected', trackFilter: ['all'] });
+
     const originalName = props.swimlaneGraph.name;
     const originalDefault = props.swimlaneGraph.default || false;
     const editSwimlaneName = ref(props.swimlaneGraph.name || 'default');
@@ -66,12 +75,20 @@ export default defineComponent({
         filter: editSwimlaneFilter.value,
         enabled: editSwimlaneenabled.value,
         settings: editSwimlaneSettings.value,
+        displaySettings: editSwimlaneDisplay.value,
         default: setDefault,
       };
       setSwimlaneGraph(editSwimlaneName.value, updateObject);
       setSwimlaneEnabled(editSwimlaneName.value, editSwimlaneenabled.value);
       emit('close');
     };
+
+    const deleteChip = (item: string) => {
+      if (editSwimlaneDisplay.value) {
+        editSwimlaneDisplay.value.trackFilter.splice(editSwimlaneDisplay.value.trackFilter.findIndex((data) => data === item));
+      }
+    };
+
 
     return {
       setSwimlaneEnabled,
@@ -80,13 +97,18 @@ export default defineComponent({
       editSwimlaneFilter,
       editSwimlaneName,
       editSwimlaneenabled,
+      editSwimlaneDisplay,
       filterNames,
       saveChanges,
+      deleteChip,
+      typeStylingRef,
+      types,
       //Graph Settings
       editingGraphSettings,
       editSwimlaneSettings,
       showGraphSettings,
       showRangeSettings,
+      showDisplaySettings,
     };
   },
 });
@@ -129,6 +151,62 @@ export default defineComponent({
           class="pa-0 ma-0"
         />
       </v-row>
+      <div class="mt-4">
+        <h2>
+          Display Settings <v-icon @click="showDisplaySettings = !showDisplaySettings">
+            {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+          </v-icon>
+        </h2>
+        <div
+          v-if="showDisplaySettings"
+          class="graph-settings-area"
+        >
+          <v-row
+            v-if="editSwimlaneDisplay"
+            dense
+          >
+            <v-radio-group
+              v-model="editSwimlaneDisplay.display"
+              class="pr-2"
+            >
+              <v-radio
+                label="Static"
+                value="static"
+                hint="Always display key"
+                persistent-hint
+              />
+              <v-radio
+                value="selected"
+                label="Selected"
+                hint="Only show when track is selected"
+                persistent-hint
+              />
+            </v-radio-group>
+            <v-select
+              v-model="editSwimlaneDisplay.trackFilter"
+              :items="types"
+              multiple
+              clearable
+              deletable-chips
+              chips
+              label="Filter Types"
+              class="mx-2"
+              style="max-width:250px"
+            >
+              <template #selection="{ item }">
+                <v-chip
+                  close
+                  :color="typeStylingRef.color(item)"
+                  text-color="gray"
+                  @click:close="deleteChip(item)"
+                >
+                  {{ item }}
+                </v-chip>
+              </template>
+            </v-select>
+          </v-row>
+        </div>
+      </div>
     </v-card-text>
     <v-card-actions>
       <v-spacer />

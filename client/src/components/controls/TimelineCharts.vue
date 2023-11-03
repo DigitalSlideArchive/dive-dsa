@@ -98,20 +98,6 @@ export default defineComponent({
     });
     const nudge = ref(-1);
 
-    watch(() => configMan.configuration.value?.timelineConfigs, () => {
-      nudge.value += 1;
-    }, { deep: true });
-    const timelineList = computed(() => {
-      const list: TimelineDisplay[] = [];
-      if (nudge.value !== null && configMan.configuration.value?.timelineConfigs?.timelines) {
-        configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
-          list.push(item);
-        });
-      }
-      list.sort((a, b) => (a.order - b.order));
-      const updatedList = list.filter((item) => !props.dismissedButtons.includes(item.name));
-      return updatedList;
-    });
     const enabledSwimlanes = computed(() => {
       const list: string[] = [];
       Object.entries(swimlaneEnabled.value).forEach(([key, enabled]) => {
@@ -122,6 +108,32 @@ export default defineComponent({
       return list;
     });
 
+    const checkTimelineEnabled = (timeline: TimelineDisplay) => {
+      if (timeline.type === 'swimlane') {
+        return enabledSwimlanes.value.includes(timeline.name);
+      } if (timeline.type === 'graph') {
+        return enabledTimelines.value.includes(timeline.name);
+      }
+      return true;
+    };
+
+
+    watch(() => configMan.configuration.value?.timelineConfigs, () => {
+      nudge.value += 1;
+    }, { deep: true });
+    const timelineList = computed(() => {
+      const list: TimelineDisplay[] = [];
+      if (nudge.value !== null && configMan.configuration.value?.timelineConfigs?.timelines) {
+        configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
+          if (checkTimelineEnabled(item)) {
+            list.push(item);
+          }
+        });
+      }
+      list.sort((a, b) => (a.order - b.order));
+      const updatedList = list.filter((item) => !props.dismissedButtons.includes(item.name));
+      return updatedList;
+    });
     const attributeDataTimeline = computed(() => {
       const data: {
         startFrame: number; endFrame: number; data: LineChartData[]; yRange?: number[]; ticks?: number;
@@ -161,6 +173,7 @@ export default defineComponent({
       return timeline.maxHeight - 20;
     };
 
+
     return {
       attributeDataTimeline,
       swimlaneEnabled,
@@ -174,6 +187,7 @@ export default defineComponent({
       selectedTrackIdRef,
       timelineList,
       getTimelineHeight,
+      checkTimelineEnabled,
     };
   },
 });
@@ -187,7 +201,7 @@ export default defineComponent({
         :key="timeline.name"
       >
         <v-row
-          v-if="timelineList.length > 0"
+          v-if="timelineList.length > 0 && checkTimelineEnabled(timeline)"
           dense
           justify="center"
           style="max-height: 20px;"

@@ -5,6 +5,7 @@ export interface SwimlaneGraph {
   filter: AttributeKeyFilter;
   enabled: boolean;
   default?: boolean;
+  displaySettings?: { display: 'static' | 'selected'; trackFilter: string[] };
   settings?: Record<string, SwimlaneGraphSettings>;
 }
 
@@ -28,6 +29,7 @@ export interface TimelineGraph {
     default?: boolean;
     yRange?: number[];
     ticks?: number;
+    displaySettings?: { display: 'static' | 'selected'; trackFilter: string[] };
     settings?: Record<string, TimelineGraphSettings>;
   }
 

@@ -15,7 +15,7 @@ import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
   All references to reactive PropType<Ref<data>> need to be dereferenced in the template as well.
  */
 export default defineComponent({
-  name: 'ToolTipWidget',
+  name: 'AttributeColorKey',
   props: {
     attributes: {
       type: Array as PropType<Attribute[]>,
@@ -161,7 +161,7 @@ export default defineComponent({
 
 <template>
   <v-card
-    v-if="numberValueColors.length && stringValueColors.length"
+    v-if="numberValueColors.length || stringValueColors.length"
     dark
     :style="`max-height:${maxHeight}px;
      overflow-y:scroll; z-index:20; min-width:250px; border: 3px white solid;`"
