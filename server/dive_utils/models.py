@@ -173,7 +173,7 @@ class RenderingAttributes(BaseModel):
     displayHeight: RenderingDisplayDimension
 
 
-class ColorKeySettings(BaseModel):
+class DisplayTrackFilterSettings(BaseModel):
     display: Literal['static', 'selected']
     trackFilter: List[str]
 
@@ -191,7 +191,7 @@ class Attribute(BaseModel):
     shortcuts: Optional[List[ShortcutAttributeOptions]]
     render: Optional[RenderingAttributes]
     colorKey: Optional[bool]
-    colorKeySettings: Optional[ColorKeySettings]
+    colorKeySettings: Optional[DisplayTrackFilterSettings]
     valueOrder: Optional[Dict[str, int]]
 
 
@@ -249,6 +249,7 @@ class TimeLineGraph(BaseModel):
     default: Optional[bool]
     yRange: Optional[List[float]]
     ticks: Optional[float]
+    displaySettings: Optional[DisplayTrackFilterSettings]
     settings: Optional[Dict[str, TimeLineGraphSettings]]
 
 
@@ -260,6 +261,7 @@ class SwimlaneGraph(BaseModel):
     enabled: bool
     name: str
     filter: AttributeKeyFilter
+    displaySettings: Optional[DisplayTrackFilterSettings]
     default: Optional[bool]
     settings: Optional[Dict[str, SwimlaneGraphSettings]]
 

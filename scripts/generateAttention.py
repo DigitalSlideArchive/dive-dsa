@@ -6,7 +6,7 @@ import datetime
 from random import randint
 
 def readinput(file):
-    with open(f'./{file}', 'r') as myfile:
+    with open(f'{file}', 'r') as myfile:
         file_data = myfile.read()
         data = json.loads(file_data)
         return data
@@ -22,13 +22,14 @@ def load_data(input):
     base = randint(0, 100)
     count = 0
     for track in tracks.values():
-        print(track)
         features = track['features']
+        type = track['confidencePairs'][0][0]
+        base_type = type.replace('Track ', '')
         for feature in features:
             newrandom = base + randint(-5, 5)
             newrandom = max(newrandom, 0)
             newrandom = min(100, newrandom)
-            feature['attributes']['ML_Value'] = newrandom
+            feature['attributes'][f'{base_type}_Numerical'] = newrandom
             if count % randint(40, 100) == 0:
                 base = base + randint(-40, 40)
                 base = max(base, 0)

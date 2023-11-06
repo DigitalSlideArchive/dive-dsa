@@ -14,7 +14,9 @@ import {
   TimelineGraph, TimelineGraphSettings,
 } from 'vue-media-annotator/use/AttributeTypes';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
-import { useAttributesFilters, useAttributes } from '../provides';
+import {
+  useAttributesFilters, useAttributes, useTrackStyleManager, useTrackFilters,
+} from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
 
@@ -39,9 +41,14 @@ export default defineComponent({
     const attributesList = useAttributes();
     const showGraphSettings = ref(false);
     const showRangeSettings = ref(false);
+    const showDisplaySettings = ref(false);
+    const typeStylingRef = useTrackStyleManager().typeStyling;
+    const trackFilterControls = useTrackFilters();
+    const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
 
     const editTimelineFilter: Ref<TimeLineFilter> = ref(props.timelineGraph.filter);
     const editTimelineSettings: Ref<Record<string, TimelineGraphSettings>> = ref(props.timelineGraph.settings || {});
+    const editDisplaySettings: Ref<TimelineGraph['displaySettings']> = ref(props.timelineGraph.displaySettings || { display: 'static' as 'static' | 'selected', trackFilter: ['all'] });
     const editTimelineEnabled = ref(props.timelineGraph.enabled);
     const editTimelineDefault = ref(props.timelineGraph.default || false);
     const originalName = props.timelineGraph.name;
@@ -70,6 +77,7 @@ export default defineComponent({
         filter: editTimelineFilter.value,
         enabled: editTimelineEnabled.value,
         settings: editTimelineSettings.value,
+        displaySettings: editDisplaySettings.value,
         yRange: yRange.value,
         ticks: ticks.value,
         default: setDefault,
@@ -132,6 +140,13 @@ export default defineComponent({
       showGraphSettings.value = false;
     };
 
+    const deleteChip = (item: string) => {
+      if (editDisplaySettings.value) {
+        editDisplaySettings.value.trackFilter.splice(editDisplaySettings.value.trackFilter.findIndex((data) => data === item));
+      }
+    };
+
+
     return {
       setTimelineEnabled,
       setTimelineGraph,
@@ -144,8 +159,10 @@ export default defineComponent({
       //Graph Settings
       saveGraphSettings,
       editGraphSettings,
+      deleteChip,
       editingGraphSettings,
       editTimelineSettings,
+      editDisplaySettings,
       graphType,
       graphTypes,
       graphArea,
@@ -155,10 +172,13 @@ export default defineComponent({
       graphAreaColor,
       timelineGraphs,
       showGraphSettings,
+      showDisplaySettings,
       editTimelineKey,
       yRange,
       ticks,
       showRangeSettings,
+      typeStylingRef,
+      types,
     };
   },
 });
@@ -188,6 +208,62 @@ export default defineComponent({
           @save-changes="editTimelineFilter = ($event)"
         />
       </v-row>
+      <div class="mt-4">
+        <h2>
+          Display Settings <v-icon @click="showDisplaySettings = !showDisplaySettings">
+            {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+          </v-icon>
+        </h2>
+        <div
+          v-if="showDisplaySettings"
+          class="graph-settings-area"
+        >
+          <v-row
+            v-if="editDisplaySettings"
+            dense
+          >
+            <v-radio-group
+              v-model="editDisplaySettings.display"
+              class="pr-2"
+            >
+              <v-radio
+                label="Static"
+                value="static"
+                hint="Always display key"
+                persistent-hint
+              />
+              <v-radio
+                value="selected"
+                label="Selected"
+                hint="Only show when track is selected"
+                persistent-hint
+              />
+            </v-radio-group>
+            <v-select
+              v-model="editDisplaySettings.trackFilter"
+              :items="types"
+              multiple
+              clearable
+              deletable-chips
+              chips
+              label="Filter Types"
+              class="mx-2"
+              style="max-width:250px"
+            >
+              <template #selection="{ item }">
+                <v-chip
+                  close
+                  :color="typeStylingRef.color(item)"
+                  text-color="gray"
+                  @click:close="deleteChip(item)"
+                >
+                  {{ item }}
+                </v-chip>
+              </template>
+            </v-select>
+          </v-row>
+        </div>
+      </div>
       <div class="mt-4">
         <h2>
           Graph Settings <v-icon @click="showGraphSettings = !showGraphSettings">

@@ -50,8 +50,8 @@ export default function UseAttributes(
 ) {
   const attributes: Ref<Record<string, Attribute>> = ref({});
   const attributeFilters: Ref<AttributeFilter[]> = ref([]);
-  const timelineGraphs: Ref<Record<string, TimelineGraph>> = ref({});
-  const swimlaneGraphs: Ref<Record<string, SwimlaneGraph>> = ref({});
+  const timelineGraphs: Ref<Record<string, TimelineGraph & {filtered?: boolean}>> = ref({});
+  const swimlaneGraphs: Ref<Record<string, SwimlaneGraph & {filtered?: boolean}>> = ref({});
 
   function loadAttributes(metadataAttributes: Record<string, Attribute>) {
     attributes.value = metadataAttributes;
@@ -353,13 +353,20 @@ export default function UseAttributes(
   const attributeTimelineData = computed(() => {
     const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]; ticks?: number}> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
-    if (val !== undefined && selectedTrackId.value !== null) {
+    if (val !== undefined && selectedTrackId.value !== undefined) {
       const vals = Object.entries(timelineGraphs.value);
       vals.forEach(([key, graph]) => {
         if (graph.enabled) {
           if (val !== undefined && selectedTrackId.value !== null) {
             const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
             if (selectedTrack) {
+              if (graph.displaySettings && graph.displaySettings.display === 'selected') {
+                if (!graph.displaySettings.trackFilter.includes(selectedTrack.getType()[0]) && !graph.displaySettings.trackFilter.includes('all')) {
+                  timelineGraphs.value[key].filtered = true;
+                  return;
+                }
+                timelineGraphs.value[key].filtered = false;
+              }
               const timelineData = generateDetectionTimelineData(
                 selectedTrack, graph.filter, graph.settings,
               );
@@ -373,6 +380,8 @@ export default function UseAttributes(
                 ticks: graph.ticks,
               };
             }
+          } else if (graph.displaySettings && graph.displaySettings.display === 'selected') {
+            timelineGraphs.value[key].filtered = true;
           }
         }
       });
@@ -433,8 +442,10 @@ export default function UseAttributes(
 
   const timelineEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const nudgeVal = attributeTimelineData.value; // reactive to changes in the data
     Object.entries(timelineGraphs.value).forEach(([key, graph]) => {
-      filters[key] = graph.enabled;
+      filters[key] = graph.enabled && !graph.filtered;
     });
     return filters;
   });
@@ -576,18 +587,27 @@ export default function UseAttributes(
   const attributeSwimlaneData = computed(() => {
     const results: Record<string, Record<string, SwimlaneAttribute>> = {};
     const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
-    if (val !== undefined && selectedTrackId.value !== null) {
+    if (val !== undefined) {
       const vals = Object.entries(swimlaneGraphs.value);
       vals.forEach(([key, graph]) => {
         if (graph.enabled) {
           if (val !== undefined && selectedTrackId.value !== null) {
             const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
             if (selectedTrack) {
+              if (graph.displaySettings && graph.displaySettings.display === 'selected') {
+                if (!graph.displaySettings.trackFilter.includes(selectedTrack.getType()[0]) && !graph.displaySettings.trackFilter.includes('all')) {
+                  swimlaneGraphs.value[key].filtered = true;
+                  return;
+                }
+                swimlaneGraphs.value[key].filtered = false;
+              }
               const swimlaneData = generateDetectionSwimlaneData(
                 selectedTrack, graph.filter, graph.settings, numericalColorScaling.value,
               );
               results[key] = swimlaneData;
             }
+          } else if (graph.displaySettings && graph.displaySettings.display === 'selected') {
+            swimlaneGraphs.value[key].filtered = true;
           }
         }
       });
@@ -647,8 +667,10 @@ export default function UseAttributes(
 
   const swimlaneEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _nudgeVal = attributeSwimlaneData.value; // reactive to changes in the data
     Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
-      filters[key] = graph.enabled;
+      filters[key] = graph.enabled && !graph.filtered;
     });
     return filters;
   });
