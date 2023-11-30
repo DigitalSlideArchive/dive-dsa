@@ -1,4 +1,3 @@
-
 const usedShortcuts = [
   { key: 'a', description: 'Attribute Tab' },
   { key: 'm', description: 'Group Add' },

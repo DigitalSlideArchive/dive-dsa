@@ -2,7 +2,7 @@
 import {
   computed,
   defineComponent, onMounted, ref, Ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   cancelJob, deleteJob, getJobTypesStatus, getRecentJobs,
 } from 'platform/web-girder/api/admin.service';

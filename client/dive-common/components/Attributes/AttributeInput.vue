@@ -5,7 +5,7 @@ import {
   PropType,
   onMounted,
   watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { NumericAttributeEditorOptions, StringAttributeEditorOptions } from 'vue-media-annotator/use/AttributeTypes';
 
 export default defineComponent({

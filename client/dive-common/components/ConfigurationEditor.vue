@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, defineComponent, ref } from '@vue/composition-api';
+import { computed, defineComponent, ref } from 'vue';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration } from 'vue-media-annotator/provides';
@@ -93,7 +93,7 @@ export default defineComponent({
                 mdi-cog
               </v-icon>
               <span
-                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                v-show="buttonOptions.block"
                 class="pl-1"
               >
                 Configuration

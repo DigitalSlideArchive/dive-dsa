@@ -117,7 +117,6 @@ function simplifyTrainingName(item: string) {
   return item.replace('.viame_csv.conf', '');
 }
 
-
 export {
   DefaultVideoFPS,
   ImageSequenceType,

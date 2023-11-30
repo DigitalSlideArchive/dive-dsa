@@ -1,7 +1,6 @@
-import { createApp } from '@vue/composition-api';
+import Vue from 'vue';
 import geo, { GeoEvent } from 'geojs';
 import { MediaController } from '../../components/annotators/mediaControllerType';
-
 
 interface WidgetPosition {
   x: number;
@@ -16,7 +15,6 @@ export interface DOMWidget {
   toolTipOffset: {x: number; y: number}; // Offset from Cursor Position
   lastMousePos: WidgetPosition; //Last Mouse position for zooming adjustments
 }
-
 
 /**
  * UILayer provides a way to add Reactive VUE DOM Widgets to GeoJS
@@ -72,7 +70,6 @@ export default class UILayer {
       });
     };
 
-
     addDOMWidget(
       name: string,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,7 +81,9 @@ export default class UILayer {
       const parent = widget.canvas();
       const div = document.createElement('div');
       const element = parent.appendChild(div);
-      createApp(component, props).mount(element);
+      new Vue({
+        render: (h) => h(component, { props }),
+      }).$mount(element);
       widget.toolTipOffset = position;
       widget.toolTip = false;
       widget.lastMousePos = position;

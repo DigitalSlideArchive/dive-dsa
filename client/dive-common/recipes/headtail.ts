@@ -1,5 +1,4 @@
-import { ref, Ref } from '@vue/composition-api';
-import Vue from 'vue';
+import Vue, { ref, Ref } from 'vue';
 
 import Track from 'vue-media-annotator/track';
 import Recipe, { UpdateResponse } from 'vue-media-annotator/recipe';

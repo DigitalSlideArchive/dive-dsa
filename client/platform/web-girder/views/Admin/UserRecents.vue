@@ -2,11 +2,10 @@
 import {
   computed,
   defineComponent, ref, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { getRecentUsers } from 'platform/web-girder/api/admin.service';
 import type { GirderModel } from '@girder/components/src';
 import moment from 'moment';
-
 
 export default defineComponent({
   name: 'UserRecents',

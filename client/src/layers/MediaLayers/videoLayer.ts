@@ -1,7 +1,6 @@
 import { MediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
-import { Ref, watch } from '@vue/composition-api';
+import { Ref, watch } from 'vue';
 import { TypeStyling } from '../../StyleManager';
-
 
 interface Transparency {
   rgb: [number, number, number];

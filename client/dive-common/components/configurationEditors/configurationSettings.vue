@@ -1,10 +1,9 @@
 <script lang="ts">
 import {
   defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { cloneDeep } from 'lodash';
 import { useConfiguration } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'configurationSettings',

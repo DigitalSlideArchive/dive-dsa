@@ -1,7 +1,7 @@
 <script lang='ts'>
 import {
   defineComponent, Ref, ref, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   ImageSequenceType, VideoType, DefaultVideoFPS, FPSOptions,
   inputAnnotationFileTypes, websafeVideoTypes, otherVideoTypes,

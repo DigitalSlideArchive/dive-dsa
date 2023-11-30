@@ -1,10 +1,12 @@
 <script lang="ts">
 import {
   defineComponent, reactive, toRefs, onBeforeUnmount, toRef,
-} from '@vue/composition-api';
+} from 'vue';
 import { GirderAuthentication } from '@girder/components/src';
 
+import { useStore } from 'platform/web-girder/store/types';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
+import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
   name: 'Login',
@@ -12,21 +14,23 @@ export default defineComponent({
     GirderAuthentication,
   },
   setup(_, { root }) {
+    const store = useStore();
+    const router = useRouter();
     const data = reactive({
       form: 'login',
       userDialog: true,
     });
-    const brandData = toRef(root.$store.state.Brand, 'brandData');
+    const brandData = toRef(store.state.Brand, 'brandData');
     const girderRest = useGirderRest();
     function onLogin() {
-      root.$router.push('/');
+      router.push('/');
     }
     girderRest.$on('login', onLogin);
     onBeforeUnmount(() => girderRest.$off('login', onLogin));
 
     /** Redirect if user already logged in */
     if (girderRest.user) {
-      root.$router.replace('/');
+      router.replace('/');
       data.userDialog = false;
     }
 

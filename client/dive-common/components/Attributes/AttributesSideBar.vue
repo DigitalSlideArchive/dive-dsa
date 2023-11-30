@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, watch, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { useReadOnlyMode } from 'vue-media-annotator/provides';
@@ -52,7 +52,6 @@ export default defineComponent({
   },
 });
 </script>
-
 
 <template>
   <StackedVirtualSidebarContainer

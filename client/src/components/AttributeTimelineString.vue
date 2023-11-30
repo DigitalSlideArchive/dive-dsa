@@ -3,7 +3,7 @@ import {
   ref,
   defineComponent,
   Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
   SwimlaneGraph,
@@ -11,7 +11,6 @@ import {
 import AttributeSwimlaneGraph from './AttributeSwimlaneGraph.vue';
 import { useAttributesFilters } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
-
 
 /* Magic numbers involved in height calculation */
 export default defineComponent({

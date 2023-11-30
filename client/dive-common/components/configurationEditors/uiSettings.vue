@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { Configuration, UISettings } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import UIInteractionsVue from './UISettings/UIInteractions.vue';

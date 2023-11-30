@@ -1,14 +1,14 @@
 <script lang="ts">
 import {
   computed, defineComponent, Ref, ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import { GirderFileManager, GirderModelType } from '@girder/components/src';
+import { useRouter } from 'vue-router/composables';
 import useRequest from 'dive-common/use/useRequest';
 import { RootlessLocationType } from 'platform/web-girder/store/types';
 import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { clone, getDataset } from 'platform/web-girder/api';
-
 
 export default defineComponent({
   components: { GirderFileManager },
@@ -35,6 +35,7 @@ export default defineComponent({
 
   setup(props, { root }) {
     const girderRest = useGirderRest();
+    const router = useRouter();
     const source = ref(null as GirderMetadataStatic | null);
     const open = ref(false);
     const location: Ref<RootlessLocationType> = ref({
@@ -73,7 +74,7 @@ export default defineComponent({
         parentFolderId: location.value._id,
         revision: props.revision,
       });
-      root.$router.push({ name: 'viewer', params: { id: newDataset.data._id } });
+      router.push({ name: 'viewer', params: { id: newDataset.data._id } });
     });
 
     return {
@@ -116,7 +117,7 @@ export default defineComponent({
               mdi-content-copy
             </v-icon>
             <span
-              v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+              v-show="buttonOptions.block"
               class="pl-1"
             >
               Clone

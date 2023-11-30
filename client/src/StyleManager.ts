@@ -2,7 +2,7 @@ import type Vuetify from 'vuetify';
 
 import {
   ref, Ref, computed, set as VueSet,
-} from '@vue/composition-api';
+} from 'vue';
 import * as d3 from 'd3';
 import { noop, merge } from 'lodash';
 import { ScaleOrdinal } from 'd3';
@@ -122,7 +122,7 @@ export default class StyleManager {
     };
     const selected: Style = {
       ...standard,
-      color: vuetify?.preset.theme.themes.dark.accent as string || 'cyan',
+      color: vuetify?.preset.theme.themes.dark.accent as string || 'lightblue',
       strokeWidth: 5,
       opacity: 1.0,
       fill: false,

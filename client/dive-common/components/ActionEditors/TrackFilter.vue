@@ -3,14 +3,13 @@
 import {
   computed,
   defineComponent, ref, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   AttributeMatch, AttributeSelectAction, MatchOperator, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
   useAttributes, useTrackFilters, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'TrackFilter',

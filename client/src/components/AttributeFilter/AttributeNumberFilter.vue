@@ -1,13 +1,12 @@
 <script lang="ts">
 import {
   defineComponent, PropType, Ref, ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import type { AttributeNumberFilter } from 'vue-media-annotator/use/AttributeTypes';
 import { cloneDeep } from 'lodash';
 import TooltipBtn from '../TooltipButton.vue';
 import AttributeNumberFilterSettings from './AttributeNumberFilterSettings.vue';
-
 
 export default defineComponent({
   name: 'AttributeNumberFilter',

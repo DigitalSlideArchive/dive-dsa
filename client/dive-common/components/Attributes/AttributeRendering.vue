@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, watch, computed, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { Attribute, AttributeRendering } from 'vue-media-annotator/use/AttributeTypes';
 

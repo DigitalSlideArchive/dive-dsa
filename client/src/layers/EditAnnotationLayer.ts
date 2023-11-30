@@ -220,7 +220,6 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
     }
   }
 
-
   applyStylesToAnnotations() {
     const annotation = this.featureLayer.annotations()[0];
     //Setup styling for rectangle and point editing
@@ -404,7 +403,6 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
     }
     return [];
   }
-
 
   /**
    *

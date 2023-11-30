@@ -172,7 +172,7 @@ export default Vue.extend({
       canvas.width = this.clientWidth + this.margin;
       canvas.height = bars.slice(-1)[0].top + 15;
       const muteOpacity = '30'; // Hex string: how much to mute regular colors: '#RRGGBB[AA]'
-      const selectedColor = this.$vuetify.theme.themes.dark.accent;
+      const selectedColor = 'lightblue';
       const overflow = 0.7; // How much of a frame-width each detection box should occupy
       const barHeight = 10;
       bars.forEach((bar) => {

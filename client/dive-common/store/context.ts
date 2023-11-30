@@ -1,5 +1,4 @@
-import Install, { reactive } from '@vue/composition-api';
-import Vue, { VueConstructor } from 'vue';
+import { reactive, VueConstructor } from 'vue';
 /* Components */
 import TypeThreshold from 'dive-common/components/TypeThreshold.vue';
 import ImageEnhancements from 'vue-media-annotator/components/ImageEnhancements.vue';
@@ -8,8 +7,6 @@ import AttributesSideBar from 'dive-common/components/Attributes/AttributesSideB
 import AtributeUserReview from 'dive-common/components/Attributes/AttributeUserReview.vue';
 import MultiCamTools from 'dive-common/components/MultiCamTools.vue';
 import DatasetInfo from 'dive-common/components/DatasetInfo.vue';
-
-Vue.use(Install);
 
 interface ContextState {
   last: string;

@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, toRef, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { GirderJobList } from '@girder/components/src';
 import { setUsePrivateQueue } from 'platform/web-girder/api';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
@@ -51,7 +51,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <v-container :fluid="$vuetify.breakpoint.mdAndDown">
+  <v-container>
     <v-alert
       v-if="outstandingJobs"
       type="warning"

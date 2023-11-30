@@ -7,7 +7,7 @@ import {
   Ref,
   PropType,
   del as VueDel,
-} from '@vue/composition-api';
+} from 'vue';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
   TimeLineFilter,
@@ -18,7 +18,6 @@ import {
   useAttributesFilters, useAttributes, useTrackStyleManager, useTrackFilters,
 } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
-
 
 /* Magic numbers involved in height calculation */
 export default defineComponent({
@@ -145,7 +144,6 @@ export default defineComponent({
         editDisplaySettings.value.trackFilter.splice(editDisplaySettings.value.trackFilter.findIndex((data) => data === item));
       }
     };
-
 
     return {
       setTimelineEnabled,

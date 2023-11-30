@@ -3,7 +3,7 @@
 import {
   computed,
   defineComponent, PropType, ref, Ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId,
@@ -184,7 +184,6 @@ export default defineComponent({
       });
       return `Range from ${min.toFixed(2)} to ${max.toFixed(2)}`;
     };
-
 
     return {
       uniqueKeys,

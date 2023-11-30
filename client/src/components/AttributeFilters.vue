@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import type {

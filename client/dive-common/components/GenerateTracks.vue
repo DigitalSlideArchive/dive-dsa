@@ -1,10 +1,9 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { TypePicker } from 'vue-media-annotator/components';
 import { useHandler, useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'GenerateTracks',

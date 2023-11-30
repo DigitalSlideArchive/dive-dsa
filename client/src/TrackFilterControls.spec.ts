@@ -1,13 +1,10 @@
 /// <reference types="jest" />
 import Vue from 'vue';
-import CompositionApi from '@vue/composition-api';
 import Track, { Feature } from './track';
 import TrackFilterControls from './TrackFilterControls';
 import GroupFilterControls from './GroupFilterControls';
 import CameraStore from './CameraStore';
 import { AnnotationId } from './BaseAnnotation';
-
-Vue.use(CompositionApi);
 
 const markChangesPending = () => null;
 

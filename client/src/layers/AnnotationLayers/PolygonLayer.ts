@@ -12,7 +12,6 @@ interface PolyGeoJSData{
   polygon: GeoJSON.Polygon;
 }
 
-
 export default class PolygonLayer extends BaseLayer<PolyGeoJSData> {
     drawingOther: boolean; //drawing another type of annotation at the same time?
 
@@ -60,7 +59,6 @@ export default class PolygonLayer extends BaseLayer<PolyGeoJSData> {
       super.initialize();
     }
 
-
     hoverAnnotations(e: GeoEvent) {
       if (!this.drawingOther) {
         const { found } = this.featureLayer.pointSearch(e.mouse.geo);
@@ -94,7 +92,6 @@ export default class PolygonLayer extends BaseLayer<PolyGeoJSData> {
     setDrawingOther(val: boolean) {
       this.drawingOther = val;
     }
-
 
     formatData(frameDataTracks: FrameDataTrack[]) {
       const arr: PolyGeoJSData[] = [];

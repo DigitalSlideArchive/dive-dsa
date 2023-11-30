@@ -2,7 +2,7 @@
 import {
   computed,
   defineComponent, onMounted, PropType, Ref, ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import * as d3 from 'd3';
 import { nextTick } from 'process';
 import { useCameraStore } from 'vue-media-annotator/provides';

@@ -1,12 +1,11 @@
 // Reference used because of https://github.com/Microsoft/TypeScript/issues/28502
 /// <reference types="resize-observer-browser" />
 import geo, { GeoEvent } from 'geojs';
-import {
+import Vue, {
   ref, reactive, provide, toRef, Ref, UnwrapRef, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import { map, over } from 'lodash';
 
-import Vue from 'vue';
 import { use } from '../../provides';
 import type { AggregateMediaController, MediaController } from './mediaControllerType';
 

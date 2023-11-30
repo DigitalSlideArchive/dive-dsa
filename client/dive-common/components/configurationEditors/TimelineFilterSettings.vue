@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, Ref, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import { useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { FilterTimeline } from 'vue-media-annotator/use/useTimelineFilters';
 import AttributeFilter from '../ActionEditors/AttributeFilter.vue';

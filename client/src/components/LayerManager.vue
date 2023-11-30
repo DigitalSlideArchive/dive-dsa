@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, watch, PropType, Ref, ref, computed, toRef,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
@@ -143,7 +143,6 @@ export default defineComponent({
       stateStyling: trackStyleManager.stateStyles,
       typeStyling: typeStylingRef,
     }, trackStore);
-
 
     const textLayer = new TextLayer({
       annotator,
@@ -440,7 +439,6 @@ export default defineComponent({
         handler.trackSelect(trackId, editTrack);
       }
     };
-
 
     //Sync of internal geoJS state with the application
     editAnnotationLayer.bus.$on('editing-annotation-sync', (editing: boolean) => {

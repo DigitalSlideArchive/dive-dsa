@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, PropType, Ref, ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import type { AttributeStringFilter } from 'vue-media-annotator/use/AttributeTypes';
 import { cloneDeep } from 'lodash';
