@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, onBeforeUnmount, onMounted, ref, toRef, watch, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import Viewer from 'dive-common/components/Viewer.vue';
 import NavigationTitle from 'dive-common/components/NavigationTitle.vue';
@@ -13,12 +13,15 @@ import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { useRouter } from 'vue-router/composables';
+import { GirderSlicerTaskButton } from '@bryonlewis/vue-girder-slicer-cli-ui';
 import JobsTab from './JobsTab.vue';
 import Export from './Export.vue';
 import Clone from './Clone.vue';
 import ViewerAlert from './ViewerAlert.vue';
 import RevisionHistory from './RevisionHistory.vue';
 import AnnotationDataBrowser from './AnnotationDataBrowser.vue';
+import '/node_modules/@bryonlewis/vue-girder-slicer-cli-ui/dist/style.css';
 
 const buttonOptions = {
   text: true,
@@ -56,6 +59,7 @@ export default defineComponent({
     DIVETools,
     ConfigurationEditor,
     AnnotationDataBrowser,
+    GirderSlicerTaskButton,
     ...context.getComponents(),
   },
 
@@ -79,6 +83,7 @@ export default defineComponent({
 
   setup(props, ctx) {
     const { prompt } = usePrompt();
+    const router = useRouter();
     const viewerRef = ref();
     const store = useStore();
     const brandData = toRef(store.state.Brand, 'brandData');
@@ -139,7 +144,7 @@ export default defineComponent({
     });
 
     function routeRevision(revisionId: number) {
-      ctx.root.$router.replace({
+      router.replace({
         name: 'revision viewer',
         params: { id: props.id, revision: revisionId.toString() },
       });
@@ -196,6 +201,7 @@ export default defineComponent({
       routeRevision,
       enabledFeatures,
       enabledUISettings,
+      store,
     };
   },
 });
@@ -235,6 +241,7 @@ export default defineComponent({
       />
     </template>
     <template #title-right>
+      <GirderSlicerTaskButton color-mode="dark"  style="z-index:999999"/>
       <DIVETools
         v-if="enabledFeatures['toolbox']"
         :button-options="buttonOptions"
@@ -255,7 +262,7 @@ export default defineComponent({
         block-on-unsaved
       />
       <Clone
-        v-if="$store.state.Dataset.meta && enabledFeatures['clone']"
+        v-if="store.state.Dataset.meta && enabledFeatures['clone']"
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-id="id"
         :revision="revisionNum"

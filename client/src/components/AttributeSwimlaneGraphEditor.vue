@@ -6,7 +6,7 @@ import {
   defineComponent,
   Ref,
   PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
   SwimlaneGraph,
@@ -19,10 +19,9 @@ import {
 } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
-
 /* Magic numbers involved in height calculation */
 export default defineComponent({
-  name: 'AttributeSwimlaneGraphGraph',
+  name: 'AttributeSwimlaneGraphEditor',
   props: {
     swimlaneGraph: {
       type: Object as PropType<SwimlaneGraph>,
@@ -88,7 +87,6 @@ export default defineComponent({
         editSwimlaneDisplay.value.trackFilter.splice(editSwimlaneDisplay.value.trackFilter.findIndex((data) => data === item));
       }
     };
-
 
     return {
       setSwimlaneEnabled,

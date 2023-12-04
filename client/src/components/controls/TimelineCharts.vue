@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, computed, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import {
   EventChart,
@@ -117,7 +117,6 @@ export default defineComponent({
       return true;
     };
 
-
     watch(() => configMan.configuration.value?.timelineConfigs, () => {
       nudge.value += 1;
     }, { deep: true });
@@ -172,7 +171,6 @@ export default defineComponent({
       }
       return timeline.maxHeight - 20;
     };
-
 
     return {
       attributeDataTimeline,
@@ -338,7 +336,7 @@ export default defineComponent({
     </span>
     <span v-else>
       <line-chart
-        v-if="currentView==='detections'"
+        v-if="currentView==='Detections'"
         :start-frame="startFrame"
         :end-frame="endFrame"
         :max-frame="childMaxFrame"

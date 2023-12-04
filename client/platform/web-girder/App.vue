@@ -1,15 +1,17 @@
 <template>
   <v-app>
-    <router-view />
+      <router-view />
   </v-app>
 </template>
 
 <script lang="ts">
-import { defineComponent } from '@vue/composition-api';
+import { defineComponent } from 'vue';
 import {
   DatasetMeta, DatasetMetaMutable, provideApi,
 } from 'dive-common/apispec';
 import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
+import { useStore } from 'platform/web-girder/store';
+import { useRoute } from 'vue-router/composables';
 import {
   saveMetadata,
   saveAttributes,
@@ -29,14 +31,15 @@ export default defineComponent({
   name: 'App',
   components: {},
   setup(_, { root }) {
+    const store = useStore();
+    const route = useRoute();
     async function loadMetadata(datasetId: string): Promise<{
       metadata: DatasetMeta & DatasetMetaMutable;
     diveConfig: DiveConfiguration;
     }> {
-      return root.$store.dispatch('Dataset/load', datasetId);
+      return store.dispatch('Dataset/load', datasetId);
     }
-
-    root.$store.dispatch('Location/setLocationFromRoute', root.$route);
+    store.dispatch('Location/setLocationFromRoute', route);
 
     provideApi({
       loadDetections,

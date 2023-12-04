@@ -1,5 +1,6 @@
 <script lang="ts">
-import { defineComponent, ref, watch } from '@vue/composition-api';
+import { defineComponent, ref, watch } from 'vue';
+import { useRouter } from 'vue-router/composables';
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
 
@@ -28,7 +29,7 @@ export default defineComponent({
   },
   setup(_props, { root }) {
     const configMap = useConfiguration();
-
+    const router = useRouter();
     const previous = ref(configMap.prevNext.value?.previous);
     const next = ref(configMap.prevNext.value?.next);
     watch(configMap.prevNext, () => {
@@ -37,12 +38,13 @@ export default defineComponent({
     });
 
     const gotoId = (id: string) => {
-      root.$router.push({ name: 'viewer', params: { id } });
+      router.push({ name: 'viewer', params: { id } });
     };
     return {
       previous,
       next,
       gotoId,
+
     };
   },
 });

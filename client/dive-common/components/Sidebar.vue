@@ -6,7 +6,7 @@ import {
   ref,
   toRef,
   watch,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { FilterList, TrackList } from 'vue-media-annotator/components';
 import {

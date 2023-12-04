@@ -19,7 +19,6 @@ interface RectGeoJSData{
   polygon: GeoJSON.Polygon;
 }
 
-
 export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
     renderAttributes: Attribute[];
 

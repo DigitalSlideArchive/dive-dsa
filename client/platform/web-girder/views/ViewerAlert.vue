@@ -1,12 +1,14 @@
 <script lang="ts">
-import { defineComponent, ref, toRef } from '@vue/composition-api';
+import { useStore } from 'platform/web-girder/store/types';
+import { defineComponent, ref, toRef } from 'vue';
 
 export default defineComponent({
   name: 'ViewerAlert',
   setup(_, { root }) {
+    const store = useStore();
     const dialog = ref(false);
 
-    const brandData = toRef(root.$store.state.Brand, 'brandData');
+    const brandData = toRef(store.state.Brand, 'brandData');
 
     return {
       dialog,

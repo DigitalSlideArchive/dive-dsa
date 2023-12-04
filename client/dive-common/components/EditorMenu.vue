@@ -599,7 +599,6 @@ export default Vue.extend({
                   ...overlaySettings, blackColorScale: $event })"
               />
 
-
             </v-row>
             <v-row
               v-if="overlaySettings.colorScale"
@@ -653,7 +652,6 @@ export default Vue.extend({
               <v-spacer />
 
             </v-row>
-
 
           </v-card>
         </v-menu>

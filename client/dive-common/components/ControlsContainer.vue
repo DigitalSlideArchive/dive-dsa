@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, computed, watch, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import type { DatasetType } from 'dive-common/apispec';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import {

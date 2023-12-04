@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 import {
   provide, inject, ref, Ref, reactive,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { DIVEAction } from 'dive-common/use/useActions';
 import type { AnnotatorPreferences as AnnotatorPrefsIface } from './types';
@@ -26,7 +26,6 @@ import CameraStore from './CameraStore';
 import ConfigurationManager from './ConfigurationManager';
 import { EventChartData } from './use/useEventChart';
 import type { FilterTimeline } from './use/useTimelineFilters';
-
 
 /**
  * Type definitions are read only because injectors may mutate internal state,
@@ -206,7 +205,6 @@ export interface Handler {
 
 }
 const HandlerSymbol = Symbol('handler');
-
 
 /**
  * Make a trivial noop handler. Useful if you only intend to
@@ -421,7 +419,6 @@ function useGroupFilterControls() {
   return use<GroupFilterControls>(GroupFilterControlsSymbol);
 }
 
-
 function useGroupStyleManager() {
   return use<StyleManager>(GroupStyleManagerSymbol);
 }
@@ -454,7 +451,6 @@ function useSelectedCamera() {
   return use<SelectedCameraType>(SelectedCameraSymbol);
 }
 
-
 function useSelectedKey() {
   return use<SelectedKeyType>(SelectedKeySymbol);
 }
@@ -474,7 +470,6 @@ function useTime() {
 function useTrackFilters() {
   return use<TrackFilterControls>(TrackFilterControlsSymbol);
 }
-
 
 function useVisibleModes() {
   return use<VisibleModesType>(VisibleModesSymbol);

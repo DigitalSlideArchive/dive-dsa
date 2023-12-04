@@ -8,7 +8,6 @@ import { DatasetMetaMutable } from 'dive-common/apispec';
 import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 import type { DatasetState, RootState } from './types';
 
-
 const datasetModule: Module<DatasetState, RootState> = {
   namespaced: true,
   state: {

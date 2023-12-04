@@ -1,4 +1,4 @@
-import { provide } from '@vue/composition-api';
+import { provide } from 'vue';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
 import { GroupData } from 'vue-media-annotator/Group';
 
@@ -98,7 +98,6 @@ interface MultiCamMedia {
   }>;
   defaultDisplay: string; // Default camera for displaying the MultiCamMedia
 }
-
 interface MediaImportResponse {
   jsonMeta: {
     originalImageFiles: string[];
@@ -106,7 +105,6 @@ interface MediaImportResponse {
   globPattern: string;
   mediaConvertList: string[];
 }
-
 
 /**
  * The parts of metadata a user should be able to modify.
@@ -122,8 +120,6 @@ interface DatasetMetaMutable {
   configuration?: Configuration;
 }
 const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'timelines', 'swimlanes'];
-
-
 interface DatasetMeta {
   id: Readonly<string>;
   imageData: Readonly<FrameImage[]>;
@@ -140,7 +136,6 @@ interface DatasetMeta {
   subType: Readonly<SubType>; // In future this could have stuff like IR/EO
   multiCamMedia: Readonly<MultiCamMedia | null>;
 }
-
 interface Api {
 
   loadMetadata(datasetId: string): Promise<{

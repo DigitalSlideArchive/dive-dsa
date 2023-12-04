@@ -219,7 +219,6 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
 
   autoColorIndex: ((data: string | number | boolean) => string)[];
 
-
   constructor(params: BaseLayerParams & AttributeLayerParams) {
     super(params);
     this.formatter = defaultFormatter;

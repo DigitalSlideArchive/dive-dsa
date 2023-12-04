@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, shallowRef, toRef, watch, PropType, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   usePendingSaveCount, useHandler, useTrackFilters, useRevisionId,
 } from 'vue-media-annotator/provides';
@@ -193,7 +193,7 @@ export default defineComponent({
               mdi-download
             </v-icon>
             <span
-              v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+              v-show="buttonOptions.block"
               class="pl-1"
             >
               Download

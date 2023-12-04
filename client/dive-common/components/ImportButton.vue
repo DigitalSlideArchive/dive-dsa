@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { DatasetType } from 'dive-common/apispec';
-import { defineComponent, PropType } from '@vue/composition-api';
+import { defineComponent, PropType } from 'vue';
 
 export const DefaultButtonAttrs = {
   block: true,

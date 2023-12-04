@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, PropType, Ref, ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   Attribute, AttributeShortcut, NumericAttributeEditorOptions, StringAttributeEditorOptions,
 } from 'vue-media-annotator/use/AttributeTypes';
@@ -11,7 +11,6 @@ import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
 import AttributeValueColors from './AttributeValueColors.vue';
 import AttributeNumberValueColors from './AttributeNumberColors.vue';
-
 
 export default defineComponent({
   name: 'AttributeSettings',

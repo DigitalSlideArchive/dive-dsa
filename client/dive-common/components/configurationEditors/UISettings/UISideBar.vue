@@ -2,9 +2,8 @@
 <script lang="ts">
 import {
   defineComponent, ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'UISideBar',

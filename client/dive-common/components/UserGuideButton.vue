@@ -53,7 +53,6 @@ export default {
             mdi-help-circle
           </v-icon>
           <span
-            v-show="!$vuetify.breakpoint.mdAndDown"
             class="pl-1"
           >
             Help

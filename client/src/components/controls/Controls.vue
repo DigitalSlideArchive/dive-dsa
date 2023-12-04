@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, reactive, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
 import { useConfiguration } from 'vue-media-annotator/provides';

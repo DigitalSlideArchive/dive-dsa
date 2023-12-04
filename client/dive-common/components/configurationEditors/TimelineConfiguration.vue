@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, Ref, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import { TimelineConfiguration, TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
 import { useTimelineFilters, useAttributesFilters } from 'vue-media-annotator/provides';
 

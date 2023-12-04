@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   ref, Ref, watch, nextTick, defineComponent,
-} from '@vue/composition-api';
+} from 'vue';
 
 export default defineComponent({
   name: 'Prompt',
@@ -104,7 +104,6 @@ export default defineComponent({
         }
       }
     });
-
 
     return {
       show,

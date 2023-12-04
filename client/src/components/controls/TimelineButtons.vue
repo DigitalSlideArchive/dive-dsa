@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, computed, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import { TimelineConfiguration, TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
   useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useTimelineFilters,

@@ -1,6 +1,6 @@
 import {
   computed, Ref, reactive, ref, onBeforeUnmount, toRef,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   uniq, flatMapDeep, flattenDeep, cloneDeep,
 } from 'lodash';
@@ -19,7 +19,6 @@ import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
 import { DIVEAction } from 'dive-common/use/useActions';
-
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -344,7 +343,6 @@ export default function useModeManager({
     }
     throw Error(`Could not find trackStore for Camera: ${selectedCamera.value}`);
   }
-
 
   function newTrackSettingsAfterLogic(addedTrack: Track) {
     // Default settings which are updated by the TrackSettings component
@@ -812,7 +810,6 @@ export default function useModeManager({
       }
     }
   }
-
 
   return {
     selectedTrackId,

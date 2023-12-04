@@ -1,6 +1,6 @@
 import {
   Ref, computed, shallowRef, triggerRef,
-} from '@vue/composition-api';
+} from 'vue';
 import { cloneDeep, uniq } from 'lodash';
 import { TrackSelectAction } from 'dive-common/use/useActions';
 import type Track from './track';
@@ -116,7 +116,6 @@ export default class CameraStore {
       });
       return trackList;
     }
-
 
     getTracksMerged(
       trackId: Readonly<AnnotationId>,

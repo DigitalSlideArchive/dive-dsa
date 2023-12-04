@@ -1,7 +1,6 @@
 <script lang="ts">
-import { defineComponent } from '@vue/composition-api';
+import { defineComponent } from 'vue';
 import { useStore } from '../store/types';
-
 
 export default defineComponent({
   name: 'ShareTab',

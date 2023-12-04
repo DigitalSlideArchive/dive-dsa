@@ -2,7 +2,7 @@
 
 import {
   ref, Ref, computed, set as VueSet, del as VueDel,
-} from '@vue/composition-api';
+} from 'vue';
 import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import * as d3 from 'd3';
@@ -100,7 +100,6 @@ export default function UseAttributes(
     VueSet(attributes.value, data.key, data);
     markChangesPending({ action: 'upsert', attribute: attributes.value[data.key] });
   }
-
 
   function deleteAttribute({ data }: {data: Attribute}, removeFromTracks = false) {
     if (attributes.value[data.key] !== undefined) {
@@ -439,7 +438,6 @@ export default function UseAttributes(
     });
   }
 
-
   const timelineEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -489,7 +487,6 @@ export default function UseAttributes(
     });
     return autoColorIndex;
   });
-
 
   // SWIMLANE Settings
   function generateDetectionSwimlaneData(
@@ -663,7 +660,6 @@ export default function UseAttributes(
       }
     });
   }
-
 
   const swimlaneEnabled = computed(() => {
     const filters: Record<string, boolean> = {};

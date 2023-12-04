@@ -32,3 +32,4 @@ router.beforeEach((to, from, next) => {
 JobsInit(store);
 
 export default store;
+export const useStore = () => store;

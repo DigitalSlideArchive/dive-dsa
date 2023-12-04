@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, reactive, computed, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';

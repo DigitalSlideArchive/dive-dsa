@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, toRef, computed, Ref, reactive, watch, inject, nextTick, onBeforeUnmount,
-} from '@vue/composition-api';
+} from 'vue';
 import type { Vue } from 'vue/types/vue';
 import type Vuetify from 'vuetify/lib';
 import { cloneDeep } from 'lodash';
@@ -67,7 +67,6 @@ export interface ImageDataItem {
   url: string;
   filename: string;
 }
-
 
 export default defineComponent({
   components: {
@@ -137,7 +136,6 @@ export default defineComponent({
     const controlsRef = ref();
     const controlsHeight = ref(0);
     const controlsCollapsed = ref(false);
-
 
     const progressValue = computed(() => {
       if (progress.total > 0 && (progress.progress !== progress.total)) {
@@ -312,7 +310,6 @@ export default defineComponent({
       pendingSaveCount,
       login: store.state.User.user?.login || '',
     });
-
 
     const allSelectedIds = computed(() => {
       const selected = selectedTrackId.value;
@@ -860,7 +857,6 @@ export default defineComponent({
       swimlaneDefault,
       getAttributeValueColor,
     };
-
 
     provideAnnotator(
       {

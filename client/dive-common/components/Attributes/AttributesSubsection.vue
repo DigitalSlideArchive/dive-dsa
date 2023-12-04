@@ -5,7 +5,7 @@ import {
   ref,
   PropType,
   computed,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   useSelectedTrackId,
   useCameraStore,
@@ -188,7 +188,6 @@ export default defineComponent({
       }
       return undefined;
     }
-
 
     return {
       frameRef,

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, defineComponent, PropType } from '@vue/composition-api';
+import { computed, defineComponent, PropType } from 'vue';
 
 import { useGroupFilterControls, useHandler, useReadOnlyMode } from '../provides';
 import Group from '../Group';
@@ -39,7 +39,6 @@ export default defineComponent({
   },
 
   setup(props, { root }) {
-    const vuetify = root.$vuetify;
     const groupFilters = useGroupFilterControls();
     const readOnlyMode = useReadOnlyMode();
     const handler = useHandler();
@@ -47,7 +46,7 @@ export default defineComponent({
     const style = computed(() => {
       if (props.selected) {
         return {
-          'background-color': `${vuetify.theme.themes.dark.accentBackground}`,
+          'background-color': 'lightblue',
         };
       }
       if (props.secondarySelected) {

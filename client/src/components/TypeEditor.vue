@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, PropType, reactive, toRef, watch,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, toRef, watch } from '@vue/composition-api';
+import { defineComponent, toRef, watch } from 'vue';
 import {
   useDatasetId, useHandler, usePendingSaveCount, useProgress, useRevisionId,
 } from 'vue-media-annotator/provides';

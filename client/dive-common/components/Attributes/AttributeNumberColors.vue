@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, Ref, watch, onMounted, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import * as d3 from 'd3';
 import { useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
@@ -176,7 +176,6 @@ export default defineComponent({
         colorKeySettings.value.trackFilter.splice(colorKeySettings.value.trackFilter.findIndex((data) => data === item));
       }
     };
-
 
     return {
       attributeColors,

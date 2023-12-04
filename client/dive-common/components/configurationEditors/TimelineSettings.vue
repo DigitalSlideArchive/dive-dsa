@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import { FilterTimeline } from 'vue-media-annotator/use/useTimelineFilters';
 import { TimelineConfiguration, TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
@@ -99,7 +99,6 @@ export default defineComponent({
       configMan.removeTimelineDisplay(index);
       updateTimelineList();
     };
-
 
     const updateTimelineHeight = (height: number) => {
       if (configMan.configuration.value && !configMan.configuration.value?.timelineConfigs) {

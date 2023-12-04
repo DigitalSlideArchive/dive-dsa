@@ -4,7 +4,7 @@ import {
   defineComponent,
   Ref,
   ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { flatten } from 'lodash';
 import {
   useSelectedTrackId,

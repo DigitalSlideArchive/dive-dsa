@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { readonly, ref, Ref } from '@vue/composition-api';
+import { readonly, ref, Ref } from 'vue';
 
 import Track, { TrackId } from 'vue-media-annotator/track';
 import {

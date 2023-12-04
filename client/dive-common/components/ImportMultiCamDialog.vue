@@ -1,8 +1,7 @@
 <script lang="ts">
-import Vue from 'vue';
-import {
+import Vue, {
   computed, defineComponent, ref, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   MediaImportResponse,
   DatasetType,
@@ -23,7 +22,6 @@ function filterByGlob(pattern: string, files: string[] = []) {
   const patterns = pattern.split(';').map((p) => globToRegexp(p, { flags: 'i' }));
   return files.filter((val) => patterns.some((re) => re.test(val)));
 }
-
 
 export default defineComponent({
   components: {

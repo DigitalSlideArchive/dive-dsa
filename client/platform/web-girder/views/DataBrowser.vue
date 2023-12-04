@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, onBeforeUnmount,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   GirderFileManager, getLocationType, GirderModel,
 } from '@girder/components/src';
@@ -75,7 +75,6 @@ export default defineComponent({
   },
 });
 </script>
-
 
 <template>
   <GirderFileManager

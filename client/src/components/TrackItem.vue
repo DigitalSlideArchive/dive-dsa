@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, computed, PropType, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import context from 'dive-common/store/context';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import TooltipBtn from './TooltipButton.vue';
@@ -59,8 +59,7 @@ export default defineComponent({
     },
   },
 
-  setup(props, { root, emit }) {
-    const vuetify = root.$vuetify;
+  setup(props, { emit }) {
     const { frame: frameRef } = useTime();
     const handler = useHandler();
     const trackFilters = useTrackFilters();
@@ -105,7 +104,7 @@ export default defineComponent({
     const style = computed(() => {
       if (props.selected) {
         return {
-          'background-color': `${vuetify.theme.themes.dark.accentBackground}`,
+          'background-color': 'lightblue',
         };
       }
       if (props.secondarySelected) {

@@ -2,7 +2,7 @@
 import {
   defineComponent,
   ref,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   GirderFileManager, GirderMarkdown,
 } from '@girder/components/src';
@@ -137,7 +137,6 @@ export default defineComponent({
     />
     <v-container
       fill-height
-      :fluid="$vuetify.breakpoint.mdAndDown"
     >
       <v-row
         class="fill-height nowraptable"

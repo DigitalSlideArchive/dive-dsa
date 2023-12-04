@@ -1,10 +1,9 @@
 <script lang="ts">
 import {
   defineComponent, ref, watch, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { isObject } from 'lodash';
 import { useConfiguration } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'UIToolBar',

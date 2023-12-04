@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 
 import type { AttributeStringFilter } from 'vue-media-annotator/use/AttributeTypes';
 import TooltipBtn from '../TooltipButton.vue';

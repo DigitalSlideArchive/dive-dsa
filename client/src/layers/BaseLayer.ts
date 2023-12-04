@@ -1,6 +1,5 @@
 /*eslint class-methods-use-this: "off"*/
-import Vue from 'vue';
-import { Ref } from '@vue/composition-api';
+import Vue, { Ref } from 'vue';
 
 import { MediaController } from '../components/annotators/mediaControllerType';
 import { StateStyles, TypeStyling } from '../StyleManager';

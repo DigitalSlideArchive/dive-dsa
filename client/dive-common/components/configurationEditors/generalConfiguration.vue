@@ -2,9 +2,8 @@
 <script lang="ts">
 import {
   defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'GeneralConfiguration',
@@ -31,7 +30,6 @@ export default defineComponent({
       configurationMerge: mergeType.value,
       disableConfigurationEditing: disableConfigurationEditing.value,
     };
-
 
     const saveChanges = () => {
       // We need to take the new values and set them on the 'general' settings

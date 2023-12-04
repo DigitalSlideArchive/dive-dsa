@@ -21,7 +21,6 @@ function getDiveConfiguration(folderId: string) {
   return girderRest.get<DiveConfiguration>(`dive_dataset/${folderId}/configuration`);
 }
 
-
 async function getDatasetList(
   limit?: number,
   offset?: number,
@@ -165,7 +164,6 @@ interface ValidationResponse {
 function validateUploadGroup(names: string[]) {
   return girderRest.post<ValidationResponse>('dive_dataset/validate_files', names);
 }
-
 
 export {
   clone,

@@ -14,7 +14,6 @@ interface RectGeoJSData{
   hasPoly: boolean;
 }
 
-
 export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
     drawingOther: boolean; //drawing another type of annotation at the same time?
 
@@ -93,7 +92,6 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
     setDrawingOther(val: boolean) {
       this.drawingOther = val;
     }
-
 
     formatData(frameData: FrameDataTrack[]) {
       const arr: RectGeoJSData[] = [];

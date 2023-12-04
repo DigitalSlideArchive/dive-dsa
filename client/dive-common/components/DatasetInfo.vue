@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, Ref, ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { getFolder } from 'platform/web-girder/api';
@@ -41,7 +41,6 @@ export default defineComponent({
   },
 });
 </script>
-
 
 <template>
   <StackedVirtualSidebarContainer
