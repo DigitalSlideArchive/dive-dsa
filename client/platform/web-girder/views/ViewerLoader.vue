@@ -14,13 +14,14 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useRouter } from 'vue-router/composables';
-//import { GirderSlicerTaskButton } from '@bryonlewis/vue-girder-slicer-cli-ui';
+import { GirderSlicerTaskButton } from '@bryonlewis/vue-girder-slicer-cli-ui';
 import JobsTab from './JobsTab.vue';
 import Export from './Export.vue';
 import Clone from './Clone.vue';
 import ViewerAlert from './ViewerAlert.vue';
 import RevisionHistory from './RevisionHistory.vue';
 import AnnotationDataBrowser from './AnnotationDataBrowser.vue';
+import '/node_modules/@bryonlewis/vue-girder-slicer-cli-ui/dist/style.css';
 
 const buttonOptions = {
   text: true,
@@ -58,7 +59,7 @@ export default defineComponent({
     DIVETools,
     ConfigurationEditor,
     AnnotationDataBrowser,
-    //GirderSlicerTaskButton,
+    GirderSlicerTaskButton,
     ...context.getComponents(),
   },
 
@@ -240,6 +241,7 @@ export default defineComponent({
       />
     </template>
     <template #title-right>
+      <GirderSlicerTaskButton color-mode="dark"  style="z-index:999999"/>
       <DIVETools
         v-if="enabledFeatures['toolbox']"
         :button-options="buttonOptions"

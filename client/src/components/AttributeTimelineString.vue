@@ -8,7 +8,7 @@ import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilte
 import {
   SwimlaneGraph,
 } from 'vue-media-annotator/use/AttributeTypes';
-import AttributeSwimlaneGraph from './AttributeSwimlaneGraph.vue';
+import AttributeSwimlaneGraphEditor from './AttributeSwimlaneGraphEditor.vue';
 import { useAttributesFilters } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
@@ -30,7 +30,7 @@ export default defineComponent({
   components: {
     TooltipBtn,
     AttributeKeyFilter: AttributeKeyFilterVue,
-    AttributeSwimlaneGraph,
+    AttributeSwimlaneGraphEditor,
   },
 
   setup() {
@@ -140,7 +140,7 @@ export default defineComponent({
       v-model="addEditSwimlaneDialog"
       width="800"
     >
-      <attribute-swimlane-graph
+      <attribute-swimlane-graph-editor
         v-if="currentlyEditingSwimlane !== undefined"
         :swimlane-graph="currentlyEditingSwimlane"
         @close="closeSwimlaneDialog()"

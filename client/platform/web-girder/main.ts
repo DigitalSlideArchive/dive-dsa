@@ -1,38 +1,19 @@
 import Vue from 'vue';
-import VueGtag from 'vue-gtag';
-import { init as SentryInit } from '@sentry/browser';
-import { Vue as SentryVue } from '@sentry/integrations';
+import getVuetify from './plugins/vuetify';
 
 import registerNotifications from 'vue-media-annotator/notificatonBus';
 import promptService from 'dive-common/vue-utilities/prompt-service';
 import vMousetrap from 'dive-common/vue-utilities/v-mousetrap';
 
-import getVuetify from './plugins/vuetify';
 import girderRest from './plugins/girder';
 import App from './App.vue';
 import router from './router';
 import store from './store';
+import GirderSlicerUI  from '@bryonlewis/vue-girder-slicer-cli-ui';
 
 Vue.config.productionTip = false;
 Vue.use(vMousetrap);
-
-if (
-  process.env.NODE_ENV === 'production'
-  && window.location.hostname !== 'localhost'
-) {
-  SentryInit({
-    dsn: process.env.VUE_APP_SENTRY_DSN,
-    integrations: [
-      new SentryVue({ Vue, logErrors: true }),
-    ],
-    release: process.env.VUE_APP_GIT_HASH,
-    environment: (window.location.hostname === 'viame.kitware.com')
-      ? 'production' : 'development',
-  });
-  Vue.use(VueGtag, {
-    config: { id: process.env.VUE_APP_GTAG },
-  }, router);
-}
+Vue.use(GirderSlicerUI);
 
 Promise.all([
   store.dispatch('Brand/loadBrand'),

@@ -21,7 +21,7 @@ import TooltipBtn from './TooltipButton.vue';
 
 /* Magic numbers involved in height calculation */
 export default defineComponent({
-  name: 'AttributeSwimlaneGraphGraph',
+  name: 'AttributeSwimlaneGraphEditor',
   props: {
     swimlaneGraph: {
       type: Object as PropType<SwimlaneGraph>,
