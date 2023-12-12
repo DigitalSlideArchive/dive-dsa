@@ -5,7 +5,7 @@ import {
   PropType,
   onMounted,
   watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { NumericAttributeEditorOptions, StringAttributeEditorOptions } from 'vue-media-annotator/use/AttributeTypes';
 
 export default defineComponent({
@@ -147,7 +147,7 @@ export default defineComponent({
       @keydown="onInputKeyEvent"
     >
     <input
-      v-else-if="datatype === 'number' && (!typeSettings || typeSettings.type ==='combo')"
+      v-else-if="datatype === 'number' && (!typeSettings || typeSettings.type === 'combo')"
       ref="inputBoxRef"
       :label="datatype"
       :value="value"
@@ -159,7 +159,7 @@ export default defineComponent({
       @keydown="onInputKeyEvent"
     >
     <div
-      v-else-if="datatype === 'number' && (typeSettings && typeSettings.type ==='slider')"
+      v-else-if="datatype === 'number' && (typeSettings && typeSettings.type === 'slider')"
     >
       <div class="slider-label">
         {{ value }}
@@ -167,7 +167,7 @@ export default defineComponent({
       <v-slider
         :value="value"
         :step="typeSettings.steps ? typeSettings.steps
-          : (typeSettings.range[1] - typeSettings.range[0])/2.0"
+          : (typeSettings.range[1] - typeSettings.range[0]) / 2.0"
         :min="typeSettings.range[0]"
         :max="typeSettings.range[1]"
         dense
@@ -186,7 +186,7 @@ export default defineComponent({
       @keydown="onInputKeyEvent"
     >
       <option
-        v-for="(item,index) in boolOpts"
+        v-for="(item, index) in boolOpts"
         :key="index"
         :value="item.value"
       >

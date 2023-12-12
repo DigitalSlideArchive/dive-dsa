@@ -3,14 +3,13 @@
 import {
   computed,
   defineComponent, ref, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   AttributeMatch, AttributeSelectAction, MatchOperator,
 } from 'dive-common/use/useActions';
 import {
   useAttributes, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'AttributeSelectFilter',
@@ -26,7 +25,6 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
 
     const attributes = useAttributes();
-
 
     const attributeFilters: Ref<AttributeSelectAction> = ref(props.data || {});
 
@@ -107,7 +105,6 @@ export default defineComponent({
       }
       return result;
     });
-
 
     const getAttributeColor = (item: string) => {
       const found = attributes.value.find((atr) => atr.key === item || atr.key === `detection_${item}`);
@@ -205,7 +202,7 @@ export default defineComponent({
         <v-col cols="1">
           <div
             class="type-color-box"
-            :style="{backgroundColor: getAttributeColor(item.key)}"
+            :style="{ backgroundColor: getAttributeColor(item.key) }"
           />
         </v-col>
         <v-col>{{ item.key }}</v-col>

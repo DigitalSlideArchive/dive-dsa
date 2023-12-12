@@ -1,5 +1,4 @@
-import Install, { reactive } from '@vue/composition-api';
-import Vue, { VueConstructor } from 'vue';
+import { reactive, Component } from 'vue';
 /* Components */
 import TypeThreshold from 'dive-common/components/TypeThreshold.vue';
 import ImageEnhancements from 'vue-media-annotator/components/ImageEnhancements.vue';
@@ -9,8 +8,6 @@ import AtributeUserReview from 'dive-common/components/Attributes/AttributeUserR
 import MultiCamTools from 'dive-common/components/MultiCamTools.vue';
 import DatasetInfo from 'dive-common/components/DatasetInfo.vue';
 
-Vue.use(Install);
-
 interface ContextState {
   last: string;
   active: string | null;
@@ -19,7 +16,7 @@ interface ContextState {
 
 interface ComponentMapItem {
   description: string;
-  component: VueConstructor<Vue>;
+  component: Component;
 }
 
 const state: ContextState = reactive({
@@ -60,26 +57,28 @@ const componentMap: Record<string, ComponentMapItem> = {
 };
 
 function register(item: ComponentMapItem) {
-  componentMap[item.component.name] = item;
+  componentMap[item.component.name || 'default'] = item;
 }
 
 function unregister(item: ComponentMapItem) {
-  if (componentMap[item.component.name]) {
-    delete componentMap[item.component.name];
+  if (componentMap[item.component.name || 'default']) {
+    delete componentMap[item.component.name || 'default'];
   }
 }
 
 function resetActive() {
   if (Object.values(componentMap).length) {
-    state.last = Object.values(componentMap)[0].component.name;
+    state.last = Object.values(componentMap)[0].component.name || 'default';
     state.active = null;
   }
 }
 
 function getComponents() {
-  const components: Record<string, VueConstructor<Vue>> = {};
+  const components: Record<string, Component> = {};
   Object.values(componentMap).forEach((v) => {
-    components[v.component.name] = v.component;
+    if (v.component.name) {
+      components[v.component.name] = v.component;
+    }
   });
   return components;
 }

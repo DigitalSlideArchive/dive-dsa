@@ -1,4 +1,4 @@
-import { ref, Ref } from '@vue/composition-api';
+import { ref, Ref } from 'vue';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
 import type { FilterTimeline } from './use/useTimelineFilters';
@@ -14,7 +14,6 @@ export interface DiveConfiguration {
   };
   configOwners: {users: {name: string; id: string}[]; groups: {name: string; id: string}[]};
 }
-
 
 interface ConfigurationSettings {
   addTypes?: boolean;
@@ -187,7 +186,6 @@ export default class ConfigurationManager {
     groups: {name: string; id: string}[];
   }>>;
 
-
   constructor(
     {
       configurationId,
@@ -239,7 +237,7 @@ export default class ConfigurationManager {
 
   getConfigurationSetting(key: keyof ConfigurationSettings) {
     if (this.configuration.value?.general?.configurationSettings) {
-      const { configurationSettings } = this.configuration.value?.general;
+      const { configurationSettings } = this.configuration.value.general;
       return (configurationSettings && configurationSettings[key]);
     }
     return true;
@@ -299,7 +297,6 @@ export default class ConfigurationManager {
     }
     return true;
   }
-
 
   setUISettings(key: keyof UISettings, val: UIValue) {
     if (this.configuration.value && !this.configuration.value.UISettings) {
@@ -420,7 +417,6 @@ export default class ConfigurationManager {
       }
     }
   }
-
 
   updateTimelineDisplay(val: TimelineDisplay, index: number) {
     if (this.configuration.value && !this.configuration.value?.timelineConfigs) {

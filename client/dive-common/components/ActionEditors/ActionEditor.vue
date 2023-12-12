@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   DIVEAction, TrackSelectAction,
 } from 'dive-common/use/useActions';
@@ -10,7 +10,6 @@ import {
   useAttributes, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 import TrackFilter from './TrackFilter.vue';
-
 
 export default defineComponent({
   name: 'ActionEditorSettings',
@@ -64,7 +63,6 @@ export default defineComponent({
         },
       };
     }
-
 
     const getAttributeColor = (item: string) => {
       const found = attributesList.value.find((atr) => atr.key === item || atr.key === `detection_${item}`);

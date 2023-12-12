@@ -3,14 +3,13 @@
 import {
   computed,
   defineComponent, ref, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   AttributeMatch, AttributeSelectAction, MatchOperator, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
   useAttributes, useTrackFilters, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'TrackFilter',
@@ -321,7 +320,7 @@ export default defineComponent({
             <v-col cols="1">
               <div
                 class="type-color-box"
-                :style="{backgroundColor: getAttributeColor(item.key)}"
+                :style="{ backgroundColor: getAttributeColor(item.key) }"
               />
             </v-col>
             <v-col>{{ item.key }}</v-col>

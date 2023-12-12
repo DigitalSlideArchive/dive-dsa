@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   ref, Ref, watch, nextTick, defineComponent,
-} from '@vue/composition-api';
+} from 'vue';
 
 export default defineComponent({
   name: 'Prompt',
@@ -105,7 +105,6 @@ export default defineComponent({
       }
     });
 
-
     return {
       show,
       title,
@@ -150,7 +149,7 @@ export default defineComponent({
       </v-card-title>
       <v-card-text v-if="Array.isArray(text)">
         <div
-          v-for="(item,key) in text"
+          v-for="(item, key) in text"
           :key="key"
         >
           {{ item }}

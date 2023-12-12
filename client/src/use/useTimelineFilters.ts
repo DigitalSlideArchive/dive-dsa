@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { Ref, computed, ref } from '@vue/composition-api';
+import { Ref, computed, ref } from 'vue';
 import BaseAnnotation, { AnnotationId, StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { AnnotationWithContext } from 'vue-media-annotator/BaseFilterControls';
 import { TypeStyling } from 'vue-media-annotator/StyleManager';
@@ -7,7 +7,6 @@ import { intersection } from 'lodash';
 import { AttributeMatch, AttributeSelectAction } from '../../dive-common/use/useActions';
 import { Track } from '..';
 import { EventChartData } from './useEventChart';
-
 
 export interface FilterTimeline{
     name: string;
@@ -18,13 +17,13 @@ export interface FilterTimeline{
     attributes?: AttributeSelectAction;
     type: 'swimlane' | 'detection';
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface TimelineFilterParams<T extends BaseAnnotation> {
     enabledTracks: Readonly<Ref<AnnotationWithContext<Track>[]>>;
     selectedTrackIds: Ref<AnnotationId[]>;
     typeStyling: Ref<TypeStyling>;
     checkAttributes: (attributeMatch: Record<string, AttributeMatch>, attributes: StringKeyObject) => boolean;
 }
-
 
 function filterFromTimeline(trackList: AnnotationWithContext<Track>[], filter: FilterTimeline, checkAttributes: TimelineFilterParams<BaseAnnotation>['checkAttributes']) {
   const tracksFound: AnnotationWithContext<Track>[] = [];

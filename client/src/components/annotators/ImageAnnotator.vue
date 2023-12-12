@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, onUnmounted, PropType, toRef, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { SetTimeFunc } from '../../use/useTimeObserver';
 import { injectCameraInitializer } from './useMediaController';
 

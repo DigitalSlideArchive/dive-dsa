@@ -3,7 +3,7 @@ import {
   ref,
   defineComponent,
   Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
   SwimlaneGraph,
@@ -12,10 +12,15 @@ import AttributeSwimlaneGraph from './AttributeSwimlaneGraph.vue';
 import { useAttributesFilters } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
-
 /* Magic numbers involved in height calculation */
 export default defineComponent({
   name: 'AttributeTimelineString',
+
+  components: {
+    TooltipBtn,
+    AttributeKeyFilter: AttributeKeyFilterVue,
+    AttributeSwimlaneGraph,
+  },
 
   props: {
     height: {
@@ -26,12 +31,6 @@ export default defineComponent({
       type: Number,
       default: 300,
     },
-  },
-
-  components: {
-    TooltipBtn,
-    AttributeKeyFilter: AttributeKeyFilterVue,
-    AttributeSwimlaneGraph,
   },
 
   setup() {
@@ -52,7 +51,7 @@ export default defineComponent({
             appliedTo: ['all'],
             active: true, // if this filter is active
             value: true,
-            type: 'key' as 'key',
+            type: 'key' as const,
           },
           enabled: false,
         };

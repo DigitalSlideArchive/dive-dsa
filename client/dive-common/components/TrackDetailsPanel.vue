@@ -4,7 +4,7 @@ import {
   defineComponent,
   Ref,
   ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { flatten } from 'lodash';
 import {
   useSelectedTrackId,
@@ -164,7 +164,8 @@ export default defineComponent({
 
       try {
         await setAttribute({ data, oldAttribute });
-      } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
         editingError.value = err.message;
       }
       if (!editingError.value && close) {
@@ -175,7 +176,8 @@ export default defineComponent({
       editingError.value = null;
       try {
         await deleteAttribute({ data });
-      } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
         editingError.value = err.message;
       }
       if (!editingError.value) {
@@ -370,7 +372,7 @@ export default defineComponent({
       </datalist>
       <div
         v-if="getUISetting('UITrackBrowser')"
-        :class="{ 'multi-select-list': true, 'unlimited': editingGroup !== null }"
+        :class="{ 'multi-select-list': true, unlimited: editingGroup !== null }"
         class="track-details"
       >
         <v-card

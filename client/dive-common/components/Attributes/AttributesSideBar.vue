@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, watch, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { useReadOnlyMode } from 'vue-media-annotator/provides';
@@ -53,7 +53,6 @@ export default defineComponent({
 });
 </script>
 
-
 <template>
   <StackedVirtualSidebarContainer
     :width="width"
@@ -68,7 +67,7 @@ export default defineComponent({
               icon="mdi-filter"
               tooltip-text="Filter Attributes displayed"
               size="large"
-              :color="currentMode === 'Filtering'? 'primary' : 'default'"
+              :color="currentMode === 'Filtering' ? 'primary' : 'default'"
               outlined
               tile
               @click="currentMode = 'Filtering'"
@@ -80,7 +79,7 @@ export default defineComponent({
               tooltip-text="Chart Numeric Attributes"
               size="large"
               outlined
-              :color="currentMode === 'Timeline'? 'primary' : 'default'"
+              :color="currentMode === 'Timeline' ? 'primary' : 'default'"
 
               tile
               @click="currentMode = 'Timeline'"
@@ -92,7 +91,7 @@ export default defineComponent({
               tooltip-text="Chart String/Boolean Attributes"
               size="large"
               outlined
-              :color="currentMode === 'Swimlane'? 'primary' : 'default'"
+              :color="currentMode === 'Swimlane' ? 'primary' : 'default'"
 
               tile
               @click="currentMode = 'Swimlane'"

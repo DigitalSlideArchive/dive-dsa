@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, toRef, computed, Ref, reactive, watch, inject, nextTick, onBeforeUnmount,
-} from '@vue/composition-api';
+} from 'vue';
 import type { Vue } from 'vue/types/vue';
 import type Vuetify from 'vuetify/lib';
 import { cloneDeep } from 'lodash';
@@ -67,7 +67,6 @@ export interface ImageDataItem {
   url: string;
   filename: string;
 }
-
 
 export default defineComponent({
   components: {
@@ -137,7 +136,6 @@ export default defineComponent({
     const controlsRef = ref();
     const controlsHeight = ref(0);
     const controlsCollapsed = ref(false);
-
 
     const progressValue = computed(() => {
       if (progress.total > 0 && (progress.progress !== progress.total)) {
@@ -313,7 +311,6 @@ export default defineComponent({
       login: store.state.User.user?.login || '',
     });
 
-
     const allSelectedIds = computed(() => {
       const selected = selectedTrackId.value;
       if (selected !== null) {
@@ -358,9 +355,7 @@ export default defineComponent({
         const groups = cameraStore.lookupGroups(trackId);
         let newtracks: [Track, Track];
         try {
-          newtracks = track.split(
-            frame, cameraStore.getNewTrackId(), cameraStore.getNewTrackId() + 1,
-          );
+          newtracks = track.split(frame, cameraStore.getNewTrackId(), cameraStore.getNewTrackId() + 1);
         } catch (err) {
           await prompt({
             title: 'Error while splitting track',
@@ -861,7 +856,6 @@ export default defineComponent({
       getAttributeValueColor,
     };
 
-
     provideAnnotator(
       {
         annotatorPreferences: toRef(clientSettings, 'annotatorPreferences'),
@@ -998,7 +992,7 @@ export default defineComponent({
           <v-tooltip
             bottom
           >
-            <template v-slot:activator="{on}">
+            <template #activator="{ on }">
               <v-chip
                 class="warning pr-1"
                 style="white-space:nowrap;display:inline"
@@ -1021,8 +1015,13 @@ export default defineComponent({
         <EditorMenu
           v-if="getUISetting('UIToolBar')"
           v-bind="{
-            editingMode, visibleModes, editingTrack, recipes,
-            multiSelectActive, editingDetails, overlays,
+            editingMode,
+            visibleModes,
+            editingTrack,
+            recipes,
+            multiSelectActive,
+            editingDetails,
+            overlays,
             groupEditActive: editingGroupId !== null,
           }"
           :get-u-i-setting="getUISetting"
@@ -1054,7 +1053,7 @@ export default defineComponent({
           @change="changeCamera"
         >
           <template #item="{ item }">
-            {{ item }} {{ item === defaultCamera ? '(Default)': '' }}
+            {{ item }} {{ item === defaultCamera ? '(Default)' : '' }}
           </template>
         </v-select>
         <v-divider
@@ -1084,7 +1083,7 @@ export default defineComponent({
         bottom
         :disabled="!readonlyState"
       >
-        <template v-slot:activator="{ on }">
+        <template #activator="{ on }">
           <v-badge
             overlap
             bottom
@@ -1158,7 +1157,7 @@ export default defineComponent({
               v-for="camera in multiCamList"
               :key="camera"
               class="d-flex flex-column grow"
-              :style="{ height: `calc(100% - ${controlsHeight}px)`}"
+              :style="{ height: `calc(100% - ${controlsHeight}px)` }"
               @mousedown.left="changeCamera(camera, $event)"
               @mouseup.right="changeCamera(camera, $event)"
             >
@@ -1167,10 +1166,17 @@ export default defineComponent({
                 v-if="(imageData[camera].length || videoUrl[camera]) && progress.loaded"
                 ref="subPlaybackComponent"
                 class="fill-height"
-                :class="{'selected-camera': selectedCamera === camera && camera !== 'singleCam'}"
+                :class="{ 'selected-camera': selectedCamera === camera && camera !== 'singleCam' }"
                 v-bind="{
-                  imageData: imageData[camera], videoUrl: videoUrl[camera],
-                  updateTime, frameRate, originalFps, camera, brightness, intercept }"
+                  imageData: imageData[camera],
+                  videoUrl: videoUrl[camera],
+                  updateTime,
+                  frameRate,
+                  originalFps,
+                  camera,
+                  brightness,
+                  intercept,
+                }"
                 @loaded="runActions"
               >
                 <LayerManager
@@ -1184,7 +1190,9 @@ export default defineComponent({
             ref="controlsRef"
             class="shrink"
             :collapsed.sync="controlsCollapsed"
-            v-bind="{ lineChartData, eventChartData, groupChartData, datasetType }"
+            v-bind="{
+              lineChartData, eventChartData, groupChartData, datasetType,
+            }"
             @select-track="handler.trackSelect"
             @timeline-height="updateTimelineHeight()"
           />

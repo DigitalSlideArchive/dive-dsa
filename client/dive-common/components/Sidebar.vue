@@ -6,7 +6,7 @@ import {
   ref,
   toRef,
   watch,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { FilterList, TrackList } from 'vue-media-annotator/components';
 import {
@@ -24,6 +24,15 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
+
+  components: {
+    StackedVirtualSidebarContainer,
+    TrackDetailsPanel,
+    TrackSettingsPanel,
+    FilterList,
+    TrackList,
+    TypeSettingsPanel,
+  },
   props: {
     width: {
       type: Number,
@@ -33,15 +42,6 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-  },
-
-  components: {
-    StackedVirtualSidebarContainer,
-    TrackDetailsPanel,
-    TrackSettingsPanel,
-    FilterList,
-    TrackList,
-    TypeSettingsPanel,
   },
 
   setup() {
@@ -155,7 +155,7 @@ export default defineComponent({
             <template #settings>
               <TypeSettingsPanel
                 :all-types="allTypesRef"
-                @import-types="$emit('import-types',$event)"
+                @import-types="$emit('import-types', $event)"
               />
             </template>
           </FilterList>

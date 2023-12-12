@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   DIVEAction, TrackSelectAction,
 } from 'dive-common/use/useActions';
@@ -11,7 +11,6 @@ import {
 } from 'vue-media-annotator/provides';
 import ActionEditor from './ActionEditor.vue';
 import TrackFilter from './TrackFilter.vue';
-
 
 export default defineComponent({
   name: 'ActionEditorSettings',
@@ -58,7 +57,6 @@ export default defineComponent({
         addEditActionindex.value = actionList.value.length;
       }
     };
-
 
     const saveAction = (diveAction: DIVEAction) => {
       configMan.updateAction(diveAction, addEditActionindex.value);

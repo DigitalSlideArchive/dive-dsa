@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, PropType, reactive, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { difference, union } from 'lodash';
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
@@ -29,6 +29,8 @@ const TypeListHeaderHeight = 80;
 export default defineComponent({
   name: 'FilterList',
 
+  components: { TypeEditor, TooltipBtn, TypeItem },
+
   props: {
     showEmptyTypes: {
       type: Boolean,
@@ -55,8 +57,6 @@ export default defineComponent({
       default: false,
     },
   },
-
-  components: { TypeEditor, TooltipBtn, TypeItem },
 
   setup(props) {
     const { prompt } = usePrompt();
@@ -199,7 +199,6 @@ export default defineComponent({
         trackFilters.updateCheckedTypes(invisible);
       }
     }
-
 
     function updateCheckedType(evt: boolean, type: string) {
       if (evt) {

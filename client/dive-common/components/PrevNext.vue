@@ -1,7 +1,8 @@
 <script lang="ts">
-import { defineComponent, ref, watch } from '@vue/composition-api';
+import { defineComponent, ref, watch } from 'vue';
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
+import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
   name: 'PrevNext',
@@ -26,9 +27,9 @@ export default defineComponent({
       default: 'Title',
     },
   },
-  setup(_props, { root }) {
+  setup() {
     const configMap = useConfiguration();
-
+    const router = useRouter();
     const previous = ref(configMap.prevNext.value?.previous);
     const next = ref(configMap.prevNext.value?.next);
     watch(configMap.prevNext, () => {
@@ -37,7 +38,7 @@ export default defineComponent({
     });
 
     const gotoId = (id: string) => {
-      root.$router.push({ name: 'viewer', params: { id } });
+      router.push({ name: 'viewer', params: { id } });
     };
     return {
       previous,
@@ -56,7 +57,7 @@ export default defineComponent({
     <span class="mr-4">
       <tooltip-btn
         v-if="previous"
-        v-mousetrap="{bind: '[', handler: () => previous && gotoId(previous.id)}"
+        v-mousetrap="{ bind: '[', handler: () => previous && gotoId(previous.id) }"
         class="mr-4"
         icon="mdi-chevron-left"
         :tooltip-text="`Go to Previous Dataset: ${previous.name}`"
@@ -69,7 +70,7 @@ export default defineComponent({
     <span class="ml-4">
       <tooltip-btn
         v-if="next"
-        v-mousetrap="{bind: ']', handler: () => next && gotoId(next.id)}"
+        v-mousetrap="{ bind: ']', handler: () => next && gotoId(next.id) }"
         class="pl-4"
         icon="mdi-chevron-right"
         :tooltip-text="`Go to Next Dataset: ${next.name}`"

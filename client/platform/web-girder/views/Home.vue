@@ -2,7 +2,7 @@
 import {
   defineComponent,
   ref,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   GirderFileManager, GirderMarkdown,
 } from '@girder/components/src';
@@ -46,6 +46,8 @@ export default defineComponent({
     DataShared,
     ShareTab,
   },
+  // everything below needs to be refactored to composition-api
+  inject: ['girderRest'],
   setup() {
     const loading = ref(false);
     const { prompt } = usePrompt();
@@ -68,8 +70,6 @@ export default defineComponent({
       getters,
     };
   },
-  // everything below needs to be refactored to composition-api
-  inject: ['girderRest'],
   computed: {
     ...mapState('Location', ['selected', 'location']),
     ...mapGetters('Location', ['locationIsViameFolder']),
@@ -137,7 +137,6 @@ export default defineComponent({
     />
     <v-container
       fill-height
-      :fluid="$vuetify.breakpoint.mdAndDown"
     >
       <v-row
         class="fill-height nowraptable"

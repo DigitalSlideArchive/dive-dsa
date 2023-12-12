@@ -3,7 +3,7 @@
 import {
   computed,
   defineComponent, PropType, ref, Ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId,
@@ -185,7 +185,6 @@ export default defineComponent({
       return `Range from ${min.toFixed(2)} to ${max.toFixed(2)}`;
     };
 
-
     return {
       uniqueKeys,
       getMinMax,
@@ -210,7 +209,9 @@ export default defineComponent({
   <div
     ref="keyRef"
     class="key"
-    :style="{top: `${clientTop}px`, height: `${clientHeight}px`, maxHeight: `${clientHeight}px`, right: `${clientWidth}px`}"
+    :style="{
+      top: `${clientTop}px`, height: `${clientHeight}px`, maxHeight: `${clientHeight}px`, right: `${clientWidth}px`,
+    }"
     @wheel.prevent
     @touchmove.prevent
     @scroll.prevent
@@ -251,7 +252,9 @@ export default defineComponent({
                   <template #activator="{ on }">
                     <div
                       class="key-item"
-                      :style="{color: subItem.color, border: `2px solid ${subItem.color}`, height:'20px', marginTop: '6px'}"
+                      :style="{
+                        color: subItem.color, border: `2px solid ${subItem.color}`, height: '20px', marginTop: '6px',
+                      }"
                       v-on="on"
                     >
                       <span
@@ -268,7 +271,7 @@ export default defineComponent({
                     >
                       <span
                         class="key-subitem"
-                        :style="{color: subData.color, border: `1px solid ${subData.color}`, height:'20px'}"
+                        :style="{ color: subData.color, border: `1px solid ${subData.color}`, height: '20px' }"
                       >
                         {{ subData.value }}</span>
                     </v-row>
@@ -297,7 +300,9 @@ export default defineComponent({
                 >
                   <div
                     class="key-item"
-                    :style="{color: subItem.data.color, border: `2px solid ${subItem.data.color}`, height:'20px', marginTop: '6px'}"
+                    :style="{
+                      color: subItem.data.color, border: `2px solid ${subItem.data.color}`, height: '20px', marginTop: '6px',
+                    }"
                   >
                     <span
                       class="key-text"
@@ -323,7 +328,9 @@ export default defineComponent({
                 >
                   <div
                     class="key-item"
-                    :style="{color: subItem.color, border: `2px solid ${subItem.color}`, height:'20px', marginTop: '6px'}"
+                    :style="{
+                      color: subItem.color, border: `2px solid ${subItem.color}`, height: '20px', marginTop: '6px',
+                    }"
                   >
                     <span
                       class="key-text"

@@ -1,12 +1,11 @@
 // Reference used because of https://github.com/Microsoft/TypeScript/issues/28502
 /// <reference types="resize-observer-browser" />
 import geo, { GeoEvent } from 'geojs';
-import {
+import Vue, {
   ref, reactive, provide, toRef, Ref, UnwrapRef, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import { map, over } from 'lodash';
 
-import Vue from 'vue';
 import { use } from '../../provides';
 import type { AggregateMediaController, MediaController } from './mediaControllerType';
 
@@ -228,9 +227,7 @@ export function useMediaController() {
     function resetZoom() {
       const geoViewerRef = geoViewers[camera];
       const data = state[camera];
-      const zoomAndCenter = geoViewerRef.value.zoomAndCenterFromBounds(
-        data.originalBounds, 0,
-      );
+      const zoomAndCenter = geoViewerRef.value.zoomAndCenterFromBounds(data.originalBounds, 0);
       geoViewerRef.value.zoom(zoomAndCenter.zoom);
       geoViewerRef.value.center(zoomAndCenter.center);
     }
@@ -245,9 +242,7 @@ export function useMediaController() {
         bottom: height,
         right: width,
       });
-      const params = geo.util.pixelCoordinateParams(
-        containerRef.value, width, height, width, height,
-      );
+      const params = geo.util.pixelCoordinateParams(containerRef.value, width, height, width, height);
       const { right, bottom } = params.map.maxBounds;
       data.originalBounds = params.map.maxBounds;
       geoViewerRef.value.maxBounds({
@@ -275,9 +270,7 @@ export function useMediaController() {
     }
 
     function initializeViewer(width: number, height: number) {
-      const params = geo.util.pixelCoordinateParams(
-        containers[camera].value, width, height, width, height,
-      );
+      const params = geo.util.pixelCoordinateParams(containers[camera].value, width, height, width, height);
       geoViewers[camera].value = geo.map(params.map);
       resetMapDimensions(width, height);
       const interactorOpts = geoViewers[camera].value.interactor().options();

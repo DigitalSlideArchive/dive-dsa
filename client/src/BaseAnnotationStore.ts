@@ -1,4 +1,4 @@
-import { ref, Ref, computed } from '@vue/composition-api';
+import { ref, Ref, computed } from 'vue';
 import IntervalTree from '@flatten-js/interval-tree';
 import { checkAttributes, TrackSelectAction } from 'dive-common/use/useActions';
 import { intersection } from 'lodash';
@@ -96,7 +96,6 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
     }
     return value;
   }
-
 
   /**
    * Some instances require returning the undefined value for checking purposes
@@ -202,7 +201,6 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
     return { track: returnTrack, frame: foundFrame };
   }
 
-
   getNewId() {
     if (this.annotationIds.value.length) {
       return this.annotationIds.value.reduce((prev, current) => Math.max(prev, current)) + 1;
@@ -254,7 +252,7 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
 
   remove(annotationId: AnnotationId, disableNotifications = false): void {
     const value = this.get(annotationId);
-    const range = [value.begin, value.end];
+    const range = [value.begin, value.end] as [number, number];
     if (!this.intervalTree.remove(range, annotationId.toString())) {
       throw new Error(`AnnotationId ${annotationId} with range ${range} not found in tree.`);
     }

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, defineComponent, PropType } from '@vue/composition-api';
+import { computed, defineComponent, PropType } from 'vue';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration, useSelectedCamera } from '../../provides';
 import { injectAggregateController } from '../annotators/useMediaController';

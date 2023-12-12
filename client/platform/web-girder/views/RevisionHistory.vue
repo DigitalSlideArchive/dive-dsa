@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, toRef, watch } from '@vue/composition-api';
+import { defineComponent, toRef, watch } from 'vue';
 import {
   useDatasetId, useHandler, usePendingSaveCount, useProgress, useRevisionId,
 } from 'vue-media-annotator/provides';
@@ -78,7 +78,8 @@ export default defineComponent({
         depressed
         :to="{
           name: 'viewer',
-          params: { id: datasetId }}
+          params: { id: datasetId },
+        }
         "
       >
         Return to newest revision

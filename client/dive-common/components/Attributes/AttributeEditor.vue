@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, PropType, Ref, ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   Attribute, AttributeShortcut, NumericAttributeEditorOptions, StringAttributeEditorOptions,
 } from 'vue-media-annotator/use/AttributeTypes';
@@ -11,7 +11,6 @@ import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
 import AttributeValueColors from './AttributeValueColors.vue';
 import AttributeNumberValueColors from './AttributeNumberColors.vue';
-
 
 export default defineComponent({
   name: 'AttributeSettings',
@@ -263,7 +262,7 @@ export default defineComponent({
             <v-tab> Main </v-tab>
             <v-tab> Shortcuts </v-tab>
             <v-tab> Rendering </v-tab>
-            <v-tab v-if="datatype=== 'text' || datatype === 'number'">
+            <v-tab v-if="datatype === 'text' || datatype === 'number'">
               Value Colors
             </v-tab>
           </v-tabs>
@@ -277,8 +276,8 @@ export default defineComponent({
             >
               <div style="word-break: break-word;">
                 {{
-                  error ? error :
-                  'Changes to Attribute Datatypes or Names do not effect \
+                  error ? error
+                  : 'Changes to Attribute Datatypes or Names do not effect \
                currently set attributes on tracks.'
                 }}
               </div>
@@ -290,8 +289,8 @@ export default defineComponent({
               <v-text-field
                 v-model="name"
                 label="Name"
-                :rules="[v => !!v || 'Name is required', v => !v.includes(' ') ||
-                  'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
+                :rules="[v => !!v || 'Name is required', v => !v.includes(' ')
+                  || 'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
                 required
               />
               <v-select
@@ -299,12 +298,12 @@ export default defineComponent({
                 :items="[
                   { text: 'Boolean', value: 'boolean' },
                   { text: 'Number', value: 'number' },
-                  { text: 'Text', value: 'text' }
+                  { text: 'Text', value: 'text' },
                 ]"
                 label="Datatype"
                 @change="typeChange"
               />
-              <div v-if="datatype=== 'number'">
+              <div v-if="datatype === 'number'">
                 <v-radio-group
                   :value="(editor && editor.type) || 'combo'"
                   row
@@ -335,11 +334,11 @@ export default defineComponent({
                     v-model.number="editor.range[0]"
                     dense
                     outlined
-                    :step="editor.range[0]> 1 ? 1 : 0.01"
+                    :step="editor.range[0] > 1 ? 1 : 0.01"
                     type="number"
                     label="Min"
                     :rules="[
-                      v => !isNaN(parseFloat(v))|| 'Number is required',
+                      v => !isNaN(parseFloat(v)) || 'Number is required',
                       v => v < editor.range[1] || 'Min needs to be smaller than the Max']"
                     :max="editor.range[1]"
                     hint="Min limit for slider"
@@ -349,7 +348,7 @@ export default defineComponent({
                     v-model.number="editor.range[1]"
                     dense
                     outlined
-                    :step="editor.range[1]> 1 ? 1 : 0.01"
+                    :step="editor.range[1] > 1 ? 1 : 0.01"
                     type="number"
                     label="Max"
                     :rules="[
@@ -365,7 +364,7 @@ export default defineComponent({
                     v-model.number="editor.steps"
                     dense
                     outlined
-                    :step="editor.steps> 1 ? 1 : 0.01"
+                    :step="editor.steps > 1 ? 1 : 0.01"
                     type="number"
                     :rules="[
                       v => !isNaN(parseFloat(v)) || 'Number is required',

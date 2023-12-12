@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, computed, Ref, PropType,
-} from '@vue/composition-api';
+} from 'vue';
 import { TimelineConfiguration, TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
   useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useTimelineFilters,
@@ -136,7 +136,7 @@ export default defineComponent({
         open-delay="250"
         rounded="lg"
       >
-        <template v-slot:activator="{ on }">
+        <template #activator="{ on }">
           <v-btn
             depressed
             x-small
@@ -189,9 +189,9 @@ export default defineComponent({
         v-for="item in timelineBtns"
         :key="item.name"
         class="ml-1"
-        :class="{'timeline-button':currentView!==item.name || collapsed}"
+        :class="{ 'timeline-button': currentView !== item.name || collapsed }"
         depressed
-        :outlined="currentView===item.name && !collapsed"
+        :outlined="currentView === item.name && !collapsed"
         x-small
         tab-index="-1"
         @click="toggleView(item.name)"
@@ -215,7 +215,7 @@ export default defineComponent({
         open-delay="250"
         rounded="lg"
       >
-        <template v-slot:activator="{ on }">
+        <template #activator="{ on }">
           <v-btn
             depressed
             x-small

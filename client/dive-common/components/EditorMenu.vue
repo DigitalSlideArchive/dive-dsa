@@ -224,9 +224,7 @@ export default Vue.extend({
       clearTimeout(this.toolTimeTimeout);
       if (this.editingDetails !== 'disabled') {
         this.toolTipForce = true;
-        this.toolTimeTimeout = setTimeout(
-          () => { this.toolTipForce = false; }, 2000,
-        ) as unknown as number;
+        this.toolTimeTimeout = setTimeout(() => { this.toolTipForce = false; }, 2000) as unknown as number;
       } else {
         this.toolTipForce = false;
       }
@@ -337,8 +335,8 @@ export default Vue.extend({
           :key="button.id"
         >
           <v-tooltip
-            v-if="button.tooltip &&
-              (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
+            v-if="button.tooltip
+              && (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
           >
             <template #activator="{ on }">
               <v-btn
@@ -396,8 +394,7 @@ export default Vue.extend({
               min="0"
               max="100"
               :value="tailSettings.before"
-              @input="$emit('update:tail-settings', {
-                ...tailSettings, before: Number.parseFloat($event.target.value) })"
+              @input="$emit('update:tail-settings', { ...tailSettings, before: Number.parseFloat($event.target.value) })"
             >
             <div class="py-2" />
             <label for="frames-after">Frames after: {{ tailSettings.after }}</label>
@@ -409,8 +406,7 @@ export default Vue.extend({
               min="0"
               max="100"
               :value="tailSettings.after"
-              @input="$emit('update:tail-settings', {
-                ...tailSettings, after: Number.parseFloat($event.target.value) })"
+              @input="$emit('update:tail-settings', { ...tailSettings, after: Number.parseFloat($event.target.value) })"
             >
           </v-card>
         </v-menu>
@@ -464,15 +460,13 @@ export default Vue.extend({
               min="0"
               max="100"
               :value="overlaySettings.opacity"
-              @input="$emit('update:overlay-settings', {
-                ...overlaySettings, opacity: Number.parseFloat($event.target.value) })"
+              @input="$emit('update:overlay-settings', { ...overlaySettings, opacity: Number.parseFloat($event.target.value) })"
             >
             <v-row dense>
               <v-checkbox
                 :input-value="overlaySettings.colorTransparency"
                 label="Color Transparency"
-                @change="$emit('update:overlay-settings', {
-                  ...overlaySettings, colorTransparency: $event })"
+                @change="$emit('update:overlay-settings', { ...overlaySettings, colorTransparency: $event })"
               />
               <v-tooltip
                 open-delay="100"
@@ -495,8 +489,7 @@ export default Vue.extend({
                 v-if="overlaySettings.colorTransparency"
                 :input-value="overlaySettings.overrideValue"
                 label="Override"
-                @change="$emit('update:overlay-settings', {
-                  ...overlaySettings, overrideValue: $event })"
+                @change="$emit('update:overlay-settings', { ...overlaySettings, overrideValue: $event })"
               />
               <v-tooltip
                 v-if="overlaySettings.colorTransparency"
@@ -529,8 +522,7 @@ export default Vue.extend({
               min="0"
               max="255"
               :value="overlaySettings.overrideVariance || 0"
-              @input="$emit('update:overlay-settings', {
-                ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
+              @input="$emit('update:overlay-settings', { ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
             >
             <v-row
               v-if="overlaySettings.colorTransparency"
@@ -541,7 +533,7 @@ export default Vue.extend({
               <div
                 class="color-box mx-2 edit-color-box"
                 :style="{
-                  backgroundColor: overlaySettings.overrideColor ,
+                  backgroundColor: overlaySettings.overrideColor,
                 }"
                 @click="editTransparentcolor = !editTransparentcolor"
               />
@@ -551,16 +543,14 @@ export default Vue.extend({
                   && overlaySettings.overrideValue && editTransparentcolor"
                 :value="overlaySettings.overrideColor || 'white'"
                 hide-inputs
-                @input="$emit('update:overlay-settings', {
-                  ...overlaySettings, overrideColor: $event })"
+                @input="$emit('update:overlay-settings', { ...overlaySettings, overrideColor: $event })"
               />
             </v-row>
             <v-row dense>
               <v-checkbox
                 :input-value="overlaySettings.colorScale"
                 label="Color Scaling"
-                @change="$emit('update:overlay-settings', {
-                  ...overlaySettings, colorScale: $event })"
+                @change="$emit('update:overlay-settings', { ...overlaySettings, colorScale: $event })"
               />
               <v-tooltip
                 v-if="overlaySettings.colorTransparency"
@@ -587,7 +577,7 @@ export default Vue.extend({
               <div
                 class="color-box mx-2 edit-color-box"
                 :style="{
-                  backgroundColor: overlaySettings.blackColorScale ,
+                  backgroundColor: overlaySettings.blackColorScale,
                 }"
                 @click="editBlackColorScale = !editBlackColorScale"
               />
@@ -595,10 +585,8 @@ export default Vue.extend({
                 v-if="editBlackColorScale"
                 :value="overlaySettings.blackColorScale || '#00FF00'"
                 hide-inputs
-                @input="$emit('update:overlay-settings', {
-                  ...overlaySettings, blackColorScale: $event })"
+                @input="$emit('update:overlay-settings', { ...overlaySettings, blackColorScale: $event })"
               />
-
 
             </v-row>
             <v-row
@@ -611,7 +599,7 @@ export default Vue.extend({
               <div
                 class="color-box mx-2 edit-color-box"
                 :style="{
-                  backgroundColor: overlaySettings.whiteColorScale ,
+                  backgroundColor: overlaySettings.whiteColorScale,
                 }"
                 @click="editWhiteColorScale = !editWhiteColorScale"
               />
@@ -620,8 +608,7 @@ export default Vue.extend({
                 v-if="editWhiteColorScale"
                 :value="overlaySettings.whiteColorScale || '#FF0000'"
                 hide-inputs
-                @input="$emit('update:overlay-settings', {
-                  ...overlaySettings, whiteColorScale: $event })"
+                @input="$emit('update:overlay-settings', { ...overlaySettings, whiteColorScale: $event })"
               />
 
             </v-row>
@@ -653,7 +640,6 @@ export default Vue.extend({
               <v-spacer />
 
             </v-row>
-
 
           </v-card>
         </v-menu>

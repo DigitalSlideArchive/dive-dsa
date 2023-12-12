@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, computed, watch, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import type { DatasetType } from 'dive-common/apispec';
 import FileNameTimeDisplay from 'vue-media-annotator/components/controls/FileNameTimeDisplay.vue';
 import {
@@ -205,7 +205,7 @@ export default defineComponent({
                 v-on="on"
                 @click="$emit('update:collapsed', !collapsed)"
               >
-                {{ collapsed?'mdi-chevron-up-box': 'mdi-chevron-down-box' }}
+                {{ collapsed ? 'mdi-chevron-up-box' : 'mdi-chevron-down-box' }}
               </v-icon>
             </template>
             <span>Collapse/Expand Timeline</span>
@@ -259,11 +259,11 @@ export default defineComponent({
               open-delay="250"
               rounded="pill"
             >
-              <template v-slot:activator="{ on }">
+              <template #activator="{ on }">
                 <v-icon
                   @click="(!volume && setVolume(1)) || (volume && setVolume(0))"
                   v-on="on"
-                > {{ volume === 0 ? 'mdi-volume-off' :'mdi-volume-medium' }}
+                > {{ volume === 0 ? 'mdi-volume-off' : 'mdi-volume-medium' }}
                 </v-icon>
               </template>
               <v-card style="overflow:hidden; width:30px">
@@ -292,7 +292,7 @@ export default defineComponent({
               open-delay="250"
               rounded="lg"
             >
-              <template v-slot:activator="{ on }">
+              <template #activator="{ on }">
                 <v-badge
                   :value="speed != 1.0"
                   color="#0277bd88"

@@ -1,13 +1,10 @@
 /// <reference types="jest" />
-import Vue from 'vue';
-import CompositionApi from '@vue/composition-api';
+import { nextTick } from 'vue';
 import Track, { Feature } from './track';
 import TrackFilterControls from './TrackFilterControls';
 import GroupFilterControls from './GroupFilterControls';
 import CameraStore from './CameraStore';
 import { AnnotationId } from './BaseAnnotation';
-
-Vue.use(CompositionApi);
 
 const markChangesPending = () => null;
 
@@ -81,7 +78,7 @@ describe('useAnnotationFilters', () => {
     expect(tf.allTypes.value).toEqual(['baz', 'bar']);
     expect(tf.filteredAnnotations.value.filter(({ annotation }) => annotation.getType()[0] === 'baz').length).toBe(2);
     tf.updateTypeName({ currentType: 'baz', newType: 'newtype' });
-    await Vue.nextTick(); // must wait a tick for confidence to settle when newtype is added.
+    await nextTick(); // must wait a tick for confidence to settle when newtype is added.
     expect(tf.allTypes.value).toEqual(['newtype', 'bar']);
     expect(tf.filteredAnnotations.value.length).toBe(3);
     expect(tf.confidenceFilters.value).toEqual({ bar: 0.2, newtype: 0.1, default: 0.1 });

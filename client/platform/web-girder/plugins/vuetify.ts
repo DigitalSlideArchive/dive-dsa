@@ -1,4 +1,4 @@
-import Vue from 'vue';
+import Vue, { getCurrentInstance } from 'vue';
 import Vuetify from 'vuetify/lib';
 import colors from 'vuetify/lib/util/colors';
 import { merge } from 'lodash';
@@ -27,3 +27,8 @@ function getVuetify(config: unknown) {
 }
 
 export default getVuetify;
+
+export const useVuetify = () => {
+  const vm = getCurrentInstance();
+  return vm?.proxy?.$vuetify || undefined;
+};

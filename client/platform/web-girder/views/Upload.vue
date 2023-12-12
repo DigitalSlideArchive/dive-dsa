@@ -1,7 +1,7 @@
 <script lang='ts'>
 import {
   defineComponent, Ref, ref, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   ImageSequenceType, VideoType, DefaultVideoFPS, FPSOptions,
   inputAnnotationFileTypes, websafeVideoTypes, otherVideoTypes,
@@ -193,8 +193,11 @@ export default defineComponent({
           try {
             if (dstype !== 'zip') {
               await addPendingUpload(
-                name, processed.fullList, processed.metaFile,
-                processed.annotationFile, processed.mediaList,
+                name,
+                processed.fullList,
+                processed.metaFile,
+                processed.annotationFile,
+                processed.mediaList,
               );
             } else {
               addPendingZipUpload(name, processed.fullList);

@@ -2,7 +2,7 @@
 
 import {
   ref, Ref, computed, set as VueSet, del as VueDel,
-} from '@vue/composition-api';
+} from 'vue';
 import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import * as d3 from 'd3';
@@ -100,7 +100,6 @@ export default function UseAttributes(
     VueSet(attributes.value, data.key, data);
     markChangesPending({ action: 'upsert', attribute: attributes.value[data.key] });
   }
-
 
   function deleteAttribute({ data }: {data: Attribute}, removeFromTracks = false) {
     if (attributes.value[data.key] !== undefined) {
@@ -218,8 +217,10 @@ export default function UseAttributes(
     return true;
   }
 
-  function applyKeyFilter(filter: AttributeKeyFilter,
-    item: Attribute) {
+  function applyKeyFilter(
+    filter: AttributeKeyFilter,
+    item: Attribute,
+  ) {
     if (filter.appliedTo.includes(item.name) || filter.appliedTo.includes('all')) {
       return true;
     }
@@ -367,9 +368,7 @@ export default function UseAttributes(
                 }
                 timelineGraphs.value[key].filtered = false;
               }
-              const timelineData = generateDetectionTimelineData(
-                selectedTrack, graph.filter, graph.settings,
-              );
+              const timelineData = generateDetectionTimelineData(selectedTrack, graph.filter, graph.settings);
               // Need to convert any Number types to Line Chart data;
               const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
               results[key] = {
@@ -439,7 +438,6 @@ export default function UseAttributes(
     });
   }
 
-
   const timelineEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -482,14 +480,13 @@ export default function UseAttributes(
             .domain(colorNums)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .range(colorVals as any);
-          return colorScale(data as number).toString() || item.color || 'white';
+          return colorScale(data as number)?.toString() || item.color || 'white';
         }
         return item.color || trackStyleManager.typeStyling.value.color(data.toString());
       });
     });
     return autoColorIndex;
   });
-
 
   // SWIMLANE Settings
   function generateDetectionSwimlaneData(
@@ -601,9 +598,7 @@ export default function UseAttributes(
                 }
                 swimlaneGraphs.value[key].filtered = false;
               }
-              const swimlaneData = generateDetectionSwimlaneData(
-                selectedTrack, graph.filter, graph.settings, numericalColorScaling.value,
-              );
+              const swimlaneData = generateDetectionSwimlaneData(selectedTrack, graph.filter, graph.settings, numericalColorScaling.value);
               results[key] = swimlaneData;
             }
           } else if (graph.displaySettings && graph.displaySettings.display === 'selected') {
@@ -663,7 +658,6 @@ export default function UseAttributes(
       }
     });
   }
-
 
   const swimlaneEnabled = computed(() => {
     const filters: Record<string, boolean> = {};

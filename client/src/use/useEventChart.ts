@@ -1,5 +1,4 @@
-
-import { computed, Ref } from '@vue/composition-api';
+import { computed, Ref } from 'vue';
 import type { AnnotationWithContext } from '../BaseFilterControls';
 import type { TypeStyling } from '../StyleManager';
 import BaseAnnotation, { AnnotationId } from '../BaseAnnotation';

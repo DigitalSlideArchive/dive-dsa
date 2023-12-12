@@ -2,9 +2,8 @@
 <script lang="ts">
 import {
   defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'GeneralConfiguration',
@@ -15,12 +14,12 @@ export default defineComponent({
     const configMan = useConfiguration();
     const generalDialog = ref(false);
     const baseConfiguration = ref(
-        configMan.configuration.value?.general?.baseConfiguration
+      configMan.configuration.value?.general?.baseConfiguration
          || (configMan.hierarchy.value?.length ? configMan.hierarchy.value[0].id : null),
     );
     const mergeType = ref(configMan.configuration.value?.general?.configurationMerge || 'disabled');
     const disableConfigurationEditing = ref(
-        configMan.configuration.value?.general?.disableConfigurationEditing,
+      configMan.configuration.value?.general?.disableConfigurationEditing,
     );
     const mergeSelection = ref(['merge up', 'merge down', 'disabled']);
     const launchEditor = () => {
@@ -31,7 +30,6 @@ export default defineComponent({
       configurationMerge: mergeType.value,
       disableConfigurationEditing: disableConfigurationEditing.value,
     };
-
 
     const saveChanges = () => {
       // We need to take the new values and set them on the 'general' settings

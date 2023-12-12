@@ -5,7 +5,7 @@ import {
   ref,
   PropType,
   computed,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   useSelectedTrackId,
   useCameraStore,
@@ -107,9 +107,7 @@ export default defineComponent({
       if (selectedAttributes.value && selectedAttributes.value.attributes) {
         attributeVals = selectedAttributes.value.attributes;
       }
-      return sortAndFilterAttributes(
-        props.attributes, mode, attributeVals, sortingMode.value, additionFilters,
-      );
+      return sortAndFilterAttributes(props.attributes, mode, attributeVals, sortingMode.value, additionFilters);
     });
 
     const activeAttributesCount = computed(
@@ -124,8 +122,10 @@ export default defineComponent({
       activeSettings.value = !activeSettings.value;
     }
 
-    function updateAttribute({ name, value }: { name: string; value: unknown },
-      attribute: Attribute) {
+    function updateAttribute(
+      { name, value }: { name: string; value: unknown },
+      attribute: Attribute,
+    ) {
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
@@ -188,7 +188,6 @@ export default defineComponent({
       }
       return undefined;
     }
-
 
     return {
       frameRef,
@@ -298,7 +297,7 @@ export default defineComponent({
           icon="mdi-filter"
           :color="filtersActive ? 'primary' : 'default'"
           :tooltip-text="filtersActive
-            ? 'Filters are active, click to view': 'No filters are active, click to edit'"
+            ? 'Filters are active, click to view' : 'No filters are active, click to edit'"
           @click="openFilter"
         />
         <tooltip-btn
@@ -338,8 +337,8 @@ export default defineComponent({
         >
           <v-row
             v-if="
-              activeSettings ||
-                selectedAttributes.attributes[attribute.name] !== undefined
+              activeSettings
+                || selectedAttributes.attributes[attribute.name] !== undefined
             "
             class="ma-0"
             dense

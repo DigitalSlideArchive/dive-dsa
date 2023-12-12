@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import type {
@@ -23,6 +23,16 @@ const TypeListHeaderHeight = 80;
 export default defineComponent({
   name: 'AttributeFilters',
 
+  components: {
+    TooltipBtn,
+    AttributeNumberFilter: AttributeNumberFilterVue,
+    AttributeStringFilter: AttributeStringFilterVue,
+    AttributeKeyFilter: AttributeKeyFilterVue,
+    AttributeKeyFilterSettings,
+    AttributeStringFilterSettings,
+    AttributeNumberFilterSettings,
+  },
+
   props: {
     height: {
       type: Number,
@@ -32,16 +42,6 @@ export default defineComponent({
       type: Number,
       default: 300,
     },
-  },
-
-  components: {
-    TooltipBtn,
-    AttributeNumberFilter: AttributeNumberFilterVue,
-    AttributeStringFilter: AttributeStringFilterVue,
-    AttributeKeyFilter: AttributeKeyFilterVue,
-    AttributeKeyFilterSettings,
-    AttributeStringFilterSettings,
-    AttributeNumberFilterSettings,
   },
 
   setup(props) {

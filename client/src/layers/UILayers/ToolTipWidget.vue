@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, PropType, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { StateStyles } from '../../StyleManager';
 import { ToolTipWidgetData } from './UILayerTypes';
 /*
@@ -51,13 +51,13 @@ export default defineComponent({
 
 <template>
   <v-card
-    v-if="dataList.value.length"
+    v-if="dataList.length"
     dark
     class="d-inline-flex pa-2"
   >
     <div>
       <div
-        v-for="(item, index) in dataList.value"
+        v-for="(item, index) in dataList"
         :key="index"
       >
         <span

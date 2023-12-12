@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { Configuration, UISettings } from 'vue-media-annotator/ConfigurationManager';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import UIInteractionsVue from './UISettings/UIInteractions.vue';
@@ -14,7 +14,7 @@ import UITimelineVue from './UISettings/UITimeline.vue';
 import UITrackDetailsVue from './UISettings/UITrackDetails.vue';
 
 export default defineComponent({
-  name: 'uiSettings',
+  name: 'UiSettings',
   components: {
     'ui-interactions': UIInteractionsVue,
     'ui-top-bar': UITopBarVue,
@@ -70,8 +70,10 @@ export default defineComponent({
       configMan.setRootUISettings(data as UISettings);
       const updatedConfig = { UISettings: data, ...configMan.configuration.value };
       if (updatedConfig) {
-        configMan.saveConfiguration(configMan.configurationId.value,
-          { ...updatedConfig as Configuration });
+        configMan.saveConfiguration(
+          configMan.configurationId.value,
+          { ...updatedConfig as Configuration },
+        );
       }
       generalDialog.value = false;
     };

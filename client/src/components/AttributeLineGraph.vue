@@ -7,7 +7,7 @@ import {
   Ref,
   PropType,
   del as VueDel,
-} from '@vue/composition-api';
+} from 'vue';
 import AttributeKeyFilterVue from 'vue-media-annotator/components/AttributeFilter/AttributeKeyFilter.vue';
 import {
   TimeLineFilter,
@@ -19,19 +19,18 @@ import {
 } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
 
-
 /* Magic numbers involved in height calculation */
 export default defineComponent({
   name: 'AttributeLineGraph',
+  components: {
+    TooltipBtn,
+    AttributeKeyFilter: AttributeKeyFilterVue,
+  },
   props: {
     timelineGraph: {
       type: Object as PropType<TimelineGraph>,
       required: true,
     },
-  },
-  components: {
-    TooltipBtn,
-    AttributeKeyFilter: AttributeKeyFilterVue,
   },
   setup(props, { emit }) {
     const {
@@ -145,7 +144,6 @@ export default defineComponent({
         editDisplaySettings.value.trackFilter.splice(editDisplaySettings.value.trackFilter.findIndex((data) => data === item));
       }
     };
-
 
     return {
       setTimelineEnabled,
@@ -278,7 +276,7 @@ export default defineComponent({
             v-for="key in editTimelineFilter.appliedTo"
             :key="`graph_details_${key}`"
             class="graph-settings-list my-2"
-            :class="{'selected-setting': key === editTimelineKey}"
+            :class="{ 'selected-setting': key === editTimelineKey }"
           >
             <v-col><b>{{ key }}</b></v-col>
             <v-col
@@ -326,7 +324,7 @@ export default defineComponent({
               <b>Area col:</b>:<div
                 class="type-color-box"
                 :style="{
-                  backgroundColor:editTimelineSettings[key].areaColor,
+                  backgroundColor: editTimelineSettings[key].areaColor,
                 }"
               />
             </v-col>

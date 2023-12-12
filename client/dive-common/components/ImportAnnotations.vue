@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, ref } from '@vue/composition-api';
+import { defineComponent, ref } from 'vue';
 import { useApi } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useHandler } from 'vue-media-annotator/provides';
@@ -68,7 +68,8 @@ export default defineComponent({
             await reloadAnnotations();
           }
         }
-      } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
         const text = [getResponseError(error)];
         prompt({
           title: 'Import Failed',
@@ -112,7 +113,7 @@ export default defineComponent({
                 {{ processing ? 'mdi-spin mdi-sync' : 'mdi-application-import' }}
               </v-icon>
               <span
-                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                v-show=" buttonOptions.block"
                 class="pl-1"
               >
                 Import
