@@ -15,6 +15,10 @@ function chainWebpack(config) {
   config.resolve.alias.set('dive-common', path.resolve(__dirname, 'dive-common'));
   config.resolve.alias.set('vue-media-annotator', path.resolve(__dirname, 'src'));
   config.resolve.alias.set('platform', path.resolve(__dirname, 'platform'));
+  // This is needed for local development when using a package json that has "@bryonlewis/mypackage: "file:/home/bryon/dev/package"
+  // It will ignore the additional node_modules that are loaded.
+  config.resolve.alias.set('vue$', path.resolve(__dirname, './node_modules/vue/dist/vue.runtime.esm.js'));
+
   config.externals({
     /**
      * Specify vtkjs as external dependency on global context to

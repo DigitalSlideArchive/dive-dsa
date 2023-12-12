@@ -219,7 +219,6 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
 
   autoColorIndex: ((data: string | number | boolean) => string)[];
 
-
   constructor(params: BaseLayerParams & AttributeLayerParams) {
     super(params);
     this.formatter = defaultFormatter;
@@ -265,7 +264,7 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
               .domain(colorNums)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .range(colorVals as any);
-            return (data !== undefined && colorScale(data as number).toString()) || item.color || 'white';
+            return (data !== undefined && colorScale(data as number)?.toString()) || item.color || 'white';
           }
           return item.color || 'white';
         });

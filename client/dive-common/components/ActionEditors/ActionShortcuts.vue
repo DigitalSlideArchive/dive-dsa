@@ -3,7 +3,7 @@
 import {
   computed,
   defineComponent, ref, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   DIVEAction, DIVEActionShortcut, TrackSelectAction,
 } from 'dive-common/use/useActions';
@@ -13,7 +13,6 @@ import {
 import ActionEditor from './ActionEditor.vue';
 import GetShortcut from './GetShortcut.vue';
 import TrackFilter from './TrackFilter.vue';
-
 
 export default defineComponent({
   name: 'ActionShortcuts',
@@ -66,7 +65,6 @@ export default defineComponent({
       updateActionList();
     };
 
-
     const saveShortcut = () => {
       if (editingShortcut.value) {
         configMan.updateShortcut(editingShortcut.value, addEditShortcutIndex.value);
@@ -91,7 +89,6 @@ export default defineComponent({
         editingShortcut.value.shortcut = shortcut;
       }
     };
-
 
     const removeShortcut = (index: number) => {
       configMan.removeShortCut(index);
@@ -354,7 +351,7 @@ export default defineComponent({
             <v-spacer />
             <v-btn
               x-small
-              @click="editingShortcut = null; addEditShortcut= false"
+              @click="editingShortcut = null; addEditShortcut = false"
             >
               Cancel
             </v-btn>
@@ -371,7 +368,7 @@ export default defineComponent({
         <v-card-actions>
           <v-btn
             x-small
-            @click="generalDialog = false; editingShortcut = null; addEditShortcut= false"
+            @click="generalDialog = false; editingShortcut = null; addEditShortcut = false"
           >
             Cancel
           </v-btn>

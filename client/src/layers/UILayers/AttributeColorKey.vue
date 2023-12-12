@@ -1,10 +1,9 @@
 <script lang="ts">
 import {
   computed,
-  defineComponent, onMounted, PropType, Ref, ref, watch,
-} from '@vue/composition-api';
+  defineComponent, onMounted, PropType, Ref, ref, watch, nextTick,
+} from 'vue';
 import * as d3 from 'd3';
-import { nextTick } from 'process';
 import { useCameraStore } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 /*

@@ -262,13 +262,13 @@ export default Vue.extend({
         <span> {{ tooltipComputed.name }}</span>
         <span
           class="type-color-box"
-          :style="{backgroundColor: tooltipComputed.contentColor}"
+          :style="{ backgroundColor: tooltipComputed.contentColor }"
         />
         :
         <span> {{ tooltipComputed.subDisplay }}</span>
         <span
           class="type-color-box"
-          :style="{backgroundColor: tooltipComputed.subColor}"
+          :style="{ backgroundColor: tooltipComputed.subColor }"
         />
       </v-row>
     </div>

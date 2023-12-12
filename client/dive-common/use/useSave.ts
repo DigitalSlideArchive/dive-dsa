@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { readonly, ref, Ref } from '@vue/composition-api';
+import { readonly, ref, Ref } from 'vue';
 
 import Track, { TrackId } from 'vue-media-annotator/track';
 import {
@@ -26,7 +26,8 @@ interface ChangeMap {
   meta: number;
 }
 function _updatePendingChangeMap<K, V>(
-  key: K, value: V,
+  key: K,
+  value: V,
   action: 'upsert' | 'delete',
   upsert: Map<K, V>,
   del: Set<K>,

@@ -1,5 +1,5 @@
 import type { GirderModel, GirderModelType } from '@girder/components/src';
-import { inject } from '@vue/composition-api';
+import { inject } from 'vue';
 import type { BrandData } from 'platform/web-girder/api';
 import type { GirderMetadata } from 'platform/web-girder/constants';
 import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
@@ -39,7 +39,6 @@ export interface UserState {
     status: string;
   };
 }
-
 
 export interface JobState {
   jobIds: Record<string, number>;

@@ -51,9 +51,8 @@ function boundToGeojson(bounds: RectBounds): GeoJSON.Polygon {
   };
 }
 
-function removePoint(
-  data: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.LineString | GeoJSON.Point>, index: number,
-): boolean {
+// eslint-disable-next-line vue/max-len
+function removePoint(data: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.LineString | GeoJSON.Point>, index: number): boolean {
   if (data.geometry.type === 'Polygon') {
     const coords = data.geometry.coordinates[0];
     const second = coords[1];
@@ -148,7 +147,8 @@ function reOrderBounds(bounds: RectBounds) {
 }
 
 function getResponseError(error: AxiosError): string {
-  const { response } = error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { response } = error as { response: any };
   return String(response?.data?.message || response?.data || error);
 }
 

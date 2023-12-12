@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent } from '@vue/composition-api';
+import { defineComponent } from 'vue';
 import { throttle, debounce } from 'lodash';
 
 export default defineComponent({
@@ -25,9 +25,7 @@ export default defineComponent({
   setup(props, { emit }) {
     function _updateConfidence(event: InputEvent) {
       if (event.target) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore
-        emit('update:confidence', Number.parseFloat(event.target.value));
+        emit('update:confidence', Number.parseFloat((event.target as HTMLInputElement).value));
       }
     }
     function _emitEnd() {

@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, PropType, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
@@ -32,7 +32,6 @@ export default defineComponent({
     const copy = ref(props.value);
     const awaitingKeyPress = ref(false);
     const shortcutError: Ref<{description: string; type: 'System' | 'Custom'}| null> = ref(null);
-
 
     const existingShortcuts = computed(() => {
       const dataList: Record<string, {description: string; type: 'System' | 'Custom'}> = {};

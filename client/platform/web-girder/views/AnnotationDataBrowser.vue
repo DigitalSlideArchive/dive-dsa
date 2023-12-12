@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, Ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   GirderFileManager, getLocationType, GirderModel,
 } from '@girder/components/src';
@@ -12,15 +12,15 @@ import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
 import { useStore } from '../store/types';
 
 export default defineComponent({
+  components: {
+    GirderFileManager,
+    TooltipButton,
+  },
   props: {
     datasetId: {
       type: String,
       required: true,
     },
-  },
-  components: {
-    GirderFileManager,
-    TooltipButton,
   },
 
   setup(props) {
@@ -73,7 +73,6 @@ export default defineComponent({
 });
 </script>
 
-
 <template>
   <span>
     <tooltip-button
@@ -115,7 +114,7 @@ export default defineComponent({
             @update:location="setLocation($event)"
           >
             <template #headerwidget />
-            <template #row="{item}">
+            <template #row="{ item }">
               <span>{{ item.name }}</span>
               <v-icon
                 v-if="getters['Jobs/datasetRunningState'](item._id)"

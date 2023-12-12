@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, Ref, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import { TimelineConfiguration, TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
 import { useTimelineFilters, useAttributesFilters } from 'vue-media-annotator/provides';
 
@@ -121,13 +121,13 @@ export default defineComponent({
         item-text="name"
         label="Timeline"
       >
-        <template v-slot:item="{ item }">
+        <template #item="{ item }">
           <span>Name: {{ item.name }} Type: {{ item.type }} </span>
         </template>
       </v-select>
       <v-btn
         :disabled="!addTimeline"
-        @click="$emit('add-timeline', {name: addTimeline, type: returnTimelineType(addTimeline)})"
+        @click="$emit('add-timeline', { name: addTimeline, type: returnTimelineType(addTimeline) })"
       >
         Add Timeline
       </v-btn>
@@ -138,7 +138,7 @@ export default defineComponent({
         type="number"
         label="Max Timeline Area Height"
         style="max-width: 150px;"
-        :rules="[v => ( v >= 50 ) || 'Value needs to be 50 or higher']"
+        :rules="[v => (v >= 50) || 'Value needs to be 50 or higher']"
         @change="$emit('update-height', $event)"
       />
     </v-row>
@@ -201,7 +201,7 @@ export default defineComponent({
             type="number"
             hint="-1 is auto sizing"
             persistent-hint
-            :rules="[v => ( v >= -1 ) || 'Value needs to be -1 or higher']"
+            :rules="[v => (v >= -1) || 'Value needs to be -1 or higher']"
           />
           <v-text-field
             v-model.number="currentEditOrder"

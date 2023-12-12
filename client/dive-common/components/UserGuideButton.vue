@@ -40,7 +40,7 @@ export default {
       v-model="dialog"
       width="800"
     >
-      <template #activator="{on}">
+      <template #activator="{ on }">
         <v-btn
           dense
           depressed
@@ -53,7 +53,6 @@ export default {
             mdi-help-circle
           </v-icon>
           <span
-            v-show="!$vuetify.breakpoint.mdAndDown"
             class="pl-1"
           >
             Help

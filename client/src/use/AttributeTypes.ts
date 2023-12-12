@@ -95,6 +95,7 @@ export interface Attribute {
   }
 
 export type Attributes = Record<string, Attribute>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type ValueOf<T> = T[keyof T];
 
 export interface AttributeNumberFilter {

@@ -2,14 +2,13 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref,
-} from '@vue/composition-api';
+} from 'vue';
 import { DIVEAction } from 'dive-common/use/useActions';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useStore } from 'platform/web-girder/store/types';
 import {
   useAttributes, useCameraStore, useConfiguration, useHandler, useSelectedTrackId, useTime,
 } from 'vue-media-annotator/provides';
-
 
 export default defineComponent({
   name: 'AttributeShortcutToggle',
@@ -118,6 +117,7 @@ export default defineComponent({
     };
 
     const mouseTrap = computed(() => {
+      // eslint-disable-next-line @typescript-eslint/ban-types
       const actions: {bind: string; handler: Function; disabled: boolean}[] = [];
 
       // System Actions
@@ -128,6 +128,7 @@ export default defineComponent({
 
       shortcutList.value.forEach((shortcut) => {
         const bind = shortcut.shortcut;
+        // eslint-disable-next-line @typescript-eslint/ban-types
         let handler: Function;
         if (shortcut.type === 'set') {
           handler = () => {
@@ -198,7 +199,7 @@ export default defineComponent({
       <template #activator="{ on }">
         <v-icon
           v-mousetrap=" shortcutsOn ? mouseTrap : []"
-          :color="shortcutsOn ? 'primary': 'default'"
+          :color="shortcutsOn ? 'primary' : 'default'"
           v-on="on"
           @click="shortcutsOn = !shortcutsOn"
         >

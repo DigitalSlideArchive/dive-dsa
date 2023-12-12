@@ -1,6 +1,6 @@
 import {
   ref, computed, Ref, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import type { AnnotationId } from './BaseAnnotation';
 import type Group from './Group';
 import type Track from './track';
@@ -132,7 +132,6 @@ export default abstract class BaseFilterControls<T extends Track | Group> {
       }
     });
   }
-
 
   importTypes(types: string[], userInteraction = true) {
     types.forEach((type) => {

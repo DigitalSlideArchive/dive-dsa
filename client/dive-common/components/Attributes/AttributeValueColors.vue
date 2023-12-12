@@ -2,14 +2,13 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, Ref, watch, del as VueDel, computed,
-} from '@vue/composition-api';
+} from 'vue';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { useCameraStore, useTrackFilters, useTrackStyleManager } from 'vue-media-annotator/provides';
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 
 import { isHexColorCode } from 'vue-media-annotator/utils';
-
 
 export default defineComponent({
   name: 'AttributeValueColors',
@@ -28,7 +27,6 @@ export default defineComponent({
     const cameraStore = useCameraStore();
     const store = useStore();
     const user = (store.state.User.user?.login || '') as string;
-
 
     const predeterminedValues = ref(props.attribute.values || []);
 
@@ -142,7 +140,6 @@ export default defineComponent({
       updateColors();
     };
 
-
     const setKeySettings = () => {
       toggleKeySettings.value = !toggleKeySettings.value;
       if (toggleKeySettings.value) {
@@ -162,7 +159,6 @@ export default defineComponent({
         colorKeySettings.value.trackFilter.splice(colorKeySettings.value.trackFilter.findIndex((data) => data === item));
       }
     };
-
 
     watch(colorKey, () => updateColors());
     watch(colorKeySettings, () => updateColors(), { deep: true });
@@ -229,7 +225,7 @@ export default defineComponent({
         <v-spacer />
       </v-row>
       <v-row
-        v-for="(val,key) in attributeColors"
+        v-for="(val, key) in attributeColors"
         :key="val"
         align="center"
         justify="center"

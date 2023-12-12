@@ -2,7 +2,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, PropType, computed, watch,
-} from '@vue/composition-api';
+} from 'vue';
 import TooltipBtn from 'vue-media-annotator/components/TooltipButton.vue';
 import {
   EventChart,
@@ -117,7 +117,6 @@ export default defineComponent({
       return true;
     };
 
-
     watch(() => configMan.configuration.value?.timelineConfigs, () => {
       nudge.value += 1;
     }, { deep: true });
@@ -173,7 +172,6 @@ export default defineComponent({
       return timeline.maxHeight - 20;
     };
 
-
     return {
       attributeDataTimeline,
       swimlaneEnabled,
@@ -215,23 +213,23 @@ export default defineComponent({
             v-if="timeline.dismissable"
             icon="mdi-close"
             tooltip-text="Hide Timeline"
-            @click="$emit('dismiss', {name: timeline.name, height: getTimelineHeight(timeline)})"
+            @click="$emit('dismiss', { name: timeline.name, height: getTimelineHeight(timeline) })"
           />
         </v-row>
 
         <line-chart
-          v-if="timeline.name==='detections'"
+          v-if="timeline.name === 'Detections'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
           :data="lineChartData"
           :client-width="clientWidth"
           :client-height="getTimelineHeight(timeline)"
-          :class="{'timeline-config': timelineList.length}"
+          :class="{ 'timeline-config': timelineList.length }"
           :margin="margin"
         />
         <event-chart
-          v-if="timeline.name==='events'"
+          v-if="timeline.name === 'events'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
@@ -239,11 +237,11 @@ export default defineComponent({
           :client-width="clientWidth"
           :client-height="getTimelineHeight(timeline)"
           :margin="margin"
-          :class="{'timeline-config': timelineList.length}"
+          :class="{ 'timeline-config': timelineList.length }"
           @select-track="$emit('select-track', $event)"
         />
         <event-chart
-          v-if="timeline.name==='Groups'"
+          v-if="timeline.name === 'Groups'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
@@ -251,7 +249,7 @@ export default defineComponent({
           :client-width="clientWidth"
           :client-height="getTimelineHeight(timeline)"
           :margin="margin"
-          :class="{'timeline-config': timelineList.length}"
+          :class="{ 'timeline-config': timelineList.length }"
           @select-track="$emit('select-group', $event)"
         />
         <span v-if="Object.values(attributeSwimlaneData).length">
@@ -260,7 +258,7 @@ export default defineComponent({
             :key="`Swimlane_${index}`"
           >
             <attribute-swimlane-graph
-              v-if="timeline.name=== enabledSwimlanes[index] && data"
+              v-if="timeline.name === enabledSwimlanes[index] && data"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
@@ -268,7 +266,7 @@ export default defineComponent({
               :client-width="clientWidth"
               :client-height="getTimelineHeight(timeline)"
               :margin="margin"
-              :class="{'timeline-config': timelineList.length}"
+              :class="{ 'timeline-config': timelineList.length }"
               @scroll-swimlane="swimlaneOffset = $event"
             />
           </span>
@@ -279,7 +277,7 @@ export default defineComponent({
             :key="`Timeline_${index}`"
           >
             <line-chart
-              v-if="timeline.name=== enabledTimelines[index] && data.data.length"
+              v-if="timeline.name === enabledTimelines[index] && data.data.length"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
@@ -289,10 +287,10 @@ export default defineComponent({
               :y-range="data.yRange"
               :ticks="data.ticks || -1"
               :margin="margin"
-              :class="{'timeline-config': timelineList.length}"
+              :class="{ 'timeline-config': timelineList.length }"
               :atrributes-chart="true"
             />
-            <v-row v-else-if="timeline.name=== enabledTimelines[index]">
+            <v-row v-else-if="timeline.name === enabledTimelines[index]">
               <v-spacer />
               <h2>
                 No Data to Graph
@@ -308,7 +306,7 @@ export default defineComponent({
             :key="`filter_timeline_${item.name}`"
           >
             <event-chart
-              v-if="timeline.name===item.name && timelineFilterMap[item.name]"
+              v-if="timeline.name === item.name && timelineFilterMap[item.name]"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
@@ -316,14 +314,14 @@ export default defineComponent({
               :client-width="clientWidth"
               :client-height="getTimelineHeight(timeline)"
               :margin="margin"
-              :class="{'timeline-config': timelineList.length}"
+              :class="{ 'timeline-config': timelineList.length }"
               @select-track="$emit('select-group', $event)"
             />
           </span>
         </span>
         <div
           v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
-          :class="{'timeline-config': timelineList.length}"
+          :class="{ 'timeline-config': timelineList.length }"
           :style="`min-height:${getTimelineHeight(timeline)}px;max-height:${getTimelineHeight(timeline)}px;`"
         >
           <v-row>
@@ -338,7 +336,7 @@ export default defineComponent({
     </span>
     <span v-else>
       <line-chart
-        v-if="currentView==='detections'"
+        v-if="currentView === 'Detections'"
         :start-frame="startFrame"
         :end-frame="endFrame"
         :max-frame="childMaxFrame"
@@ -348,7 +346,7 @@ export default defineComponent({
         :margin="margin"
       />
       <event-chart
-        v-if="currentView==='Events'"
+        v-if="currentView === 'Events'"
         :start-frame="startFrame"
         :end-frame="endFrame"
         :max-frame="childMaxFrame"
@@ -359,7 +357,7 @@ export default defineComponent({
         @select-track="$emit('select-track', $event)"
       />
       <event-chart
-        v-if="currentView==='Groups'"
+        v-if="currentView === 'Groups'"
         :start-frame="startFrame"
         :end-frame="endFrame"
         :max-frame="childMaxFrame"
@@ -375,7 +373,7 @@ export default defineComponent({
           :key="`Swimlane_${index}`"
         >
           <attribute-swimlane-graph
-            v-if="currentView=== enabledSwimlanes[index] && data"
+            v-if="currentView === enabledSwimlanes[index] && data"
             :start-frame="startFrame"
             :end-frame="endFrame"
             :max-frame="childMaxFrame"
@@ -385,7 +383,7 @@ export default defineComponent({
             :margin="margin"
             @scroll-swimlane="swimlaneOffset = $event"
           />
-          <v-row v-else-if="currentView=== enabledSwimlanes[index]">
+          <v-row v-else-if="currentView === enabledSwimlanes[index]">
             <v-spacer />
             <h2>
               No Data to Graph
@@ -411,7 +409,7 @@ export default defineComponent({
           :key="`Timeline_${index}`"
         >
           <line-chart
-            v-if="currentView=== enabledTimelines[index] && data.data.length"
+            v-if="currentView === enabledTimelines[index] && data.data.length"
             :start-frame="startFrame"
             :end-frame="endFrame"
             :max-frame="childMaxFrame"
@@ -423,7 +421,7 @@ export default defineComponent({
             :margin="margin"
             :atrributes-chart="true"
           />
-          <v-row v-else-if="currentView=== enabledTimelines[index]">
+          <v-row v-else-if="currentView === enabledTimelines[index]">
             <v-spacer />
             <h2>
               No Data to Graph
@@ -448,7 +446,7 @@ export default defineComponent({
           :key="`filter_timeline_${item.name}`"
         >
           <event-chart
-            v-if="currentView===item.name && timelineFilterMap[item.name]"
+            v-if="currentView === item.name && timelineFilterMap[item.name]"
             :start-frame="startFrame"
             :end-frame="endFrame"
             :max-frame="childMaxFrame"

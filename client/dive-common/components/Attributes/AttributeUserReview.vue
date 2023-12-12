@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, ref, Ref, computed,
-} from '@vue/composition-api';
+} from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import { useAttributes, useCameraStore } from 'vue-media-annotator/provides';
@@ -36,7 +36,6 @@ export default defineComponent({
   },
 });
 </script>
-
 
 <template>
   <StackedVirtualSidebarContainer

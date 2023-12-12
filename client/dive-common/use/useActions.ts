@@ -1,6 +1,7 @@
 /* eslint-disable max-len */
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Action {
     type: string;
 }

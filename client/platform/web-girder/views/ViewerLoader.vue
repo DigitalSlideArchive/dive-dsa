@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, onBeforeUnmount, onMounted, ref, toRef, watch, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 
 import Viewer from 'dive-common/components/Viewer.vue';
 import NavigationTitle from 'dive-common/components/NavigationTitle.vue';
@@ -13,6 +13,8 @@ import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+
+import { useRouter } from 'vue-router/composables';
 import JobsTab from './JobsTab.vue';
 import Export from './Export.vue';
 import Clone from './Clone.vue';
@@ -59,6 +61,13 @@ export default defineComponent({
     ...context.getComponents(),
   },
 
+  // TODO: This will require an import from vue-router for Vue3 compatibility
+  async beforeRouteLeave(to, from, next) {
+    if (await this.viewerRef.navigateAwayGuard()) {
+      next();
+    }
+  },
+
   props: {
     id: {
       type: String,
@@ -70,14 +79,8 @@ export default defineComponent({
     },
   },
 
-  // TODO: This will require an import from vue-router for Vue3 compatibility
-  async beforeRouteLeave(to, from, next) {
-    if (await this.viewerRef.navigateAwayGuard()) {
-      next();
-    }
-  },
-
-  setup(props, ctx) {
+  setup(props) {
+    const router = useRouter();
     const { prompt } = usePrompt();
     const viewerRef = ref();
     const store = useStore();
@@ -139,7 +142,7 @@ export default defineComponent({
     });
 
     function routeRevision(revisionId: number) {
-      ctx.root.$router.replace({
+      router.replace({
         name: 'revision viewer',
         params: { id: props.id, revision: revisionId.toString() },
       });
@@ -196,6 +199,7 @@ export default defineComponent({
       routeRevision,
       enabledFeatures,
       enabledUISettings,
+      store,
     };
   },
 });
@@ -255,7 +259,7 @@ export default defineComponent({
         block-on-unsaved
       />
       <Clone
-        v-if="$store.state.Dataset.meta && enabledFeatures['clone']"
+        v-if="store.state.Dataset.meta && enabledFeatures['clone']"
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-id="id"
         :revision="revisionNum"

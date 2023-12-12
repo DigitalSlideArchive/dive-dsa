@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, ref } from '@vue/composition-api';
+import { defineComponent, ref } from 'vue';
 import GenerateTracks from './GenerateTracks.vue';
 
 export default defineComponent({
@@ -56,7 +56,7 @@ export default defineComponent({
                 mdi-toolbox
               </v-icon>
               <span
-                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                v-show="buttonOptions.block"
                 class="pl-1"
               >
                 Tools

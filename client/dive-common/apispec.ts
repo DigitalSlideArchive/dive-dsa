@@ -1,4 +1,4 @@
-import { provide } from '@vue/composition-api';
+import { provide } from 'vue';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
 import { GroupData } from 'vue-media-annotator/Group';
 
@@ -107,7 +107,6 @@ interface MediaImportResponse {
   mediaConvertList: string[];
 }
 
-
 /**
  * The parts of metadata a user should be able to modify.
  */
@@ -122,7 +121,6 @@ interface DatasetMetaMutable {
   configuration?: Configuration;
 }
 const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'timelines', 'swimlanes'];
-
 
 interface DatasetMeta {
   id: Readonly<string>;

@@ -1,9 +1,6 @@
 /// <reference types="jest" />
-import Vue from 'vue';
-import CompositionApi, { watchEffect } from '@vue/composition-api';
+import { watchEffect, nextTick } from 'vue';
 import TrackStore from './TrackStore';
-
-Vue.use(CompositionApi);
 
 describe('TrackStore', () => {
   it('can add and remove tracks', () => {
@@ -68,7 +65,7 @@ describe('TrackStore', () => {
     });
 
     track.setAttribute('foo', 'bar');
-    await Vue.nextTick();
+    await nextTick();
     expect(called).toBeTruthy();
     called = false;
 
@@ -76,12 +73,12 @@ describe('TrackStore', () => {
       keyframe: true,
       frame: 0,
     });
-    await Vue.nextTick();
+    await nextTick();
     expect(called).toBeTruthy();
     called = false;
 
     track.setType('foo');
-    await Vue.nextTick();
+    await nextTick();
     expect(called).toBeTruthy();
     called = false;
   });

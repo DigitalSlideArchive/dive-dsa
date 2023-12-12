@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, watch, PropType, Ref, ref, computed, toRef,
-} from '@vue/composition-api';
+} from 'vue';
 
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
@@ -144,7 +144,6 @@ export default defineComponent({
       typeStyling: typeStylingRef,
     }, trackStore);
 
-
     const textLayer = new TextLayer({
       annotator,
       stateStyling: trackStyleManager.stateStyles,
@@ -207,7 +206,8 @@ export default defineComponent({
     ) {
       const currentFrameIds: AnnotationId[] | undefined = trackStore?.intervalTree
         .search([frame, frame])
-        .map((str: string) => parseInt(str, 10));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((str: any) => parseInt(str, 10));
       const inlcudesTooltip = visibleModes.includes('tooltip');
       rectAnnotationLayer.setHoverAnnotations(inlcudesTooltip);
       polyAnnotationLayer.setHoverAnnotations(inlcudesTooltip);
@@ -441,7 +441,6 @@ export default defineComponent({
       }
     };
 
-
     //Sync of internal geoJS state with the application
     editAnnotationLayer.bus.$on('editing-annotation-sync', (editing: boolean) => {
       handler.trackSelect(selectedTrackIdRef.value, editing);
@@ -479,8 +478,10 @@ export default defineComponent({
         );
       }
     });
-    editAnnotationLayer.bus.$on('update:selectedIndex',
-      (index: number, _type: EditAnnotationTypes, key = '') => handler.selectFeatureHandle(index, key));
+    editAnnotationLayer.bus.$on(
+      'update:selectedIndex',
+      (index: number, _type: EditAnnotationTypes, key = '') => handler.selectFeatureHandle(index, key),
+    );
     const annotationHoverTooltip = (
       found: {
           styleType: [string, number];

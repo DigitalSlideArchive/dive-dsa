@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, shallowRef, toRef, watch, PropType, Ref,
-} from '@vue/composition-api';
+} from 'vue';
 import {
   usePendingSaveCount, useHandler, useTrackFilters, useRevisionId,
 } from 'vue-media-annotator/provides';
@@ -40,14 +40,14 @@ export default defineComponent({
     let currentSaveUrl = '';
     /** State populated from provides if the dialog exists inside a viewer context */
     let save = () => Promise.resolve();
-    let pendingSaveCount = ref(0);
-    let checkedTypes = ref([] as readonly string[]);
-    let revisionId = ref(null as null | number);
+    const pendingSaveCount = ref(0);
+    const checkedTypes = ref([] as readonly string[]);
+    const revisionId = ref(null as null | number);
     if (props.blockOnUnsaved) {
       save = useHandler().save;
-      pendingSaveCount = usePendingSaveCount();
-      checkedTypes = useTrackFilters().checkedTypes;
-      revisionId = useRevisionId();
+      pendingSaveCount.value = usePendingSaveCount().value;
+      checkedTypes.value = useTrackFilters().checkedTypes.value;
+      revisionId.value = useRevisionId().value;
     }
     async function doExport({ forceSave = false, url }: { url?: string; forceSave?: boolean }) {
       if (pendingSaveCount.value > 0 && forceSave) {
@@ -193,7 +193,7 @@ export default defineComponent({
               mdi-download
             </v-icon>
             <span
-              v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+              v-show="buttonOptions.block"
               class="pl-1"
             >
               Download
@@ -293,7 +293,7 @@ export default defineComponent({
               nudge-left="180"
               max-width="180"
             >
-              <template v-slot:activator="{ on }">
+              <template #activator="{ on }">
                 <v-btn
                   depressed
                   block
@@ -321,8 +321,10 @@ export default defineComponent({
                 <v-list dense>
                   <v-list-item
                     style="align-items':'center"
-                    @click="doExport({ url: exportUrls
-                      && exportUrls.exportDetectionsUrlTrackJSON })"
+                    @click="doExport({
+                      url: exportUrls
+                        && exportUrls.exportDetectionsUrlTrackJSON,
+                    })"
                   >
                     <v-list-item-content>
                       <v-list-item-title>TrackJSON</v-list-item-title>
