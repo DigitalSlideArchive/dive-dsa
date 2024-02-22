@@ -15,13 +15,13 @@ import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue'
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 import { useRouter } from 'vue-router/composables';
-import { GirderSlicerTaskButton, GirderSlicerTaskCard } from '@bryonlewis/vue-girder-slicer-cli-ui';
 import JobsTab from './JobsTab.vue';
 import Export from './Export.vue';
 import Clone from './Clone.vue';
 import ViewerAlert from './ViewerAlert.vue';
 import RevisionHistory from './RevisionHistory.vue';
 import AnnotationDataBrowser from './AnnotationDataBrowser.vue';
+import SlicerTaskRunnerVue from './SlicerTaskRunner.vue';
 
 const buttonOptions = {
   text: true,
@@ -40,8 +40,9 @@ context.register({
   component: RevisionHistory,
   description: 'Revision History',
 });
+
 context.register({
-  component: GirderSlicerTaskCard,
+  component: SlicerTaskRunnerVue,
   description: 'Slicer Tasks',
 });
 
@@ -63,7 +64,6 @@ export default defineComponent({
     DIVETools,
     ConfigurationEditor,
     AnnotationDataBrowser,
-    GirderSlicerTaskButton,
     ...context.getComponents(),
   },
 
@@ -245,7 +245,20 @@ export default defineComponent({
       />
     </template>
     <template #title-right>
-      <GirderSlicerTaskButton style="z-index:9999999" />
+      <v-btn
+        class="ma-0"
+        v-bind="buttonOptions"
+        @click="context.toggle('SlicerTaskRunner')"
+      >
+        <v-icon>
+          mdi-docker
+        </v-icon>
+        <span
+          class="pl-1"
+        >
+          Slicer Tasks
+        </span>
+      </v-btn>
       <DIVETools
         v-if="enabledFeatures['toolbox']"
         :button-options="buttonOptions"

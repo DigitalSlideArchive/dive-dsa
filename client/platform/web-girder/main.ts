@@ -14,11 +14,9 @@ import App from './App.vue';
 import router from './router';
 import store from './store';
 import '@bryonlewis/vue-girder-slicer-cli-ui/dist/style.css';
-import '@bryonlewis/vue-girder-slicer-cli-ui/dist/tailwind.css';
 
 Vue.config.productionTip = false;
 Vue.use(vMousetrap);
-Vue.use(GirderSlicerUI);
 
 if (
   process.env.NODE_ENV === 'production'
@@ -44,6 +42,7 @@ Promise.all([
 ]).then(() => {
   const vuetify = getVuetify(store.state.Brand.brandData?.vuetify);
   Vue.use(promptService(vuetify));
+  Vue.use(GirderSlicerUI);
   new Vue({
     router,
     store,
