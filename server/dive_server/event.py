@@ -112,7 +112,6 @@ def convert_video_recrusive(folder, user):
     subFolders = list(Folder().childFolders(folder, 'folder', user))
     for child in subFolders:
         if child.get('meta', {}).get(MarkForPostProcess, False):
-            child['meta']['MarkForPostProcess'] = False
             Folder().save(child)
             crud_rpc.postprocess(user, child, False, True)
         convert_video_recrusive(child, user)

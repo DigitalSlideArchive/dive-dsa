@@ -165,6 +165,5 @@ class RpcResource(Resource):
         datasets = []
         self.get_marked_for_postprocess(folder, self.getCurrentUser(), datasets, limit)
         for subFolder in datasets:
-            subFolder['meta']['MarkForPostProcess'] = False
             Folder().save(subFolder)
             crud_rpc.postprocess(self.getCurrentUser(), subFolder, skipJobs, skipTranscoding)

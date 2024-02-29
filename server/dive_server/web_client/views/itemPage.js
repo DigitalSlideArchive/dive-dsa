@@ -11,9 +11,8 @@ import {
 
 
 wrap(ItemView, 'render', function (render) {
-
     this.once('g:rendered', function () {
-        if (isVideoType(this.model.attributes.name) && !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.model.parent.attributes.meta.annotate && this.model.parent.attributes.meta.MarkForPostProcess === undefined) {
+        if (isVideoType(this.model.attributes.name) && !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.model.parent.attributes.meta.annotate && this.model.parent.attributes.meta.MarkForPostProcess !== false) {
             this.$el.find('.g-item-header .btn-group').before(
                 `<div 
                     class="g-dive-convert-link btn btn-sm btn-primary"
