@@ -1,4 +1,4 @@
-import { AxiosError } from 'axios';
+import { AxiosError } from '@girder/components/node_modules/axios';
 import { difference } from 'lodash';
 
 // [x1, y1, x2, y2] as (left, top), (bottom, right)
