@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AxiosRequestConfig, AxiosResponse } from '@girder/components/node_modules/axios';
 import girderRest from 'platform/web-girder/plugins/girder';
 
 export * from './annotation.service';
