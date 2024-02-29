@@ -16,7 +16,7 @@ RUN yarn build:web
 # == SERVER BUILD STAGE ==
 # ========================
 # Note: server-builder stage will be the same in both dockerfiles
-FROM python:3.8-buster as server-builder
+FROM python:3.11-buster as server-builder
 
 WORKDIR /opt/dive/src
 
@@ -48,7 +48,7 @@ RUN girder build
 # =================
 # == DIST SERVER ==
 # =================
-FROM python:3.8-slim-buster as server
+FROM python:3.11-slim-buster as server
 
 # Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"
