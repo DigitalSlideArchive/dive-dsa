@@ -4,7 +4,9 @@ import { wrap } from '@girder/core/utilities/PluginUtils';
 import FolderListWidget from '@girder/core/views/widgets/FolderListWidget';
 
 import '../stylesheets/views/itemList.styl';
+import { convertToDIVEHandler } from '../utils/utils';
 
+convertToDIVEHandler
 const webrootPath = 'dive#/viewer/'
 const brandName = "DIVE"
 wrap(FolderListWidget, 'render', function (render) {
@@ -23,6 +25,22 @@ wrap(FolderListWidget, 'render', function (render) {
                         </div>
                     </a>`
                 );
+            }
+            if (!this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') .g-dive-convert-link').length && this.collection.models[ix].attributes.meta.MarkForPostProcess === true) {
+                this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') a[class^=g-]:last').after(
+                    `<div
+                        id="g-dive-convert-link-${this.collection.models[ix].attributes._id}"
+                        class="g-dive-convert-link btn btn-sm btn-primary"
+                        item-id=${this.collection.models[ix].attributes._id}
+                        mark-for-process="true"
+                        folder-id=${this.collection.models[ix].attributes.parentId}
+                        role="button"
+                        title="Convert to DIVE"
+                        >
+                        Convert to DIVE
+                    </div>`
+                );
+                this.$(`#g-dive-convert-link-${this.collection.models[ix].attributes._id}`).on('click', convertToDIVEHandler);
             }
         }
     }

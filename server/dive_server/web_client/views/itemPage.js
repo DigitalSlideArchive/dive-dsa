@@ -11,20 +11,35 @@ import {
 
 
 wrap(ItemView, 'render', function (render) {
-
     this.once('g:rendered', function () {
-        if (isVideoType(this.model.attributes.name) && !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.model.parent.attributes.meta.annotate && this.model.parent.attributes.meta.MarkForPostProcess === undefined) {
-            this.$el.find('.g-item-header .btn-group').before(
-                `<div 
-                    class="g-dive-convert-link btn btn-sm btn-primary"
-                    item-id=${this.model.id}
-                    folder-id=${this.model.parent.id}
-                    role="button" 
-                    title="Convert to DIVE"
-                    >
-                    Convert to DIVE
-                </div>`
-            );
+        if (isVideoType(this.model.attributes.name) && !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.model.parent.attributes.meta.annotate) {
+            if (this.model.parent.attributes.meta.MarkForPostProcess !== true) {
+                this.$el.find('.g-item-header .btn-group').before(
+                    `<div 
+                        class="g-dive-convert-link btn btn-sm btn-primary"
+                        item-id=${this.model.id}
+                        folder-id=${this.model.parent.id}
+                        role="button" 
+                        title="Convert to DIVE"
+                        >
+                        Convert to DIVE
+                    </div>`
+                );
+            } else {
+                this.$el.find('.g-item-header .btn-group').before(
+                    `<div 
+                        class="g-dive-convert-link btn btn-sm btn-primary"
+                        item-id=${this.model.parent.id}
+                        folder-id=${this.model.parent.id}
+                        mark-for-process="true"
+                        role="button" 
+                        title="Convert to DIVE"
+                        >
+                        Convert to DIVE
+                    </div>`
+                );
+
+            }
             this.$('.g-dive-convert-link').on('click', convertToDIVEHandler);
             
         } else if (this.model.parent.attributes.meta.annotate) {
