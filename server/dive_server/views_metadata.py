@@ -8,6 +8,7 @@ from girder.models.item import Item
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker
 from dive_utils.metadata.models import DIVE_Metadata
+
 from . import crud_rpc
 
 
@@ -51,18 +52,20 @@ class RpcResource(Resource):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         return False
-    
+
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter keys for a specific folder")
-        .modelParam(
+        Description("Get a list of filter keys for a specific folder").modelParam(
             "id",
             description="Base folder ID",
             model=Folder,
             level=AccessType.READ,
         )
     )
-    def get_metadata_keys(self, folder,):
+    def get_metadata_keys(
+        self,
+        folder,
+    ):
         query = {'root': str(folder['_id'])}
         metadata_items = list(
             DIVE_Metadata().find(
@@ -91,7 +94,6 @@ class RpcResource(Resource):
             "JSON keys for the filtering",
             required=False,
         )
-
     )
     def get_metadata_filter(self, folder, keys):
         # Create initial Meva State based off of information
