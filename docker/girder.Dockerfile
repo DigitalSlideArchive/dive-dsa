@@ -23,9 +23,6 @@ WORKDIR /opt/dive/src
 # https://cryptography.io/en/latest/installation/#debian-ubuntu
 RUN apt-get update
 RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm
-RUN npm install -g n
-RUN n install 16.14.0
-RUN n node/16.14.0
 # Recommended poetry install https://python-poetry.org/docs/master/#installation
 RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.7.0 POETRY_HOME=/opt/dive/poetry python -
 ENV PATH="/opt/dive/poetry/bin:$PATH"
@@ -46,6 +43,15 @@ RUN poetry install --no-root
 # Copy full source code and install
 COPY server/ /opt/dive/src/
 RUN poetry install --only main
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+RUN . ~/.bashrc && \
+    nvm install 14 && \
+    nvm alias default 14 && \
+    nvm use default && \
+    ln -s $(dirname `which npm`) /usr/local/node
+
+ENV PATH="/usr/local/node:$PATH"
+
 RUN girder build
 
 # =================

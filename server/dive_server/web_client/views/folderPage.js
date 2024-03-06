@@ -12,7 +12,7 @@ wrap(HierarchyWidget, 'render', function (render) {
                 </a>`
             );
         }
-        if ( !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.parentModel.attributes.meta.annotate && this.parentModel.attributes.meta.MarkForPostProcess !== false) {
+        if ( !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.parentModel.attributes.meta.annotate && this.parentModel.attributes.meta.MarkForPostProcess === true) {
             this.$el.find('.g-folder-header-buttons .btn-group').before(
                 `<div 
                     class="g-dive-convert-link btn btn-sm btn-primary"

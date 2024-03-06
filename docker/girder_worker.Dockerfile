@@ -9,8 +9,6 @@ WORKDIR /opt/dive/src
 # https://cryptography.io/en/latest/installation/#debian-ubuntu
 RUN apt-get update
 RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm
-RUN n install 16.14.0
-RUN n node/16.14.0
 # Recommended poetry install https://python-poetry.org/docs/master/#installation
 RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.7.0 POETRY_HOME=/opt/dive/poetry python -
 ENV PATH="/opt/dive/poetry/bin:$PATH"
