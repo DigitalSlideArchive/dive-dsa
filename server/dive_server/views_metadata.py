@@ -77,7 +77,7 @@ class DIVEMetadata(Resource):
                 for item in json_data:
                     # need to use the matcher to try to find the DIVE dataset that matches the name
 
-                    query = {'$and': [{'name': f"Video {item[matcher]}"}, {"meta.annotate": {'$in': TRUTHY_META_VALUES}}]}
+                    query = {'$and': [{'name': {'$in': [f"Video {item[matcher]}", item[matcher]]}}, {"meta.annotate": {'$in': TRUTHY_META_VALUES}}]}
                     print(query)
                     results = list(Folder().findWithPermissions(query=query, user=user))
                     print(results)
