@@ -6,11 +6,26 @@ from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.file import File
+from girder.exceptions import RestException
 
 from dive_utils import asbool, fromMeta, TRUTHY_META_VALUES
 from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker, jsonRegex
-from dive_utils.metadata.models import DIVE_Metadata
+from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from typing import Dict, List, Optional, Tuple, TypedDict
+
+
+def python_to_javascript_type(py_type):
+    type_mapping = {
+        int: "number",
+        float: "number",
+        str: "string",
+        list: "array",
+        dict: "object",
+        bool: "boolean",
+        tuple: "array"  # You can map tuple to array, as JavaScript doesn't have a built-in tuple type
+        # Add more mappings as needed for other types
+    }
+    return type_mapping.get(py_type, "unknown")
 
 
 class DIVEMetadata(Resource):
@@ -23,6 +38,7 @@ class DIVEMetadata(Resource):
         self.route("GET", ("all", ), self.get_all)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter'), self.get_metadata_filter)
+        self.route("DELETE", (':rootId',), self.delete_metadata)
 
     @access.user
     @autoDescribeRoute(
@@ -73,7 +89,7 @@ class DIVEMetadata(Resource):
             if not isinstance(json_data, list):
                 print("JSON metadata isn't an array")
             else:
-                print(json_data)
+                metadataKeys = {}
                 for item in json_data:
                     # need to use the matcher to try to find the DIVE dataset that matches the name
 
@@ -85,6 +101,48 @@ class DIVEMetadata(Resource):
                         datasetFolder = results[0]
                         metadata_item = DIVE_Metadata().createMetadata(datasetFolder, folder, user, item)
                         print(f'created metadata item: {item["Filename"]}')
+                    for key in item.keys():
+                        if key not in metadataKeys.keys():
+                            datatype = python_to_javascript_type(type(item[key]))
+                            metadataKeys[key] = {
+                                "type": datatype,
+                                "set": set(),
+                                "count": 1
+                            }
+                        if metadataKeys[key]['type'] == 'string':
+                            print(metadataKeys[key])
+                            metadataKeys[key]['set'].add(item[key])
+                            metadataKeys[key]['count'] += 1
+                        if metadataKeys[key]['type'] == 'array':
+                            for arrayitem in item[key]:
+                                if python_to_javascript_type(type(arrayitem)) == 'string':
+                                    metadataKeys[key]['set'].add(arrayitem)
+                            metadataKeys[key]['count'] += 1
+                        if metadataKeys[key]['type'] == 'number':
+                            if 'range' not in metadataKeys[key].keys():
+                                metadataKeys[key]['range'] = { "min": item[key], "max": item[key]}
+                            metadataKeys[key]['range'] = {
+                                 "min": min(item[key], metadataKeys[key]["range"]["min"]),
+                                 "max": max(item[key], metadataKeys[key]["range"]["max"]),
+                            }
+                # now we need to determine what is categorical vs what is a search field
+                for key in metadataKeys.keys():
+                    item = metadataKeys[key]
+                    if item["type"] in ['string', 'array'] and (item["count"] < 50 or item["count"] < len(item["set"])):
+                        metadataKeys[key]["category"] = "categorical"
+                        metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
+                    elif item["type"] == 'string':
+                        metadataKeys[key]["category"] = "search"
+                        del metadataKeys[key]['set']
+                    elif item["type"] == 'number':
+                        metadataKeys[key]["category"] = "numerical"
+                        del metadataKeys[key]['set']
+                    else:
+                        del metadataKeys[key]['set']
+                DIVE_MetadataKeys().createMetadataKeys(datasetFolder, folder, user, metadataKeys)
+
+
+                    
 
 
 
@@ -106,20 +164,11 @@ class DIVEMetadata(Resource):
     ):
         user = self.getCurrentUser()
         query = {'root': str(folder['_id'])}
-        metadata_items = list(
-            DIVE_Metadata().find(
-                query=query,
-                user=user,
-            )
+        metadata_key = DIVE_MetadataKeys().findOne(
+            query=query,
+            user=user,
         )
-        print(metadata_items)
-        metadata_items.sort(key=lambda d: d["created"], reverse=True)
-        keys_dict = {}
-        for item in metadata_items:
-            if 'metadata' in item.keys():
-                for metadatakey in item['metadata'].keys():
-                    keys_dict[metadatakey] = True
-        return keys_dict
+        return metadata_key
 
     @access.user
     @autoDescribeRoute(
@@ -184,3 +233,24 @@ class DIVEMetadata(Resource):
             results[key] = sorted(results[key])
 
         return results
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Delete Folder VideoState")
+        .modelParam(
+            "rootId",
+            description="FolderId to get state from",
+            model=Folder,
+            level=AccessType.READ,
+            destName="rootId",
+        )
+    )
+    def delete_metadata(self, rootId):
+        user = self.getCurrentUser()
+        query = {"root": str(rootId["_id"])}
+        found = DIVE_Metadata().findOne(query=query, user=user)
+        if found:
+            DIVE_Metadata().removeWithQuery(query)
+            DIVE_MetadataKeys().removeWithQuery(query)
+        else:
+            raise RestException('Could not find a state to delete')

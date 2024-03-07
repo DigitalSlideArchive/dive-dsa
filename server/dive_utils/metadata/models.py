@@ -63,3 +63,61 @@ class DIVE_Metadata(Model):
         if 'root' not in doc or not isinstance(doc['root'], str):
             raise ValidationException('owner must be a string')
         return doc
+
+
+class DIVE_MetadataKeys(Model):
+    # This is NOT an access controlled model; it is expected that all endpoints
+    # will be sensibly guarded instead.
+    def __init__(self):
+        # Do the bindings before calling __init__(), in case a derived class
+        # wants to change things in initialize()
+        events.bind('model.folder.remove', 'removeImport', self._cleanupDeletedEntity)
+        super().__init__()
+
+    def _cleanupDeletedEntity(self, event):
+        # remove data if the folderId matches
+        entityDoc = event.info
+        folderId = entityDoc['_id']
+        dive_dataset = self.findOne({'DIVEDataset': str(folderId)})
+        if dive_dataset is not None:
+            self.remove(dive_dataset)
+
+    def initialize(self):
+        self.name = 'DIVE_MetadataKeys'
+        self.ensureIndices(
+            [
+                'root',
+                'DIVEDataset',
+                (
+                    [
+                        ('created', SortDir.ASCENDING),
+                    ],
+                    {},
+                ),
+            ]
+        )
+
+    def createMetadataKeys(self, folder, root, owner, metadataKeys, created_date=None ):
+        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        if not existing:
+            if created_date is None:
+                created = datetime.datetime.utcnow()
+            else:
+                created = parser.parse(created_date)
+
+            existing = dict(
+                DIVEDataset=str(folder['_id']),
+                filename=str(folder['name']),
+                root=str(root['_id']),
+                metadataKeys=metadataKeys,
+                created=created,
+            )
+            existing = self.save(existing)
+        return existing
+
+    def validate(self, doc):
+        if not doc.get('DIVEDataset') or not isinstance(doc['DIVEDataset'], str):
+            raise ValidationException('DIVEDataset must be a string')
+        if 'root' not in doc or not isinstance(doc['root'], str):
+            raise ValidationException('owner must be a string')
+        return doc
