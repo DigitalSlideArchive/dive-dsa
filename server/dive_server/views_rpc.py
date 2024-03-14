@@ -32,7 +32,9 @@ class RpcResource(Resource):
         )
         .param(
             "skipJobs",
-            "Whether to skip processing that might dispatch worker jobs",
+            "Whether to skip processing that might dispatch worker jobs.  \
+            If if this is false it will skip transcoding items that have \
+            already been processed indicated by having a metadata property 'codec'.",
             paramType="formData",
             dataType="boolean",
             default=False,
@@ -40,7 +42,10 @@ class RpcResource(Resource):
         )
         .param(
             "skipTranscoding",
-            "Whether to skip processing that might dispatch worker jobs",
+            "If skipJobs is False and Skip Transcoding is true it will still \
+            run a job and attempt to see if the video file meets \
+            requirements (h264 encoding with .mp4 container) and \
+            won't transcode unless it is necessary",
             paramType="formData",
             dataType="boolean",
             default=False,
@@ -48,7 +53,8 @@ class RpcResource(Resource):
         )
         .param(
             "additive",
-            "Whether to add new annotations to existing ones",
+            "Whether to add new annotations to existing ones.  Annotations \
+            will be added with Ids starting at the last existing Id+1",
             paramType="formData",
             dataType="boolean",
             default=False,
@@ -56,7 +62,8 @@ class RpcResource(Resource):
         )
         .param(
             "additivePrepend",
-            "When using additive the prepend to types: 'prepend_type'",
+            "When using additive the prepend to types: I.E. 'prepend_type' \
+            so the string will be added to all types that are imported",
             paramType="formData",
             dataType="string",
             default='',
@@ -137,7 +144,9 @@ class RpcResource(Resource):
         )
         .param(
             "skipJobs",
-            "Whether to skip processing that might dispatch worker jobs",
+            "Whether to skip processing that might dispatch worker jobs.  \
+            If if this is false it will skip transcoding items that have \
+            already been processed indicated by having a metadata property 'codec'.",
             paramType="formData",
             dataType="boolean",
             default=False,
@@ -145,7 +154,10 @@ class RpcResource(Resource):
         )
         .param(
             "skipTranscoding",
-            "Whether to skip processing that might dispatch worker jobs",
+            "If skipJobs is False and Skip Transcoding is true it will still \
+            run a job and attempt to see if the video file meets \
+            requirements (h264 encoding with .mp4 container) and \
+            won't transcode unless it is necessary",
             paramType="formData",
             dataType="boolean",
             default=False,
