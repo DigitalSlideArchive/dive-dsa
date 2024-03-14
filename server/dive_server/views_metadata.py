@@ -7,9 +7,11 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.file import File
 from girder.exceptions import RestException
+from girder.utility import path as path_util
+import pymongo
 
 from dive_utils import asbool, fromMeta, TRUTHY_META_VALUES
-from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker, jsonRegex
+from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker, jsonRegex, ndjsonRegex
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from typing import Dict, List, Optional, Tuple, TypedDict
 
@@ -26,6 +28,62 @@ def python_to_javascript_type(py_type):
         # Add more mappings as needed for other types
     }
     return type_mapping.get(py_type, "unknown")
+
+def remove_before_folder(path, folder_name):
+    index = path.find(folder_name)
+    if index != -1:
+        return path[index:]
+    else:
+        return None
+
+def find_folder_by_path(folder, sibling_path, user):
+    components = sibling_path.split('/')
+    current_folder = folder
+    for component in components:
+        found = False
+        current_folders = list(Folder().childFolders(current_folder, 'folder', user=user))
+        for subfolder in current_folders:
+            if subfolder['name'] == component:
+                current_folder = subfolder
+                found = True
+        if not found:
+            return None
+    return current_folder
+
+def load_ndjson_string(ndjson_string):
+    # Split the string into lines and parse each line as JSON
+    return [json.loads(line) for line in ndjson_string.splitlines()]
+
+
+def load_metadata_json(search_folder, type='ndjson'):
+    regex = ndjsonRegex
+    if type == 'json':
+        regex = jsonRegex
+    json_items = list(Folder().childItems(
+            search_folder,
+            filters={"lowerName": {"$regex": regex}},
+            sort=[("created", pymongo.ASCENDING)],
+            
+        )
+    )
+    if len(json_items) > 0:
+        json_import_item = json_items[0]
+        file = next(Item().childFiles(json_import_item), None)
+        # Now lets convert the XML to TrackJSON
+        if file is None:
+            return None
+        file_generator = File().download(file, headers=False)()
+        file_string = b"".join(list(file_generator)).decode()
+        json_data = {}
+        if type == 'json':
+            json_data = json.loads(file_string)
+        elif type == 'ndjson':
+            json_data = load_ndjson_string(file_string)
+        # Now we determine data types from the array of data
+        if not isinstance(json_data, list):
+            print("JSON metadata isn't an array")
+            return False
+        return json_data
 
 
 class DIVEMetadata(Resource):
@@ -50,6 +108,14 @@ class DIVEMetadata(Resource):
             level=AccessType.WRITE,
         )
         .param(
+            "sibling_path",
+            description="Sibling folder path to look for CSV or JSON files.  Uses the format of sibling/child1/child2 if more folders, if blank it will look in the root folder",
+            paramType="formData",
+            dataType="string",
+            default='info',
+            required=False,
+        )
+        .param(
             "fileType",
             "FileType to process if the folder is not a DIVE dataset (json, csv, ndjson))",
             paramType="formData",
@@ -65,89 +131,107 @@ class DIVEMetadata(Resource):
             default="Filename",
             required=True,
         )
+        .param(
+            "path_key",
+            "What field to match attempt to match the folder hierarchy with",
+            paramType="formData",
+            dataType="string",
+            default="Key",
+            required=True,
+        )
     )
-    def process_metadata(self, folder, fileType, matcher):
+    def process_metadata(self, folder, sibling_path, fileType, matcher, path_key):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
+        # first determine the search folder for the system
+        search_folder = folder
+        if sibling_path:
+            found_folder = find_folder_by_path(folder, sibling_path, user)
+            if found_folder:
+                search_folder = found_folder
         # lets first search for JSON files in the folder
-        json_items = list(Folder().childItems(
-                folder,
-                filters={"lowerName": {"$regex": jsonRegex}},
-            )
-        )
-        if len(json_items) > 0:
-            json_import_item = json_items[0]
-            file = next(Item().childFiles(json_import_item), None)
-            # Now lets convert the XML to TrackJSON
-            if file is None:
-                return None
-            file_generator = File().download(file, headers=False)()
-            file_string = b"".join(list(file_generator)).decode()
-            json_data = json.loads(file_string)
-            # Now we determine data types from the array of data
-            if not isinstance(json_data, list):
-                print("JSON metadata isn't an array")
-            else:
-                metadataKeys = {}
-                for item in json_data:
-                    # need to use the matcher to try to find the DIVE dataset that matches the name
+        data = None
+        errorLog = []
+        added = 0
+        if (fileType in ['json', 'ndjson']):
+            data = load_metadata_json(search_folder, fileType)
+        if not data:
+            return False
+        else:
+            metadataKeys = {}
+            root_name = folder['name']
+            for item in data:
+                # need to use the matcher to try to find the DIVE dataset that matches the name
 
-                    query = {'$and': [{'name': {'$in': [f"Video {item[matcher]}", item[matcher]]}}, {"meta.annotate": {'$in': TRUTHY_META_VALUES}}]}
-                    print(query)
-                    results = list(Folder().findWithPermissions(query=query, user=user))
-                    print(results)
-                    if len(results) > 0:
-                        datasetFolder = results[0]
-                        metadata_item = DIVE_Metadata().createMetadata(datasetFolder, folder, user, item)
-                        print(f'created metadata item: {item["Filename"]}')
-                    for key in item.keys():
-                        if key not in metadataKeys.keys():
-                            datatype = python_to_javascript_type(type(item[key]))
-                            metadataKeys[key] = {
-                                "type": datatype,
-                                "set": set(),
-                                "count": 1
-                            }
-                        if metadataKeys[key]['type'] == 'string':
-                            print(metadataKeys[key])
-                            metadataKeys[key]['set'].add(item[key])
-                            metadataKeys[key]['count'] += 1
-                        if metadataKeys[key]['type'] == 'array':
-                            for arrayitem in item[key]:
-                                if python_to_javascript_type(type(arrayitem)) == 'string':
-                                    metadataKeys[key]['set'].add(arrayitem)
-                            metadataKeys[key]['count'] += 1
-                        if metadataKeys[key]['type'] == 'number':
-                            if 'range' not in metadataKeys[key].keys():
-                                metadataKeys[key]['range'] = { "min": item[key], "max": item[key]}
-                            metadataKeys[key]['range'] = {
-                                 "min": min(item[key], metadataKeys[key]["range"]["min"]),
-                                 "max": max(item[key], metadataKeys[key]["range"]["max"]),
-                            }
-                # now we need to determine what is categorical vs what is a search field
-                for key in metadataKeys.keys():
-                    item = metadataKeys[key]
-                    if item["type"] in ['string', 'array'] and (item["count"] < 50 or item["count"] < len(item["set"])):
-                        metadataKeys[key]["category"] = "categorical"
-                        metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
-                    elif item["type"] == 'string':
-                        metadataKeys[key]["category"] = "search"
-                        del metadataKeys[key]['set']
-                    elif item["type"] == 'number':
-                        metadataKeys[key]["category"] = "numerical"
-                        del metadataKeys[key]['set']
-                    else:
-                        del metadataKeys[key]['set']
-                DIVE_MetadataKeys().createMetadataKeys(datasetFolder, folder, user, metadataKeys)
+                query = {'$and': [{'name': {'$in': [f"Video {item[matcher]}", item[matcher]]}}, {"meta.annotate": {'$in': TRUTHY_META_VALUES}}, {"baseParentId": folder['baseParentId']}]}
+                results = list(Folder().findWithPermissions(query=query, user=user))
+                print(query)
+                print(f"RESULTS LENGTH: {len(results)}")
+                if len(results) > 0:
+                    matched = False
+                    key_path = item.get(path_key, False)
+                    modified_key_path = remove_before_folder(key_path, root_name)
+                    for datasetFolder in results:
+                        resource_path = path_util.getResourcePath('folder', datasetFolder, user=user)
+                        # lets modify the path so it contains only the root folder down
+                        resource_path = remove_before_folder(resource_path, root_name)
+                        resource_path = resource_path.replace(f'/Video {item[matcher]}',  f'/{item[matcher]}')
+                        # now we check to see if the path matches the DIVE dataset item found.
+                        if modified_key_path:
+                            if modified_key_path == resource_path:
+                                item['pathMatches'] = True
+                                DIVE_Metadata().createMetadata(datasetFolder, folder, user, item)
+                                added += 1
+                                matched = True
+                            else:
+                                item['pathMatches'] = False
+                        
+                    if not matched:
+                        errorLog.append(f"using matcher: {matcher} and key_path: {key_path} Could not find any matching key file path for Video file {item[matcher]} with path: {modified_key_path}")       
 
+                else:
+                    errorLog.append(f"Could not find any results for Video file {item[matcher]}")       
+                for key in item.keys():
+                    if key not in metadataKeys.keys():
+                        datatype = python_to_javascript_type(type(item[key]))
+                        metadataKeys[key] = {
+                            "type": datatype,
+                            "set": set(),
+                            "count": 1
+                        }
+                    if metadataKeys[key]['type'] == 'string':
+                        metadataKeys[key]['set'].add(item[key])
+                        metadataKeys[key]['count'] += 1
+                    if metadataKeys[key]['type'] == 'array':
+                        for arrayitem in item[key]:
+                            if python_to_javascript_type(type(arrayitem)) == 'string':
+                                metadataKeys[key]['set'].add(arrayitem)
+                        metadataKeys[key]['count'] += 1
+                    if metadataKeys[key]['type'] == 'number':
+                        if 'range' not in metadataKeys[key].keys():
+                            metadataKeys[key]['range'] = { "min": item[key], "max": item[key]}
+                        metadataKeys[key]['range'] = {
+                                "min": min(item[key], metadataKeys[key]["range"]["min"]),
+                                "max": max(item[key], metadataKeys[key]["range"]["max"]),
+                        }
+            # now we need to determine what is categorical vs what is a search field
+            for key in metadataKeys.keys():
+                item = metadataKeys[key]
+                if item["type"] in ['string', 'array'] and (item["count"] < 50 or item["count"] < len(item["set"])):
+                    metadataKeys[key]["category"] = "categorical"
+                    metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
+                elif item["type"] == 'string':
+                    metadataKeys[key]["category"] = "search"
+                    del metadataKeys[key]['set']
+                elif item["type"] == 'number':
+                    metadataKeys[key]["category"] = "numerical"
+                    del metadataKeys[key]['set']
+                else:
+                    del metadataKeys[key]['set']
+            DIVE_MetadataKeys().createMetadataKeys(datasetFolder, folder, user, metadataKeys)
 
-                    
-
-
-
-
-        return False
+        return {"results": f"added {added} folders", "errors": errorLog }
 
     @access.user
     @autoDescribeRoute(
