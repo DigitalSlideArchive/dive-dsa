@@ -1,4 +1,6 @@
 import json
+import re
+import math
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
@@ -10,8 +12,8 @@ from girder.exceptions import RestException
 from girder.utility import path as path_util
 import pymongo
 
-from dive_utils import asbool, fromMeta, TRUTHY_META_VALUES
-from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker, jsonRegex, ndjsonRegex
+from dive_utils import TRUTHY_META_VALUES, FALSY_META_VALUES
+from dive_utils.constants import jsonRegex, ndjsonRegex, DIVEMetadataMarker, DIVEMetadataFilter
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from typing import Dict, List, Optional, Tuple, TypedDict
 
@@ -93,9 +95,9 @@ class DIVEMetadata(Resource):
         super(DIVEMetadata, self).__init__()
         self.resourceName = resourceName
         self.route("POST", ("process_metadata", ":id"), self.process_metadata)
-        self.route("GET", ("all", ), self.get_all)
+        self.route("GET", (':id', "filter", ), self.filter_folder)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
-        self.route("GET", (':id', 'metadata_filter'), self.get_metadata_filter)
+        self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
         self.route("DELETE", (':rootId',), self.delete_metadata)
 
     @access.user
@@ -117,7 +119,7 @@ class DIVEMetadata(Resource):
         )
         .param(
             "fileType",
-            "FileType to process if the folder is not a DIVE dataset (json, csv, ndjson))",
+            "FileType to process if the folder is not a DIVE dataset (json, ndjson))",
             paramType="formData",
             dataType="string",
             default='json',
@@ -139,8 +141,15 @@ class DIVEMetadata(Resource):
             default="Key",
             required=True,
         )
+        .jsonParam(
+            "displayKeys",
+            "List of Main Display Keys for the metadata and keys to hide from the filter",
+            required=True,
+            default={"display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag' ], "hide": ["ETag", "ETagDuplicated", "Size"]}
+        )
+
     )
-    def process_metadata(self, folder, sibling_path, fileType, matcher, path_key):
+    def process_metadata(self, folder, sibling_path, fileType, matcher, path_key, displayKeys):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
@@ -230,6 +239,10 @@ class DIVEMetadata(Resource):
                 else:
                     del metadataKeys[key]['set']
             DIVE_MetadataKeys().createMetadataKeys(datasetFolder, folder, user, metadataKeys)
+            # add metadata to root folder for
+            folder['meta'][DIVEMetadataMarker] = True
+            folder['meta'][DIVEMetadataFilter] = displayKeys
+            Folder().save(folder)
 
         return {"results": f"added {added} folders", "errors": errorLog }
 
@@ -256,23 +269,83 @@ class DIVEMetadata(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter keys for a specific folder")
-    )
-    def get_all(
-        self,
-    ):
-        query = {}
-        metadata_items = list(
-            DIVE_Metadata().find(
-                query=query,
-                user=self.getCurrentUser(),
-            )
+        Description("Filter DIVE Datasets based on metadata")
+        .modelParam(
+            "id",
+            description="Base root Folder to filter on",
+            model=Folder,
+            level=AccessType.READ,
         )
+        .jsonParam(
+            "filters",
+            "JSON Settings for the filtering",
+            required=False,
+        )
+        .pagingParams(defaultSort='created')
+    )
+    def filter_folder(
+        self,
+        folder,
+        filters,
+        limit,
+        offset,
+        sort
+    ):
+        if folder['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
+
+        user = self.getCurrentUser()
+        query = self.get_filter_query(folder, user, filters)
+        metadata_items = DIVE_Metadata().find(
+            query, offset=offset, limit=limit, sort=sort, user=self.getCurrentUser()
+        )
+        if metadata_items is not None:
+            pages = math.ceil(metadata_items.count() / limit)
+            structured_results = {
+                'totalPages': pages,
+                'pageResults': list(metadata_items),
+            }
+            return structured_results
+
         return metadata_items
+
+    def get_filter_query(self, folder, user, filters):
+        query = {'root': str(folder['_id'])}
+        if filters is not None:
+            query = {'$and': [query]}
+            if 'search' in filters.keys():
+                query["$and"].append({'$or': [
+                    {'filename': {'$regex': re.escape(filters['search'])}},
+                    {'Probes': {'$regex': re.escape(filters['search'])}},
+                ]})
+            # Now we need to go through the other filters and create querys for them
+            # each filter in metadataFilters will have a type associated with it
+            if 'metadataFilters' in filters.keys():
+                for key in filters['metadataFilters'].keys():
+                    filter = filters['metadataFilters'][key]
+                    if filter['category'] == 'categorical':
+                        query["$and"].append({f'metadata.{key}': {'$in': filter['value']}})
+                    if filter['category'] == 'boolean':
+                        test_val = TRUTHY_META_VALUES
+                        if not filter['value']:
+                            test_val = FALSY_META_VALUES
+                        query["$and"].append({f'metadata.{key}': {'$in': test_val}})
+                    if filter['category'] == 'numerical':
+                        query["$and"].append({'$and': [
+                            {f'metadata.{key}': {'$gte': filters['range'][0]}},
+                            {f'metadata.{key}': {'$lte': filters['range'][1]}},
+                        ]})
+                    if filter['category'] == 'search':
+                        query["$and"].append({f'metadata.{key}': {'$regex': re.escape[filters['value']]}})
+        print(query)
+        return query
+
+
+
 
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter values for parent folder Metadata ")
+        Description("Get a list of filter values for DIVE Metadata")
         .modelParam(
             "id",
             description="Base folder ID",
@@ -281,11 +354,11 @@ class DIVEMetadata(Resource):
         )
         .jsonParam(
             "keys",
-            "JSON keys for the filtering",
+            "JSON keys for the filtering in an array ['key1', 'key2']",
             required=False,
         )
     )
-    def get_metadata_filter(self, folder, keys = None):
+    def get_metadata_filter(self, folder, keys=None):
         # Create initial Meva State based off of information
         query = {'root': str(folder['_id'])}
         metadata_items = list(
@@ -300,7 +373,6 @@ class DIVEMetadata(Resource):
         if keys is not None:
             for key in keys:
                 results[key] = set()
-        print(metadata_items)
         for item in metadata_items:
             if 'metadata' in item.keys():
                 for key in item['metadata'].keys():

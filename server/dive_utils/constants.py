@@ -86,6 +86,8 @@ ConfidenceFiltersMarker = "confidenceFilters"
 OverlayVideoFolderMarker = "overlayVideo"
 OverlayVideoItemMarker = "overlayVideoItem"
 OverlayMetadataMarker = "overlayMetadata"
+DIVEMetadataMarker = "DIVEMetadata"
+DIVEMetadataFilter = "DIVEMetadataFilter"
 
 # Other constants
 TrainedPipelineCategory = "trained"

@@ -87,7 +87,6 @@ class DIVE_MetadataKeys(Model):
         self.ensureIndices(
             [
                 'root',
-                'DIVEDataset',
                 (
                     [
                         ('created', SortDir.ASCENDING),
@@ -106,8 +105,6 @@ class DIVE_MetadataKeys(Model):
                 created = parser.parse(created_date)
 
             existing = dict(
-                DIVEDataset=str(folder['_id']),
-                filename=str(folder['name']),
                 root=str(root['_id']),
                 metadataKeys=metadataKeys,
                 created=created,
@@ -116,8 +113,6 @@ class DIVE_MetadataKeys(Model):
         return existing
 
     def validate(self, doc):
-        if not doc.get('DIVEDataset') or not isinstance(doc['DIVEDataset'], str):
-            raise ValidationException('DIVEDataset must be a string')
         if 'root' not in doc or not isinstance(doc['root'], str):
             raise ValidationException('owner must be a string')
         return doc
