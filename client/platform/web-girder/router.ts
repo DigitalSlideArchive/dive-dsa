@@ -55,13 +55,6 @@ const router = new Router({
       beforeEnter,
     },
     {
-      path: '/metadata/:id/',
-      name: 'Metadata Search',
-      component: DIVEMetadataSearchVue,
-      props: true,
-      beforeEnter,
-    },
-    {
       path: '/',
       component: RouterPage,
       children: [
@@ -76,6 +69,13 @@ const router = new Router({
           path: 'jobs',
           name: 'jobs',
           component: Jobs,
+          beforeEnter,
+        },
+        {
+          path: '/metadata/:id/',
+          name: 'metadata',
+          component: DIVEMetadataSearchVue,
+          props: true,
           beforeEnter,
         },
         {

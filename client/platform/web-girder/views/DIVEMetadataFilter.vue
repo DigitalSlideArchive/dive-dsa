@@ -6,10 +6,11 @@ import {
   computed, defineComponent, onBeforeMount, PropType, Ref, ref, watch,
 } from 'vue';
 import DIVEMetadataFilterItemVue from './DIVEMetadataFilterItem.vue';
+import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataFilter',
-  components: { DIVEMetadataFilterItemVue },
+  components: { DIVEMetadataFilterItemVue, DIVEMetadataCloneVue },
   props: {
     currentPage: {
       type: Number,
@@ -66,15 +67,19 @@ export default defineComponent({
       emit('updateFilters', currentFilter.value);
     });
 
-    const updateFilter = (key: string, value: string | string[] | number | boolean, category: MetadataFilterItem['category']) => {
+    const updateFilter = (key: string, { value, category } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category']}) => {
       if (!currentFilter.value.metadataFilters) {
         currentFilter.value.metadataFilters = {};
       }
-      console.log(value);
       if (value === '' || (Array.isArray(value) && value.length === 0)) {
         if (currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
           delete currentFilter.value.metadataFilters[key];
         }
+      } else if (category === 'numerical') {
+        currentFilter.value.metadataFilters[key] = {
+          category,
+          range: value as [number, number],
+        };
       } else {
         currentFilter.value.metadataFilters[key] = {
           category,
@@ -96,6 +101,7 @@ export default defineComponent({
       splitFilters,
       filtersOn,
       search,
+      currentFilter,
       changePage,
       updateFilter,
     };
@@ -122,7 +128,7 @@ export default defineComponent({
           >
             mdi-filter
           </v-icon>
-          Metadata Filters
+          Advanced Filters
         </v-btn>
       </v-row>
       <v-row
@@ -140,9 +146,11 @@ export default defineComponent({
         no-wrap
         class="mt-3 mx-2"
       >
+        <v-spacer />
         <div v-for="(filterItem, key) in splitFilters.displayed" :key="`filterItem_${key}`">
-          <DIVEMetadataFilterItemVue :label="key" :filter-item="filterItem" @update-value="updateFilter(key, $event, filterItem.category)" />
+          <DIVEMetadataFilterItemVue :label="key" :filter-item="filterItem" @update-value="updateFilter(key, $event)" />
         </div>
+        <v-spacer />
       </v-row>
       <v-row
         v-if="filtersOn"
@@ -155,6 +163,10 @@ export default defineComponent({
         </div>
       </v-row>
       <v-row class="mt-3">
+        <DIVEMetadataCloneVue
+          :filter="currentFilter"
+          :base-id="id"
+        />
         <v-spacer />
         <v-select
           class="mx-2 pa-0 fit"
@@ -174,4 +186,5 @@ export default defineComponent({
 </template>
 
 <style scoped lang="scss">
+
 </style>

@@ -1,7 +1,7 @@
 <script lang="ts">
 import { MetadataFilterKeysItem } from 'platform/web-girder/api/divemetadata.service';
 import {
-  defineComponent, ref, PropType, watch,
+  defineComponent, ref, PropType, watch, onMounted, Ref,
 } from 'vue';
 
 export default defineComponent({
@@ -18,17 +18,31 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const set = ref(props.filterItem.set);
-    const value = ref(undefined);
+    const value: Ref<undefined | number | string | string[] | number[]> = ref(undefined);
     const rangeFilterEnabled = ref(false);
-
+    const categoryLimit = ref(20);
     watch(value, () => {
-      emit('update-value', value.value);
+      const update = {
+        value: value.value,
+        category: props.filterItem.category,
+      };
+      if (props.filterItem.category === 'categorical' && props.filterItem.count > categoryLimit.value) {
+        update.category = 'search';
+      }
+      emit('update-value', update);
+    });
+
+    onMounted(() => {
+      if (props.filterItem.category === 'numerical' && props.filterItem.range) {
+        value.value = [props.filterItem.range.min, props.filterItem.range.max];
+      }
     });
 
     return {
       set,
       value,
       rangeFilterEnabled,
+      categoryLimit,
     };
   },
 });
@@ -36,7 +50,7 @@ export default defineComponent({
 
 <template>
   <div class="mx-2">
-    <div v-if="filterItem.category === 'categorical' && filterItem.count < 50 && set">
+    <div v-if="filterItem.category === 'categorical' && filterItem.count < categoryLimit && set">
       <v-select
         v-model="value"
         :items="set"
@@ -47,14 +61,22 @@ export default defineComponent({
         :label="label"
       />
     </div>
-    <div v-else-if="filterItem.category === 'search' || (filterItem.category === 'categorical' && filterItem.count >= 50)">
+    <div v-else-if="filterItem.category === 'search' || (filterItem.category === 'categorical' && filterItem.count >= categoryLimit)">
       <v-text-field v-model="value" :label="label" />
     </div>
     <div v-else-if="filterItem.category === 'boolean'">
       <v-checkbox v-model="value" :label="label" />
     </div>
     <div v-else-if="filterItem.category === 'numerical' && filterItem.range">
-      <v-slider v-model="value" :min="filterItem.range.min" :max="filterItem.range.max" :label="label" style="min-width: 250px;" />
+      <v-range-slider
+        v-model="value"
+        :min="filterItem.range.min"
+        :max="filterItem.range.max"
+        :label="label"
+        style="min-width: 250px;"
+        thumb-label="always"
+        class="pt-7"
+      />
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  computed,
   defineComponent, onMounted, ref, Ref,
 } from 'vue';
 import {
@@ -65,6 +66,20 @@ export default defineComponent({
       currentPage.value = page;
       await updateFilter();
     };
+
+    const advanced = computed(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const advancedList: Record<string, any> = {};
+      for (let i = 0; i < folderList.value.length; i += 1) {
+        const item = folderList.value[i];
+        Object.entries(item.metadata).forEach(([key, value]) => {
+          if (!displayConfig.value.hide.includes(key)) {
+            advancedList[key] = value;
+          }
+        });
+      }
+      return advancedList;
+    });
     return {
       totalPages,
       currentPage,
@@ -73,6 +88,7 @@ export default defineComponent({
       updateFilter,
       folderList,
       displayConfig,
+      advanced,
     };
   },
 });
@@ -113,6 +129,33 @@ export default defineComponent({
           {{ item.metadata[display] }}
         </div>
       </v-row>
+      <v-expansion-panels>
+        <v-expansion-panel class="border">
+          <v-expansion-panel-header>Advanced</v-expansion-panel-header>
+          <v-expansion-panel-content>
+            <v-row v-for="(data, dataKey) in advanced" :key="dataKey" class="border" dense>
+              <v-col cols="2" class="border">
+                <b>{{ dataKey }}:</b>
+              </v-col>
+              <v-col cols="10">
+                <div class="mx-2">
+                  {{ data }}
+                </div>
+              </v-col>
+              <v-spacer />
+            </v-row>
+          </v-expansion-panel-content>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </v-card>
   </v-container>
 </template>
+
+<style scoped>
+.border {
+    border:1px solid white
+}
+.list {
+    overflow-y: scroll;
+}
+</style>

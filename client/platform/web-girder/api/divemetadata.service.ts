@@ -3,7 +3,7 @@ import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 export interface MetadataFilterItem {
     category: 'search' | 'categorical' | 'numerical' | 'boolean',
-    value?: boolean | string | string[] | number
+    value?: boolean | string | string[] | number | number[]
     range?: number[]
 }
 
@@ -61,7 +61,16 @@ function filterDiveMetadata(folderId: string, filters: DIVEMetadaFilter, offset 
   });
 }
 
+function createDiveMetadataClone(folderId: string, filters: DIVEMetadaFilter, destFolder: string, destName: string) {
+  return girderRest.get<string>(`dive_metadata/${folderId}/filter`, {
+    params: {
+      filters, destFolder, destName,
+    },
+  });
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
+  createDiveMetadataClone,
 };

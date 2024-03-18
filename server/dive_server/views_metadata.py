@@ -16,6 +16,7 @@ from dive_utils import TRUTHY_META_VALUES, FALSY_META_VALUES
 from dive_utils.constants import jsonRegex, ndjsonRegex, DIVEMetadataMarker, DIVEMetadataFilter
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from typing import Dict, List, Optional, Tuple, TypedDict
+from . import crud_dataset
 
 
 def python_to_javascript_type(py_type):
@@ -96,6 +97,7 @@ class DIVEMetadata(Resource):
         self.resourceName = resourceName
         self.route("POST", ("process_metadata", ":id"), self.process_metadata)
         self.route("GET", (':id', "filter", ), self.filter_folder)
+        self.route("POST", (':id', 'clone_filter'), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
         self.route("DELETE", (':rootId',), self.delete_metadata)
@@ -309,6 +311,67 @@ class DIVEMetadata(Resource):
 
         return metadata_items
 
+    @access.user
+    @autoDescribeRoute(
+        Description("Filter DIVE Datasets based on metadata")
+        .modelParam(
+            "id",
+            description="Base root Folder to filter on",
+            model=Folder,
+            level=AccessType.READ,
+        )
+        .modelParam(
+            "destFolder",
+            description="Destination folder to clone into",
+            model=Folder,
+            level=AccessType.READ,
+        )
+        .param(
+            "folderName",
+            description="Name of the new folder to create in the destination folder",
+            paramType="formData",
+            dataType="string",
+            default='info',
+            required=False,
+        )
+        .jsonParam(
+            "filters",
+            "JSON Settings for the filtering",
+            required=False,
+        )
+    )
+    def clone_filter(
+        self,
+        folder,
+        destFolder,
+        folderName,
+        filters,
+    ):
+        if folder['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
+
+        user = self.getCurrentUser()
+        query = self.get_filter_query(folder, user, filters)
+        metadata_items = DIVE_Metadata().find(
+            query, user=self.getCurrentUser()
+        )
+        if metadata_items is not None:
+            filter_dest_folder = Folder().createFolder(
+                destFolder,
+                folderName,
+                description=f'List of Datasets created with Metadata Filter.',
+                reuseExisting=False,
+                creator=user,
+            )
+            for item in list(metadata_items):
+                crud_dataset.createSoftClone(
+                    self.getCurrentUser(), item, filter_dest_folder, item['name'],
+                 )
+            return str(filter_dest_folder['_id'])
+        else:
+            raise RestException('Filter is empty can not clone', code=404)
+
+
     def get_filter_query(self, folder, user, filters):
         query = {'root': str(folder['_id'])}
         if filters is not None:
@@ -332,11 +395,11 @@ class DIVEMetadata(Resource):
                         query["$and"].append({f'metadata.{key}': {'$in': test_val}})
                     if filter['category'] == 'numerical':
                         query["$and"].append({'$and': [
-                            {f'metadata.{key}': {'$gte': filters['range'][0]}},
-                            {f'metadata.{key}': {'$lte': filters['range'][1]}},
+                            {f'metadata.{key}': {'$gte': filter['range'][0]}},
+                            {f'metadata.{key}': {'$lte': filter['range'][1]}},
                         ]})
                     if filter['category'] == 'search':
-                        query["$and"].append({f'metadata.{key}': {'$regex': re.escape[filters['value']]}})
+                        query["$and"].append({f'metadata.{key}': {'$regex': re.escape(filter['value'])}})
         print(query)
         return query
 
