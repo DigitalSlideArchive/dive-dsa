@@ -97,7 +97,7 @@ class DIVEMetadata(Resource):
         self.resourceName = resourceName
         self.route("POST", ("process_metadata", ":id"), self.process_metadata)
         self.route("GET", (':id', "filter", ), self.filter_folder)
-        self.route("POST", (':id', 'clone_filter'), self.clone_filter)
+        self.route("POST", (':id', "clone_filter"), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
         self.route("DELETE", (':rootId',), self.delete_metadata)
@@ -124,7 +124,7 @@ class DIVEMetadata(Resource):
             "FileType to process if the folder is not a DIVE dataset (json, ndjson))",
             paramType="formData",
             dataType="string",
-            default='json',
+            default='ndjson',
             required=False,
         )
         .param(
@@ -316,23 +316,20 @@ class DIVEMetadata(Resource):
         Description("Filter DIVE Datasets based on metadata")
         .modelParam(
             "id",
+            destName="baseFolder",
             description="Base root Folder to filter on",
             model=Folder,
             level=AccessType.READ,
+            required=True,
         )
         .modelParam(
             "destFolder",
+            destName="destFolder",
+            paramType="formData",
             description="Destination folder to clone into",
             model=Folder,
             level=AccessType.READ,
-        )
-        .param(
-            "folderName",
-            description="Name of the new folder to create in the destination folder",
-            paramType="formData",
-            dataType="string",
-            default='info',
-            required=False,
+            required=True,
         )
         .jsonParam(
             "filters",
@@ -342,32 +339,30 @@ class DIVEMetadata(Resource):
     )
     def clone_filter(
         self,
-        folder,
+        baseFolder,
         destFolder,
-        folderName,
         filters,
     ):
-        if folder['meta'].get(DIVEMetadataMarker, False) is False:
+        if baseFolder['meta'].get(DIVEMetadataMarker, False) is False:
             raise RestException('Folder is not a DIVE Metadata folder', code=404)
 
         user = self.getCurrentUser()
-        query = self.get_filter_query(folder, user, filters)
+        query = self.get_filter_query(baseFolder, user, filters)
         metadata_items = DIVE_Metadata().find(
             query, user=self.getCurrentUser()
         )
         if metadata_items is not None:
-            filter_dest_folder = Folder().createFolder(
-                destFolder,
-                folderName,
-                description=f'List of Datasets created with Metadata Filter.',
-                reuseExisting=False,
-                creator=user,
-            )
             for item in list(metadata_items):
+                print(item)
+                item_folder = Folder().load(
+                    item['DIVEDataset'],
+                    level=AccessType.READ,
+                    user=user
+                )
                 crud_dataset.createSoftClone(
-                    self.getCurrentUser(), item, filter_dest_folder, item['name'],
+                    self.getCurrentUser(), item_folder, destFolder, item_folder['name'], None,
                  )
-            return str(filter_dest_folder['_id'])
+            return str(destFolder['_id'])
         else:
             raise RestException('Filter is empty can not clone', code=404)
 
@@ -468,8 +463,11 @@ class DIVEMetadata(Resource):
         user = self.getCurrentUser()
         query = {"root": str(rootId["_id"])}
         found = DIVE_Metadata().findOne(query=query, user=user)
+        folder_meta = rootId['meta']
         if found:
             DIVE_Metadata().removeWithQuery(query)
             DIVE_MetadataKeys().removeWithQuery(query)
+            rootId = Folder().setMetadata(rootId, { DIVEMetadataMarker: None, DIVEMetadataFilter: None}) 
+            Folder().save(rootId)
         else:
             raise RestException('Could not find a state to delete')

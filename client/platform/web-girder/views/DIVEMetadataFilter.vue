@@ -163,10 +163,7 @@ export default defineComponent({
         </div>
       </v-row>
       <v-row class="mt-3">
-        <DIVEMetadataCloneVue
-          :filter="currentFilter"
-          :base-id="id"
-        />
+        <slot name="leftOptions" />
         <v-spacer />
         <v-select
           class="mx-2 pa-0 fit"

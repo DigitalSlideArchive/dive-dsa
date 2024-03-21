@@ -4,6 +4,7 @@ import events from '@girder/core/events';
 
 
 const webrootPath = 'dive#/viewer/'
+const metadataRootPath = `dive#/metadata/`
 const webrootFolderPath = 'dive#/folder/'
 const fileVideoTypes = [
     '.mp4',
@@ -77,6 +78,7 @@ function  isVideoType(name) {
 export {
     webrootFolderPath,
     webrootPath,
+    metadataRootPath,
     fileVideoTypes,
     fileSuffixRegex,
     convertToDIVEHandler,

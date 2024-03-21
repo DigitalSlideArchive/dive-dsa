@@ -61,10 +61,10 @@ function filterDiveMetadata(folderId: string, filters: DIVEMetadaFilter, offset 
   });
 }
 
-function createDiveMetadataClone(folderId: string, filters: DIVEMetadaFilter, destFolder: string, destName: string) {
-  return girderRest.get<string>(`dive_metadata/${folderId}/filter`, {
+function createDiveMetadataClone(folder: string, filters: DIVEMetadaFilter, destFolder: string) {
+  return girderRest.post<string>(`dive_metadata/${folder}/clone_filter`, null, {
     params: {
-      filters, destFolder, destName,
+      baseFolder: folder, filters, destFolder,
     },
   });
 }

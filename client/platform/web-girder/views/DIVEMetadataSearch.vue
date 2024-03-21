@@ -8,11 +8,13 @@ import {
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
 import DIVEMetadataFilter from './DIVEMetadataFilter.vue';
+import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataSearch',
   components: {
     DIVEMetadataFilter,
+    DIVEMetadataCloneVue,
   },
   props: {
     id: {
@@ -30,6 +32,8 @@ export default defineComponent({
       _id: props.id,
       _modelType: 'folder',
     };
+
+    const currentFilter: Ref<DIVEMetadaFilter> = ref({});
 
     const processFilteredMetadataResults = (data: DIVEMetadataResults) => {
       folderList.value = data.pageResults;
@@ -56,6 +60,7 @@ export default defineComponent({
       if (filter) {
         filters.value = filter;
         currentPage.value = 0;
+        currentFilter.value = filter;
       }
       const sort = 'filename';
       const { data } = await filterDiveMetadata(props.id, { ...filters.value }, currentPage.value * 50, 50, sort);
@@ -80,6 +85,7 @@ export default defineComponent({
       }
       return advancedList;
     });
+    const openClone = ref(false);
     return {
       totalPages,
       currentPage,
@@ -89,6 +95,9 @@ export default defineComponent({
       folderList,
       displayConfig,
       advanced,
+      //Cloning
+      openClone,
+      currentFilter,
     };
   },
 });
@@ -103,51 +112,86 @@ export default defineComponent({
       :display-config="displayConfig"
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
-    />
-    <v-card
-      v-for="(item, key) in folderList"
-      :key="key"
-      class="my-2 pa-2"
     >
-      <v-row class="ma-4">
-        <div>{{ item.filename }}</div>
-        <div>
-          <v-btn
-            class="mx-2 mb-2"
-            x-small
-            color="primary"
-            depressed
-            :to="{ name: 'viewer', params: { id: item.DIVEDataset } }"
-          >
-            Launch Annotator
-          </v-btn>
-        </div>
-      </v-row>
-      <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4">
-        <b>{{ display }}:</b>
-        <div class="mx-2">
-          {{ item.metadata[display] }}
-        </div>
-      </v-row>
-      <v-expansion-panels>
-        <v-expansion-panel class="border">
-          <v-expansion-panel-header>Advanced</v-expansion-panel-header>
-          <v-expansion-panel-content>
-            <v-row v-for="(data, dataKey) in advanced" :key="dataKey" class="border" dense>
-              <v-col cols="2" class="border">
-                <b>{{ dataKey }}:</b>
-              </v-col>
-              <v-col cols="10">
-                <div class="mx-2">
-                  {{ data }}
-                </div>
-              </v-col>
+      <template slot="leftOptions">
+        <v-tooltip
+          bottom
+          open-delay="400"
+        >
+          <template #activator="{ on }">
+            <v-btn
+              :disabled="id === null"
+              class="ml-2"
+              v-on="on"
+              @click="openClone = true"
+            >
+              <v-icon>
+                mdi-content-copy
+              </v-icon>
+              <span
+                class="pl-1 ,l-1"
+              >
+                Clone
+              </span>
               <v-spacer />
-            </v-row>
-          </v-expansion-panel-content>
-        </v-expansion-panel>
-      </v-expansion-panels>
-    </v-card>
+            </v-btn>
+            <v-dialog v-model="openClone" width="800">
+              <DIVEMetadataCloneVue
+                :base-id="id"
+                :filter="currentFilter"
+              />
+            </v-dialog>
+          </template>
+          <span>Create a clone of this data</span>
+        </v-tooltip>
+      </template>
+    </DIVEMetadataFilter>
+    <span v-if="!openClone">
+      <v-card
+        v-for="(item, key) in folderList"
+        :key="key"
+        class="my-2 pa-2"
+      >
+        <v-row class="ma-4">
+          <div>{{ item.filename }}</div>
+          <div>
+            <v-btn
+              class="mx-2 mb-2"
+              x-small
+              color="primary"
+              depressed
+              :to="{ name: 'viewer', params: { id: item.DIVEDataset } }"
+            >
+              Launch Annotator
+            </v-btn>
+          </div>
+        </v-row>
+        <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4">
+          <b>{{ display }}:</b>
+          <div class="mx-2">
+            {{ item.metadata[display] }}
+          </div>
+        </v-row>
+        <v-expansion-panels>
+          <v-expansion-panel class="border">
+            <v-expansion-panel-header>Advanced</v-expansion-panel-header>
+            <v-expansion-panel-content>
+              <v-row v-for="(data, dataKey) in advanced" :key="dataKey" class="border" dense>
+                <v-col cols="2" class="border">
+                  <b>{{ dataKey }}:</b>
+                </v-col>
+                <v-col cols="10">
+                  <div class="mx-2">
+                    {{ data }}
+                  </div>
+                </v-col>
+                <v-spacer />
+              </v-row>
+            </v-expansion-panel-content>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-card>
+    </span>
   </v-container>
 </template>
 

@@ -4,10 +4,8 @@ import { wrap } from '@girder/core/utilities/PluginUtils';
 import FolderListWidget from '@girder/core/views/widgets/FolderListWidget';
 
 import '../stylesheets/views/itemList.styl';
-import { convertToDIVEHandler } from '../utils/utils';
+import { convertToDIVEHandler, webrootPath, metadataRootPath } from '../utils/utils';
 
-convertToDIVEHandler
-const webrootPath = 'dive#/viewer/'
 const brandName = "DIVE"
 wrap(FolderListWidget, 'render', function (render) {
     const root = this;
@@ -22,6 +20,15 @@ wrap(FolderListWidget, 'render', function (render) {
                     `<a class="g-dive-open-link" title="Open in ${brandName}" href="${webrootPath}${this.collection.models[ix].id}" target="_blank">
                         <div class="g-dive-convert-link btn btn-sm btn-primary">
                             <i class="icon-link-ext"></i>Open in DIVE
+                        </div>
+                    </a>`
+                );
+            }
+            if (!this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') .g-dive-open-metadata-link').length && this.collection.models[ix].attributes.meta.DIVEMetadata) {
+                this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') a[class^=g-]:last').after(
+                    `<a class="g-dive-open-metadata-link" title="Open Metadata in ${brandName}" href="${metadataRootPath}${this.collection.models[ix].id}" target="_blank">
+                        <div class="g-dive-convert-link btn btn-sm btn-primary">
+                            <i class="icon-link-ext"></i>Open Metadata in DIVE
                         </div>
                     </a>`
                 );
