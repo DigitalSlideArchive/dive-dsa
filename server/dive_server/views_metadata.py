@@ -15,7 +15,6 @@ import pymongo
 from dive_utils import TRUTHY_META_VALUES, FALSY_META_VALUES
 from dive_utils.constants import jsonRegex, ndjsonRegex, DIVEMetadataMarker, DIVEMetadataFilter
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
-from typing import Dict, List, Optional, Tuple, TypedDict
 from . import crud_dataset
 
 
@@ -27,10 +26,12 @@ def python_to_javascript_type(py_type):
         list: "array",
         dict: "object",
         bool: "boolean",
-        tuple: "array"  # You can map tuple to array, as JavaScript doesn't have a built-in tuple type
+        tuple: "array",  # You can map tuple to array, as JavaScript
+        # doesn't have a built-in tuple type
         # Add more mappings as needed for other types
     }
     return type_mapping.get(py_type, "unknown")
+
 
 def remove_before_folder(path, folder_name):
     index = path.find(folder_name)
@@ -38,6 +39,7 @@ def remove_before_folder(path, folder_name):
         return path[index:]
     else:
         return None
+
 
 def find_folder_by_path(folder, sibling_path, user):
     components = sibling_path.split('/')
@@ -53,6 +55,7 @@ def find_folder_by_path(folder, sibling_path, user):
             return None
     return current_folder
 
+
 def load_ndjson_string(ndjson_string):
     # Split the string into lines and parse each line as JSON
     return [json.loads(line) for line in ndjson_string.splitlines()]
@@ -62,11 +65,11 @@ def load_metadata_json(search_folder, type='ndjson'):
     regex = ndjsonRegex
     if type == 'json':
         regex = jsonRegex
-    json_items = list(Folder().childItems(
+    json_items = list(
+        Folder().childItems(
             search_folder,
             filters={"lowerName": {"$regex": regex}},
             sort=[("created", pymongo.ASCENDING)],
-            
         )
     )
     if len(json_items) > 0:
@@ -96,7 +99,14 @@ class DIVEMetadata(Resource):
         super(DIVEMetadata, self).__init__()
         self.resourceName = resourceName
         self.route("POST", ("process_metadata", ":id"), self.process_metadata)
-        self.route("GET", (':id', "filter", ), self.filter_folder)
+        self.route(
+            "GET",
+            (
+                ':id',
+                "filter",
+            ),
+            self.filter_folder,
+        )
         self.route("POST", (':id', "clone_filter"), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
@@ -147,9 +157,11 @@ class DIVEMetadata(Resource):
             "displayKeys",
             "List of Main Display Keys for the metadata and keys to hide from the filter",
             required=True,
-            default={"display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag' ], "hide": ["ETag", "ETagDuplicated", "Size"]}
+            default={
+                "display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag'],
+                "hide": ["ETag", "ETagDuplicated", "Size"],
+            },
         )
-
     )
     def process_metadata(self, folder, sibling_path, fileType, matcher, path_key, displayKeys):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
@@ -165,7 +177,7 @@ class DIVEMetadata(Resource):
         data = None
         errorLog = []
         added = 0
-        if (fileType in ['json', 'ndjson']):
+        if fileType in ['json', 'ndjson']:
             data = load_metadata_json(search_folder, fileType)
         if not data:
             return False
@@ -175,7 +187,13 @@ class DIVEMetadata(Resource):
             for item in data:
                 # need to use the matcher to try to find the DIVE dataset that matches the name
 
-                query = {'$and': [{'name': {'$in': [f"Video {item[matcher]}", item[matcher]]}}, {"meta.annotate": {'$in': TRUTHY_META_VALUES}}, {"baseParentId": folder['baseParentId']}]}
+                query = {
+                    '$and': [
+                        {'name': {'$in': [f"Video {item[matcher]}", item[matcher]]}},
+                        {"meta.annotate": {'$in': TRUTHY_META_VALUES}},
+                        {"baseParentId": folder['baseParentId']},
+                    ]
+                }
                 results = list(Folder().findWithPermissions(query=query, user=user))
                 print(query)
                 print(f"RESULTS LENGTH: {len(results)}")
@@ -184,10 +202,14 @@ class DIVEMetadata(Resource):
                     key_path = item.get(path_key, False)
                     modified_key_path = remove_before_folder(key_path, root_name)
                     for datasetFolder in results:
-                        resource_path = path_util.getResourcePath('folder', datasetFolder, user=user)
+                        resource_path = path_util.getResourcePath(
+                            'folder', datasetFolder, user=user
+                        )
                         # lets modify the path so it contains only the root folder down
                         resource_path = remove_before_folder(resource_path, root_name)
-                        resource_path = resource_path.replace(f'/Video {item[matcher]}',  f'/{item[matcher]}')
+                        resource_path = resource_path.replace(
+                            f'/Video {item[matcher]}', f'/{item[matcher]}'
+                        )
                         # now we check to see if the path matches the DIVE dataset item found.
                         if modified_key_path:
                             if modified_key_path == resource_path:
@@ -197,20 +219,18 @@ class DIVEMetadata(Resource):
                                 matched = True
                             else:
                                 item['pathMatches'] = False
-                        
+
                     if not matched:
-                        errorLog.append(f"using matcher: {matcher} and key_path: {key_path} Could not find any matching key file path for Video file {item[matcher]} with path: {modified_key_path}")       
+                        errorLog.append(
+                            f"using matcher: {matcher} and key_path: {key_path} Could not find any matching key file path for Video file {item[matcher]} with path: {modified_key_path}"
+                        )
 
                 else:
-                    errorLog.append(f"Could not find any results for Video file {item[matcher]}")       
+                    errorLog.append(f"Could not find any results for Video file {item[matcher]}")
                 for key in item.keys():
                     if key not in metadataKeys.keys():
                         datatype = python_to_javascript_type(type(item[key]))
-                        metadataKeys[key] = {
-                            "type": datatype,
-                            "set": set(),
-                            "count": 1
-                        }
+                        metadataKeys[key] = {"type": datatype, "set": set(), "count": 1}
                     if metadataKeys[key]['type'] == 'string':
                         metadataKeys[key]['set'].add(item[key])
                         metadataKeys[key]['count'] += 1
@@ -221,15 +241,17 @@ class DIVEMetadata(Resource):
                         metadataKeys[key]['count'] += 1
                     if metadataKeys[key]['type'] == 'number':
                         if 'range' not in metadataKeys[key].keys():
-                            metadataKeys[key]['range'] = { "min": item[key], "max": item[key]}
+                            metadataKeys[key]['range'] = {"min": item[key], "max": item[key]}
                         metadataKeys[key]['range'] = {
-                                "min": min(item[key], metadataKeys[key]["range"]["min"]),
-                                "max": max(item[key], metadataKeys[key]["range"]["max"]),
+                            "min": min(item[key], metadataKeys[key]["range"]["min"]),
+                            "max": max(item[key], metadataKeys[key]["range"]["max"]),
                         }
             # now we need to determine what is categorical vs what is a search field
             for key in metadataKeys.keys():
                 item = metadataKeys[key]
-                if item["type"] in ['string', 'array'] and (item["count"] < 50 or item["count"] < len(item["set"])):
+                if item["type"] in ['string', 'array'] and (
+                    item["count"] < 50 or item["count"] < len(item["set"])
+                ):
                     metadataKeys[key]["category"] = "categorical"
                     metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
                 elif item["type"] == 'string':
@@ -246,7 +268,7 @@ class DIVEMetadata(Resource):
             folder['meta'][DIVEMetadataFilter] = displayKeys
             Folder().save(folder)
 
-        return {"results": f"added {added} folders", "errors": errorLog }
+        return {"results": f"added {added} folders", "errors": errorLog}
 
     @access.user
     @autoDescribeRoute(
@@ -285,14 +307,7 @@ class DIVEMetadata(Resource):
         )
         .pagingParams(defaultSort='created')
     )
-    def filter_folder(
-        self,
-        folder,
-        filters,
-        limit,
-        offset,
-        sort
-    ):
+    def filter_folder(self, folder, filters, limit, offset, sort):
         if folder['meta'].get(DIVEMetadataMarker, False) is False:
             raise RestException('Folder is not a DIVE Metadata folder', code=404)
 
@@ -348,34 +363,35 @@ class DIVEMetadata(Resource):
 
         user = self.getCurrentUser()
         query = self.get_filter_query(baseFolder, user, filters)
-        metadata_items = DIVE_Metadata().find(
-            query, user=self.getCurrentUser()
-        )
+        metadata_items = DIVE_Metadata().find(query, user=self.getCurrentUser())
         if metadata_items is not None:
             for item in list(metadata_items):
                 print(item)
-                item_folder = Folder().load(
-                    item['DIVEDataset'],
-                    level=AccessType.READ,
-                    user=user
-                )
+                item_folder = Folder().load(item['DIVEDataset'], level=AccessType.READ, user=user)
                 crud_dataset.createSoftClone(
-                    self.getCurrentUser(), item_folder, destFolder, item_folder['name'], None,
-                 )
+                    self.getCurrentUser(),
+                    item_folder,
+                    destFolder,
+                    item_folder['name'],
+                    None,
+                )
             return str(destFolder['_id'])
         else:
             raise RestException('Filter is empty can not clone', code=404)
-
 
     def get_filter_query(self, folder, user, filters):
         query = {'root': str(folder['_id'])}
         if filters is not None:
             query = {'$and': [query]}
             if 'search' in filters.keys():
-                query["$and"].append({'$or': [
-                    {'filename': {'$regex': re.escape(filters['search'])}},
-                    {'Probes': {'$regex': re.escape(filters['search'])}},
-                ]})
+                query["$and"].append(
+                    {
+                        '$or': [
+                            {'filename': {'$regex': re.escape(filters['search'])}},
+                            {'Probes': {'$regex': re.escape(filters['search'])}},
+                        ]
+                    }
+                )
             # Now we need to go through the other filters and create querys for them
             # each filter in metadataFilters will have a type associated with it
             if 'metadataFilters' in filters.keys():
@@ -389,17 +405,20 @@ class DIVEMetadata(Resource):
                             test_val = FALSY_META_VALUES
                         query["$and"].append({f'metadata.{key}': {'$in': test_val}})
                     if filter['category'] == 'numerical':
-                        query["$and"].append({'$and': [
-                            {f'metadata.{key}': {'$gte': filter['range'][0]}},
-                            {f'metadata.{key}': {'$lte': filter['range'][1]}},
-                        ]})
+                        query["$and"].append(
+                            {
+                                '$and': [
+                                    {f'metadata.{key}': {'$gte': filter['range'][0]}},
+                                    {f'metadata.{key}': {'$lte': filter['range'][1]}},
+                                ]
+                            }
+                        )
                     if filter['category'] == 'search':
-                        query["$and"].append({f'metadata.{key}': {'$regex': re.escape(filter['value'])}})
+                        query["$and"].append(
+                            {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
+                        )
         print(query)
         return query
-
-
-
 
     @access.user
     @autoDescribeRoute(
@@ -437,9 +456,13 @@ class DIVEMetadata(Resource):
                     print(item['metadata'][key])
                     if keys is None and key not in results.keys():
                         results[key] = set()
-                    if item['metadata'].get(key, None) is not None and not isinstance(item['metadata'][key], list):
+                    if item['metadata'].get(key, None) is not None and not isinstance(
+                        item['metadata'][key], list
+                    ):
                         results[key].add(item['metadata'][key])
-                    elif item['metadata'].get(key, None) is not None and isinstance(item['metadata'][key], list):
+                    elif item['metadata'].get(key, None) is not None and isinstance(
+                        item['metadata'][key], list
+                    ):
                         for array_item in item['metadata'][key]:
                             results[key].add(array_item)
 
@@ -450,8 +473,7 @@ class DIVEMetadata(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Delete Folder VideoState")
-        .modelParam(
+        Description("Delete Folder VideoState").modelParam(
             "rootId",
             description="FolderId to get state from",
             model=Folder,
@@ -463,11 +485,12 @@ class DIVEMetadata(Resource):
         user = self.getCurrentUser()
         query = {"root": str(rootId["_id"])}
         found = DIVE_Metadata().findOne(query=query, user=user)
-        folder_meta = rootId['meta']
         if found:
             DIVE_Metadata().removeWithQuery(query)
             DIVE_MetadataKeys().removeWithQuery(query)
-            rootId = Folder().setMetadata(rootId, { DIVEMetadataMarker: None, DIVEMetadataFilter: None}) 
+            rootId = Folder().setMetadata(
+                rootId, {DIVEMetadataMarker: None, DIVEMetadataFilter: None}
+            )
             Folder().save(rootId)
         else:
             raise RestException('Could not find a state to delete')

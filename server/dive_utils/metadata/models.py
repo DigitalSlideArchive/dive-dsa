@@ -3,7 +3,7 @@ import datetime
 from dateutil import parser
 from girder import events
 from girder.constants import SortDir
-from girder.exceptions import RestException, ValidationException
+from girder.exceptions import ValidationException
 from girder.models.model_base import Model
 
 
@@ -39,7 +39,7 @@ class DIVE_Metadata(Model):
             ]
         )
 
-    def createMetadata(self, folder, root, owner, metadata, created_date=None ):
+    def createMetadata(self, folder, root, owner, metadata, created_date=None):
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             if created_date is None:
@@ -96,7 +96,7 @@ class DIVE_MetadataKeys(Model):
             ]
         )
 
-    def createMetadataKeys(self, folder, root, owner, metadataKeys, created_date=None ):
+    def createMetadataKeys(self, folder, root, owner, metadataKeys, created_date=None):
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             if created_date is None:
