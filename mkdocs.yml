@@ -1,10 +1,10 @@
 
 site_name: DIVE-DSA
-site_url: https://github.io/BryonLewis/dive-dsa
+site_url: https://github.io/DigitalSlideArchive/dive-dsa
 site_description: Documentation for DIVE-DSA
 site_author: Kitware
 
-repo_url: https://github.com/BryonLewis/dive-dsa
+repo_url: https://github.com/DigitalSlideArchive/dive-dsa
 
 theme:
   name: material

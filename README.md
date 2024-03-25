@@ -17,7 +17,7 @@ THis is a version of DIVE that integrates with [Digital Slide Archive](https://d
 
 ## DIVE-DSA Documentation
 
-* [User Guide] (https://bryonlewis.github.io/dive-dsa/)
+* [User Guide] (https://DigitalSlideArchive.github.io/dive-dsa/)
 
 ## Technologies Used
 

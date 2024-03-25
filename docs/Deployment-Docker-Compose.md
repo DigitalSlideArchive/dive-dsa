@@ -37,7 +37,7 @@ Clone this repository and configure options in `.env` .
 
 ``` bash
 # Clone this repository
-git clonehttps://github.com/BryonLewis/dive-dsa /opt/dive
+git clonehttps://github.com/DigitalSlideArchive/dive-dsa /opt/dive
 
 # Change to correct directory
 cd /opt/dive

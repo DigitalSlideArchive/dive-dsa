@@ -68,7 +68,7 @@ interface Feature {
 }
 ```
 
-The full source [TrackData definition can be found here](https://github.com/BryonLewis/dive-dsa/blob/main/client/src/track.ts) as a TypeScript interface.
+The full source [TrackData definition can be found here](https://github.com/DigitalSlideArchive/dive-dsa/blob/main/client/src/track.ts) as a TypeScript interface.
 
 ### Example JSON File
 
@@ -133,7 +133,7 @@ This information provides the specification for an individual dataset.  It consi
 * Preset confidence filters for those types are defined in `confidenceFilters`
 * Track and Detection attribute specifications are defined in `attributes`
 
-The full [DatasetMetaMutable definition can be found here](https://github.com/BryonLewis/dive-dsa/blob/main/client/dive-common/apispec.ts).
+The full [DatasetMetaMutable definition can be found here](https://github.com/DigitalSlideArchive/dive-dsa/blob/main/client/dive-common/apispec.ts).
 
 ```typescript
 interface DatasetMetaMutable {
