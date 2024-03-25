@@ -1,17 +1,25 @@
 import { wrap } from '@girder/core/utilities/PluginUtils';
 import HierarchyWidget from '@girder/core/views/widgets/HierarchyWidget';
 
-import { convertToDIVEHandler, webrootPath } from '../utils/utils';
+import { convertToDIVEHandler, webrootPath, metadataRootPath } from '../utils/utils';
 wrap(HierarchyWidget, 'render', function (render) {
     render.call(this);
     if (this.parentModel.attributes._modelType === 'folder'){
         if (!this.$el.find('.g-dive-open-item[role="button"]').length && this.parentModel.attributes.meta.annotate) {
             this.$el.find('.g-folder-header-buttons .btn-group').before(
-                `<a class="g-dive-open-item btn btn-sm btn-primary" role="button" href="${webrootPath}${this.parentModel.id}" target="_blank">
+                `<a class="g-dive-open-item btn btn-sm btn-primary" style="margin-left: 10px" role="button" href="${webrootPath}${this.parentModel.id}" target="_blank">
                         <i class="icon-link-ext"></i>Open in DIVE
                 </a>`
             );
         }
+        if (!this.$el.find('.g-dive-open-metadata-item[role="button"]').length && this.parentModel.attributes.meta.DIVEMetadata) {
+            this.$el.find('.g-folder-header-buttons .btn-group').before(
+                `<a class="g-dive-open-metadata-item btn btn-sm btn-primary" style="margin-left: 10px" role="button" href="${metadataRootPath}${this.parentModel.id}" target="_blank">
+                        <i class="icon-link-ext"></i>Open Metadata in DIVE
+                </a>`
+            );
+        }
+
         if ( !this.$el.find('.g-dive-convert-item[role="button"]').length && !this.parentModel.attributes.meta.annotate && this.parentModel.attributes.meta.MarkForPostProcess === true) {
             this.$el.find('.g-folder-header-buttons .btn-group').before(
                 `<div 

@@ -44,6 +44,9 @@ export default defineComponent({
     function isAnnotationFolder(item: GirderModel) {
       return item._modelType === 'folder' && item.meta.annotate;
     }
+    function isMetadataFolder(item: GirderModel) {
+      return item._modelType === 'folder' && item.meta.DIVEMetadata;
+    }
 
     const shouldShowUpload = computed(() => (
       locationStore.location
@@ -68,6 +71,7 @@ export default defineComponent({
       itemsPerPageOptions,
       /* methods */
       isAnnotationFolder,
+      isMetadataFolder,
       handleNotification,
       setLocation,
       updateUploading,
@@ -138,6 +142,17 @@ export default defineComponent({
       >
         Launch Annotator
       </v-btn>
+      <v-btn
+        v-if="isMetadataFolder(item)"
+        class="ml-2"
+        x-small
+        color="purple"
+        depressed
+        :to="{ name: 'metadata', params: { id: item._id } }"
+      >
+        View Metadata
+      </v-btn>
+
       <v-chip
         v-if="(item.foreign_media_id)"
         color="white"
