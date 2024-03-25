@@ -5,7 +5,7 @@ hide:
 
 # Support
 
-DIVE-DSA is free and open-source software published under an [Apache 2.0 License](https://github.com/BryonLewis/dive-dsablob/main/LICENSE) in accordance with [Kitware's Open Philosophy](https://www.kitware.com/open-philosophy/).
+DIVE-DSA is free and open-source software published under an [Apache 2.0 License](https://github.com/DigitalSlideArchive/dive-dsablob/main/LICENSE) in accordance with [Kitware's Open Philosophy](https://www.kitware.com/open-philosophy/).
 
 ## Community Support
 
