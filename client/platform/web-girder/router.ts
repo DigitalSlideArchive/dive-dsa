@@ -76,7 +76,6 @@ const router = new Router({
           name: 'metadata',
           component: DIVEMetadataSearchVue,
           props: (route) => {
-            console.log(route);
             if (route.query.filter) {
               return {
                 id: route.params.id, // Map route parameter to prop

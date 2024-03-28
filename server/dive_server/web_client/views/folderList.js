@@ -33,6 +33,18 @@ wrap(FolderListWidget, 'render', function (render) {
                     </a>`
                 );
             }
+            if (!this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') .g-dive-open-metadata-filter-link').length && this.collection.models[ix].attributes.meta.DIVEMetadataClonedFilter && this.collection.models[ix].attributes.meta.DIVEMetadataClonedFilterBase) {
+                const base = this.collection.models[ix].attributes.meta.DIVEMetadataClonedFilterBase;
+                const params= encodeURI(this.collection.models[ix].attributes.meta.DIVEMetadataClonedFilter);    
+                this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') a[class^=g-]:last').after(
+                    `<a class="g-dive-open-metadata-filter-link" title="Open Metadata Filter in ${brandName}" href="${metadataRootPath}${base}?filter=${params}" target="_blank">
+                        <div class="g-dive-convert-link btn btn-sm btn-info">
+                            <i class="icon-link-ext"></i>Open Metadata Filter in DIVE
+                        </div>
+                    </a>`
+                );
+            }
+
             if (!this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') .g-dive-convert-link').length && this.collection.models[ix].attributes.meta.MarkForPostProcess === true) {
                 this.$el.find('.g-folder-list li.g-folder-list-entry:eq(' + ix + ') a[class^=g-]:last').after(
                     `<div

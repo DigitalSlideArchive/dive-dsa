@@ -7,6 +7,7 @@ import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
+import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -28,6 +29,7 @@ export default defineComponent({
   },
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
+    const router = useRouter();
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [] });
     const totalPages = ref(0);
     const currentPage = ref(0);
@@ -55,6 +57,10 @@ export default defineComponent({
       }
     };
 
+    const updateURLParams = () => {
+      router.replace({ path: props.id, params: { id: props.id }, query: { filter: JSON.stringify(filters.value) } });
+    };
+
     onMounted(() => {
       getFolderInfo(props.id);
       getData();
@@ -67,6 +73,7 @@ export default defineComponent({
         currentFilter.value = filter;
       }
       const sort = 'filename';
+      updateURLParams();
       const { data } = await filterDiveMetadata(props.id, { ...filters.value }, currentPage.value * 50, 50, sort);
       processFilteredMetadataResults(data);
     };

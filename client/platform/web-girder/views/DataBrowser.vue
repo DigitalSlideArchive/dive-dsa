@@ -164,7 +164,7 @@ export default defineComponent({
         v-if="isClonedMetadataFolder(item)"
         class="ml-2"
         x-small
-        color="red"
+        color="info"
         depressed
         :to="{ name: 'metadata', params: { id: isClonedMetadataFolder(item).id }, query: { filter: isClonedMetadataFolder(item).filter } }"
       >
