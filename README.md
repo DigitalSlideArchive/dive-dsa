@@ -42,7 +42,7 @@ is shown underneath each video sequence.
 
 ### Girder Client Web Development
 
-`docker exec -it dive_name_girder_1 bash`
+`docker exec -it dive-dsa-girder-1 bash`
 `cd /opt/dive/src`
 `apt-get update && apt-get install -y npm`
 `girder build`
