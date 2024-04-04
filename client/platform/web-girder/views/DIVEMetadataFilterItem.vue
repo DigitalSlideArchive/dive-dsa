@@ -25,13 +25,17 @@ export default defineComponent({
     const value: Ref<undefined | boolean | number | string | string[] | number[]> = ref(props.defaultValue);
     const rangeFilterEnabled = ref(false);
     const categoryLimit = ref(20);
-    watch(value, () => {
+    const enabled = ref(false); // numerical enabled filter
+    watch([value, enabled], () => {
       const update = {
         value: value.value,
         category: props.filterItem.category,
       };
       if (props.filterItem.category === 'categorical' && props.filterItem.count > categoryLimit.value) {
         update.category = 'search';
+      }
+      if (props.filterItem.category === 'numerical' && !enabled.value) {
+        return; // skip emitting the value unless the checkbox is enabled
       }
       emit('update-value', update);
     });
@@ -47,6 +51,7 @@ export default defineComponent({
       value,
       rangeFilterEnabled,
       categoryLimit,
+      enabled,
     };
   },
 });
@@ -72,15 +77,20 @@ export default defineComponent({
       <v-checkbox v-model="value" :label="label" />
     </div>
     <div v-else-if="filterItem.category === 'numerical' && filterItem.range">
-      <v-range-slider
-        v-model="value"
-        :min="filterItem.range.min"
-        :max="filterItem.range.max"
-        :label="label"
-        style="min-width: 250px;"
-        thumb-label="always"
-        class="pt-7"
-      />
+      <v-row dense align="center" justify="middle">
+        <v-checkbox v-model="enabled" hide-details="" />
+        <v-range-slider
+          v-model="value"
+          :min="filterItem.range.min"
+          :max="filterItem.range.max"
+          :disabled="!enabled"
+          :label="label"
+          style="min-width: 250px;"
+          thumb-label="always"
+          class="pt-7"
+          hide-details=""
+        />
+      </v-row>
     </div>
   </div>
 </template>

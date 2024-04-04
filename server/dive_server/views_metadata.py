@@ -69,7 +69,7 @@ def load_metadata_json(search_folder, type='ndjson'):
         Folder().childItems(
             search_folder,
             filters={"lowerName": {"$regex": regex}},
-            sort=[("created", pymongo.ASCENDING)],
+            sort=[("updated", pymongo.ASCENDING)],
         )
     )
     if len(json_items) > 0:
