@@ -88,7 +88,7 @@ export default defineComponent({
 
     const loadCurrentFilter = () => {
       if (props.rootFilter.metadataFilters && Object.keys(props.rootFilter.metadataFilters).length) {
-        currentFilter.value = props.rootFilter.metadataFilters;
+        currentFilter.value.metadataFilters = props.rootFilter.metadataFilters;
       }
       if (props.rootFilter.search) {
         search.value = props.rootFilter.search;
@@ -132,7 +132,6 @@ export default defineComponent({
           value,
         };
       }
-
       emit('updateFilters', currentFilter.value);
     };
 
@@ -141,8 +140,13 @@ export default defineComponent({
     };
 
     const getDefaultValue = (key: string) => {
-      if (props.rootFilter?.metadataFilters && props.rootFilter.metadataFilters[key]) {
-        return props.rootFilter.metadataFilters[key].value;
+      if (props.rootFilter?.metadataFilters) {
+        if (props.rootFilter.metadataFilters[key] && props.rootFilter.metadataFilters[key].category === 'numerical') {
+          return props.rootFilter.metadataFilters[key].range;
+        }
+        if (props.rootFilter.metadataFilters[key]) {
+          return props.rootFilter.metadataFilters[key].value;
+        }
       }
       return undefined;
     };

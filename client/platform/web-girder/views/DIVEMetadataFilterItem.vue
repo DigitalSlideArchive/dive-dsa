@@ -1,7 +1,7 @@
 <script lang="ts">
 import { MetadataFilterKeysItem } from 'platform/web-girder/api/divemetadata.service';
 import {
-  defineComponent, ref, PropType, watch, onMounted, Ref,
+  defineComponent, ref, PropType, watch, Ref,
 } from 'vue';
 
 export default defineComponent({
@@ -44,13 +44,13 @@ export default defineComponent({
       }
       emit('update-value', update);
     });
-
-    onMounted(() => {
-      if (props.filterItem.category === 'numerical' && props.filterItem.range) {
-        value.value = [props.filterItem.range.min, props.filterItem.range.max];
-      }
-    });
-
+    if (enabled.value) {
+      const update = {
+        value: value.value,
+        category: props.filterItem.category,
+      };
+      emit('update-value', update);
+    }
     return {
       set,
       value,
