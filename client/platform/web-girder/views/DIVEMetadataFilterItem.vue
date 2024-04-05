@@ -1,7 +1,7 @@
 <script lang="ts">
 import { MetadataFilterKeysItem } from 'platform/web-girder/api/divemetadata.service';
 import {
-  defineComponent, ref, PropType, watch, onMounted, Ref,
+  defineComponent, ref, PropType, watch, Ref,
 } from 'vue';
 
 export default defineComponent({
@@ -19,13 +19,18 @@ export default defineComponent({
       type: [String, Number, Array, Boolean] as PropType<boolean | string | number | string[] | number[]>,
       default: undefined,
     },
+    defaultEnabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const set = ref(props.filterItem.set);
     const value: Ref<undefined | boolean | number | string | string[] | number[]> = ref(props.defaultValue);
     const rangeFilterEnabled = ref(false);
     const categoryLimit = ref(20);
-    watch(value, () => {
+    const enabled = ref(props.defaultEnabled); // numerical enabled filter
+    watch([value, enabled], () => {
       const update = {
         value: value.value,
         category: props.filterItem.category,
@@ -33,20 +38,25 @@ export default defineComponent({
       if (props.filterItem.category === 'categorical' && props.filterItem.count > categoryLimit.value) {
         update.category = 'search';
       }
+      if (props.filterItem.category === 'numerical' && !enabled.value) {
+        emit('clear-filter');
+        return; // skip emitting the value unless the checkbox is enabled
+      }
       emit('update-value', update);
     });
-
-    onMounted(() => {
-      if (props.filterItem.category === 'numerical' && props.filterItem.range) {
-        value.value = [props.filterItem.range.min, props.filterItem.range.max];
-      }
-    });
-
+    if (enabled.value) {
+      const update = {
+        value: value.value,
+        category: props.filterItem.category,
+      };
+      emit('update-value', update);
+    }
     return {
       set,
       value,
       rangeFilterEnabled,
       categoryLimit,
+      enabled,
     };
   },
 });
@@ -72,15 +82,20 @@ export default defineComponent({
       <v-checkbox v-model="value" :label="label" />
     </div>
     <div v-else-if="filterItem.category === 'numerical' && filterItem.range">
-      <v-range-slider
-        v-model="value"
-        :min="filterItem.range.min"
-        :max="filterItem.range.max"
-        :label="label"
-        style="min-width: 250px;"
-        thumb-label="always"
-        class="pt-7"
-      />
+      <v-row dense align="center">
+        <v-checkbox v-model="enabled" hide-details="" />
+        <v-range-slider
+          v-model="value"
+          :min="filterItem.range.min"
+          :max="filterItem.range.max"
+          :disabled="!enabled"
+          :label="label"
+          style="min-width: 250px;"
+          thumb-label="always"
+          class="pt-7"
+          hide-details=""
+        />
+      </v-row>
     </div>
   </div>
 </template>
