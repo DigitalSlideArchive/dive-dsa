@@ -19,13 +19,17 @@ export default defineComponent({
       type: [String, Number, Array, Boolean] as PropType<boolean | string | number | string[] | number[]>,
       default: undefined,
     },
+    defaultEnabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const set = ref(props.filterItem.set);
     const value: Ref<undefined | boolean | number | string | string[] | number[]> = ref(props.defaultValue);
     const rangeFilterEnabled = ref(false);
     const categoryLimit = ref(20);
-    const enabled = ref(false); // numerical enabled filter
+    const enabled = ref(props.defaultEnabled); // numerical enabled filter
     watch([value, enabled], () => {
       const update = {
         value: value.value,
@@ -35,6 +39,7 @@ export default defineComponent({
         update.category = 'search';
       }
       if (props.filterItem.category === 'numerical' && !enabled.value) {
+        emit('clear-filter');
         return; // skip emitting the value unless the checkbox is enabled
       }
       emit('update-value', update);
@@ -77,7 +82,7 @@ export default defineComponent({
       <v-checkbox v-model="value" :label="label" />
     </div>
     <div v-else-if="filterItem.category === 'numerical' && filterItem.range">
-      <v-row dense align="center" justify="middle">
+      <v-row dense align="center">
         <v-checkbox v-model="enabled" hide-details="" />
         <v-range-slider
           v-model="value"

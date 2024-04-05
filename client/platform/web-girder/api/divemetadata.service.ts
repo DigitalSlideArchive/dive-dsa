@@ -38,6 +38,8 @@ export interface DIVEMetadataFilterValueResults {
 export interface DIVEMetadataResults {
     pageResults: MetadataResultItem[];
     totalPages: number;
+    filtered: number;
+    count: number;
 }
 
 export interface MetadataResultItem {

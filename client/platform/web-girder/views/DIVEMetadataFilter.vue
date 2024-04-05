@@ -5,6 +5,7 @@ import {
 import {
   computed, defineComponent, onBeforeMount, PropType, Ref, ref, watch,
 } from 'vue';
+import { intersection } from 'lodash';
 import DIVEMetadataFilterItemVue from './DIVEMetadataFilterItem.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -17,6 +18,14 @@ export default defineComponent({
       default: 0,
     },
     totalPages: {
+      type: Number,
+      default: 0,
+    },
+    count: {
+      type: Number,
+      default: 0,
+    },
+    filtered: {
       type: Number,
       default: 0,
     },
@@ -35,7 +44,7 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const search = ref(props.rootFilter.search || '');
+    const search: Ref<string> = ref(props.rootFilter.search || '');
     const filters: Ref<DIVEMetadataFilterValueResults['metadataKeys']> = ref({});
     const splitFilters = computed(() => {
       const advanced: DIVEMetadataFilterValueResults['metadataKeys'] = {};
@@ -50,6 +59,7 @@ export default defineComponent({
       return { advanced, displayed };
     });
     const filtersOn = ref(false);
+    const defaultEnabledKeys: Ref<string[]> = ref([]); // If items should default to on because they are in the URL parameters
     const currentFilter: Ref<DIVEMetadataFilter> = ref({});
     const pageList = computed(() => {
       const list = [];
@@ -65,6 +75,14 @@ export default defineComponent({
     };
     onBeforeMount(async () => {
       await getFilters();
+      if (props.rootFilter.metadataFilters) {
+        const metadataKeys = Object.keys(props.rootFilter.metadataFilters);
+        const advancedKeys = Object.keys(splitFilters.value.advanced);
+        defaultEnabledKeys.value = metadataKeys;
+        if (intersection(metadataKeys, advancedKeys)) {
+          filtersOn.value = true;
+        }
+      }
       loadCurrentFilter();
     });
 
@@ -86,6 +104,15 @@ export default defineComponent({
       emit('updateFilters', currentFilter.value);
     });
 
+    const clearFilter = (key: string) => {
+      if (!currentFilter.value.metadataFilters) {
+        currentFilter.value.metadataFilters = {};
+      }
+      if (currentFilter.value.metadataFilters[key]) {
+        delete currentFilter.value.metadataFilters[key];
+      }
+      emit('updateFilters', currentFilter.value);
+    };
     const updateFilter = (key: string, { value, category } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category']}) => {
       if (!currentFilter.value.metadataFilters) {
         currentFilter.value.metadataFilters = {};
@@ -128,8 +155,10 @@ export default defineComponent({
       filtersOn,
       search,
       currentFilter,
+      defaultEnabledKeys,
       changePage,
       updateFilter,
+      clearFilter,
       getDefaultValue,
     };
   },
@@ -175,7 +204,14 @@ export default defineComponent({
       >
         <v-spacer />
         <div v-for="(filterItem, key) in splitFilters.displayed" :key="`filterItem_${key}`">
-          <DIVEMetadataFilterItemVue :label="key" :default-value="getDefaultValue(key)" :filter-item="filterItem" @update-value="updateFilter(key, $event)" />
+          <DIVEMetadataFilterItemVue
+            :label="key"
+            :default-value="getDefaultValue(key)"
+            :filter-item="filterItem"
+            :default-enabled="defaultEnabledKeys.includes(key)"
+            @update-value="updateFilter(key, $event)"
+            @clear-filter="clearFilter(key)"
+          />
         </div>
         <v-spacer />
       </v-row>
@@ -186,12 +222,20 @@ export default defineComponent({
           mt-3"
       >
         <div v-for="(filterItem, key) in splitFilters.advanced" :key="`filterItem_${key}`">
-          <DIVEMetadataFilterItemVue :label="key" :default-value="getDefaultValue(key)" :filter-item="filterItem" @update-value="updateFilter(key, $event, filterItem.category)" />
+          <DIVEMetadataFilterItemVue
+            :label="key"
+            :default-value="getDefaultValue(key)"
+            :filter-item="filterItem"
+            :default-enabled="defaultEnabledKeys.includes(key)"
+            @update-value="updateFilter(key, $event)"
+            @clear-filter="clearFilter(key)"
+          />
         </div>
       </v-row>
       <v-row class="mt-3">
         <slot name="leftOptions" />
         <v-spacer />
+        <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select
           class="mx-2 pa-0 fit"
           style="max-width: 50px"

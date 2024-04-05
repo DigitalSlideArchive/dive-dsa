@@ -33,6 +33,8 @@ export default defineComponent({
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [] });
     const totalPages = ref(0);
     const currentPage = ref(0);
+    const count = ref(0);
+    const filtered = ref(0);
     const filters: Ref<DIVEMetadataFilter> = ref(props.filter || {});
     const locationStore = {
       _id: props.id,
@@ -44,6 +46,8 @@ export default defineComponent({
     const processFilteredMetadataResults = (data: DIVEMetadataResults) => {
       folderList.value = data.pageResults;
       totalPages.value = data.totalPages;
+      filtered.value = data.filtered;
+      count.value = data.count;
     };
     const getData = async () => {
       const { data } = await filterDiveMetadata(props.id, { ...filters.value });
@@ -58,7 +62,11 @@ export default defineComponent({
     };
 
     const updateURLParams = () => {
-      router.replace({ path: props.id, params: { id: props.id }, query: { filter: JSON.stringify(filters.value) } });
+      if ((filters.value.metadataFilters && Object.keys(filters.value.metadataFilters).length) || filters.value.search) {
+        router.replace({ path: props.id, params: { id: props.id }, query: { filter: JSON.stringify(filters.value) } });
+      } else {
+        window.location.href = window.location.href.replace(/filter=.*/, '');
+      }
     };
 
     onMounted(() => {
@@ -99,6 +107,8 @@ export default defineComponent({
     const openClone = ref(false);
     return {
       totalPages,
+      count,
+      filtered,
       currentPage,
       changePage,
       locationStore,
@@ -122,6 +132,8 @@ export default defineComponent({
       :current-page="currentPage"
       :root-filter="filters"
       :total-pages="totalPages"
+      :count="count"
+      :filtered="filtered"
       :display-config="displayConfig"
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
