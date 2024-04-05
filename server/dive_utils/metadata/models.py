@@ -56,7 +56,6 @@ class DIVE_Metadata(Model):
             )
         else:
             existing['metadata'] = metadata
-        
         existing = self.save(existing)
         return existing
 
