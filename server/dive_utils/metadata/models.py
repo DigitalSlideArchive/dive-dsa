@@ -54,7 +54,10 @@ class DIVE_Metadata(Model):
                 metadata=metadata,
                 created=created,
             )
-            existing = self.save(existing)
+        else:
+            existing['metadata'] = metadata
+        
+        existing = self.save(existing)
         return existing
 
     def validate(self, doc):
@@ -78,7 +81,7 @@ class DIVE_MetadataKeys(Model):
         # remove data if the folderId matches
         entityDoc = event.info
         folderId = entityDoc['_id']
-        dive_dataset = self.findOne({'DIVEDataset': str(folderId)})
+        dive_dataset = self.findOne({'root': str(folderId)})
         if dive_dataset is not None:
             self.remove(dive_dataset)
 
@@ -96,8 +99,8 @@ class DIVE_MetadataKeys(Model):
             ]
         )
 
-    def createMetadataKeys(self, folder, root, owner, metadataKeys, created_date=None):
-        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+    def createMetadataKeys(self, root, owner, metadataKeys, created_date=None):
+        existing = self.findOne({'root': str(root['_id'])})
         if not existing:
             if created_date is None:
                 created = datetime.datetime.utcnow()
@@ -109,7 +112,9 @@ class DIVE_MetadataKeys(Model):
                 metadataKeys=metadataKeys,
                 created=created,
             )
-            existing = self.save(existing)
+        else:
+            existing['metadataKeys'] = metadataKeys
+        self.save(existing)
         return existing
 
     def validate(self, doc):

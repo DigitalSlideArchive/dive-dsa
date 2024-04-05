@@ -195,8 +195,6 @@ class DIVEMetadata(Resource):
                     ]
                 }
                 results = list(Folder().findWithPermissions(query=query, user=user))
-                print(query)
-                print(f"RESULTS LENGTH: {len(results)}")
                 if len(results) > 0:
                     matched = False
                     key_path = item.get(path_key, False)
@@ -228,9 +226,11 @@ class DIVEMetadata(Resource):
                 else:
                     errorLog.append(f"Could not find any results for Video file {item[matcher]}")
                 for key in item.keys():
-                    if key not in metadataKeys.keys():
+                    if key not in metadataKeys.keys() and item[key] is not None:
                         datatype = python_to_javascript_type(type(item[key]))
                         metadataKeys[key] = {"type": datatype, "set": set(), "count": 1}
+                    if item[key] is None:
+                        continue  # we skip null values for processing
                     if metadataKeys[key]['type'] == 'string':
                         metadataKeys[key]['set'].add(item[key])
                         metadataKeys[key]['count'] += 1
@@ -262,13 +262,13 @@ class DIVEMetadata(Resource):
                     del metadataKeys[key]['set']
                 else:
                     del metadataKeys[key]['set']
-            DIVE_MetadataKeys().createMetadataKeys(datasetFolder, folder, user, metadataKeys)
+            DIVE_MetadataKeys().createMetadataKeys(folder, user, metadataKeys)
             # add metadata to root folder for
             folder['meta'][DIVEMetadataMarker] = True
             folder['meta'][DIVEMetadataFilter] = displayKeys
             Folder().save(folder)
 
-        return {"results": f"added {added} folders", "errors": errorLog}
+        return {"results": f"added {added} folders", "errors": errorLog, "metadataKeys": metadataKeys}
 
     @access.user
     @autoDescribeRoute(
@@ -313,6 +313,8 @@ class DIVEMetadata(Resource):
 
         user = self.getCurrentUser()
         query = self.get_filter_query(folder, user, filters)
+        total_query = self.get_filter_query(folder, user, {})
+        total_items = DIVE_Metadata().find(total_query).count()
         metadata_items = DIVE_Metadata().find(
             query, offset=offset, limit=limit, sort=sort, user=self.getCurrentUser()
         )
@@ -321,6 +323,8 @@ class DIVEMetadata(Resource):
             structured_results = {
                 'totalPages': pages,
                 'pageResults': list(metadata_items),
+                'count': total_items,
+                'filtered': metadata_items.count()
             }
             return structured_results
 
