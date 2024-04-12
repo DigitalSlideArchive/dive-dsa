@@ -7,7 +7,6 @@ import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
-import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -29,7 +28,6 @@ export default defineComponent({
   },
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
-    const router = useRouter();
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [] });
     const totalPages = ref(0);
     const currentPage = ref(0);
