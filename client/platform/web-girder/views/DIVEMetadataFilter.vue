@@ -244,10 +244,10 @@ export default defineComponent({
           hide-details
         />
         <v-icon v-if="sortDir === 1" @click="sortDir = -1">
-          mdi-sort-descending
+          mdi-sort-ascending
         </v-icon>
         <v-icon v-else-if="sortDir === -1" @click="sortDir = 1">
-          mdi-sort-ascending
+          mdi-sort-descending
         </v-icon>
       </v-row>
       <v-row
