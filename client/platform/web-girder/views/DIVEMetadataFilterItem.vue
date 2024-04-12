@@ -31,6 +31,12 @@ export default defineComponent({
     const categoryLimit = ref(20);
     const enabled = ref(props.defaultEnabled); // numerical enabled filter
     watch([value, enabled], () => {
+      if (enabled.value) {
+        if (value.value === undefined && props.filterItem.category === 'numerical' && props.filterItem.range) {
+          value.value = [props.filterItem.range.min, props.filterItem.range.max];
+        }
+      }
+
       const update = {
         value: value.value,
         category: props.filterItem.category,
@@ -45,6 +51,9 @@ export default defineComponent({
       emit('update-value', update);
     });
     if (enabled.value) {
+      if (value.value === undefined && props.filterItem.category === 'numerical' && props.filterItem.range) {
+        value.value = [props.filterItem.range.min, props.filterItem.range.max];
+      }
       const update = {
         value: value.value,
         category: props.filterItem.category,

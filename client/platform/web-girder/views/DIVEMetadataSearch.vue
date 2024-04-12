@@ -7,7 +7,6 @@ import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
-import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -29,7 +28,6 @@ export default defineComponent({
   },
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
-    const router = useRouter();
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [] });
     const totalPages = ref(0);
     const currentPage = ref(0);
@@ -63,7 +61,7 @@ export default defineComponent({
 
     const updateURLParams = () => {
       if ((filters.value.metadataFilters && Object.keys(filters.value.metadataFilters).length) || filters.value.search) {
-        router.replace({ path: props.id, params: { id: props.id }, query: { filter: JSON.stringify(filters.value) } });
+        window.location.href = window.location.href.replace(/metadata\/.*/, `metadata/${props.id}?filter=${(JSON.stringify(filters.value))}`);
       } else {
         window.location.href = window.location.href.replace(/filter=.*/, '');
       }
@@ -74,21 +72,33 @@ export default defineComponent({
       getData();
     });
 
-    const updateFilter = async (filter?: DIVEMetadataFilter) => {
+    const storedSortVal = ref('filename');
+    const storedSortDir = ref(1);
+
+    const updateFilter = async ({ filter, sortVal, sortDir } : { filter?:DIVEMetadataFilter, sortVal?: string, sortDir?: number}) => {
       if (filter) {
         filters.value = filter;
         currentPage.value = 0;
         currentFilter.value = filter;
       }
-      const sort = 'filename';
+      if (sortVal) {
+        storedSortVal.value = sortVal;
+      }
+      if (sortDir) {
+        storedSortDir.value = sortDir;
+      }
       updateURLParams();
-      const { data } = await filterDiveMetadata(props.id, { ...filters.value }, currentPage.value * 50, 50, sort);
+      let updatedSortVal = sortVal;
+      if (updatedSortVal !== 'filename') {
+        updatedSortVal = `metadata.${updatedSortVal}`;
+      }
+      const { data } = await filterDiveMetadata(props.id, { ...filters.value }, currentPage.value * 50, 50, updatedSortVal, sortDir);
       processFilteredMetadataResults(data);
     };
 
     const changePage = async (page: number) => {
       currentPage.value = page;
-      await updateFilter();
+      await updateFilter({ filter: currentFilter.value, sortVal: storedSortVal.value, sortDir: storedSortDir.value });
     };
 
     const advanced = computed(() => {
