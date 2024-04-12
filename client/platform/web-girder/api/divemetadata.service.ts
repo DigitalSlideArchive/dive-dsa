@@ -55,7 +55,7 @@ function getMetadataFilterValues(folderId: string, keys?: string[]) {
   });
 }
 
-function filterDiveMetadata(folderId: string, filters: DIVEMetadataFilter, offset = 0, limit = 50, sort = 'filename', sortdir = -1) {
+function filterDiveMetadata(folderId: string, filters: DIVEMetadataFilter, offset = 0, limit = 50, sort = 'filename', sortdir = 1) {
   return girderRest.get<DIVEMetadataResults>(`dive_metadata/${folderId}/filter`, {
     params: {
       filters, offset, limit, sort, sortdir,

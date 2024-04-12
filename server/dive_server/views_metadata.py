@@ -154,7 +154,7 @@ class DIVEMetadata(Resource):
             required=True,
         )
         .jsonParam(
-            "displayKeys",
+            "displayConfig",
             "List of Main Display Keys for the metadata and keys to hide from the filter",
             required=True,
             default={
@@ -162,8 +162,15 @@ class DIVEMetadata(Resource):
                 "hide": ["ETag", "ETagDuplicated", "Size"],
             },
         )
+        .param(
+            "categoricalLimit",
+            "Above this number make a field a search field instead of a dropdown",
+            paramType="formData",
+            dataType="integer",
+            default=50,
+        )
     )
-    def process_metadata(self, folder, sibling_path, fileType, matcher, path_key, displayKeys):
+    def process_metadata(self, folder, sibling_path, fileType, matcher, path_key, displayConfig, categoricalLimit):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
@@ -198,29 +205,46 @@ class DIVEMetadata(Resource):
                 if len(results) > 0:
                     matched = False
                     key_path = item.get(path_key, False)
-                    modified_key_path = remove_before_folder(key_path, root_name)
+                    base_modified_key_path = remove_before_folder(key_path, root_name)
+                    childFolders = list(
+                        Folder().childFolders(folder, 'folder', user=user)
+                    )
+                    modified_key_paths = [{"root": root_name, "modified_path": base_modified_key_path}]
+                    print(f" Lenth of child folders: {len(childFolders)}")
+                    print(childFolders)
+                    for childFolder in childFolders:
+                        print(f"Child Item: {childFolder['name']} path: {key_path}")
+                        modified_key_paths.append({"root": childFolder["name"], "modified_path": remove_before_folder(key_path, childFolder['name'])})
+                    resource_path = ""
+                    print(modified_key_paths)
                     for datasetFolder in results:
                         resource_path = path_util.getResourcePath(
                             'folder', datasetFolder, user=user
                         )
                         # lets modify the path so it contains only the root folder down
-                        resource_path = remove_before_folder(resource_path, root_name)
-                        resource_path = resource_path.replace(
-                            f'/Video {item[matcher]}', f'/{item[matcher]}'
-                        )
-                        # now we check to see if the path matches the DIVE dataset item found.
-                        if modified_key_path:
-                            if modified_key_path == resource_path:
-                                item['pathMatches'] = True
-                                DIVE_Metadata().createMetadata(datasetFolder, folder, user, item)
-                                added += 1
-                                matched = True
-                            else:
-                                item['pathMatches'] = False
+                        for rootObj in modified_key_paths:
+                            root = rootObj['root']
+                            modified_path = rootObj['modified_path']
+                            resource_path = remove_before_folder(resource_path, root)
+                            resource_path = resource_path.replace(
+                                f'/Video {item[matcher]}', f'/{item[matcher]}'
+                            )
+                            # now we check to see if the path matches the DIVE dataset item found.
+                            if modified_path:
+                                if modified_path == resource_path:
+                                    item['pathMatches'] = True
+                                    DIVE_Metadata().createMetadata(datasetFolder, folder, user, item)
+                                    added += 1
+                                    matched = True
+                                    break
+                                else:
+                                    item['pathMatches'] = False
+                        if matched:
+                            break
 
                     if not matched:
                         errorLog.append(
-                            f"using matcher: {matcher} and key_path: {key_path} Could not find any matching key file path for Video file {item[matcher]} with path: {modified_key_path}"
+                            f"using matcher: {matcher} and key_path: {key_path} Could not find any matching key file path for Video file {item[matcher]} with path: {resource_path}"
                         )
 
                 else:
@@ -249,8 +273,9 @@ class DIVEMetadata(Resource):
             # now we need to determine what is categorical vs what is a search field
             for key in metadataKeys.keys():
                 item = metadataKeys[key]
+                metadataKeys[key]["unique"] = len(item["set"])
                 if item["type"] in ['string', 'array'] and (
-                    item["count"] < 50 or item["count"] < len(item["set"])
+                    item["count"] < categoricalLimit or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
                 ):
                     metadataKeys[key]["category"] = "categorical"
                     metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
@@ -265,14 +290,14 @@ class DIVEMetadata(Resource):
             DIVE_MetadataKeys().createMetadataKeys(folder, user, metadataKeys)
             # add metadata to root folder for
             folder['meta'][DIVEMetadataMarker] = True
-            folder['meta'][DIVEMetadataFilter] = displayKeys
+            folder['meta'][DIVEMetadataFilter] = displayConfig
             Folder().save(folder)
 
         return {"results": f"added {added} folders", "errors": errorLog, "metadataKeys": metadataKeys}
 
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter keys for a specific folder").modelParam(
+        Description("Get a list of filter keys for a specific folder.  This is more used for debugging values in the metadata").modelParam(
             "id",
             description="Base folder ID",
             model=Folder,
@@ -305,7 +330,7 @@ class DIVEMetadata(Resource):
             "JSON Settings for the filtering",
             required=False,
         )
-        .pagingParams(defaultSort='created')
+        .pagingParams(defaultSort='filename')
     )
     def filter_folder(self, folder, filters, limit, offset, sort):
         if folder['meta'].get(DIVEMetadataMarker, False) is False:
@@ -390,12 +415,7 @@ class DIVEMetadata(Resource):
             query = {'$and': [query]}
             if 'search' in filters.keys():
                 query["$and"].append(
-                    {
-                        '$or': [
-                            {'filename': {'$regex': re.escape(filters['search'])}},
-                            {'Probes': {'$regex': re.escape(filters['search'])}},
-                        ]
-                    }
+                    {'filename': {'$regex': re.escape(filters['search'])}},
                 )
             # Now we need to go through the other filters and create querys for them
             # each filter in metadataFilters will have a type associated with it

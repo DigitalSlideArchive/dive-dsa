@@ -6,6 +6,7 @@ import {
   computed, defineComponent, onBeforeMount, PropType, Ref, ref, watch,
 } from 'vue';
 import { intersection } from 'lodash';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import DIVEMetadataFilterItemVue from './DIVEMetadataFilterItem.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -44,6 +45,18 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
+    const { prompt } = usePrompt();
+
+    const checkConfig = async () => {
+      if (typeof (props.displayConfig) === 'string') {
+        await prompt({
+          title: 'Filter Error',
+          text: 'The default filter for this folder is not a JSON Object it appears to be a string',
+        });
+      }
+    };
+    watch(() => props.displayConfig, () => checkConfig());
+
     const search: Ref<string> = ref(props.rootFilter.search || '');
     const filters: Ref<DIVEMetadataFilterValueResults['metadataKeys']> = ref({});
     const splitFilters = computed(() => {
@@ -61,6 +74,15 @@ export default defineComponent({
     const filtersOn = ref(false);
     const defaultEnabledKeys: Ref<string[]> = ref([]); // If items should default to on because they are in the URL parameters
     const currentFilter: Ref<DIVEMetadataFilter> = ref({});
+    const sortParams = computed(() => {
+      if (splitFilters.value) {
+        return ['filename', ...Object.keys(splitFilters.value.displayed), ...Object.keys(splitFilters.value.advanced)];
+      }
+      return ['filename'];
+    });
+    const sortValue = ref('filename');
+    const sortDir = ref(1);
+
     const pageList = computed(() => {
       const list = [];
       for (let i = 0; i < props.totalPages; i += 1) {
@@ -86,7 +108,7 @@ export default defineComponent({
       loadCurrentFilter();
     });
 
-    const loadCurrentFilter = () => {
+    const loadCurrentFilter = async () => {
       if (props.rootFilter.metadataFilters && Object.keys(props.rootFilter.metadataFilters).length) {
         currentFilter.value.metadataFilters = props.rootFilter.metadataFilters;
       }
@@ -99,9 +121,21 @@ export default defineComponent({
       loadCurrentFilter();
     });
 
+    watch(filtersOn, (newVal, oldVal) => {
+      if (!newVal && oldVal) {
+        // We remove all of the old filters then
+        Object.keys(splitFilters.value.advanced).forEach((key) => {
+          if (currentFilter.value && currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
+            delete currentFilter.value.metadataFilters[key];
+          }
+        });
+        emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+      }
+    });
+
     watch(search, () => {
       currentFilter.value.search = search.value;
-      emit('updateFilters', currentFilter.value);
+      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     });
 
     const clearFilter = (key: string) => {
@@ -111,7 +145,7 @@ export default defineComponent({
       if (currentFilter.value.metadataFilters[key]) {
         delete currentFilter.value.metadataFilters[key];
       }
-      emit('updateFilters', currentFilter.value);
+      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     };
     const updateFilter = (key: string, { value, category } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category']}) => {
       if (!currentFilter.value.metadataFilters) {
@@ -132,20 +166,24 @@ export default defineComponent({
           value,
         };
       }
-      emit('updateFilters', currentFilter.value);
+      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     };
 
     const changePage = async (page: number) => {
       emit('update:currentPage', page - 1);
     };
 
+    watch([sortValue, sortDir], () => {
+      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+    });
+
     const getDefaultValue = (key: string) => {
-      if (props.rootFilter?.metadataFilters) {
-        if (props.rootFilter.metadataFilters[key] && props.rootFilter.metadataFilters[key].category === 'numerical') {
-          return props.rootFilter.metadataFilters[key].range;
+      if (currentFilter.value.metadataFilters) {
+        if (currentFilter.value.metadataFilters[key] && currentFilter.value.metadataFilters[key].category === 'numerical') {
+          return currentFilter.value.metadataFilters[key].range;
         }
-        if (props.rootFilter.metadataFilters[key]) {
-          return props.rootFilter.metadataFilters[key].value;
+        if (currentFilter.value.metadataFilters[key]) {
+          return currentFilter.value.metadataFilters[key].value;
         }
       }
       return undefined;
@@ -164,6 +202,9 @@ export default defineComponent({
       updateFilter,
       clearFilter,
       getDefaultValue,
+      sortValue,
+      sortParams,
+      sortDir,
     };
   },
 });
@@ -172,7 +213,7 @@ export default defineComponent({
 <template>
   <v-card class="pb-2">
     <v-container>
-      <v-row>
+      <v-row class="pt-2">
         <v-btn
           class="ma-1 pa-0"
           :depressed="filtersOn"
@@ -190,6 +231,24 @@ export default defineComponent({
           </v-icon>
           Advanced Filters
         </v-btn>
+        <v-spacer />
+        <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
+        <v-select
+          v-model="sortValue"
+          class="mx-2 pa-0 fit"
+          style="max-width: 150px"
+          x-small
+          :items="sortParams"
+          dense
+          label="Sort"
+          hide-details
+        />
+        <v-icon v-if="sortDir === 1" @click="sortDir = -1">
+          mdi-sort-descending
+        </v-icon>
+        <v-icon v-else-if="sortDir === -1" @click="sortDir = 1">
+          mdi-sort-ascending
+        </v-icon>
       </v-row>
       <v-row
         no-wrap
@@ -239,7 +298,6 @@ export default defineComponent({
       <v-row class="mt-3">
         <slot name="leftOptions" />
         <v-spacer />
-        <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select
           class="mx-2 pa-0 fit"
           style="max-width: 50px"

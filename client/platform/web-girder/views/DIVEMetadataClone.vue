@@ -82,7 +82,6 @@ export default defineComponent({
       >
         <GirderFileManager
           new-folder-enabled
-          root-location-disabled
           no-access-control
           :location="location"
           @update:location="setLocation"
