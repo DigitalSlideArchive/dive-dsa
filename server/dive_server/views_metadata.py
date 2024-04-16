@@ -13,7 +13,14 @@ from girder.utility import path as path_util
 import pymongo
 
 from dive_utils import TRUTHY_META_VALUES, FALSY_META_VALUES
-from dive_utils.constants import jsonRegex, ndjsonRegex, DIVEMetadataMarker, DIVEMetadataFilter, DIVEMetadataClonedFilter, DIVEMetadataClonedFilterBase
+from dive_utils.constants import (
+    jsonRegex,
+    ndjsonRegex,
+    DIVEMetadataMarker,
+    DIVEMetadataFilter,
+    DIVEMetadataClonedFilter,
+    DIVEMetadataClonedFilterBase,
+)
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from . import crud_dataset
 
@@ -170,7 +177,9 @@ class DIVEMetadata(Resource):
             default=50,
         )
     )
-    def process_metadata(self, folder, sibling_path, fileType, matcher, path_key, displayConfig, categoricalLimit):
+    def process_metadata(
+        self, folder, sibling_path, fileType, matcher, path_key, displayConfig, categoricalLimit
+    ):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
@@ -206,15 +215,22 @@ class DIVEMetadata(Resource):
                     matched = False
                     key_path = item.get(path_key, False)
                     base_modified_key_path = remove_before_folder(key_path, root_name)
-                    childFolders = list(
-                        Folder().childFolders(folder, 'folder', user=user)
-                    )
-                    modified_key_paths = [{"root": root_name, "modified_path": base_modified_key_path}]
+                    childFolders = list(Folder().childFolders(folder, 'folder', user=user))
+                    modified_key_paths = [
+                        {"root": root_name, "modified_path": base_modified_key_path}
+                    ]
                     print(f" Lenth of child folders: {len(childFolders)}")
                     print(childFolders)
                     for childFolder in childFolders:
                         print(f"Child Item: {childFolder['name']} path: {key_path}")
-                        modified_key_paths.append({"root": childFolder["name"], "modified_path": remove_before_folder(key_path, childFolder['name'])})
+                        modified_key_paths.append(
+                            {
+                                "root": childFolder["name"],
+                                "modified_path": remove_before_folder(
+                                    key_path, childFolder['name']
+                                ),
+                            }
+                        )
                     resource_path = ""
                     print(modified_key_paths)
                     for datasetFolder in results:
@@ -233,7 +249,9 @@ class DIVEMetadata(Resource):
                             if modified_path:
                                 if modified_path == resource_path:
                                     item['pathMatches'] = True
-                                    DIVE_Metadata().createMetadata(datasetFolder, folder, user, item)
+                                    DIVE_Metadata().createMetadata(
+                                        datasetFolder, folder, user, item
+                                    )
                                     added += 1
                                     matched = True
                                     break
@@ -275,7 +293,8 @@ class DIVEMetadata(Resource):
                 item = metadataKeys[key]
                 metadataKeys[key]["unique"] = len(item["set"])
                 if item["type"] in ['string', 'array'] and (
-                    item["count"] < categoricalLimit or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
+                    item["count"] < categoricalLimit
+                    or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
                 ):
                     metadataKeys[key]["category"] = "categorical"
                     metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
@@ -293,11 +312,17 @@ class DIVEMetadata(Resource):
             folder['meta'][DIVEMetadataFilter] = displayConfig
             Folder().save(folder)
 
-        return {"results": f"added {added} folders", "errors": errorLog, "metadataKeys": metadataKeys}
+        return {
+            "results": f"added {added} folders",
+            "errors": errorLog,
+            "metadataKeys": metadataKeys,
+        }
 
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter keys for a specific folder.  This is more used for debugging values in the metadata").modelParam(
+        Description(
+            "Get a list of filter keys for a specific folder.  This is more used for debugging values in the metadata"
+        ).modelParam(
             "id",
             description="Base folder ID",
             model=Folder,
@@ -349,7 +374,7 @@ class DIVEMetadata(Resource):
                 'totalPages': pages,
                 'pageResults': list(metadata_items),
                 'count': total_items,
-                'filtered': metadata_items.count()
+                'filtered': metadata_items.count(),
             }
             return structured_results
 
@@ -393,7 +418,13 @@ class DIVEMetadata(Resource):
         user = self.getCurrentUser()
         query = self.get_filter_query(baseFolder, user, filters)
         metadata_items = DIVE_Metadata().find(query, user=self.getCurrentUser())
-        Folder().setMetadata(destFolder, {DIVEMetadataClonedFilter: json.dumps(filters), DIVEMetadataClonedFilterBase: baseFolder["_id"]})
+        Folder().setMetadata(
+            destFolder,
+            {
+                DIVEMetadataClonedFilter: json.dumps(filters),
+                DIVEMetadataClonedFilterBase: baseFolder["_id"],
+            },
+        )
         if metadata_items is not None:
             for item in list(metadata_items):
                 print(item)
