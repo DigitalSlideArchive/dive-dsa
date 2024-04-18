@@ -246,6 +246,7 @@ export default defineComponent({
       <v-row
         class="border-highlight"
         align="center"
+        dense
       >
         <v-col
           id="type-header"
@@ -301,7 +302,7 @@ export default defineComponent({
       v-model="data.filterText"
       type="text"
       placeholder="Search types"
-      class="mx-2 mt-2 shrink input-box"
+      class="mx-2 mt-2 mb-1 shrink input-box"
     >
     <div class="pb-2 overflow-y-hidden">
       <v-virtual-scroll

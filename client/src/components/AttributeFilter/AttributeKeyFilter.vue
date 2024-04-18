@@ -80,7 +80,7 @@ export default defineComponent({
 
 <template>
   <div>
-    <v-row no-gutters>
+    <v-row no-gutters dense>
       <h4>{{ !timeline ? 'Key' : 'Timeline' }} Filter</h4>
       <v-spacer />
       <tooltip-btn
@@ -103,6 +103,7 @@ export default defineComponent({
       <v-row
         no-gutters
         class="align-center"
+        dense
       >
         <v-checkbox
           :input-value="attributeFilter.active"
@@ -117,6 +118,7 @@ export default defineComponent({
       <v-row
         v-for="item in attributeFilter.appliedTo"
         :key="item"
+        dense
       >
         <div
           class="type-color-box"
