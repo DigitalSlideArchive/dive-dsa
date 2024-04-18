@@ -76,7 +76,7 @@ def load_metadata_json(search_folder, type='ndjson'):
         Folder().childItems(
             search_folder,
             filters={"lowerName": {"$regex": regex}},
-            sort=[("updated", pymongo.ASCENDING)],
+            sort=[("updated", pymongo.DESCENDING)],
         )
     )
     if len(json_items) > 0:
@@ -232,7 +232,6 @@ class DIVEMetadata(Resource):
                             }
                         )
                     resource_path = ""
-                    print(modified_key_paths)
                     for datasetFolder in results:
                         resource_path = path_util.getResourcePath(
                             'folder', datasetFolder, user=user
