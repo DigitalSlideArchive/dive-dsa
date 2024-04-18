@@ -451,6 +451,7 @@ export default class ConfigurationManager {
       const { timelines } = this.configuration.value.timelineConfigs;
       if (timelines.length === 1) {
         this.configuration.value.timelineConfigs.timelines = [];
+        this.configuration.value.timelineConfigs.maxHeight = 175;
       } else if (timelines[index]) {
         timelines.splice(index, 1);
       }

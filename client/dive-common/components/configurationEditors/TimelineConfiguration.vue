@@ -114,71 +114,73 @@ export default defineComponent({
 <template>
   <v-card>
     <h2>Custom Timeline List</h2>
-    <v-row dense>
-      <v-select
-        v-model="addTimeline"
-        :items="availableTimelines"
-        item-text="name"
-        label="Timeline"
-      >
-        <template #item="{ item }">
-          <span>Name: {{ item.name }} Type: {{ item.type }} </span>
-        </template>
-      </v-select>
-      <v-btn
-        :disabled="!addTimeline"
-        @click="$emit('add-timeline', { name: addTimeline, type: returnTimelineType(addTimeline) })"
-      >
-        Add Timeline
-      </v-btn>
-    </v-row>
-    <v-row dense>
-      <v-text-field
-        v-model.number="baseHeight"
-        type="number"
-        label="Max Timeline Area Height"
-        style="max-width: 150px;"
-        :rules="[v => (v >= 50) || 'Value needs to be 50 or higher']"
-        @change="$emit('update-height', $event)"
-      />
-    </v-row>
-    <v-row
-      v-for="(timeline, index) in timelineConfig.timelines"
-      :key="timeline.name"
-      dense
-    >
-      <v-col cols="3">
-        {{ timeline.name }}
-      </v-col>
-      <v-col>
-        <span>Height:</span>
-        {{ timeline.maxHeight }}
-      </v-col>
-      <v-col>
-        <span>Order:</span>
-        {{ timeline.order }}
-      </v-col>
-      <v-col>
-        <span>Dismissable:</span>
-        {{ timeline.dismissable }}
-      </v-col>
-      <v-col>
-        <span>Type:</span>
-        {{ timeline.type }}
-      </v-col>
-      <v-spacer />
-      <v-col>
-        <v-icon @click="editTimeline(index)">
-          mdi-pencil
-        </v-icon>
-        <v-icon
-          color="error"
-          @click="deleteTimeline(index)"
+    <v-card-text>
+      <v-row dense>
+        <v-select
+          v-model="addTimeline"
+          :items="availableTimelines"
+          item-text="name"
+          label="Timeline"
         >
-          mdi-delete
-        </v-icon>
-      </v-col>
-    </v-row>
+          <template #item="{ item }">
+            <span>Name: {{ item.name }} Type: {{ item.type }} </span>
+          </template>
+        </v-select>
+        <v-btn
+          :disabled="!addTimeline"
+          @click="$emit('add-timeline', { name: addTimeline, type: returnTimelineType(addTimeline) })"
+        >
+          Add Timeline
+        </v-btn>
+      </v-row>
+      <v-row dense>
+        <v-text-field
+          v-model.number="baseHeight"
+          type="number"
+          label="Max Timeline Area Height"
+          style="max-width: 150px;"
+          :rules="[v => (v >= 50) || 'Value needs to be 50 or higher']"
+          @change="$emit('update-height', $event)"
+        />
+      </v-row>
+      <v-row
+        v-for="(timeline, index) in timelineConfig.timelines"
+        :key="timeline.name"
+        dense
+      >
+        <v-col cols="3">
+          {{ timeline.name }}
+        </v-col>
+        <v-col>
+          <span>Height:</span>
+          {{ timeline.maxHeight }}
+        </v-col>
+        <v-col>
+          <span>Order:</span>
+          {{ timeline.order }}
+        </v-col>
+        <v-col>
+          <span>Dismissable:</span>
+          {{ timeline.dismissable }}
+        </v-col>
+        <v-col>
+          <span>Type:</span>
+          {{ timeline.type }}
+        </v-col>
+        <v-spacer />
+        <v-col>
+          <v-icon @click="editTimeline(index)">
+            mdi-pencil
+          </v-icon>
+          <v-icon
+            color="error"
+            @click="deleteTimeline(index)"
+          >
+            mdi-delete
+          </v-icon>
+        </v-col>
+      </v-row>
+    </v-card-text>
     <div v-if="editingTimeline">
       <v-card
         class="pa-3"

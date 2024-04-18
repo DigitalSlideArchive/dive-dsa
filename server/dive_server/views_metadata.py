@@ -241,7 +241,11 @@ class DIVEMetadata(Resource):
                         for rootObj in modified_key_paths:
                             root = rootObj['root']
                             modified_path = rootObj['modified_path']
+                            if modified_path is None:
+                                continue
                             resource_path = remove_before_folder(resource_path, root)
+                            if resource_path is None:
+                                continue
                             resource_path = resource_path.replace(
                                 f'/Video {item[matcher]}', f'/{item[matcher]}'
                             )
