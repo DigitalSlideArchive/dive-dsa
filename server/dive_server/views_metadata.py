@@ -76,7 +76,7 @@ def load_metadata_json(search_folder, type='ndjson'):
         Folder().childItems(
             search_folder,
             filters={"lowerName": {"$regex": regex}},
-            sort=[("updated", pymongo.ASCENDING)],
+            sort=[("updated", pymongo.DESCENDING)],
         )
     )
     if len(json_items) > 0:
@@ -96,7 +96,7 @@ def load_metadata_json(search_folder, type='ndjson'):
         if not isinstance(json_data, list):
             print("JSON metadata isn't an array")
             return False
-        return json_data
+        return json_data, file['name']
 
 
 class DIVEMetadata(Resource):
@@ -193,8 +193,9 @@ class DIVEMetadata(Resource):
         data = None
         errorLog = []
         added = 0
+        dataFileName = ''
         if fileType in ['json', 'ndjson']:
-            data = load_metadata_json(search_folder, fileType)
+            data, dataFileName = load_metadata_json(search_folder, fileType)
         if not data:
             return False
         else:
@@ -232,7 +233,6 @@ class DIVEMetadata(Resource):
                             }
                         )
                     resource_path = ""
-                    print(modified_key_paths)
                     for datasetFolder in results:
                         resource_path = path_util.getResourcePath(
                             'folder', datasetFolder, user=user
@@ -274,7 +274,7 @@ class DIVEMetadata(Resource):
                 for key in item.keys():
                     if key not in metadataKeys.keys() and item[key] is not None:
                         datatype = python_to_javascript_type(type(item[key]))
-                        metadataKeys[key] = {"type": datatype, "set": set(), "count": 1}
+                        metadataKeys[key] = {"type": datatype, "set": set(), "count": 0}
                     if item[key] is None:
                         continue  # we skip null values for processing
                     if metadataKeys[key]['type'] == 'string':
@@ -317,6 +317,7 @@ class DIVEMetadata(Resource):
             Folder().save(folder)
 
         return {
+            "dataFileName": dataFileName,
             "results": f"added {added} folders",
             "errors": errorLog,
             "metadataKeys": metadataKeys,
