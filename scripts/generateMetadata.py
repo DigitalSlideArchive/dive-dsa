@@ -101,6 +101,9 @@ def run_script(ndfile):
         count += 1
         print(f'Completed item: {count} of {total}')
         get_or_create_folder(gc, replaced, folderData['name'], existing)
+    # now we place the ndjson file in a info folder
+    info_folder = gc.createFolder(rootFolderId, name="info")
+    gc.uploadFileToFolder(info_folder["_id"], ndfile)
 
 
 
