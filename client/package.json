@@ -1,10 +1,6 @@
 {
   "name": "dive-dsa",
-<<<<<<< HEAD
   "version": "1.10.6",
-=======
-  "version": "1.10.5",
->>>>>>> main
   "author": {
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
