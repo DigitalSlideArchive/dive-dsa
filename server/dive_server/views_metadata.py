@@ -220,10 +220,7 @@ class DIVEMetadata(Resource):
                     modified_key_paths = [
                         {"root": root_name, "modified_path": base_modified_key_path}
                     ]
-                    print(f" Lenth of child folders: {len(childFolders)}")
-                    print(childFolders)
                     for childFolder in childFolders:
-                        print(f"Child Item: {childFolder['name']} path: {key_path}")
                         modified_key_paths.append(
                             {
                                 "root": childFolder["name"],
@@ -297,7 +294,7 @@ class DIVEMetadata(Resource):
                 item = metadataKeys[key]
                 metadataKeys[key]["unique"] = len(item["set"])
                 if item["type"] in ['string', 'array'] and (
-                    item["count"] < categoricalLimit
+                    item["unique"] < categoricalLimit
                     or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
                 ):
                     metadataKeys[key]["category"] = "categorical"
@@ -313,6 +310,7 @@ class DIVEMetadata(Resource):
             DIVE_MetadataKeys().createMetadataKeys(folder, user, metadataKeys)
             # add metadata to root folder for
             folder['meta'][DIVEMetadataMarker] = True
+            displayConfig['categoricalLimit'] = categoricalLimit
             folder['meta'][DIVEMetadataFilter] = displayConfig
             Folder().save(folder)
 
@@ -432,7 +430,6 @@ class DIVEMetadata(Resource):
         )
         if metadata_items is not None:
             for item in list(metadata_items):
-                print(item)
                 item_folder = Folder().load(item['DIVEDataset'], level=AccessType.READ, user=user)
                 crud_dataset.createSoftClone(
                     self.getCurrentUser(),
@@ -478,7 +475,6 @@ class DIVEMetadata(Resource):
                         query["$and"].append(
                             {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
                         )
-        print(query)
         return query
 
     @access.user
@@ -514,7 +510,6 @@ class DIVEMetadata(Resource):
         for item in metadata_items:
             if 'metadata' in item.keys():
                 for key in item['metadata'].keys():
-                    print(item['metadata'][key])
                     if keys is None and key not in results.keys():
                         results[key] = set()
                     if item['metadata'].get(key, None) is not None and not isinstance(
