@@ -23,12 +23,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    categoricalLimit: {
+      type: Number,
+      default: 50,
+    },
   },
   setup(props, { emit }) {
     const set = ref(props.filterItem.set);
     const value: Ref<undefined | boolean | number | string | string[] | number[]> = ref(props.defaultValue);
     const rangeFilterEnabled = ref(false);
-    const categoryLimit = ref(20);
     const enabled = ref(props.defaultEnabled); // numerical enabled filter
     watch([value, enabled], () => {
       if (enabled.value) {
@@ -41,7 +44,7 @@ export default defineComponent({
         value: value.value,
         category: props.filterItem.category,
       };
-      if (props.filterItem.category === 'categorical' && props.filterItem.count > categoryLimit.value) {
+      if (props.filterItem.category === 'categorical' && props.filterItem.unique > props.categoricalLimit) {
         update.category = 'search';
       }
       if (props.filterItem.category === 'numerical' && !enabled.value) {
@@ -64,7 +67,6 @@ export default defineComponent({
       set,
       value,
       rangeFilterEnabled,
-      categoryLimit,
       enabled,
     };
   },
@@ -73,7 +75,7 @@ export default defineComponent({
 
 <template>
   <div class="mx-2">
-    <div v-if="filterItem.category === 'categorical' && filterItem.count < categoryLimit && set">
+    <div v-if="filterItem.category === 'categorical' && filterItem.unique < categoricalLimit && set">
       <v-select
         v-model="value"
         :items="set"
@@ -84,7 +86,7 @@ export default defineComponent({
         :label="label"
       />
     </div>
-    <div v-else-if="filterItem.category === 'search' || (filterItem.category === 'categorical' && filterItem.count >= categoryLimit)">
+    <div v-else-if="filterItem.category === 'search' || (filterItem.category === 'categorical' && filterItem.unique >= categoricalLimit)">
       <v-text-field v-model="value" :label="label" />
     </div>
     <div v-else-if="filterItem.category === 'boolean'">

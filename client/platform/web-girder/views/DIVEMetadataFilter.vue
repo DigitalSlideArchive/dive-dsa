@@ -188,6 +188,10 @@ export default defineComponent({
       }
       return undefined;
     };
+    const categoricalLimit = ref(props.displayConfig.categoricalLimit);
+    watch(() => props.displayConfig, () => {
+      categoricalLimit.value = props.displayConfig.categoricalLimit;
+    });
 
     return {
 
@@ -198,6 +202,7 @@ export default defineComponent({
       search,
       currentFilter,
       defaultEnabledKeys,
+      categoricalLimit,
       changePage,
       updateFilter,
       clearFilter,
@@ -272,6 +277,7 @@ export default defineComponent({
             :default-value="getDefaultValue(key)"
             :filter-item="filterItem"
             :default-enabled="defaultEnabledKeys.includes(key)"
+            :categorical-limit="categoricalLimit"
             @update-value="updateFilter(key, $event)"
             @clear-filter="clearFilter(key)"
           />
@@ -290,6 +296,7 @@ export default defineComponent({
             :default-value="getDefaultValue(key)"
             :filter-item="filterItem"
             :default-enabled="defaultEnabledKeys.includes(key)"
+            :categorical-limit="categoricalLimit"
             @update-value="updateFilter(key, $event)"
             @clear-filter="clearFilter(key)"
           />

@@ -28,7 +28,7 @@ export default defineComponent({
   },
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
-    const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [] });
+    const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
     const totalPages = ref(0);
     const currentPage = ref(0);
     const count = ref(0);

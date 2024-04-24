@@ -10,11 +10,13 @@ export interface MetadataFilterItem {
 export interface FilterDisplayConfig {
     display: string[];
     hide: string[];
+    categoricalLimit: number;
 }
 
 export interface MetadataFilterKeysItem {
     category: 'search' | 'categorical' | 'numerical' | 'boolean';
     count: number;
+    unique: number;
     set?: string[] | number[];
     range?: {
         min: number,
