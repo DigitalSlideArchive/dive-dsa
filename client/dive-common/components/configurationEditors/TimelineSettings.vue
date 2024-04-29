@@ -15,7 +15,12 @@ export default defineComponent({
     TimelineFilterSettings,
     TimelineConfigurationVue,
   },
-  props: {},
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   setup() {
     const configMan = useConfiguration();
     const currentTab = ref('Main');
@@ -136,7 +141,7 @@ export default defineComponent({
 
 <template>
   <div class="ma-2">
-    <v-btn @click="launchEditor">
+    <v-btn :disabled="disabled" @click="launchEditor">
       <span>
         Timeline Settings
         <br>

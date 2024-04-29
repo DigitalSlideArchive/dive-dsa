@@ -9,7 +9,12 @@ export default defineComponent({
   name: 'ConfigurationSettings',
   components: {
   },
-  props: {},
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   setup() {
     const {
       configuration, saveConfiguration, configurationId,
@@ -32,7 +37,7 @@ export default defineComponent({
       generalDialog.value = true;
     };
 
-    const saveChanges = () => {
+    const saveChanges = async () => {
       // We need to take the new values and set them on the 'general' settings
       const newConfigurationSettings = {
         addTypes: addTypes.value,
@@ -74,7 +79,7 @@ export default defineComponent({
 
 <template>
   <div class="ma-2">
-    <v-btn @click="launchEditor">
+    <v-btn :disabled="disabled" @click="launchEditor">
       <span>
         Saving/Editing
         <br>

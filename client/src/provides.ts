@@ -280,7 +280,8 @@ export interface State {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const markChangesPending = () => { };
-
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const saveConfig = async () => {};
 /**
  * make a trivial state store. Useful if you only
  * intend to override some small number of values.
@@ -288,7 +289,7 @@ const markChangesPending = () => { };
 function dummyState(): State {
   const cameraStore = new CameraStore({ markChangesPending });
   const configurationManager = new ConfigurationManager({
-    configurationId: ref(';'), setConfigurationId: markChangesPending, saveConfiguration: markChangesPending, transferConfiguration: markChangesPending,
+    configurationId: ref(';'), setConfigurationId: markChangesPending, saveConfiguration: saveConfig, transferConfiguration: markChangesPending,
   });
   const groupFilterControls = new GroupFilterControls(
     {

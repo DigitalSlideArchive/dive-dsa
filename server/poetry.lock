@@ -859,12 +859,12 @@ typing = ["typing-extensions (>=4.8)"]
 
 [[package]]
 name = "girder"
-version = "3.2.2"
+version = "3.2.3"
 description = "Web-based data management platform"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "girder-3.2.2.tar.gz", hash = "sha256:488450834541cd388f65e71c0109eb7df308380afdafe8d7d9ff7a8f94622dfa"},
+    {file = "girder-3.2.3.tar.gz", hash = "sha256:6f1d31c26237bc5b6f4010692248231c7c9a4d2a75701ec761a41d6e75de8fcb"},
 ]
 
 [package.dependencies]
@@ -892,12 +892,12 @@ sftp = ["paramiko"]
 
 [[package]]
 name = "girder-client"
-version = "3.2.2"
+version = "3.2.3"
 description = "Python client for interacting with Girder servers"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "girder-client-3.2.2.tar.gz", hash = "sha256:cae586e82195cac61aacb56b7dda3a22890cbda6eba13324df4f37d5566fb8ef"},
+    {file = "girder-client-3.2.3.tar.gz", hash = "sha256:18433114045d597082301829a7e20451335260c226f01fd2997e3247a2876556"},
 ]
 
 [package.dependencies]
@@ -908,12 +908,12 @@ requests_toolbelt = "*"
 
 [[package]]
 name = "girder-jobs"
-version = "3.2.2"
+version = "3.2.3"
 description = "A general purpose plugin for managing offline jobs."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "girder-jobs-3.2.2.tar.gz", hash = "sha256:d38669aeb2c742283d7aff4e667d53d3d6f02de9ccfeb3d0bc026bd591d799a4"},
+    {file = "girder-jobs-3.2.3.tar.gz", hash = "sha256:14a5a55138477dee260a0f22aac83ffb4daf622a62816a3f937750a5428c5d8d"},
 ]
 
 [package.dependencies]
@@ -942,12 +942,12 @@ worker = ["docker (>=2.6.0)", "girder-worker[worker] (>=0.6.0)"]
 
 [[package]]
 name = "girder-worker"
-version = "0.10.2"
+version = "0.10.3"
 description = "Batch execution engine built on celery."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "girder-worker-0.10.2.tar.gz", hash = "sha256:93887a3326e9c52c4464926a7976576f7ee679197a4c83abce9f4e5477eaac67"},
+    {file = "girder-worker-0.10.3.tar.gz", hash = "sha256:4f96b86f07a5324a1b7a066c0d9f070020673dad0af3ca26bf23182c3dbef438"},
 ]
 
 [package.dependencies]
@@ -965,7 +965,7 @@ stevedore = "*"
 urllib3 = ">=1.26.8"
 
 [package.extras]
-girder = ["girder (>=3.0.0a1)", "girder-jobs (>=3.0.0a1)"]
+girder = ["girder (>=3.0.1,<5)", "girder-jobs (>=3.0.1,<5)"]
 
 [[package]]
 name = "girder-worker-utils"
@@ -2808,4 +2808,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "f22fa4b828a5075ec25b3928892382385992f69e7d11ca9980187bc0b304a8e2"
+content-hash = "0de60c35f26576d1211c0a99962524d01ee26ed81e9bf5955e02b55d92fd11fb"

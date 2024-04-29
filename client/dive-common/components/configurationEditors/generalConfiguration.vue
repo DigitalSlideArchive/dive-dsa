@@ -1,5 +1,6 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
+import { getDiveConfiguration } from 'platform/web-girder/api/dataset.service';
 import {
   defineComponent, ref,
 } from 'vue';
@@ -31,7 +32,7 @@ export default defineComponent({
       disableConfigurationEditing: disableConfigurationEditing.value,
     };
 
-    const saveChanges = () => {
+    const saveChanges = async () => {
       // We need to take the new values and set them on the 'general' settings
       if (baseConfiguration.value) {
         configMan.setConfigurationId(baseConfiguration.value);
@@ -53,15 +54,27 @@ export default defineComponent({
           }
         }
 
-        configMan.saveConfiguration(baseConfiguration.value, { general });
+        await configMan.saveConfiguration(baseConfiguration.value, { general });
         generalDialog.value = false;
       }
     };
 
     // On launch if the configuration is not set we configure it
-    if (configMan.configuration.value === null) {
-      saveChanges();
-    }
+    const checkNullConfig = async () => {
+      if (configMan.configuration.value === null) {
+        await saveChanges();
+        // Give it some time to generate the new config for the metadata
+        setTimeout(async () => {
+          if (baseConfiguration.value) {
+            const newConfig = await getDiveConfiguration(baseConfiguration.value);
+            if (newConfig.data.metadata.configuration) {
+              configMan.setConfiguration(newConfig.data.metadata.configuration);
+            }
+          }
+        }, 500);
+      }
+    };
+    checkNullConfig();
 
     const transferProgress = ref(false);
     const transferConfig = () => {

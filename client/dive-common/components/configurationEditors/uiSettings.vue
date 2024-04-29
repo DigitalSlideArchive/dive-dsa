@@ -25,7 +25,12 @@ export default defineComponent({
     'ui-timeline': UITimelineVue,
     'ui-track-details': UITrackDetailsVue,
   },
-  props: {},
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   setup() {
     const generalDialog = ref(false);
     const configMan = useConfiguration();
@@ -98,7 +103,7 @@ export default defineComponent({
 
 <template>
   <div class="ma-2">
-    <v-btn @click="launchEditor">
+    <v-btn :disabled="disabled" @click="launchEditor">
       <span>
         UI Settings
         <br>
