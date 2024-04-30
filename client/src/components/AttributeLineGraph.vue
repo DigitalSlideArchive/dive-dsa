@@ -212,6 +212,8 @@ export default defineComponent({
             {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
         </h2>
+        <p> Set graphs to display only on selected track types</p>
+
         <div
           v-if="showDisplaySettings"
           class="graph-settings-area"
@@ -268,6 +270,7 @@ export default defineComponent({
             {{ showGraphSettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
         </h2>
+        <p> Change the way attributes are graphed</p>
         <div
           v-if="showGraphSettings"
           class="graph-settings-area"
@@ -409,7 +412,7 @@ export default defineComponent({
         class="pt-2"
       >
         <p>
-          One Timeline can be labeled ad the Default timeline which will
+          One Timeline can be labeled as the Default timeline which will
           automatically be open when loading the dataset
         </p>
         <v-switch

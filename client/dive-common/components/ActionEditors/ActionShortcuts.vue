@@ -21,6 +21,12 @@ export default defineComponent({
     GetShortcut,
     ActionEditor,
   },
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   setup() {
     const configMan = useConfiguration();
     const shortcutList: Ref<DIVEActionShortcut[]> = ref([]);
@@ -189,7 +195,7 @@ export default defineComponent({
 
 <template>
   <div class="ma-2">
-    <v-btn @click="generalDialog = true">
+    <v-btn :disabled="disabled" @click="generalDialog = true">
       <span>
         Action Shortcuts
         <br>

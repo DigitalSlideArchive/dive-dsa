@@ -57,6 +57,7 @@ export default defineComponent({
       });
       return ownerAdmin;
     });
+    const hasConfig = computed(() => !!configMan.configuration.value);
     const menuOpen = ref(false);
     const additive = ref(false);
     const additivePrepend = ref('');
@@ -66,6 +67,7 @@ export default defineComponent({
       additivePrepend,
       isAdminOwner,
       getUISetting,
+      hasConfig,
     };
   },
 });
@@ -112,19 +114,19 @@ export default defineComponent({
             <general-configuration />
           </v-row>
           <v-row v-if="false">
-            <configuration-settings />
+            <configuration-settings :disabled="!hasConfig" />
           </v-row>
           <v-row>
-            <ui-settings />
+            <ui-settings :disabled="!hasConfig" />
           </v-row>
           <v-row>
-            <action-editor-settings />
+            <action-editor-settings :disabled="!hasConfig" />
           </v-row>
           <v-row>
-            <action-shortcuts />
+            <action-shortcuts :disabled="!hasConfig" />
           </v-row>
           <v-row>
-            <timeline-settings />
+            <timeline-settings :disabled="!hasConfig" />
           </v-row>
         </v-card-text>
       </v-card>
