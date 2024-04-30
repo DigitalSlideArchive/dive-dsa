@@ -28,6 +28,11 @@ Active timelines show up with their name in the Timeline at the bottom when a tr
 * *Default Visible Timeline* - If this is set to true, when loaded the program will default to showing this in the [Timeline](UI-Timeline.md) instead of the Detection or Attribute Views.
 * *Y-Axis Range* - Ability to set a custom Y-Axis range.  If the values are left at -1, -1 it will auto calculate the range based on the values in the graph.
 
+## Display Settings
+
+Display settings allows you to limit the timeline display based on the track types that are available.  You can set it so that the timeline will only display when specific track types are selected.  This means you can have different graphs for different track types.
+
+
 ## Graph Settings
 
 ![Timeline Attributes Graph](images/AttributeTimeline/GraphSettings.png){ align=center width=600px }

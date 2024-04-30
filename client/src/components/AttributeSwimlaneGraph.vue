@@ -136,25 +136,13 @@ export default defineComponent({
           @save-changes="editSwimlaneFilter = ($event)"
         />
       </v-row>
-      <v-row
-        class="pt-2"
-      >
-        <p>
-          One Timeline can be labeled and the Default timeline which will
-          automatically be open when loading the dataset
-        </p>
-        <v-switch
-          v-model="editSwimlaneDefault"
-          label="Default Visible Timeline"
-          class="pa-0 ma-0"
-        />
-      </v-row>
-      <div class="mt-4">
+      <div class="mt-4 pt-4">
         <h2>
           Display Settings <v-icon @click="showDisplaySettings = !showDisplaySettings">
             {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
         </h2>
+        <p> Set graphs to display only on selected track types</p>
         <div
           v-if="showDisplaySettings"
           class="graph-settings-area"
@@ -205,6 +193,20 @@ export default defineComponent({
           </v-row>
         </div>
       </div>
+      <v-row
+        class="pt-2"
+      >
+        <p>
+          One Timeline can be labeled and the Default timeline which will
+          automatically be open when loading the dataset
+        </p>
+        <v-switch
+          v-model="editSwimlaneDefault"
+          label="Default Visible Timeline"
+          class="pa-0 ma-0"
+        />
+      </v-row>
+
     </v-card-text>
     <v-card-actions>
       <v-spacer />
