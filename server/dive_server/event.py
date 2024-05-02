@@ -16,11 +16,9 @@ from dive_utils.constants import (
     AssetstoreSourcePathMarker,
     DatasetMarker,
     FPSMarker,
-    ImageSequenceType,
     MarkForPostProcess,
     TypeMarker,
     VideoType,
-    imageRegex,
     videoRegex,
 )
 
@@ -50,18 +48,19 @@ def process_assetstore_import(event, meta: dict):
         return
 
     dataset_type = None
-    item = Item().findOne({"_id": info["id"]})
-    item['meta'].update(
-        {
-            **meta,
-            AssetstoreSourcePathMarker: importPath,
-        }
-    )
 
-    if imageRegex.search(importPath):
-        dataset_type = ImageSequenceType
+    # DIVE-DSA is main used for Video data, remove auto importing of image-sequences for S3
+    # if imageRegex.search(importPath):
+    #     dataset_type = ImageSequenceType
 
-    elif videoRegex.search(importPath):
+    if videoRegex.search(importPath):
+        item = Item().findOne({"_id": info["id"]})
+        item['meta'].update(
+            {
+                **meta,
+                AssetstoreSourcePathMarker: importPath,
+            }
+        )
         # Look for existing video dataset directory
         parentFolder = Folder().findOne({"_id": item["folderId"]})
         userId = parentFolder['creatorId'] or parentFolder['baseParentId']
@@ -112,7 +111,6 @@ def convert_video_recrusive(folder, user):
     subFolders = list(Folder().childFolders(folder, 'folder', user))
     for child in subFolders:
         if child.get('meta', {}).get(MarkForPostProcess, False):
-            child['meta']['MarkForPostProcess'] = False
             Folder().save(child)
             crud_rpc.postprocess(user, child, False, True)
         convert_video_recrusive(child, user)

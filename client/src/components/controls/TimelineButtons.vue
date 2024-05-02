@@ -89,8 +89,8 @@ export default defineComponent({
 
     const iconMap = ref({
       filter: 'mdi-filter',
-      graph: 'mdi-chart-timeline',
-      swimlane: 'mdi-chart-timeline-variant',
+      graph: 'mdi-chart-timeline-variant',
+      swimlane: 'mdi-chart-timeline',
       event: '',
       detections: '',
     });

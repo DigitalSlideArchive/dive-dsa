@@ -11,7 +11,7 @@
         "webpack": "webpack.helper"
     },
     "dependencies": {
-        "dive-dsa": "^1.9.1",
+        "dive-dsa": "^1.10.3",
         "webpack": "^2.7.0",
         "copy-webpack-plugin": "^4.5.2"
     }

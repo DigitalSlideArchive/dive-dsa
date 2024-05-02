@@ -18,6 +18,10 @@ Multiple swimlanes can be added and enabled from this menu and existing ones can
 
 Clicking on the settings will bring up the Settings Editor for attributes.
 
+## Display Settings
+
+Display settings allows you to limit the timeline display based on the track types that are available.  You can set it so that the timeline will only display when specific track types are selected.  This means you can have different graphs for different track types.
+
 ## Swimlane Settings
 
 ![Swimlane Settings](images/AttributeTimeline/SwimlaneSettings.png)

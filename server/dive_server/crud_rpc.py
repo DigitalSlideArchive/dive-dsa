@@ -262,6 +262,8 @@ def postprocess(
         )
 
         for item in videoItems:
+            if item.get("meta", {}).get("codec", None) is not None:
+                continue
             newjob = tasks.convert_video.apply_async(
                 kwargs=dict(
                     folderId=str(item["folderId"]),

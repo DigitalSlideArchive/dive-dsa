@@ -183,6 +183,7 @@ def convert_video(
                     constants.OriginalFPSMarker: originalFps,
                     constants.OriginalFPSStringMarker: avgFpsString,
                     constants.FPSMarker: newAnnotationFps,
+                    constants.MarkForPostProcess: False,
                     "ffprobe_info": videostream[0],
                 },
             )
@@ -246,6 +247,7 @@ def convert_video(
                 constants.OriginalFPSMarker: originalFps,
                 constants.OriginalFPSStringMarker: avgFpsString,
                 constants.FPSMarker: newAnnotationFps,
+                constants.MarkForPostProcess: False,
                 "ffprobe_info": videostream[0],
             },
         )

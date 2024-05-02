@@ -1,4 +1,5 @@
 """Utilities that are common to both the viame server and tasks package."""
+
 import itertools
 import re
 from typing import Any, Dict, List, Union
@@ -9,6 +10,8 @@ from girder.api.rest import setResponseHeader
 from dive_utils.types import GirderModel
 
 TRUTHY_META_VALUES = ['yes', '1', 1, 'true', 't', 'True', True]
+FALSY_META_VALUES = ['no', '0', 0, 'false', 'f', 'False', False]
+
 NUMBERS_REGEX = re.compile(r'(\d+)')
 NOT_NUMBERS_REGEX = re.compile(r'[^\d]+')
 

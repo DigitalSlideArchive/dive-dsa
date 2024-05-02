@@ -31,6 +31,7 @@ imageRegex = re.compile(r"(\." + r"|\.".join(validImageFormats) + ')$', re.IGNOR
 safeImageRegex = re.compile(r"(\." + r"|\.".join(webValidImageFormats) + ')$', re.IGNORECASE)
 csvRegex = re.compile(r"\.csv$", re.IGNORECASE)
 jsonRegex = re.compile(r"\.json$", re.IGNORECASE)
+ndjsonRegex = re.compile(r"\.ndjson$", re.IGNORECASE)
 ymlRegex = re.compile(r"\.ya?ml$", re.IGNORECASE)
 zipRegex = re.compile(r"\.zip$", re.IGNORECASE)
 metaRegex = re.compile(r"^.*\.?(meta|config)\.json$", re.IGNORECASE)
@@ -85,7 +86,10 @@ ConfidenceFiltersMarker = "confidenceFilters"
 OverlayVideoFolderMarker = "overlayVideo"
 OverlayVideoItemMarker = "overlayVideoItem"
 OverlayMetadataMarker = "overlayMetadata"
-
+DIVEMetadataMarker = "DIVEMetadata"
+DIVEMetadataFilter = "DIVEMetadataFilter"
+DIVEMetadataClonedFilter = "DIVEMetadataClonedFilter"
+DIVEMetadataClonedFilterBase = "DIVEMetadataClonedFilterBase"
 # Other constants
 TrainedPipelineCategory = "trained"
 

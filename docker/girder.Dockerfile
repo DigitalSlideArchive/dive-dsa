@@ -16,7 +16,7 @@ RUN yarn build:web
 # == SERVER BUILD STAGE ==
 # ========================
 # Note: server-builder stage will be the same in both dockerfiles
-FROM python:3.8-buster as server-builder
+FROM python:3.11-buster as server-builder
 
 WORKDIR /opt/dive/src
 
@@ -43,12 +43,21 @@ RUN poetry install --no-root
 # Copy full source code and install
 COPY server/ /opt/dive/src/
 RUN poetry install --only main
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+RUN . ~/.bashrc && \
+    nvm install 14 && \
+    nvm alias default 14 && \
+    nvm use default && \
+    ln -s $(dirname `which npm`) /usr/local/node
+
+ENV PATH="/usr/local/node:$PATH"
+
 RUN girder build
 
 # =================
 # == DIST SERVER ==
 # =================
-FROM python:3.8-slim-buster as server
+FROM python:3.11-slim-buster as server
 
 # Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"
@@ -59,7 +68,7 @@ COPY --from=server-builder /opt/dive/local/venv /opt/dive/local/venv
 # Copy the source code of the editable module
 COPY --from=server-builder /opt/dive/src /opt/dive/src
 # Copy the client code into the static source location
-# COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/dive/
+COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/dive/
 # Install startup scripts
 COPY docker/entrypoint_server.sh docker/server_setup.py /
 

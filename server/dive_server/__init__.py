@@ -20,6 +20,7 @@ from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
 from .views_override import countJobs, use_private_queue
 from .views_rpc import RpcResource
+from .views_metadata import DIVEMetadata
 
 __version__ = "1.0.0"
 
@@ -37,6 +38,7 @@ class GirderPlugin(plugin.GirderPlugin):
         info["apiRoot"].dive_configuration = ConfigurationResource("dive_configuration")
         info["apiRoot"].dive_dataset = DatasetResource("dive_dataset")
         info["apiRoot"].dive_rpc = RpcResource("dive_rpc")
+        info["apiRoot"].dive_metadata = DIVEMetadata("dive_metadata")
 
         # required because girder doesn't load plugins in order so we need to manually load first.
         getPlugin('jobs').load(info)

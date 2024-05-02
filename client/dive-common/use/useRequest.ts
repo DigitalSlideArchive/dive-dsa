@@ -1,5 +1,5 @@
 import { reactive, shallowRef, toRefs } from 'vue';
-import { AxiosResponse } from 'axios';
+import { AxiosResponse } from '@girder/components/node_modules/axios';
 import { getResponseError } from 'vue-media-annotator/utils';
 
 export default function useRequest() {

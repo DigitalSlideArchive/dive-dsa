@@ -17,7 +17,7 @@ THis is a version of DIVE that integrates with [Digital Slide Archive](https://d
 
 ## DIVE-DSA Documentation
 
-* [User Guide] (https://bryonlewis.github.io/dive-dsa/)
+* [User Guide] (https://DigitalSlideArchive.github.io/dive-dsa/)
 
 ## Technologies Used
 
@@ -42,5 +42,8 @@ is shown underneath each video sequence.
 
 ### Girder Client Web Development
 
-`docker exec -it dive_name_girder_1 bash`
-`apt-get update && apt-get install -y npm && girder build --dev --watch-plugin dive_server`
+`docker exec -it dive-dsa-girder-1 bash`
+`cd /opt/dive/src`
+`apt-get update && apt-get install -y npm`
+`girder build`
+`girder build --dev --watch-plugin dive_server`

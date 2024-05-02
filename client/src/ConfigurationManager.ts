@@ -175,7 +175,7 @@ export default class ConfigurationManager {
 
   setConfigurationId: (id: string) => void;
 
-  _saveConfiguration: (id: string, config?: Configuration) => void;
+  _saveConfiguration: (id: string, config?: Configuration) => Promise<unknown>;
 
   transferConfiguration: (source: string, dest: string) => void;
 
@@ -195,7 +195,7 @@ export default class ConfigurationManager {
     }: {
     configurationId: Ref<Readonly<string>>;
     setConfigurationId: (id: string) => void;
-    saveConfiguration: (id: string, config?: Configuration) => void;
+    saveConfiguration: (id: string, config?: Configuration) => Promise<unknown>;
     transferConfiguration: (source: string, dest: string) => void;
     },
   ) {
@@ -209,7 +209,7 @@ export default class ConfigurationManager {
     this.configOwners = ref({ users: [], groups: [] });
   }
 
-  saveConfiguration(id: string, config?: Configuration) {
+  async saveConfiguration(id: string, config?: Configuration) {
     const updateConfig = { ...this.configuration.value, ...config };
     this._saveConfiguration(id, updateConfig);
   }
@@ -451,6 +451,7 @@ export default class ConfigurationManager {
       const { timelines } = this.configuration.value.timelineConfigs;
       if (timelines.length === 1) {
         this.configuration.value.timelineConfigs.timelines = [];
+        this.configuration.value.timelineConfigs.maxHeight = 175;
       } else if (timelines[index]) {
         timelines.splice(index, 1);
       }

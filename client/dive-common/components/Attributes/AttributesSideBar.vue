@@ -60,9 +60,9 @@ export default defineComponent({
   >
     <template #default="{ bottomHeight }">
       <v-container>
-        <h3> {{ currentMode }} </h3>
+        <v-row class="px-3"><h3> {{ currentMode }} </h3></v-row>
         <v-row class="px-3">
-          <div class="mx-1">
+          <div class="mx-1 pb-6">
             <tooltip-btn
               icon="mdi-filter"
               tooltip-text="Filter Attributes displayed"

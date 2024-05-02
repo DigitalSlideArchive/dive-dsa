@@ -2,7 +2,7 @@
 # == SERVER BUILD STAGE ==
 # ========================
 # Note: server-builder stage will be the same in both dockerfiles
-FROM python:3.8-buster as server-builder
+FROM python:3.11-buster as server-builder
 
 WORKDIR /opt/dive/src
 
@@ -35,7 +35,7 @@ RUN poetry install --only main
 # ====================
 # == FFMPEG FETCHER ==
 # ====================
-FROM python:3.8-buster as ffmpeg-builder
+FROM python:3.11-buster as ffmpeg-builder
 RUN wget -O ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
 RUN mkdir /tmp/ffextracted
 RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
@@ -43,7 +43,7 @@ RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
 # =================
 # == DIST WORKER ==
 # =================
-FROM python:3.8-buster as worker
+FROM python:3.11-buster as worker
 # VIAME install at /opt/noaa/viame/
 # VIAME pipelines at /opt/noaa/viame/configs/pipelines/
 

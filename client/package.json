@@ -1,12 +1,12 @@
 {
   "name": "dive-dsa",
-  "version": "1.10.1",
+  "version": "1.10.7",
   "author": {
     "name": "Kitware, Inc.",
-    "email": "viame-web@kitware.com"
+    "email": "Bryon.Lewis@kitware.com"
   },
   "description": "DIVE annotation platform for Digital Slide Archive",
-  "homepage": "https://kitware.github.io/dive",
+  "homepage": "https://digitalslidearchive.github.io/dive-dsa/",
   "license": "Apache-2.0",
   "scripts": {
     "serve": "vue-cli-service serve platform/web-girder/main.ts",
@@ -31,7 +31,7 @@
     "@mdi/font": "^6.2.95",
     "@sentry/browser": "^5.24.2",
     "@sentry/integrations": "^5.24.2",
-    "axios": "^0.21.1",
+    "axios": "^1.6.7",
     "color-hash": "^1.0.3",
     "core-js": "^3.22.2",
     "csv-stringify": "^5.6.0",

@@ -18,6 +18,12 @@ export default defineComponent({
     TrackFilter,
     ActionEditor,
   },
+  props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+  },
   setup() {
     const configMan = useConfiguration();
     const actionList: Ref<DIVEAction[]> = ref([]);
@@ -141,7 +147,7 @@ export default defineComponent({
 
 <template>
   <div class="ma-2">
-    <v-btn @click="generalDialog = true">
+    <v-btn :disabled="disabled" @click="generalDialog = true">
       <span>
         Launch Actions
         <br>

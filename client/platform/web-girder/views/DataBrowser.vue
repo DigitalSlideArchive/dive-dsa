@@ -44,6 +44,16 @@ export default defineComponent({
     function isAnnotationFolder(item: GirderModel) {
       return item._modelType === 'folder' && item.meta.annotate;
     }
+    function isMetadataFolder(item: GirderModel) {
+      return item._modelType === 'folder' && item.meta.DIVEMetadata;
+    }
+
+    function isClonedMetadataFolder(item: GirderModel) {
+      if (item._modelType === 'folder' && item.meta.DIVEMetadataClonedFilter && item.meta.DIVEMetadataClonedFilterBase) {
+        return { id: item.meta.DIVEMetadataClonedFilterBase, filter: item.meta.DIVEMetadataClonedFilter };
+      }
+      return false;
+    }
 
     const shouldShowUpload = computed(() => (
       locationStore.location
@@ -68,6 +78,8 @@ export default defineComponent({
       itemsPerPageOptions,
       /* methods */
       isAnnotationFolder,
+      isMetadataFolder,
+      isClonedMetadataFolder,
       handleNotification,
       setLocation,
       updateUploading,
@@ -138,6 +150,27 @@ export default defineComponent({
       >
         Launch Annotator
       </v-btn>
+      <v-btn
+        v-if="isMetadataFolder(item)"
+        class="ml-2"
+        x-small
+        color="purple"
+        depressed
+        :to="{ name: 'metadata', params: { id: item._id } }"
+      >
+        View Metadata
+      </v-btn>
+      <v-btn
+        v-if="isClonedMetadataFolder(item)"
+        class="ml-2"
+        x-small
+        color="info"
+        depressed
+        :to="{ name: 'metadata', params: { id: isClonedMetadataFolder(item).id }, query: { filter: isClonedMetadataFolder(item).filter } }"
+      >
+        View Metadata Filter
+      </v-btn>
+
       <v-chip
         v-if="(item.foreign_media_id)"
         color="white"
