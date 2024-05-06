@@ -493,8 +493,13 @@ class MediaResource(BaseModel):
     id: str
     filename: str
     metadata: Optional[dict]
+    fileId: Optional[str | None]
 
 
+class DatasetTaskDefaults(BaseModel):
+    imageData: List[MediaResource]
+    video: Optional[MediaResource]
+    overlays: Optional[List[MediaResource]]
 class DatasetSourceMedia(BaseModel):
     imageData: List[MediaResource]
     video: Optional[MediaResource]

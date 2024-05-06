@@ -7,6 +7,7 @@ from girder.constants import AccessType
 from girder.exceptions import RestException
 from girder.models.folder import Folder
 from girder.models.item import Item
+from girder.models.file import File
 from girder.utility import ziputil
 from pydantic.main import BaseModel
 
@@ -101,6 +102,81 @@ def get_dataset(
         foreign_media_id=dsFolder.get(constants.ForeignMediaIdMarker, None),
         **dsFolder['meta'],
     )
+
+
+def get_task_defaults(
+    dsFolder: types.GirderModel, user: types.GirderUserModel
+) -> models.DatasetSourceMedia:
+    videoResource = None
+    imageData: List[models.MediaResource] = []
+    crud.verify_dataset(dsFolder)
+    source_type = fromMeta(dsFolder, constants.TypeMarker)
+
+    if source_type == constants.VideoType:
+        # Find a video tagged with an h264 codec left by the transcoder
+        videoItem = Item().findOne(
+            {
+                'folderId': crud.getCloneRoot(user, dsFolder)['_id'],
+                'meta.codec': 'h264',
+                'meta.source_video': {'$in': [None, False]},
+            }
+        )
+        if videoItem:
+            foundFile = File().findOne({'itemId': videoItem['_id']})
+            print(foundFile)
+            foundFileId = None
+            if foundFile:
+                foundFileId = str(foundFile['_id'])
+            videoResource = models.MediaResource(
+                id=str(videoItem['_id']),
+                url=get_url(dsFolder, videoItem),
+                filename=videoItem['name'],
+                fileId=foundFileId,
+            )
+    elif source_type == constants.ImageSequenceType:
+        imageData = [
+            models.MediaResource(
+                id=str(image["_id"]),
+                url=get_url(dsFolder, image),
+                filename=image['name'],
+            )
+            for image in crud.valid_images(dsFolder, user)
+        ]
+    else:
+        raise ValueError(f'Unrecognized source type: {source_type}')
+
+    # get references to any overlay media in the system
+    overlayFolder = Folder().findOne(
+        {
+            'parentId': crud.getCloneRoot(user, dsFolder)['_id'],
+            f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
+    overlays = None
+    if overlayFolder:
+        overlayItems = Item().find(
+            {
+                'folderId': overlayFolder["_id"],
+                f'meta.{constants.OverlayVideoItemMarker}': {'$in': TRUTHY_META_VALUES},
+            }
+        )
+        overlays = []
+        for media in overlayItems:
+            overlays.append(
+                models.MediaResource(
+                    id=str(media["_id"]),
+                    url=get_url(dsFolder, media),
+                    filename=media['name'],
+                    metadata=media.get('meta', {}).get(constants.OverlayMetadataMarker, None),
+                )
+            )
+
+    return models.DatasetTaskDefaults(
+        imageData=imageData,
+        video=videoResource,
+        overlays=overlays,
+    )
+
 
 
 def get_media(

@@ -55,10 +55,12 @@ class DatasetResource(Resource):
         self.route("GET", (), self.list_datasets)
         self.route("GET", (":id",), self.get_meta)
         self.route("GET", (":id", "media"), self.get_media)
+        self.route("GET", (":id", "task-defaults"), self.get_task_defaults)
         self.route("GET", ("export",), self.export)
         self.route("GET", (":id", "configuration"), self.get_configuration)
         self.route("GET", (":id", "export_configuration"), self.export_configuration)
         self.route("GET", (":id", "media", ":mediaId", "download"), self.download_media)
+
         self.route("POST", ("validate_files",), self.validate_files)
         self.route(
             "POST",
@@ -165,6 +167,7 @@ class DatasetResource(Resource):
             return File().download(file, offset, endByte=endByte)
         else:
             raise RestException('Media is not found', code=404)
+
 
     @access.user
     @autoDescribeRoute(
@@ -486,6 +489,18 @@ class DatasetResource(Resource):
     )
     def get_media(self, folder):
         return crud_dataset.get_media(folder, self.getCurrentUser()).dict(exclude_none=True)
+
+    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @autoDescribeRoute(
+        Description("Get Task defaults for video and output directories")
+        .modelParam(
+            "id",
+            level=AccessType.READ,
+            **DatasetModelParam,
+        )
+    )
+    def get_task_defaults(self, folder):
+        return crud_dataset.get_task_defaults(folder, self.getCurrentUser()).dict(exclude_none=True)
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
