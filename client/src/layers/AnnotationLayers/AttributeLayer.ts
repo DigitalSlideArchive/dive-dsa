@@ -28,6 +28,7 @@ export type FormatTextRow = (
   user: string,
   typeStyling: TypeStyling,
   autoColorIndex: ((data: string | number | boolean) => string)[],
+  frame: number,
   ) => AttributeTextData[] | null;
 
 interface AttributeLayerParams {
@@ -108,6 +109,7 @@ function defaultFormatter(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   typeStyling: TypeStyling,
   autoColorIndex: ((data: string | number | boolean) => string)[],
+  frame: number,
 ): AttributeTextData[] | null {
   if (annotation.features && annotation.features.bounds) {
     const { bounds } = annotation.features;
@@ -156,7 +158,39 @@ function defaultFormatter(
             }
           }
         }
-
+        if (currentRender.sticky && (value === undefined || value === '') && type === 'detection') {
+          let newVal: undefined | string | boolean | number;
+          let prevFrame = frame;
+          while (prevFrame > 0 && newVal === undefined) {
+            // We need to get the previous frames attributes
+            const previous = annotation.track.getPreviousKeyframe(prevFrame);
+            if (previous !== undefined) {
+              const prevFeatures = annotation.track.getFeature(previous);
+              if (prevFeatures[0]) {
+                const currentAttribs = prevFeatures[0].attributes;
+                if (currentAttribs) {
+                  if (renderFiltered[i].user && user && currentAttribs.userAttributes && currentAttribs.userAttributes[user]) {
+                    newVal = (currentAttribs.userAttributes[user] as StringKeyObject)[name] as string | boolean | number;
+                  } else {
+                    newVal = currentAttribs[name] as string | boolean | number;
+                  }
+                }
+                if (newVal === '' || newVal === undefined) {
+                  newVal = undefined;
+                  prevFrame -= 1;
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
+              }
+              prevFrame = previous;
+            } else {
+              break;
+            }
+          }
+          if (newVal !== undefined) {
+            value = newVal;
+          }
+        }
         const {
           displayX, displayHeight, valueX, valueHeight, offsetY,
         } = calculateAttributeArea(bounds, currentRender, i, renderFiltered.length);
@@ -219,8 +253,11 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
 
   autoColorIndex: ((data: string | number | boolean) => string)[];
 
+  frame: number;
+
   constructor(params: BaseLayerParams & AttributeLayerParams) {
     super(params);
+    this.frame = 0;
     this.formatter = defaultFormatter;
     this.renderAttributes = [];
     this.autoColorIndex = [];
@@ -236,6 +273,10 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
       .text((data: AttributeTextData) => data.text)
       .position((data: AttributeTextData) => ({ x: data.x, y: data.y }));
     super.initialize();
+  }
+
+  setFrame(val:number) {
+    this.frame = val;
   }
 
   updateRenderAttributes(attributes: Attribute[], user: string) {
@@ -276,7 +317,7 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
     const arr = [] as AttributeTextData[];
     const typeStyling = this.typeStyling.value;
     frameData.forEach((track: FrameDataTrack) => {
-      const formatted = this.formatter(track, this.renderAttributes, this.user, typeStyling, this.autoColorIndex);
+      const formatted = this.formatter(track, this.renderAttributes, this.user, typeStyling, this.autoColorIndex, this.frame);
       if (formatted !== null) {
         arr.push(...formatted);
       }

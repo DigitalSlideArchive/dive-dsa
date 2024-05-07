@@ -66,6 +66,7 @@ export interface AttributeRendering {
     boxThickness: number;
     boxBackground?: string;
     boxOpacity?: number;
+    sticky?: boolean;
     layout: 'vertical' | 'horizontal';
     displayWidth: {
       type: 'px' | '%';
