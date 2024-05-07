@@ -168,6 +168,7 @@ class RenderingAttributes(BaseModel):
     boxThickness: float
     boxBackground: Optional[str]
     boxOpacity: Optional[float]
+    sticky: Optional[bool]
     layout: Literal['vertical', 'horizontal']
     displayWidth: RenderingDisplayDimension
     displayHeight: RenderingDisplayDimension

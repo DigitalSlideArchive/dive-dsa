@@ -311,6 +311,7 @@ export default defineComponent({
       if (visibleModes.includes('text')) {
         textLayer.changeData(frameData);
         attributeBoxLayer.changeData(frameData);
+        attributeLayer.setFrame(frame);
         attributeLayer.changeData(frameData);
       } else {
         textLayer.disable();

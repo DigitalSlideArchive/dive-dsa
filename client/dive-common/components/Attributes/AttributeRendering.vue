@@ -53,6 +53,7 @@ export default defineComponent({
     const layout = ref(props.value.layout);
     const cornerOptions = ref(['SE', 'SW', 'NW']);
     const corner = ref(props.value.corner);
+    const sticky = ref(props.value.sticky || false);
     const displayDimOptions = ref(['px', '%', 'auto']);
     const displayWidthType = ref(props.value.displayWidth.type);
     const displayWidthVal = ref(props.value.displayWidth.val);
@@ -84,7 +85,7 @@ export default defineComponent({
     watch([displayName, displayTextSize, valueTextSize, displayColor, valueColor, order,
       location, box, boxColor, boxThickness, layout, location, corner, displayWidthType, displayWidthVal,
       displayHeightType, displayHeightVal, typeFilter, computedBoxColor,
-      computedDisplayColor, computedValueColor, selected, boxBackground, boxOpacity, boxThickness], () => {
+      computedDisplayColor, computedValueColor, selected, boxBackground, boxOpacity, boxThickness, sticky], () => {
       emit('input', {
         selected: selected.value,
         typeFilter: typeFilter.value,
@@ -98,6 +99,7 @@ export default defineComponent({
         layout: layout.value,
         corner: corner.value,
         box: box.value,
+        sticky: sticky.value,
         boxColor: boxColorAuto.value ? 'auto' : boxColor.value,
         boxThickness: boxThickness.value,
         boxBackground: boxBackground.value ? boxBackground.value : undefined,
@@ -160,6 +162,7 @@ export default defineComponent({
     return {
       displayName,
       displayTextSize,
+      sticky,
       displayColor,
       valueTextSize,
       valueColor,
@@ -207,7 +210,7 @@ export default defineComponent({
 </script>
 <template>
   <div>
-    <v-expansion-panels>
+    <v-expansion-panels class="py-10">
       <v-expansion-panel>
         <v-expansion-panel-header>
           <h3>
@@ -271,6 +274,9 @@ export default defineComponent({
               persistent-hint
               class="mx-2"
             />
+          </v-row>
+          <v-row class="my-2 border">
+            <v-checkbox v-model="sticky" label="sticky" hint="Persist Values when undefined" persistent-hint />
           </v-row>
         </v-expansion-panel-content>
       </v-expansion-panel>
