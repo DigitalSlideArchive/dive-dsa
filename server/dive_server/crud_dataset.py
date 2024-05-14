@@ -175,6 +175,7 @@ def get_task_defaults(
         imageData=imageData,
         video=videoResource,
         overlays=overlays,
+        folderName=dsFolder['name'],
     )
 
 

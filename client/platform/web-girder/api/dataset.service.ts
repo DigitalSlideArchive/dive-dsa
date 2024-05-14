@@ -63,6 +63,7 @@ export interface DatasetTaskDefaults {
   imageData: MediaResource[];
   video?: MediaResource;
   overlays?: MediaResource[];
+  folderName: string;
 }
 
 function getDatasetMedia(folderId: string) {

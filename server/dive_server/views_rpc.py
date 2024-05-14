@@ -1,7 +1,7 @@
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
-from girder.constants import AccessType
+from girder.constants import AccessType, TokenScope
 from girder.models.folder import Folder
 from girder.models.item import Item
 
@@ -21,7 +21,7 @@ class RpcResource(Resource):
         self.route("POST", ("convert_dive", ":id"), self.convert_dive)
         self.route("POST", ("batch_postprocess", ":id"), self.batch_postprocess)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_WRITE)
     @autoDescribeRoute(
         Description("Post-processing to be run after media/annotation import")
         .modelParam(
@@ -71,6 +71,8 @@ class RpcResource(Resource):
         )
     )
     def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend):
+        print('STARTING POST PROCESS:')
+        print(self.getCurrentUser())
         return crud_rpc.postprocess(
             self.getCurrentUser(), folder, skipJobs, skipTranscoding, additive, additivePrepend
         )

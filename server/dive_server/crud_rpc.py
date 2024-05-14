@@ -147,6 +147,7 @@ def process_items(
         # Processing order: oldest to newest
         sort=[("created", pymongo.ASCENDING)],
     )
+    print(f'Creating Auxiliary Folder: {user}')
     auxiliary = crud.get_or_create_auxiliary_folder(
         folder,
         user,
@@ -178,6 +179,7 @@ def process_items(
                     folder, results['annotations']['tracks'], additivePrepend
                 )
                 updated_tracks = tracks.values()
+            print(f'Saving Annotations: {user}')
             crud_annotation.save_annotations(
                 folder,
                 user,
@@ -307,6 +309,6 @@ def postprocess(
             dsFolder["meta"][constants.DatasetMarker] = True
 
         Folder().save(dsFolder)
-
+    print(f'Processing Items: {user}')
     process_items(dsFolder, user, additive, additivePrepend)
     return dsFolder

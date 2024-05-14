@@ -781,10 +781,10 @@ export default defineComponent({
     };
     loadData();
     const reloadAnnotations = async () => {
+      progress.loaded = false;
       mediaControllerClear();
       cameraStore.clearAll();
       discardChanges();
-      progress.loaded = false;
       await loadData();
     };
 
@@ -1180,6 +1180,7 @@ export default defineComponent({
                 @loaded="runActions"
               >
                 <LayerManager
+                  v-if="progress.loaded"
                   :camera="camera"
                   :overlays="overlays"
                 />
