@@ -47,7 +47,6 @@ export default defineComponent({
     });
     const getDefaults = async () => {
       const resp = await getTaskDefaults(datasetId.value);
-      console.log(resp.data);
       folderName.value = resp.data.folderName;
       if (resp.data.video) {
         defaults.value = {
