@@ -298,6 +298,7 @@ class UITopBar(BaseModel):
     UIData: Optional[bool]
     UIJobs: Optional[bool]
     UINextPrev: Optional[bool]
+    UISlicerCLI: Optional[bool]
     UIToolBox: Optional[bool]
     UIImport: Optional[bool]
     UIExport: Optional[bool]
@@ -494,6 +495,14 @@ class MediaResource(BaseModel):
     id: str
     filename: str
     metadata: Optional[dict]
+    fileId: Optional[str | None]
+
+
+class DatasetTaskDefaults(BaseModel):
+    imageData: List[MediaResource]
+    video: Optional[MediaResource]
+    overlays: Optional[List[MediaResource]]
+    folderName: str
 
 
 class DatasetSourceMedia(BaseModel):

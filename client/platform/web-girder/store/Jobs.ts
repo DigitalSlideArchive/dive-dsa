@@ -63,6 +63,29 @@ const jobModule: Module<JobState, RootState> = {
     removeCompleteJob({ commit }, { datasetId }: {datasetId: string}) {
       commit('removeCompleteJobsInfo', { datasetId });
     },
+    updateJobs({ commit }) {
+      const getJobs = async () => {
+        const { data: runningJobs } = await girderRest.get<GirderJob[]>('/job', {
+          params: { statuses: `[${JobStatus.RUNNING.value}, ${JobStatus.QUEUED.value}, ${JobStatus.INACTIVE.value}]` },
+        });
+        const updateJob = (job: GirderJob & {type?: string; title?: string}) => {
+          commit('setJobState', { jobId: job._id, value: job.status });
+          if (typeof job.dataset_id === 'string') {
+            commit('setDatasetStatus', { datasetId: job.dataset_id, status: job.status, jobId: job._id });
+            if (NonRunningStates.includes(job.status)) {
+              commit('setCompleteJobsInfo', {
+                datasetId: job.dataset_id,
+                type: job.type,
+                title: job.title,
+                success: job.status === JobStatus.SUCCESS.value,
+              });
+            }
+          }
+        };
+        runningJobs.forEach(updateJob);
+      };
+      getJobs();
+    },
   },
 };
 
@@ -86,6 +109,7 @@ export async function init(store: Store<RootState>) {
   }
 
   runningJobs.forEach(updateJob);
+
   girderRest.$on('message:job_status', ({ data: job }: { data: GirderJob }) => {
     updateJob(job);
     eventBus.$emit('refresh-data-browser');

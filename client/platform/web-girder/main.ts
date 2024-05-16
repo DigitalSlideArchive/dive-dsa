@@ -7,11 +7,13 @@ import registerNotifications from 'vue-media-annotator/notificatonBus';
 import promptService from 'dive-common/vue-utilities/prompt-service';
 import vMousetrap from 'dive-common/vue-utilities/v-mousetrap';
 
+import GirderSlicerUI from 'vue-girder-slicer-cli-ui';
 import getVuetify from './plugins/vuetify';
 import girderRest from './plugins/girder';
 import App from './App.vue';
 import router from './router';
 import store from './store';
+import 'vue-girder-slicer-cli-ui/dist/style.css';
 
 Vue.config.productionTip = false;
 Vue.use(vMousetrap);
@@ -40,6 +42,7 @@ Promise.all([
 ]).then(() => {
   const vuetify = getVuetify(store.state.Brand.brandData?.vuetify);
   Vue.use(promptService(vuetify));
+  Vue.use(GirderSlicerUI);
   new Vue({
     router,
     store,

@@ -5,7 +5,7 @@ import {
 import { GirderAuthentication } from '@girder/components/src';
 import { useStore } from 'platform/web-girder/store/types';
 import { useRouter } from 'vue-router/composables';
-import cookies from 'js-cookie';
+//import cookies from 'js-cookie';
 
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 
@@ -24,10 +24,10 @@ export default defineComponent({
     const brandData = toRef(store.state.Brand, 'brandData');
     const girderRest = useGirderRest();
     function onLogin() {
-      const token = cookies.get('girderToken');
-      if (token) {
-        window.localStorage.setItem('girderToken', token);
-      }
+      // const token = cookies.get('girderToken');
+      // if (token) {
+      //   window.localStorage.setItem('girderToken', token);
+      // }
       router.push('/');
     }
     girderRest.$on('login', onLogin);

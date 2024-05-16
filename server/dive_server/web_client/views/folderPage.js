@@ -22,7 +22,6 @@ wrap(HierarchyWidget, 'render', function (render) {
         if (!this.$el.find('.g-dive-open-metadata-filter-item[role="button"]').length && this.parentModel.attributes.meta.DIVEMetadataClonedFilter && this.parentModel.attributes.meta.DIVEMetadataClonedFilterBase) {
             const base = this.parentModel.attributes.meta.DIVEMetadataClonedFilterBase;
             const params= encodeURI(this.parentModel.attributes.meta.DIVEMetadataClonedFilter);
-            console.log(params);
             this.$el.find('.g-folder-header-buttons .btn-group').before(
                 `<a class="g-dive-open-metadata-filter-item btn btn-sm btn-info" style="margin-left: 10px" role="button" href="${metadataRootPath}${base}?filter=${params}" target="_blank">
                         <i class="icon-link-ext"></i>Open Metadata Filter in DIVE

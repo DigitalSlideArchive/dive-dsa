@@ -50,6 +50,7 @@ interface MediaResource extends FrameImage {
   id: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>;
+  fileId?: string;
 }
 
 export interface DatasetSourceMedia {
@@ -58,8 +59,19 @@ export interface DatasetSourceMedia {
   overlays?: MediaResource[];
 }
 
+export interface DatasetTaskDefaults {
+  imageData: MediaResource[];
+  video?: MediaResource;
+  overlays?: MediaResource[];
+  folderName: string;
+}
+
 function getDatasetMedia(folderId: string) {
   return girderRest.get<DatasetSourceMedia>(`dive_dataset/${folderId}/media`);
+}
+
+function getTaskDefaults(folderId: string) {
+  return girderRest.get<DatasetTaskDefaults>(`dive_dataset/${folderId}/task-defaults`);
 }
 
 function clone({
@@ -170,6 +182,7 @@ export {
   getDataset,
   getDatasetList,
   getDatasetMedia,
+  getTaskDefaults,
   getDiveConfiguration,
   importAnnotationFile,
   makeViameFolder,

@@ -54,6 +54,7 @@ import RevisionHistoryVue from 'platform/web-girder/views/RevisionHistory.vue';
 import { useStore } from 'platform/web-girder/store/types';
 import UseTimelineFilters from 'vue-media-annotator/use/useTimelineFilters';
 import { checkAttributes } from 'dive-common/use/useActions';
+import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -706,10 +707,12 @@ export default defineComponent({
           context.unregister({
             description: 'Group Manager',
             component: GroupSidebarVue,
+            width: 300,
           });
           context.register({
             component: MultiCamToolsVue,
             description: 'Multi Camera Tools',
+            width: 300,
           });
         } else {
           context.unregister({
@@ -721,6 +724,13 @@ export default defineComponent({
             component: GroupSidebarVue,
           });
         }
+        if (!configurationManager.getUISetting('UISlicerCLI')) {
+          context.unregister({
+            description: 'Slicer Tasks',
+            component: SlicerTaskRunnerVue,
+          });
+        }
+
         if (!configurationManager.getUISetting('UIGroupManager')) {
           context.unregister({
             description: 'Group Manager',
@@ -781,10 +791,10 @@ export default defineComponent({
     };
     loadData();
     const reloadAnnotations = async () => {
+      progress.loaded = false;
       mediaControllerClear();
       cameraStore.clearAll();
       discardChanges();
-      progress.loaded = false;
       await loadData();
     };
 
@@ -1180,6 +1190,7 @@ export default defineComponent({
                 @loaded="runActions"
               >
                 <LayerManager
+                  v-if="progress.loaded"
                   :camera="camera"
                   :overlays="overlays"
                 />

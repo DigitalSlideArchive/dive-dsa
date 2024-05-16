@@ -21,6 +21,7 @@ import Clone from './Clone.vue';
 import ViewerAlert from './ViewerAlert.vue';
 import RevisionHistory from './RevisionHistory.vue';
 import AnnotationDataBrowser from './AnnotationDataBrowser.vue';
+import SlicerTaskRunnerVue from './SlicerTaskRunner.vue';
 
 const buttonOptions = {
   text: true,
@@ -38,6 +39,13 @@ const menuOptions = {
 context.register({
   component: RevisionHistory,
   description: 'Revision History',
+  width: 300,
+});
+
+context.register({
+  component: SlicerTaskRunnerVue,
+  description: 'Slicer Tasks',
+  width: 500,
 });
 
 /**
@@ -169,6 +177,7 @@ export default defineComponent({
           data: getSetting('UIData'),
           jobs: getSetting('UIJobs'),
           toolbox: getSetting('UIToolBox'),
+          slicerCLI: getSetting('UISlicerCLI'),
           import: getSetting('UIImport'),
           export: getSetting('UIExport'),
           clone: getSetting('UIClone'),
@@ -179,6 +188,7 @@ export default defineComponent({
         data: false,
         jobs: false,
         toolbox: false,
+        slicerCLI: false,
         import: false,
         export: false,
         clone: false,
@@ -239,6 +249,32 @@ export default defineComponent({
       />
     </template>
     <template #title-right>
+      <v-tooltip
+        v-if="enabledFeatures['slicerCLI']"
+        bottom
+      >
+        <template #activator="{ on: tooltipOn }">
+          <v-btn
+            class="ma-0"
+            v-bind="buttonOptions"
+            @click="context.toggle('SlicerTaskRunner')"
+            v-on="{ ...tooltipOn }"
+          >
+            <div>
+              <v-icon>
+                mdi-docker
+              </v-icon>
+              <span
+                v-show="buttonOptions.block"
+                class="pl-1"
+              >
+                Tools
+              </span>
+            </div>
+          </v-btn>
+        </template>
+        <span> Tools for Running Slicer-CLI Docker tasks</span>
+      </v-tooltip>
       <DIVETools
         v-if="enabledFeatures['toolbox']"
         :button-options="buttonOptions"
