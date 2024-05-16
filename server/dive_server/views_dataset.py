@@ -168,7 +168,6 @@ class DatasetResource(Resource):
         else:
             raise RestException('Media is not found', code=404)
 
-
     @access.user
     @autoDescribeRoute(
         Description("List datasets in the system")
@@ -492,8 +491,7 @@ class DatasetResource(Resource):
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
-        Description("Get Task defaults for video and output directories")
-        .modelParam(
+        Description("Get Task defaults for video and output directories").modelParam(
             "id",
             level=AccessType.READ,
             **DatasetModelParam,

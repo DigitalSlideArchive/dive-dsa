@@ -179,7 +179,6 @@ def get_task_defaults(
     )
 
 
-
 def get_media(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> models.DatasetSourceMedia:

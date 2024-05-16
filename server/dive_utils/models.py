@@ -502,6 +502,8 @@ class DatasetTaskDefaults(BaseModel):
     video: Optional[MediaResource]
     overlays: Optional[List[MediaResource]]
     folderName: str
+
+
 class DatasetSourceMedia(BaseModel):
     imageData: List[MediaResource]
     video: Optional[MediaResource]
