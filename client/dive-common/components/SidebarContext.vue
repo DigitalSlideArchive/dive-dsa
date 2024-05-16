@@ -6,7 +6,7 @@ export default defineComponent({
   props: {
     width: {
       type: Number,
-      default: 500,
+      default: 300,
     },
   },
   setup() {
@@ -23,7 +23,7 @@ export default defineComponent({
   <div>
     <v-card
       v-if="context.state.active !== null"
-      :width="width"
+      :width="context.state.width || width"
       tile
       outlined
       class="d-flex flex-column sidebar"

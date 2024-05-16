@@ -12,11 +12,13 @@ interface ContextState {
   last: string;
   active: string | null;
   subCategory: string | null;
+  width?: number;
 }
 
 interface ComponentMapItem {
   description: string;
   component: Component;
+  width?: number;
 }
 
 const state: ContextState = reactive({
@@ -29,30 +31,37 @@ const componentMap: Record<string, ComponentMapItem> = {
   [DatasetInfo.name]: {
     description: 'Dataset Info',
     component: DatasetInfo,
+    width: 300,
   },
   [TypeThreshold.name]: {
     description: 'Threshold Controls',
     component: TypeThreshold,
+    width: 300,
   },
   [ImageEnhancements.name]: {
     description: 'Image Enhancements',
     component: ImageEnhancements,
+    width: 300,
   },
   [GroupSidebar.name]: {
     description: 'Group Manager',
     component: GroupSidebar,
+    width: 300,
   },
   [MultiCamTools.name]: {
     description: 'Multi Camera Tools',
     component: MultiCamTools,
+    width: 300,
   },
   [AttributesSideBar.name]: {
     description: 'Attribute Details',
     component: AttributesSideBar,
+    width: 300,
   },
   [AtributeUserReview.name]: {
     description: 'Attribute User Review',
     component: AtributeUserReview,
+    width: 300,
   },
 };
 
@@ -93,6 +102,9 @@ function toggle(active: string | null | undefined) {
   } else if (active && state.active === active) {
     state.active = null;
   } else if (active === null || active in componentMap) {
+    if (active !== null && active in componentMap && componentMap[active].width) {
+      state.width = componentMap[active].width;
+    }
     state.active = active;
     if (active) {
       state.last = active;
