@@ -20,6 +20,7 @@ Under the Rendering Tab for the Attribute Editor if you turn on Render there wil
     * *Selected Track* - only display attributes for the selected track.
     * *Filter Types* - Will filter and only place the attribute rendering on the filtered track types.
     * *Order* - Order is used to determine the top-to-bottom order of the attributes that are rendered.  A lower number means it has higher priority in the list.
+    * *Sticky* - Makes the value 'sticky' where it will display the last value if the current value is undefined or an empty string.  This is useful if your attribute data is sparse but you want to make sure you don't have a flashing/flickering display of the numerical values.
 * **Display**
     * *Display Name* - The Name displayed at the top as a label for the attribute.  You can add a : to the display name.  It will automatically populate with the attribute name
     * *Display Text Size* - Text size in pixel for the display name.  This will remain constant when scrolling in/out of the track.
