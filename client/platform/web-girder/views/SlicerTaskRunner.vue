@@ -63,7 +63,7 @@ export default defineComponent({
     const defaultFunc = (param: XMLParameters) => {
       if (defaults.value.fileId) {
         const item = cloneDeep(param);
-        if (param.type === 'file' && param.channel === 'input') {
+        if (param.type === 'file' && param.channel === 'input' && param.id === 'DIVEVideo') {
         // We want the video ID as an input to the system
           item.fileValue = {
             fileId: defaults.value.fileId,
@@ -74,7 +74,7 @@ export default defineComponent({
           };
           return item;
         }
-        if (param.type === 'directory' && param.channel === 'input') {
+        if (param.type === 'directory' && param.id === 'DIVEDirectory') {
         // We want the video ID as an input to the system
           item.fileValue = {
             fileId: undefined,
@@ -183,6 +183,8 @@ export default defineComponent({
           <p>Sample tasks are on the Github Container Registry under the tag: <b>ghcr.io/bryonlewis/dive-dsa-slicer/dive-dsa-slicer:latest</b></p>
           <p>Below are some notes about it's operation</p>
           <ul style="list-style-type:disc;line-height: 2em;">
+            <li><b>DIVEVideo</b> An  input with the ID of "DIVEVideo" will auto populate with a reference to the Source Video for this DIVE Dataset </li>
+            <li><b>DIVEDirectory</b> An  input/output with the ID of "DIVEDirectory" will auto populate with a reference to the DIVE Dataset Folder.</li>
             <li>This system will filter out any Slicer Docker Containers that don't have 'DIVE' or 'dive' in the image name or the description.  This was to declutter the list</li>
             <li>Automatically it will take the first file input and load the video file associated with this DIVE dataset</li>
             <li>The folder for output will be the current DIVE Dataset Folder</li>

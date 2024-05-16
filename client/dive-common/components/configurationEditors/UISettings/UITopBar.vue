@@ -28,7 +28,7 @@ export default defineComponent({
         UIData: UIData.value ? undefined : false,
         UIJobs: UIJobs.value ? undefined : false,
         UINextPrev: UINextPrev.value ? undefined : false,
-        UISlicerCLI: UISlicerCLI.value ? undefined: false,
+        UISlicerCLI: UISlicerCLI.value ? undefined : false,
         UIToolBox: UIToolBox.value ? undefined : false,
         UIImport: UIImport.value ? undefined : false,
         UIExport: UIExport.value ? undefined : false,

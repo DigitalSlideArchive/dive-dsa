@@ -56,6 +56,8 @@ class DIVE_Metadata(Model):
             )
         else:
             existing['metadata'] = metadata
+            existing['filename'] = str(folder['name'])
+            existing[root] = str(root['_id'])
         existing = self.save(existing)
         return existing
 
