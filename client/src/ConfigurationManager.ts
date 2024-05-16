@@ -32,6 +32,7 @@ interface UITopBar {
     UIJobs? : boolean;
     UINextPrev? : boolean;
     UIToolBox? : boolean;
+    UISlicerCLI? : boolean;
     UIImport? : boolean;
     UIExport? : boolean;
     UIClone? : boolean;

@@ -27,6 +27,7 @@ Below is the configuration JSON for a view with all of the items turned off
             "UIJobs": false,
             "UINextPrev": false,
             "UIToolBox": false,
+            "UISlicerCLI": false,
             "UIImport": false,
             "UIExport": false,
             "UIClone": false,

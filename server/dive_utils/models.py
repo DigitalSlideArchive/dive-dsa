@@ -297,6 +297,7 @@ class UITopBar(BaseModel):
     UIData: Optional[bool]
     UIJobs: Optional[bool]
     UINextPrev: Optional[bool]
+    UISlicerCLI: Optional[bool]
     UIToolBox: Optional[bool]
     UIImport: Optional[bool]
     UIExport: Optional[bool]

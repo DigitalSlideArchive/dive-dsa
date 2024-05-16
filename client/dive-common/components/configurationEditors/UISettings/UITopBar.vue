@@ -13,6 +13,7 @@ export default defineComponent({
     const UIData = ref(configMan.getUISetting('UIData') as boolean);
     const UIJobs = ref(configMan.getUISetting('UIJobs') as boolean);
     const UINextPrev = ref(configMan.getUISetting('UINextPrev') as boolean);
+    const UISlicerCLI = ref(configMan.getUISetting('UISlicerCLI') as boolean);
     const UIToolBox = ref(configMan.getUISetting('UIToolBox') as boolean);
     const UIImport = ref(configMan.getUISetting('UIImport') as boolean);
     const UIExport = ref(configMan.getUISetting('UIExport') as boolean);
@@ -21,12 +22,13 @@ export default defineComponent({
     const UIKeyboardShortcuts = ref(configMan.getUISetting('UIKeyboardShortcuts') as boolean);
     const UISave = ref(configMan.getUISetting('UISave') as boolean);
 
-    watch([UIData, UIJobs, UINextPrev, UIToolBox, UIImport,
+    watch([UIData, UIJobs, UINextPrev, UISlicerCLI, UIToolBox, UIImport,
       UIExport, UIClone, UIConfiguration, UIKeyboardShortcuts, UISave], () => {
       const data = {
         UIData: UIData.value ? undefined : false,
         UIJobs: UIJobs.value ? undefined : false,
         UINextPrev: UINextPrev.value ? undefined : false,
+        UISlicerCLI: UISlicerCLI.value ? undefined: false,
         UIToolBox: UIToolBox.value ? undefined : false,
         UIImport: UIImport.value ? undefined : false,
         UIExport: UIExport.value ? undefined : false,
@@ -42,6 +44,7 @@ export default defineComponent({
       UIData,
       UIJobs,
       UINextPrev,
+      UISlicerCLI,
       UIToolBox,
       UIImport,
       UIExport,
@@ -78,6 +81,13 @@ export default defineComponent({
             label="Next/Previous"
           />
         </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UISlicerCLI"
+            label="Slicer CLI Button"
+          />
+        </v-row>
+
         <v-row dense>
           <v-switch
             v-model="UIToolBox"

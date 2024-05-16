@@ -67,6 +67,7 @@ nav:
         - Attribute Rendering: UI-AttributeRendering.md
       - Group Manager: UI-Group-Manager.md    
       - Dataset Info: UI-DatasetInfo.md
+    - Slicer CLI Integration: SlicerCLI.md
     - Configuration:
       - UI Configuration: UI-Configuration.md
       - UI Settings: UI-Settings.md
