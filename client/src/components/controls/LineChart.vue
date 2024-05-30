@@ -196,7 +196,8 @@ export default Vue.extend({
           tooltipTimeoutHandle = setTimeout(() => {
             tooltip
               .style('left', `${_x + 2}px`)
-              .style('top', `${_y - 25}px`)
+              .style('top', `${_y + this.chartTop}px`)
+              .style('position', 'asbsolute')
               .text(d.name)
               .style('display', 'block');
             d3.select(this).style('stroke', 'cyan').style('stroke-width', 3);

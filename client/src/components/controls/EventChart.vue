@@ -60,7 +60,7 @@ export default Vue.extend({
         return {
           style: {
             left: `${this.tooltip.left + 15}px`,
-            top: `${this.tooltip.top + 15}px`,
+            top: `${this.tooltip.top + 0}px`,
           },
           ...this.tooltip,
         };
@@ -311,7 +311,7 @@ export default Vue.extend({
     border: 1px solid white;
     padding: 0px 5px;
     font-size: 14px;
-    z-index: 2;
+    z-index: 9999;
   }
 }
 </style>

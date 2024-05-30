@@ -1,6 +1,5 @@
 <script lang="ts">
 import {
-  computed,
   defineComponent, onMounted, ref, Ref, PropType,
 } from 'vue';
 import {
@@ -101,19 +100,16 @@ export default defineComponent({
       await updateFilter({ filter: currentFilter.value, sortVal: storedSortVal.value, sortDir: storedSortDir.value });
     };
 
-    const advanced = computed(() => {
+    const getAdvanced = (item: MetadataResultItem) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const advancedList: Record<string, any> = {};
-      for (let i = 0; i < folderList.value.length; i += 1) {
-        const item = folderList.value[i];
-        Object.entries(item.metadata).forEach(([key, value]) => {
-          if (!displayConfig.value.hide.includes(key)) {
-            advancedList[key] = value;
-          }
-        });
-      }
+      Object.entries(item.metadata).forEach(([key, value]) => {
+        if (!displayConfig.value.hide.includes(key)) {
+          advancedList[key] = value;
+        }
+      });
       return advancedList;
-    });
+    };
     const openClone = ref(false);
     return {
       totalPages,
@@ -125,7 +121,7 @@ export default defineComponent({
       updateFilter,
       folderList,
       displayConfig,
-      advanced,
+      getAdvanced,
       filters,
       //Cloning
       openClone,
@@ -211,7 +207,7 @@ export default defineComponent({
           <v-expansion-panel class="border">
             <v-expansion-panel-header>Advanced</v-expansion-panel-header>
             <v-expansion-panel-content>
-              <v-row v-for="(data, dataKey) in advanced" :key="dataKey" class="border" dense>
+              <v-row v-for="(data, dataKey) in getAdvanced(item)" :key="dataKey" class="border" dense>
                 <v-col cols="2" class="border">
                   <b>{{ dataKey }}:</b>
                 </v-col>

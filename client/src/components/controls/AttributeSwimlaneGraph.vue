@@ -61,7 +61,7 @@ export default Vue.extend({
         return {
           style: {
             left: `${this.tooltip.left + 15}px`,
-            top: `${this.tooltip.top + 15}px`,
+            top: `${this.tooltip.top + 0}px`,
           },
           ...this.tooltip,
         };
@@ -236,18 +236,20 @@ export default Vue.extend({
 </script>
 
 <template>
-  <div
-    class="event-chart"
-    :style="`height: ${clientHeight - 10}px;`"
-    @mousewheel.prevent
-    @scroll="recordScroll"
-  >
-    <canvas
-      ref="canvas"
-      @mousemove="mousemove"
-      @mouseout="mouseout"
-      @mousedown="mousedown"
-    />
+  <div style="position: relative;">
+    <div
+      class="event-chart"
+      :style="`height: ${clientHeight - 10}px;`"
+      @mousewheel.prevent
+      @scroll="recordScroll"
+    >
+      <canvas
+        ref="canvas"
+        @mousemove="mousemove"
+        @mouseout="mouseout"
+        @mousedown="mousedown"
+      />
+    </div>
     <div
       v-if="tooltipComputed"
       class="tooltip"
@@ -259,13 +261,19 @@ export default Vue.extend({
         align="center"
         justify="center"
       >
-        <span> {{ tooltipComputed.name }}</span>
+        <v-col>
+          <span> {{ tooltipComputed.name }}</span>
+        </v-col>
         <span
           class="type-color-box"
           :style="{ backgroundColor: tooltipComputed.contentColor }"
         />
-        :
-        <span> {{ tooltipComputed.subDisplay }}</span>
+        <v-col>
+          <span>:</span>
+        </v-col>
+        <v-col>
+          <span> {{ tooltipComputed.subDisplay }}</span>
+        </v-col>
         <span
           class="type-color-box"
           :style="{ backgroundColor: tooltipComputed.subColor }"
@@ -280,22 +288,23 @@ export default Vue.extend({
   position: relative;
   height: calc(100% - 10px);
   margin: 5px 0;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
 
-  .tooltip {
+}
+.tooltip {
     position: absolute;
     background: black;
     border: 1px solid white;
     padding: 0px 5px;
     font-size: 20px;
     font-weight: bold;
-    z-index: 2;
+    z-index: 9999;
   }
-}
+
 .type-color-box {
   margin-right: 5px;
-  margin-top:5px;
+  margin-top: 5px;
   min-width: 10px;
   max-width: 10px;
   min-height: 10px;
