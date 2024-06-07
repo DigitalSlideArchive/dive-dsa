@@ -209,7 +209,9 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((str: any) => parseInt(str, 10));
       const inlcudesTooltip = visibleModes.includes('tooltip');
-      let globalBounds = { left: 0, top: 0, right: annotator.frameSize.value[0], bottom: annotator.frameSize.value[1] };
+      let globalBounds = {
+        left: 0, top: 0, right: annotator.frameSize.value[0], bottom: annotator.frameSize.value[1],
+      };
       rectAnnotationLayer.setHoverAnnotations(inlcudesTooltip);
       polyAnnotationLayer.setHoverAnnotations(inlcudesTooltip);
       if (!inlcudesTooltip) {

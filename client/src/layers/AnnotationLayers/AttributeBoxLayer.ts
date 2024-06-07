@@ -4,7 +4,9 @@
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 import { boundToGeojson } from '../../utils';
 import BaseLayer, { LayerStyle, BaseLayerParams } from '../BaseLayer';
-import { DimensionBounds, FrameDataTrack, geoJSONPolygonToBounds, mergeBounds } from '../LayerTypes';
+import {
+  DimensionBounds, FrameDataTrack, geoJSONPolygonToBounds, mergeBounds,
+} from '../LayerTypes';
 import { calculateAttributeArea } from './AttributeLayer';
 
 interface RectGeoJSData{
@@ -174,8 +176,10 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
   }
 
   getBounds(): DimensionBounds {
-    let globalBounds = {left: Infinity, right: -Infinity, bottom: -Infinity, top: Infinity };
-    for (let i = 0; i< this.formattedData.length; i += 1) {
+    let globalBounds = {
+      left: Infinity, right: -Infinity, bottom: -Infinity, top: Infinity,
+    };
+    for (let i = 0; i < this.formattedData.length; i += 1) {
       const data = this.formattedData[i];
       const bounds = geoJSONPolygonToBounds(data.polygon);
       globalBounds = mergeBounds(globalBounds, bounds);

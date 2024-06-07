@@ -264,7 +264,9 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
     this.renderAttributes = [];
     this.autoColorIndex = [];
     this.user = '';
-    this.bounds = { left: 0, right: 0, bottom: 0, top: 0 };
+    this.bounds = {
+      left: 0, right: 0, bottom: 0, top: 0,
+    };
   }
 
   initialize() {
@@ -354,10 +356,14 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
   }
 
   getBounds(): DimensionBounds {
-    let globalBounds = {left: Infinity, right: -Infinity, bottom: -Infinity, top: Infinity };
-    for (let i = 0; i< this.formattedData.length; i += 1) {
+    let globalBounds = {
+      left: Infinity, right: -Infinity, bottom: -Infinity, top: Infinity,
+    };
+    for (let i = 0; i < this.formattedData.length; i += 1) {
       const data = this.formattedData[i];
-      const bounds = { left: data.x + (data.offsetX || 0), right: data.x + (data.offsetX || 0), top: data.y + (data.offsetY || 0), bottom: data.y + (data.offsetY || 0)};
+      const bounds = {
+        left: data.x + (data.offsetX || 0), right: data.x + (data.offsetX || 0), top: data.y + (data.offsetY || 0), bottom: data.y + (data.offsetY || 0),
+      };
       globalBounds = mergeBounds(globalBounds, bounds);
     }
     return globalBounds;

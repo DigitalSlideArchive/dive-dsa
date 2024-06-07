@@ -6,9 +6,9 @@ import Vue, {
 } from 'vue';
 import { map, over } from 'lodash';
 
+import { DimensionBounds } from 'vue-media-annotator/layers/LayerTypes';
 import { use } from '../../provides';
 import type { AggregateMediaController, MediaController } from './mediaControllerType';
-import { DimensionBounds } from 'vue-media-annotator/layers/LayerTypes';
 
 function compareBounds(boundsA: DimensionBounds, boundsB: DimensionBounds) {
   return boundsA.left === boundsB.left && boundsA.top === boundsB.top && boundsA.right === boundsB.right && boundsA.bottom && boundsB.bottom;
@@ -199,7 +199,9 @@ export function useMediaController() {
       frame: 0,
       flick: 0,
       frameSize: [1080, 1920],
-      expandedBounds: {left: 0, top: 0, right: 1920, bottom: 1080},
+      expandedBounds: {
+        left: 0, top: 0, right: 1920, bottom: 1080,
+      },
       length: 100,
       filename: '',
       lockedCamera: false,
@@ -236,10 +238,9 @@ export function useMediaController() {
     }
 
     function setExpandedBounds(bounds: { left: number, top: number, right: number, bottom: number}) {
-      const geoViewerRef = geoViewers[camera];
       if (!compareBounds(state[camera].expandedBounds, bounds)) {
         state[camera].expandedBounds = bounds;
-        resetMapDimensions(bounds.right-bounds.left, bounds.bottom-bounds.top, 0.3, bounds.left, bounds.top);
+        resetMapDimensions(bounds.right - bounds.left, bounds.bottom - bounds.top, 0.3, bounds.left, bounds.top);
       }
     }
 
