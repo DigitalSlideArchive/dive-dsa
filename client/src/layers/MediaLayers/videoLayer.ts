@@ -13,6 +13,8 @@ interface OverlayMetadata {
     black: string;
     white: string;
   };
+  positioning?: { x: number, y: number, type?: 'px' | '%'}
+  scaling?: { x: number, y: number}
 }
 export default class VideoLayer {
   annotator: MediaController;
@@ -32,6 +34,12 @@ export default class VideoLayer {
 
   height: number;
 
+  positioning: {x: number, y: number};
+
+  positionType: 'px' | '%';
+
+  scaling: {x: number, y: number};
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>;
 
@@ -50,6 +58,31 @@ export default class VideoLayer {
     this.width = 0;
     this.height = 0;
     this.overlayMetadata = {};
+    this.positioning = { x: 0, y: 0 };
+    this.positionType = 'px';
+    this.scaling = { x: 1, y: 1 };
+  }
+
+  calculateDimensions() {
+    if (this.positionType === 'px') {
+      const dimensions = {
+        ul: { x: this.positioning.x, y: this.positioning.y },
+        lr: { x: this.positioning.x + (this.width * this.scaling.x), y: this.positioning.y + (this.height * this.scaling.y) },
+      };
+      return dimensions;
+    }
+    if (this.positionType === '%') {
+      const x = (this.width * this.scaling.x) * this.positioning.x;
+      const y = (this.height * this.scaling.y) * this.positioning.y;
+      const width = x + (this.width * this.scaling.x);
+      const height = y + (this.height * this.scaling.y);
+      const dimensions = {
+        ul: { x, y },
+        lr: { x: width, y: height },
+      };
+      return dimensions;
+    }
+    throw Error(`PositionType: ${this.positionType} wasn't of type 'px' or '%`);
   }
 
   loadedMetadata() {
@@ -57,12 +90,12 @@ export default class VideoLayer {
       this.video.removeEventListener('loadedmetadata', this.loadedMetadata);
       this.width = this.video.videoWidth;
       this.height = this.video.videoHeight;
+      const dimensions = this.calculateDimensions();
       this.featureLayer
         .createFeature('quad')
         .data([
           {
-            ul: { x: 0, y: 0 },
-            lr: { x: this.width, y: this.height },
+            ...dimensions,
             video: this.video,
           },
         ])
@@ -77,6 +110,15 @@ export default class VideoLayer {
     this.metadata = metadata;
     if (this.metadata) {
       this.overlayMetadata = this.metadata as OverlayMetadata;
+      if (this.overlayMetadata.positioning) {
+        this.positioning = this.overlayMetadata.positioning;
+        if (this.overlayMetadata.positioning.type) {
+          this.positionType = this.overlayMetadata.positioning.type;
+        }
+      }
+      if (this.overlayMetadata.scaling) {
+        this.scaling = this.overlayMetadata.scaling;
+      }
     }
     this.featureLayer = this.annotator.geoViewerRef.value.createLayer('feature', {
       features: ['quad.video'],
@@ -129,5 +171,15 @@ export default class VideoLayer {
     if (this.featureLayer) {
       this.featureLayer.visible(false);
     }
+  }
+
+  getBounds() {
+    const dimensions = this.calculateDimensions();
+    return {
+      left: dimensions.ul.x,
+      right: dimensions.lr.x,
+      top: dimensions.ul.y,
+      bottom: dimensions.lr.y,
+    };
   }
 }
