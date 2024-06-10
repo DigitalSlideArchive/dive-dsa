@@ -6,7 +6,7 @@ import { RectBounds } from 'vue-media-annotator/utils';
 import * as d3 from 'd3';
 import { TypeStyling } from '../../StyleManager';
 import BaseLayer, { BaseLayerParams, LayerStyle } from '../BaseLayer';
-import { FrameDataTrack } from '../LayerTypes';
+import { FrameDataTrack, DimensionBounds, mergeBounds } from '../LayerTypes';
 
 export interface AttributeTextData {
   selected: boolean;
@@ -255,6 +255,8 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
 
   frame: number;
 
+  bounds: DimensionBounds;
+
   constructor(params: BaseLayerParams & AttributeLayerParams) {
     super(params);
     this.frame = 0;
@@ -262,6 +264,9 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
     this.renderAttributes = [];
     this.autoColorIndex = [];
     this.user = '';
+    this.bounds = {
+      left: 0, right: 0, bottom: 0, top: 0,
+    };
   }
 
   initialize() {
@@ -348,5 +353,19 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
       textBaseLine: 'top',
       textScaled: (data) => (data.fontSize ? 0 : undefined),
     };
+  }
+
+  getBounds(): DimensionBounds {
+    let globalBounds = {
+      left: Infinity, right: -Infinity, bottom: -Infinity, top: Infinity,
+    };
+    for (let i = 0; i < this.formattedData.length; i += 1) {
+      const data = this.formattedData[i];
+      const bounds = {
+        left: data.x + (data.offsetX || 0), right: data.x + (data.offsetX || 0), top: data.y + (data.offsetY || 0), bottom: data.y + (data.offsetY || 0),
+      };
+      globalBounds = mergeBounds(globalBounds, bounds);
+    }
+    return globalBounds;
   }
 }

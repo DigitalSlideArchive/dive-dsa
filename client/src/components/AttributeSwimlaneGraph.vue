@@ -206,7 +206,6 @@ export default defineComponent({
           class="pa-0 ma-0"
         />
       </v-row>
-
     </v-card-text>
     <v-card-actions>
       <v-spacer />

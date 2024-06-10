@@ -15,7 +15,7 @@ import LineLayer from '../layers/AnnotationLayers/LineLayer';
 import TailLayer from '../layers/AnnotationLayers/TailLayer';
 
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
-import { FrameDataTrack } from '../layers/LayerTypes';
+import { FrameDataTrack, mergeBounds } from '../layers/LayerTypes';
 import VideoLayer from '../layers/MediaLayers/videoLayer';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
 import AttributeLayer from '../layers/AnnotationLayers/AttributeLayer';
@@ -209,6 +209,9 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((str: any) => parseInt(str, 10));
       const inlcudesTooltip = visibleModes.includes('tooltip');
+      let globalBounds = {
+        left: 0, top: 0, right: annotator.frameSize.value[0], bottom: annotator.frameSize.value[1],
+      };
       rectAnnotationLayer.setHoverAnnotations(inlcudesTooltip);
       polyAnnotationLayer.setHoverAnnotations(inlcudesTooltip);
       if (!inlcudesTooltip) {
@@ -303,6 +306,7 @@ export default defineComponent({
           annotatorPrefs.value.overlays.colorTransparency,
           annotatorPrefs.value.overlays.colorScale,
         );
+        globalBounds = mergeBounds(videoLayer.getBounds(), globalBounds);
       } else {
         videoLayer.disable();
       }
@@ -313,6 +317,8 @@ export default defineComponent({
         attributeBoxLayer.changeData(frameData);
         attributeLayer.setFrame(frame);
         attributeLayer.changeData(frameData);
+        globalBounds = mergeBounds(attributeLayer.getBounds(), globalBounds);
+        globalBounds = mergeBounds(attributeBoxLayer.getBounds(), globalBounds);
       } else {
         textLayer.disable();
         attributeLayer.disable();
@@ -350,6 +356,7 @@ export default defineComponent({
       } else {
         editAnnotationLayer.disable();
       }
+      annotator.setExpandedBounds(globalBounds);
     }
 
     /**

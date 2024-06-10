@@ -48,13 +48,13 @@ export default defineComponent({
     });
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.altKey) {
+      if (e.altKey && !selectedShortcutModifiers.value.includes('alt')) {
         selectedShortcutModifiers.value.push('alt');
       }
-      if (e.ctrlKey) {
+      if (e.ctrlKey && !selectedShortcutModifiers.value.includes('ctrl')) {
         selectedShortcutModifiers.value.push('ctrl');
       }
-      if (e.shiftKey) {
+      if (e.shiftKey && !selectedShortcutModifiers.value.includes('shift')) {
         selectedShortcutModifiers.value.push('shift');
       }
       let { key } = e;

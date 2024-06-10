@@ -19,10 +19,11 @@ export interface AggregateMediaController {
   cameraSync: Readonly<Ref<boolean>>;
   frameSize: Readonly<Ref<[number, number]>>;
   length: Readonly<Ref<number>>;
+  expandedBounds: Readonly<Ref<{ left: number, top: number, right: number, bottom: number}>>;
 
   pause: () => void;
   play: () => void;
-  resetZoom: () => void;
+  resetZoom: (overRide?: { left: number, top: number, right: number, bottom: number}) => void;
   seek: (frame: number) => void;
   nextFrame: () => void;
   prevFrame: () => void;
@@ -31,6 +32,7 @@ export interface AggregateMediaController {
   toggleLockedCamera: () => void;
   getController: (cameraName: string) => MediaController;
   toggleSynchronizeCameras: (sync: boolean) => void;
+  setExpandedBounds: (bounds: { left: number, top: number, right: number, bottom: number}) => void;
 }
 
 /**

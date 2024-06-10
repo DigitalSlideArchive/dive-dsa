@@ -46,3 +46,19 @@ This is configured by adding a new Metadata tag to the video Item : `overlayMeta
 Right now it only supports the first color in the array.
 Variance allows a +/- variance to the exact color that is selected.
 The colorScale isn't required but if it is found it will utilize it to scale grayscale imagery.
+
+
+### Additional Video Settings
+
+Utiliing similar code for the Video Overlay, the system can also allow the displaying of a video alongside the main video.
+This can be done by the same method above but using the a few additional JSON properties
+
+```
+{
+    positioning: {x: -1, y: 0, type: "%"},
+    scaling: {x: 0.5, y: 0.5}
+}
+```
+Positioning takes in an X/Y coordinate or scaling factor.  'type' is optional and defaults to the value of 'px' which means it will use pixel offsets.  If you use the 'type' value of '%' it will use a percentage of the video width and height to position it.  'scaling' takes the original video and scales it up or down based on the numerical value. 
+
+In the above example the video is scaled 50% in the x and y direction and then the positioning is offset so that the upper right hand corner of the video is one scaled width to the left of the current video.  Basically it scales the video and then moves it to the left of the current video display.

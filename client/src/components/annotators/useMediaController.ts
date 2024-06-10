@@ -6,8 +6,13 @@ import Vue, {
 } from 'vue';
 import { map, over } from 'lodash';
 
+import { DimensionBounds } from 'vue-media-annotator/layers/LayerTypes';
 import { use } from '../../provides';
 import type { AggregateMediaController, MediaController } from './mediaControllerType';
+
+function compareBounds(boundsA: DimensionBounds, boundsB: DimensionBounds) {
+  return boundsA.left === boundsB.left && boundsA.top === boundsB.top && boundsA.right === boundsB.right && boundsA.bottom && boundsB.bottom;
+}
 
 const AggregateControllerSymbol = Symbol('aggregate-controller');
 const CameraInitializerSymbol = Symbol('camera-initializer');
@@ -38,6 +43,7 @@ interface MediaControllerReactiveData {
     right: number;
     bottom: number;
   };
+  expandedBounds: { left: number, top: number, right: number, bottom: number};
 }
 
 interface CameraInitializerReturn {
@@ -193,6 +199,9 @@ export function useMediaController() {
       frame: 0,
       flick: 0,
       frameSize: [1080, 1920],
+      expandedBounds: {
+        left: 0, top: 0, right: 1920, bottom: 1080,
+      },
       length: 100,
       filename: '',
       lockedCamera: false,
@@ -228,21 +237,29 @@ export function useMediaController() {
       geoViewers[camera].value.center(coords);
     }
 
-    function resetZoom() {
+    function setExpandedBounds(bounds: { left: number, top: number, right: number, bottom: number}) {
+      if (!compareBounds(state[camera].expandedBounds, bounds)) {
+        state[camera].expandedBounds = bounds;
+        resetMapDimensions(bounds.right - bounds.left, bounds.bottom - bounds.top, 0.3, bounds.left, bounds.top);
+      }
+    }
+
+    function resetZoom(overRide?: { left: number, top: number, right: number, bottom: number}) {
       const geoViewerRef = geoViewers[camera];
       const data = state[camera];
-      const zoomAndCenter = geoViewerRef.value.zoomAndCenterFromBounds(data.originalBounds, 0);
+      const bounds = data.expandedBounds || overRide || data.originalBounds;
+      const zoomAndCenter = geoViewerRef.value.zoomAndCenterFromBounds(bounds, 0);
       geoViewerRef.value.zoom(zoomAndCenter.zoom);
       geoViewerRef.value.center(zoomAndCenter.center);
     }
 
-    function resetMapDimensions(width: number, height: number, margin = 0.3) {
+    function resetMapDimensions(width: number, height: number, margin = 0.3, left = 0, top = 0) {
       const geoViewerRef = geoViewers[camera];
       const containerRef = containers[camera];
       const data = state[camera];
       geoViewerRef.value.bounds({
-        left: 0,
-        top: 0,
+        left,
+        top,
         bottom: height,
         right: width,
       });
@@ -250,8 +267,8 @@ export function useMediaController() {
       const { right, bottom } = params.map.maxBounds;
       data.originalBounds = params.map.maxBounds;
       geoViewerRef.value.maxBounds({
-        left: 0 - (right * margin),
-        top: 0 - (bottom * margin),
+        left: left - (right * margin),
+        top: top - (bottom * margin),
         right: right * (1 + margin),
         bottom: bottom * (1 + margin),
       });
@@ -381,6 +398,7 @@ export function useMediaController() {
       frame: toRef(state[camera], 'frame'),
       flick: toRef(state[camera], 'flick'),
       frameSize: toRef(state[camera], 'frameSize'),
+      expandedBounds: toRef(state[camera], 'expandedBounds'),
       length: toRef(state[camera], 'length'),
       filename: toRef(state[camera], 'filename'),
       lockedCamera: toRef(state[camera], 'lockedCamera'),
@@ -404,6 +422,7 @@ export function useMediaController() {
       getController,
       resetMapDimensions,
       toggleSynchronizeCameras,
+      setExpandedBounds,
       cameraSync: synchronizeCameras,
 
     };
@@ -429,6 +448,7 @@ export function useMediaController() {
       maxFrame: defaultController.maxFrame,
       frame: defaultController.frame,
       frameSize: defaultController.frameSize,
+      expandedBounds: defaultController.expandedBounds,
       flick: defaultController.flick,
       length: defaultController.length,
       seek: over(map(subControllers, 'seek')),
@@ -447,6 +467,7 @@ export function useMediaController() {
       currentTime: defaultController.currentTime,
       getController,
       toggleSynchronizeCameras,
+      setExpandedBounds: over(map(subControllers, 'setExpandedBounds')),
       cameraSync: synchronizeCameras,
     };
   });
