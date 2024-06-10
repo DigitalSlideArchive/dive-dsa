@@ -32,7 +32,7 @@ export interface AggregateMediaController {
   toggleLockedCamera: () => void;
   getController: (cameraName: string) => MediaController;
   toggleSynchronizeCameras: (sync: boolean) => void;
-  setExpandedBounds: (bounds?: { left: number, top: number, right: number, bottom: number}) => void;
+  setExpandedBounds: (bounds: { left: number, top: number, right: number, bottom: number}) => void;
 }
 
 /**
