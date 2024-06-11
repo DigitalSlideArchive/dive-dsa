@@ -55,6 +55,7 @@ import { useStore } from 'platform/web-girder/store/types';
 import UseTimelineFilters from 'vue-media-annotator/use/useTimelineFilters';
 import { checkAttributes } from 'dive-common/use/useActions';
 import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue';
+import useURLParameters from 'vue-media-annotator/use/useURLParameters';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -788,6 +789,15 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         globalHandler.setAnnotationState({ visible: ['rectangle', 'Polygon', 'LineString', 'text', 'attributeKey'] });
       }
+      nextTick(() => {
+        useURLParameters(
+          aggregateController.value.frame,
+          selectedTrackId,
+          mediaLoaded,
+          handler.trackSelect,
+          aggregateController.value.seek,
+        );
+      });
     };
     loadData();
     const reloadAnnotations = async () => {
@@ -899,8 +909,9 @@ export default defineComponent({
     const { visible } = usePrompt();
 
     const getUISetting = (key: UISettingsKey) => configurationManager.getUISetting(key);
-
+    const mediaLoaded = ref(false);
     const runActions = () => {
+      mediaLoaded.value = true;
       if (configurationManager.configuration.value?.actions) {
         const { actions } = configurationManager.configuration.value;
         for (let i = 0; i < actions.length; i += 1) {
