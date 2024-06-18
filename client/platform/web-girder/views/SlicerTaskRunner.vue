@@ -4,7 +4,7 @@ import { GirderSlicerTasksIntegrated } from 'vue-girder-slicer-cli-ui';
 import { XMLParameters } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { cloneDeep } from 'lodash';
 import { getTaskDefaults } from 'platform/web-girder/api/dataset.service';
-import { useDatasetId, useHandler } from 'vue-media-annotator/provides';
+import { useDatasetId } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { JobResponse, SlicerTask } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
@@ -32,7 +32,6 @@ export default defineComponent({
   setup() {
     const datasetId = useDatasetId();
     const girderRest = useGirderRest();
-    const handler = useHandler();
     const store = useStore();
     const { prompt } = usePrompt();
     const folderName = ref('');
@@ -109,18 +108,6 @@ export default defineComponent({
         store.commit('Jobs/setJobState', {
           jobId: resp.data._id, value: resp.data.status,
         });
-        const result = await prompt({
-          title: 'Job Finished',
-          text: [`Job: ${resp.data.title}`,
-            'finished running on the current dataset.  Click reload to load the annotations.  The current annotations will be replaced with the Job output.',
-          ],
-          confirm: true,
-          positiveButton: 'Reload',
-          negativeButton: '',
-        });
-        if (result) {
-          await handler.reloadAnnotations();
-        }
       }
       if (resp.data.status === JobStatus.ERROR.value) {
         if (interval) {

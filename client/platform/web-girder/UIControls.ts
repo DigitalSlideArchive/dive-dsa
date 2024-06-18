@@ -24,7 +24,7 @@ export interface UINotificationParams {
 
 const initializeUINotificationService = (params: UINotificationParams) => {
   const {
-    prompt, handler, aggregateController, reloadAnnotations, datasetId
+    prompt, handler, aggregateController, reloadAnnotations, datasetId,
   } = params;
   const processActions = (notification: UINotification) => {
     if (notification.reloadAnnotations) {
