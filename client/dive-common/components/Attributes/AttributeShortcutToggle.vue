@@ -108,10 +108,7 @@ export default defineComponent({
     const systemHandler = useHandler();
 
     const runActions = (shortcut: string) => {
-      console.log('Running Actions');
       const index = actionShortcuts.value.findIndex((item) => item.shortcut === shortcut);
-      console.log(index);
-      console.log(actionShortcuts.value);
       if (index !== -1) {
         actionShortcuts.value[index].actions.forEach((action) => {
           systemHandler.processAction(action, true, { frame: frameRef.value });

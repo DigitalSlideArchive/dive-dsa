@@ -22,6 +22,7 @@ import ViewerAlert from './ViewerAlert.vue';
 import RevisionHistory from './RevisionHistory.vue';
 import AnnotationDataBrowser from './AnnotationDataBrowser.vue';
 import SlicerTaskRunnerVue from './SlicerTaskRunner.vue';
+import initializeNotificationService from '../UIControls';
 
 const buttonOptions = {
   text: true,
@@ -88,6 +89,7 @@ export default defineComponent({
   },
 
   setup(props) {
+    initializeNotificationService();
     const router = useRouter();
     const { prompt } = usePrompt();
     const viewerRef = ref();
