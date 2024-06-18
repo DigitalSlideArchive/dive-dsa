@@ -19,11 +19,12 @@ export interface UINotificationParams {
   aggregateController: Ref<AggregateMediaController>;
   handler : ModeManagerType['handler'];
   reloadAnnotations : () => Promise<void>;
+  datasetId: Ref<string>;
 }
 
 const initializeUINotificationService = (params: UINotificationParams) => {
   const {
-    prompt, handler, aggregateController, reloadAnnotations,
+    prompt, handler, aggregateController, reloadAnnotations, datasetId
   } = params;
   const processActions = (notification: UINotification) => {
     if (notification.reloadAnnotations) {
@@ -38,6 +39,9 @@ const initializeUINotificationService = (params: UINotificationParams) => {
     }
   };
   girderRest.$on('message:ui_notification', async ({ data: notification }: { data: UINotification }) => {
+    if (!notification.datasetId.includes(datasetId.value)) {
+      return;
+    }
     const text = [notification.text];
     if (notification.reloadAnnotations) {
       text.push('Reload the Annotations.  Most likely a task has created new annotations to load');
@@ -46,7 +50,7 @@ const initializeUINotificationService = (params: UINotificationParams) => {
         text.push(`Set the Selected TrackId to: ${notification.selectedTrack}`);
       }
       if (typeof (notification.selectedFrame) === 'number') {
-        text.push(`Set the Selected Frame to: ${notification.selectedFrame}`);
+        text.push(`Seeking Frame to: ${notification.selectedFrame}`);
       }
     }
     text.push('Hit accept to process these actions');

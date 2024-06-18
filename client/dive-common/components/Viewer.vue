@@ -809,7 +809,7 @@ export default defineComponent({
       await loadData();
     };
     initializeUINotificationService({
-      prompt, handler, aggregateController, reloadAnnotations,
+      prompt, handler, aggregateController, reloadAnnotations, datasetId,
     });
 
     watch(datasetId, reloadAnnotations);
