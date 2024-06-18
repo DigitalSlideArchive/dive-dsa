@@ -89,9 +89,9 @@ export default defineComponent({
   },
 
   setup(props) {
-    initializeNotificationService();
     const router = useRouter();
     const { prompt } = usePrompt();
+    initializeNotificationService(prompt);
     const viewerRef = ref();
     const store = useStore();
     const brandData = toRef(store.state.Brand, 'brandData');

@@ -195,7 +195,7 @@ class RpcResource(Resource):
             level=AccessType.READ,
         ).jsonParam(
             "body",
-            "{text: string;, selectedFrame?: number, selectedTrack?: number }",
+            "{text: string;, selectedFrame?: number, selectedTrack?: number, reloadAnnotations?: boolean }",
             paramType="body",
             requireObject=True,
             default='{"text": "Sample Notification to provide to user"}',
