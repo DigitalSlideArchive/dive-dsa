@@ -24,11 +24,12 @@ export default function useURLParameters(
     if (frame.value !== 0) {
       values.push(`frame=${frame.value}`);
     }
+    const currentLocation = window.location.href;
     if (values.length === 0) {
+      window.location.href = currentLocation.replace(/\?.*/, '');
       return;
     }
     const urlParameters = `?${values.join('&')}`;
-    const currentLocation = window.location.href;
     if (currentLocation.includes('?')) {
       window.location.href = currentLocation.replace(/\?.*/, urlParameters);
     } else {

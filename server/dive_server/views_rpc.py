@@ -184,28 +184,26 @@ class RpcResource(Resource):
             Folder().save(subFolder)
             crud_rpc.postprocess(self.getCurrentUser(), subFolder, skipJobs, skipTranscoding)
 
-
     @access.user(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(
         Description("Provide Notification to current User of a specific dataset")
         .modelParam(
             "id",
-            description="DIVE Dataset to post noitifcation to",
+            description="DIVE Dataset to post notifcation to",
             model=Folder,
             level=AccessType.READ,
-        ).jsonParam(
+        )
+        .jsonParam(
             "body",
             "{text: string;, selectedFrame?: number, selectedTrack?: number, reloadAnnotations?: boolean }",
             paramType="body",
             requireObject=True,
             default='{"text": "Sample Notification to provide to user"}',
         )
-
-
     )
     def ui_notification(self, folder, body):
 
-        body['datasetId'] = folder.get('_id', False),
+        body['datasetId'] = (folder.get('_id', False),)
 
         Notification().createNotification(
             type='ui_notification',

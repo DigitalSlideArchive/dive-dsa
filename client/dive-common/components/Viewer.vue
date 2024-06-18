@@ -56,6 +56,7 @@ import UseTimelineFilters from 'vue-media-annotator/use/useTimelineFilters';
 import { checkAttributes } from 'dive-common/use/useActions';
 import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue';
 import useURLParameters from 'vue-media-annotator/use/useURLParameters';
+import initializeUINotificationService from 'platform/web-girder/UIControls';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -807,6 +808,9 @@ export default defineComponent({
       discardChanges();
       await loadData();
     };
+    initializeUINotificationService({
+      prompt, handler, aggregateController, reloadAnnotations,
+    });
 
     watch(datasetId, reloadAnnotations);
     watch(readonlyState, () => handler.trackSelect(null, false));

@@ -1,5 +1,10 @@
 import girderRest from 'platform/web-girder/plugins/girder';
 import { PromptParams } from 'dive-common/vue-utilities/prompt-service';
+import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
+import { Ref } from 'vue';
+import { useModeManager } from 'dive-common/use';
+
+type ModeManagerType = ReturnType<typeof useModeManager>;
 
 export interface UINotification {
     datasetId: string[];
@@ -9,9 +14,28 @@ export interface UINotification {
     reloadAnnotations?: boolean;
 }
 
-const initializeUINotificationService = (prompt: (params: PromptParams) => Promise<boolean>) => {
+export interface UINotificationParams {
+  prompt: (params: PromptParams) => Promise<boolean>;
+  aggregateController: Ref<AggregateMediaController>;
+  handler : ModeManagerType['handler'];
+  reloadAnnotations : () => Promise<void>;
+}
+
+const initializeUINotificationService = (params: UINotificationParams) => {
+  const {
+    prompt, handler, aggregateController, reloadAnnotations,
+  } = params;
   const processActions = (notification: UINotification) => {
-    console.log(notification);
+    if (notification.reloadAnnotations) {
+      reloadAnnotations();
+      return;
+    }
+    if (typeof (notification.selectedTrack) === 'number') {
+      handler.trackSelect(notification.selectedTrack, false);
+    }
+    if (typeof (notification.selectedFrame) === 'number') {
+      aggregateController.value.seek(notification.selectedFrame);
+    }
   };
   girderRest.$on('message:ui_notification', async ({ data: notification }: { data: UINotification }) => {
     const text = [notification.text];
@@ -28,8 +52,7 @@ const initializeUINotificationService = (prompt: (params: PromptParams) => Promi
     text.push('Hit accept to process these actions');
     const result = await prompt({
       title: 'User Notification',
-      text: [`${notification.text}`,
-      ],
+      text,
       confirm: true,
       positiveButton: 'Accept',
       negativeButton: 'Cancel',
