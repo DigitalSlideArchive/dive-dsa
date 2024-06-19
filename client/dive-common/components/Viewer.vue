@@ -57,6 +57,7 @@ import { checkAttributes } from 'dive-common/use/useActions';
 import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue';
 import useURLParameters from 'vue-media-annotator/use/useURLParameters';
 import initializeUINotificationService from 'platform/web-girder/UIControls';
+import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -121,6 +122,7 @@ export default defineComponent({
     const datasetName = ref('');
     const saveInProgress = ref(false);
     const videoUrl: Ref<Record<string, string>> = ref({});
+    const latestRevisionId = ref(0); // Latest Revision from the revision endpoint if the revision prop is 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const overlays: Ref<Readonly<{url: string; filename: string; id: string; metadata?: Record<string, any>}[] | undefined>> = ref(undefined);
     const {
@@ -472,6 +474,10 @@ export default defineComponent({
           confidenceFilters: trackFilters.confidenceFilters.value,
           // TODO Group confidence filters are not yet supported.
         });
+        const revisions = (await getLatestRevision(datasetId.value)).data;
+        if (revisions.length) {
+          latestRevisionId.value = revisions[0].revision;
+        }
       } catch (err) {
         let text = 'Unable to Save Data';
         if (err.response && err.response.status === 403) {
@@ -603,6 +609,15 @@ export default defineComponent({
         // Close and reset sideBar
         context.resetActive();
         let config = await loadMetadata(datasetId.value);
+        if (props.revision > 0) {
+          latestRevisionId.value = props.revision;
+        } else {
+          const revisionInfo = (await getLatestRevision(datasetId.value)).data;
+          if (revisionInfo.length > 0) {
+            latestRevisionId.value = revisionInfo[0].revision;
+          }
+        }
+
         let { meta, configMeta } = initializeConfig(config);
         // Sets a configuration if it isn't initialized and reloads it
         if (!configurationManager.configuration.value) {
@@ -894,6 +909,7 @@ export default defineComponent({
         pendingSaveCount,
         progress,
         revisionId: toRef(props, 'revision'),
+        latestRevisionId,
         selectedCamera,
         selectedKey,
         selectedTrackId,

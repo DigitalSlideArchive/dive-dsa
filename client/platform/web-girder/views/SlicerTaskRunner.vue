@@ -4,13 +4,16 @@ import { GirderSlicerTasksIntegrated } from 'vue-girder-slicer-cli-ui';
 import { XMLParameters } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { cloneDeep } from 'lodash';
 import { getTaskDefaults } from 'platform/web-girder/api/dataset.service';
-import { useDatasetId } from 'vue-media-annotator/provides';
+import {
+  useDatasetId, useHandler, useLatestRevisionId,
+} from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { JobResponse, SlicerTask } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
 import { GirderJob } from '@girder/components/src';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { all } from '@girder/components/src/components/Job/status';
+import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
 
 interface DefaultSlicerParam {
   fileId?: string;
@@ -32,6 +35,8 @@ export default defineComponent({
   setup() {
     const datasetId = useDatasetId();
     const girderRest = useGirderRest();
+    const latestRevisionId = useLatestRevisionId();
+    const handler = useHandler();
     const store = useStore();
     const { prompt } = usePrompt();
     const folderName = ref('');
@@ -108,6 +113,27 @@ export default defineComponent({
         store.commit('Jobs/setJobState', {
           jobId: resp.data._id, value: resp.data.status,
         });
+        // Check the Revision history and see if the latest revision is > than the stored current one
+        const revisions = (await getLatestRevision(datasetId.value)).data;
+        if (revisions.length > 0) {
+          if (latestRevisionId.value < revisions[0].revision) {
+            const result = await prompt({
+              title: 'Job Finished',
+              text: [`Job: ${resp.data.title}`,
+                'finished running on the current dataset.',
+                '',
+                'New Annotations were found',
+                'Click reload to load the annotations.  The current annotations will be replaced with the Job output.',
+              ],
+              confirm: true,
+              positiveButton: 'Reload',
+              negativeButton: 'Cancel',
+            });
+            if (result) {
+              await handler.reloadAnnotations();
+            }
+          }
+        }
       }
       if (resp.data.status === JobStatus.ERROR.value) {
         if (interval) {
