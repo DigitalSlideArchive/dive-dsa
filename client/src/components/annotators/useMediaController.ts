@@ -238,7 +238,7 @@ export function useMediaController() {
     }
 
     function setExpandedBounds(bounds: { left: number, top: number, right: number, bottom: number}) {
-      if (!compareBounds(state[camera].expandedBounds, bounds)) {
+      if (state[camera]?.expandedBounds && !compareBounds(state[camera].expandedBounds, bounds)) {
         state[camera].expandedBounds = bounds;
         resetMapDimensions(bounds.right - bounds.left, bounds.bottom - bounds.top, 0.3, bounds.left, bounds.top);
       }

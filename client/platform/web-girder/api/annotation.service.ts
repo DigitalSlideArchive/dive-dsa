@@ -52,6 +52,16 @@ function loadRevisions(
   });
 }
 
+function getLatestRevision(
+  folderId: string,
+) {
+  return girderRest.get<Revision[]>('dive_annotation/revision', {
+    params: {
+      folderId, sortdir: -1, limit: 1,
+    },
+  });
+}
+
 function saveDetections(folderId: string, args: SaveDetectionsArgs) {
   return girderRest.patch('dive_annotation', args, {
     params: { folderId },
@@ -67,5 +77,6 @@ export {
   getLabels,
   loadDetections,
   loadRevisions,
+  getLatestRevision,
   saveDetections,
 };

@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineComponent, toRef, watch } from 'vue';
 import {
-  useDatasetId, useHandler, usePendingSaveCount, useProgress, useRevisionId,
+  useDatasetId, useHandler, useLatestRevisionId, usePendingSaveCount, useProgress, useRevisionId,
 } from 'vue-media-annotator/provides';
 import { loadRevisions, Revision } from 'platform/web-girder/api';
 import { usePaginatedRequest } from 'dive-common/use/useRequest';
@@ -14,6 +14,7 @@ export default defineComponent({
     const saveCount = usePendingSaveCount();
     const datasetId = useDatasetId();
     const revisionId = useRevisionId();
+    const latestRevisionId = useLatestRevisionId();
     const progress = useProgress();
     const { reloadAnnotations } = useHandler();
     const {
@@ -53,6 +54,7 @@ export default defineComponent({
       count,
       revisions,
       revisionId,
+      latestRevisionId,
       datasetId,
       saveCount,
       totalCount,
@@ -90,7 +92,10 @@ export default defineComponent({
       color="grey darken-3"
       tile
     >
-      Choose a previous revision to inspect in read-only mode.
+      <p>Current Revision: {{ latestRevisionId }}</p>
+      <p>
+        Choose a previous revision to inspect in read-only mode.
+      </p>
     </v-alert>
     <v-list
       v-if="revisions.length"

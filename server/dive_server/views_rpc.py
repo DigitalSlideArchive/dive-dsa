@@ -1,9 +1,12 @@
+from datetime import datetime, timedelta
+
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
 from girder.constants import AccessType, TokenScope
 from girder.models.folder import Folder
 from girder.models.item import Item
+from girder.models.notification import Notification
 
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker
@@ -20,6 +23,7 @@ class RpcResource(Resource):
         self.route("POST", ("postprocess", ":id"), self.postprocess)
         self.route("POST", ("convert_dive", ":id"), self.convert_dive)
         self.route("POST", ("batch_postprocess", ":id"), self.batch_postprocess)
+        self.route("POST", ("ui_notification", ":id"), self.ui_notification)
 
     @access.user(scope=TokenScope.DATA_WRITE)
     @autoDescribeRoute(
@@ -71,8 +75,6 @@ class RpcResource(Resource):
         )
     )
     def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend):
-        print('STARTING POST PROCESS:')
-        print(self.getCurrentUser())
         return crud_rpc.postprocess(
             self.getCurrentUser(), folder, skipJobs, skipTranscoding, additive, additivePrepend
         )
@@ -181,3 +183,32 @@ class RpcResource(Resource):
         for subFolder in datasets:
             Folder().save(subFolder)
             crud_rpc.postprocess(self.getCurrentUser(), subFolder, skipJobs, skipTranscoding)
+
+    @access.user(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description("Provide Notification to current User of a specific dataset")
+        .modelParam(
+            "id",
+            description="DIVE Dataset to post notifcation to",
+            model=Folder,
+            level=AccessType.READ,
+        )
+        .jsonParam(
+            "body",
+            "{text: string;, selectedFrame?: number, selectedTrack?: number, reloadAnnotations?: boolean }",
+            paramType="body",
+            requireObject=True,
+            default='{"text": "Sample Notification to provide to user"}',
+        )
+    )
+    def ui_notification(self, folder, body):
+
+        body['datasetId'] = (folder.get('_id', False),)
+
+        Notification().createNotification(
+            type='ui_notification',
+            data=body,
+            user=self.getCurrentUser(),
+            expires=datetime.now() + timedelta(seconds=300),
+        )
+        return 'Notification Sent'

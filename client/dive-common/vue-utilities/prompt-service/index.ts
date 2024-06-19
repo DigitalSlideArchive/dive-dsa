@@ -5,7 +5,7 @@ import { VueConstructor, watch } from 'vue';
 import Vuetify from 'vuetify/lib';
 import Prompt from './Prompt.vue';
 
-interface PromptParams {
+export interface PromptParams {
   title: string;
   text: string | string[];
   positiveButton?: string;

@@ -2,7 +2,6 @@ const { gitDescribeSync } = require('git-describe');
 const path = require('path');
 const http = require('http');
 const packagejson = require('./package.json');
-const SentryPlugin = require('@sentry/webpack-plugin');
 
 const keepAliveAgent = new http.Agent({ keepAlive: true });
 
@@ -40,6 +39,8 @@ module.exports = {
         agent: keepAliveAgent,
       },
     },
+    // To disable compression for girderNotifications and EventStrream :
+    compress: false,
   },
   productionSourceMap: true,
   publicPath: staticPath,

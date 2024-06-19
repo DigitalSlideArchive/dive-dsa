@@ -95,6 +95,9 @@ type ProgressType = Readonly<{ loaded: boolean }>;
 const RevisionIdSymbol = Symbol('revisionId');
 type RevisionIdType = Readonly<Ref<number>>;
 
+const LatestRevisionIdSymbol = Symbol('latestRevisionId');
+type LatestRevisionIdType = Readonly<Ref<number>>;
+
 const SelectedCameraSymbol = Symbol('selectedCamera');
 type SelectedCameraType = Readonly<Ref<string>>;
 
@@ -266,6 +269,7 @@ export interface State {
   pendingSaveCount: pendingSaveCountType;
   progress: ProgressType;
   revisionId: RevisionIdType;
+  latestRevisionId: LatestRevisionIdType;
   selectedCamera: SelectedCameraType;
   selectedKey: SelectedKeyType;
   selectedTrackId: SelectedTrackIdType;
@@ -316,6 +320,7 @@ function dummyState(): State {
     pendingSaveCount: ref(0),
     progress: reactive({ loaded: true }),
     revisionId: ref(0),
+    latestRevisionId: ref(0),
     groupFilters: groupFilterControls,
     groupStyleManager: new StyleManager({ markChangesPending }),
     selectedCamera: ref('singleCam'),
@@ -358,6 +363,7 @@ function provideAnnotator(state: State, handler: Handler, attributesFilters: Att
   provide(PendingSaveCountSymbol, state.pendingSaveCount);
   provide(ProgressSymbol, state.progress);
   provide(RevisionIdSymbol, state.revisionId);
+  provide(LatestRevisionIdSymbol, state.latestRevisionId);
   provide(TrackFilterControlsSymbol, state.trackFilters);
   provide(TrackStyleManagerSymbol, state.trackStyleManager);
   provide(SelectedCameraSymbol, state.selectedCamera);
@@ -444,6 +450,10 @@ function useRevisionId() {
   return use<RevisionIdType>(RevisionIdSymbol);
 }
 
+function useLatestRevisionId() {
+  return use<LatestRevisionIdType>(LatestRevisionIdSymbol);
+}
+
 function useTrackStyleManager() {
   return use<StyleManager>(TrackStyleManagerSymbol);
 }
@@ -500,6 +510,7 @@ export {
   usePendingSaveCount,
   useProgress,
   useRevisionId,
+  useLatestRevisionId,
   useTrackFilters,
   useTrackStyleManager,
   useSelectedCamera,
