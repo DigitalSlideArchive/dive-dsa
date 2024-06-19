@@ -12,6 +12,7 @@ There is a REST endpoint: `POST /dive_rpc/ui_notificaitions/{id}` that takes in 
 
 ## JSON Body Data
 The JSON format is relatively simple but may be updated in the future to have additional fields and provide further actions.
+
 * *text* (string) - This is a required string that is displayed to the user.  It provides some context to the user about what is being selected or why data is being changed
 * *reloadAnnotations* (boolean) <Optional> - If this is true it is the only action that will be performed.  Instead of performing any other actions it will reload the page.
 * *selectedTrack* (number) <Optional> - integer number to select a specific track
