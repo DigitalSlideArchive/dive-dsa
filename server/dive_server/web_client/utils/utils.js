@@ -69,7 +69,7 @@ function convertToDIVEHandler(e) {
 function  isVideoType(name) {
     const extensions = name.match(fileSuffixRegex);
     let extension = '';
-    if (extensions.length){
+    if (extensions && extensions.length){
         extension = extensions[0];
     }
     return fileVideoTypes.includes(extension)
