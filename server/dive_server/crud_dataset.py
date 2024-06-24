@@ -214,6 +214,7 @@ def get_media(
     else:
         raise ValueError(f'Unrecognized source type: {source_type}')
 
+    isClone = crud.getCloneRoot(user, dsFolder)['_id'] != dsFolder['_id']
     # get references to any overlay media in the system
     overlayFolder = Folder().findOne(
         {
@@ -222,6 +223,16 @@ def get_media(
         }
     )
     overlays = None
+    if isClone:
+        overlayCloneFolder = Folder().findOne(
+            {
+                'parentId': dsFolder['_id'],
+                f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
+            }
+        )
+        if overlayCloneFolder is not None:
+            overlayFolder = overlayCloneFolder
+
     if overlayFolder:
         overlayItems = Item().find(
             {
@@ -278,7 +289,8 @@ class AttributeUpdateArgs(BaseModel):
 
 def transfer_config(source: types.GirderModel, dest: types.GirderModel):
     attributes = source.get('meta', {}).get('attributes', {})
-    timelines = source.get('meta', {}).get('timelines', {})
+    timelines = source.get('meta', {}).get('timelines', None)
+    swimlanes = source.get('meta', {}).get('swimlanes', None)
     customGroupStyling = source.get('meta', {}).get('customGroupStyling', {})
     customTypeStyling = source.get('meta', {}).get('customTypeStyling', {})
     confidenceFilters = source.get('meta', {}).get('confidenceFilters', {})
@@ -286,6 +298,7 @@ def transfer_config(source: types.GirderModel, dest: types.GirderModel):
     data = {
         'attributes': attributes,
         'timelines': timelines,
+        'swimlanes': swimlanes,
         'customGroupStyling': customGroupStyling,
         'customTypeStyling': customTypeStyling,
         'filters': filters,

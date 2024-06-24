@@ -150,6 +150,15 @@ class DatasetResource(Resource):
                 f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
             }
         )
+        if root['_id'] != folder['_id']:  # Must be a clone check for overlay folders in clone
+            overlayCloneFolder = Folder().findOne(
+                {
+                    'parentId': folder['_id'],
+                    f'meta.{constants.OverlayVideoFolderMarker}': {'$in': TRUTHY_META_VALUES},
+                }
+            )
+            if overlayCloneFolder is not None:
+                overlayFolder = overlayCloneFolder
 
         if item["folderId"] == root["_id"] or item["folderId"] == overlayFolder["_id"]:
             files = list(Item().childFiles(item))
