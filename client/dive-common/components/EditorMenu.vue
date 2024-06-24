@@ -2,7 +2,7 @@
 import { flatten } from 'lodash';
 import Vue, { PropType } from 'vue';
 
-import { Mousetrap } from 'vue-media-annotator/types';
+import { Mousetrap, OverlayPreferences } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
@@ -57,17 +57,10 @@ export default Vue.extend({
       default: () => ({ before: 20, after: 10 }),
     },
     overlaySettings: {
-      type: Object as PropType<{
-        opacity: number;
-        colorTransparency: boolean;
-        overrideValue?: boolean;
-        overrideColor?: string;
-        overrideVariance?: number;
-        colorScale?: boolean;
-        blackColorScale?: string;
-        whiteColorScale?: string;
-     }>,
-      default: () => ({
+      type: Array as PropType<OverlayPreferences[]>,
+      default: () => ([{
+        name: 'default',
+        enabled: true,
         opacity: 0.25,
         colorTransparency: false,
         overrideValue: false,
@@ -76,7 +69,7 @@ export default Vue.extend({
         colorScale: false,
         blackColorScale: '#FF0000',
         whiteColorScale: '#00FF00',
-      }),
+      }]),
     },
     overlays: {
       type: Array as PropType<{filename: string; url: string; id: string}[]>,
@@ -246,21 +239,27 @@ export default Vue.extend({
         });
       }
     },
-    copyJSON() {
-      const variance = this.overlaySettings.overrideVariance;
-      const rgb = hexToRgb(this.overlaySettings.overrideColor || '#000000');
+    copyJSON(index: number) {
+      const variance = this.overlaySettings[index].overrideVariance;
+      const rgb = hexToRgb(this.overlaySettings[index].overrideColor || '#000000');
       const colorScale = {
-        black: this.overlaySettings.blackColorScale,
-        white: this.overlaySettings.whiteColorScale,
+        black: this.overlaySettings[index].blackColorScale,
+        white: this.overlaySettings[index].whiteColorScale,
       };
       const obj = {
         transparency: [{
           rgb,
           variance,
         }],
-        colorScale: this.overlaySettings.colorScale ? colorScale : undefined,
+        colorScale: this.overlaySettings[index].colorScale ? colorScale : undefined,
       };
       navigator.clipboard.writeText(JSON.stringify(obj));
+    },
+    updateOverlaySetting(index: number, key: keyof OverlayPreferences, val: number | boolean | string | undefined) {
+      if (index < this.overlaySettings.length) {
+        this.overlaySettings[index][key] = val as never;
+        this.$emit('update:overlay-settings', this.overlaySettings);
+      }
     },
   },
 });
@@ -417,6 +416,8 @@ export default Vue.extend({
           offset-y
           :close-on-content-click="false"
           :close-on-click="false"
+          min-width="400"
+          max-width="400"
         >
           <template #activator="{ on, attrs }">
             <v-btn
@@ -434,213 +435,241 @@ export default Vue.extend({
             class="pa-4 flex-column d-flex"
             outlined
           >
-            <v-row dense>
-              <label for="overlay-opacity">Opacity: {{ overlaySettings.opacity }}%</label>
-              <v-tooltip
-                open-delay="100"
-                bottom
+            <v-expansion-panels>
+              <v-expansion-panel
+                v-for="(overlay, index) in overlaySettings"
+                :key="`overlay-${index}`"
+                :title="`Video Overlay:${index}`"
               >
-                <template #activator="{ on }">
-                  <v-icon
-                    class="ml-2"
-                    v-on="on"
+                <v-expansion-panel-header>
+                  <span style="max-width:300px; overflow:hidden; white-space: nowrap; text-overflow: ellipsis">
+                    <v-icon v-if="overlay.enabled" color="success" class="pr-2">mdi-check</v-icon>
+                    <v-icon v-else color="error" class="pr-2">mdi-close</v-icon>
+                    <span>
+                      Video: {{ overlay.name }}
+                    </span>
+                  </span>
+                </v-expansion-panel-header>
+                <v-expansion-panel-content>
+                  <v-row dense>
+                    <v-checkbox
+                      :input-value="overlay.enabled"
+                      label="Enabled"
+                      @change="updateOverlaySetting(index, 'enabled', $event)"
+                    />
+                  </v-row>
+
+                  <v-row dense>
+                    <label for="overlay-opacity">Opacity: {{ overlay.opacity }}%</label>
+                    <v-tooltip
+                      open-delay="100"
+                      bottom
+                    >
+                      <template #activator="{ on }">
+                        <v-icon
+                          class="ml-2"
+                          v-on="on"
+                        >
+                          mdi-information
+                        </v-icon>
+                      </template>
+                      <span>Change the opacity of the overlay video</span>
+                    </v-tooltip>
+                  </v-row>
+                  <input
+                    id="overlay-opacity"
+                    type="range"
+                    name="overlay-opacity"
+                    class="tail-slider-width"
+                    label
+                    min="0"
+                    max="100"
+                    :value="overlay.opacity"
+                    @change="updateOverlaySetting(index, 'opacity', Number.parseFloat($event.target.value))"
                   >
-                    mdi-information
-                  </v-icon>
-                </template>
-                <span>Change the opacity of the overlay video</span>
-              </v-tooltip>
-            </v-row>
-            <input
-              id="overlay-opacity"
-              type="range"
-              name="overlay-opacity"
-              class="tail-slider-width"
-              label
-              min="0"
-              max="100"
-              :value="overlaySettings.opacity"
-              @input="$emit('update:overlay-settings', { ...overlaySettings, opacity: Number.parseFloat($event.target.value) })"
-            >
-            <v-row dense>
-              <v-checkbox
-                :input-value="overlaySettings.colorTransparency"
-                label="Color Transparency"
-                @change="$emit('update:overlay-settings', { ...overlaySettings, colorTransparency: $event })"
-              />
-              <v-tooltip
-                open-delay="100"
-                bottom
-              >
-                <template #activator="{ on }">
-                  <v-icon
-                    class="ml-2"
-                    v-on="on"
+                  <v-row dense>
+                    <v-checkbox
+                      :input-value="overlay.colorTransparency"
+                      label="Color Transparency"
+                      @change="updateOverlaySetting(index, 'colorTransparency', $event)"
+                    />
+                    <v-tooltip
+                      open-delay="100"
+                      bottom
+                    >
+                      <template #activator="{ on }">
+                        <v-icon
+                          class="ml-2"
+                          v-on="on"
+                        >
+                          mdi-information
+                        </v-icon>
+                      </template>
+                      <span>If the video has color opacity metadat this
+                        will replace that color with transparency</span>
+                    </v-tooltip>
+                  </v-row>
+                  <v-row dense>
+                    <v-checkbox
+                      v-if="overlay.colorTransparency"
+                      :input-value="overlay.overrideValue"
+                      label="Override"
+                      @change="updateOverlaySetting(index, 'overrideValue', $event)"
+                    />
+                    <v-tooltip
+                      v-if="overlay.colorTransparency"
+                      open-delay="100"
+                      bottom
+                    >
+                      <template #activator="{ on }">
+                        <v-icon
+                          class="ml-2"
+                          v-on="on"
+                        >
+                          mdi-information
+                        </v-icon>
+                      </template>
+                      <span>Allows you override the color and transparency set in
+                        the metadata for testing new values</span>
+                    </v-tooltip>
+                  </v-row>
+                  <v-row dense>
+                    <label
+                      v-if="overlay.colorTransparency && overlay.overrideValue"
+                      for="overlay-variance"
+                    >Variance: {{ overlay.overrideVariance }}</label>
+                  </v-row>
+                  <input
+                    v-if="overlay.colorTransparency && overlay.overrideValue"
+                    id="overlay-variance"
+                    type="range"
+                    name="overlay-variance"
+                    class="tail-slider-width"
+                    label="Variance"
+                    min="0"
+                    max="255"
+                    :value="overlay.overrideVariance || 0"
+                    @change="updateOverlaySetting(index, 'overrideVariance', Number.parseFloat($event.target.value))"
                   >
-                    mdi-information
-                  </v-icon>
-                </template>
-                <span>If the video has color opacity metadat this
-                  will replace that color with transparency</span>
-              </v-tooltip>
-            </v-row>
-            <v-row dense>
-              <v-checkbox
-                v-if="overlaySettings.colorTransparency"
-                :input-value="overlaySettings.overrideValue"
-                label="Override"
-                @change="$emit('update:overlay-settings', { ...overlaySettings, overrideValue: $event })"
-              />
-              <v-tooltip
-                v-if="overlaySettings.colorTransparency"
-                open-delay="100"
-                bottom
-              >
-                <template #activator="{ on }">
-                  <v-icon
-                    class="ml-2"
-                    v-on="on"
+                  <v-row
+                    v-if="overlay.colorTransparency"
+                    dense
+                    align="center"
                   >
-                    mdi-information
-                  </v-icon>
-                </template>
-                <span>Allows you override the color and transparency set in
-                  the metadata for testing new values</span>
-              </v-tooltip>
-            </v-row>
-            <label
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
-              for="overlay-variance"
-            >Variance: {{ overlaySettings.overrideVariance }}</label>
-            <input
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue"
-              id="overlay-variance"
-              type="range"
-              name="overlay-variance"
-              class="tail-slider-width"
-              label="Variance"
-              min="0"
-              max="255"
-              :value="overlaySettings.overrideVariance || 0"
-              @input="$emit('update:overlay-settings', { ...overlaySettings, overrideVariance: Number.parseFloat($event.target.value) })"
-            >
-            <v-row
-              v-if="overlaySettings.colorTransparency"
-              dense
-              align="center"
-            >
-              <span> Transparency Color:</span>
-              <div
-                class="color-box mx-2 edit-color-box"
-                :style="{
-                  backgroundColor: overlaySettings.overrideColor,
-                }"
-                @click="editTransparentcolor = !editTransparentcolor"
-              />
+                    <span> Transparency Color:</span>
+                    <div
+                      class="color-box mx-2 edit-color-box"
+                      :style="{
+                        backgroundColor: overlay.overrideColor,
+                      }"
+                      @click="editTransparentcolor = !editTransparentcolor"
+                    />
 
-              <v-color-picker
-                v-if="overlaySettings.colorTransparency
-                  && overlaySettings.overrideValue && editTransparentcolor"
-                :value="overlaySettings.overrideColor || 'white'"
-                hide-inputs
-                @input="$emit('update:overlay-settings', { ...overlaySettings, overrideColor: $event })"
-              />
-            </v-row>
-            <v-row dense>
-              <v-checkbox
-                :input-value="overlaySettings.colorScale"
-                label="Color Scaling"
-                @change="$emit('update:overlay-settings', { ...overlaySettings, colorScale: $event })"
-              />
-              <v-tooltip
-                v-if="overlaySettings.colorTransparency"
-                open-delay="100"
-                bottom
-              >
-                <template #activator="{ on }">
-                  <v-icon
-                    class="ml-2"
-                    v-on="on"
+                    <v-color-picker
+                      v-if="overlay.colorTransparency
+                        && overlay.overrideValue && editTransparentcolor"
+                      :value="overlay.overrideColor || 'white'"
+                      hide-inputs
+                      @input="updateOverlaySetting(index, 'overrideColor', $event)"
+                    />
+                  </v-row>
+                  <v-row dense>
+                    <v-checkbox
+                      :input-value="overlay.colorScale"
+                      label="Color Scaling"
+                      @change="updateOverlaySetting(index, 'colorScale', $event)"
+                    />
+                    <v-tooltip
+                      v-if="overlay.colorTransparency"
+                      open-delay="100"
+                      bottom
+                    >
+                      <template #activator="{ on }">
+                        <v-icon
+                          class="ml-2"
+                          v-on="on"
+                        >
+                          mdi-information
+                        </v-icon>
+                      </template>
+                      <span>Create a custom color scale to replace the Black to White defaults</span>
+                    </v-tooltip>
+                  </v-row>
+                  <v-row
+                    v-if="overlay.colorScale"
+                    dense
+                    align="center"
                   >
-                    mdi-information
-                  </v-icon>
-                </template>
-                <span>Create a custom color scale to replace the Black to White defaults</span>
-              </v-tooltip>
-            </v-row>
-            <v-row
-              v-if="overlaySettings.colorScale"
-              dense
-              align="center"
-            >
-              <span> Black Color Replacement:</span>
-              <div
-                class="color-box mx-2 edit-color-box"
-                :style="{
-                  backgroundColor: overlaySettings.blackColorScale,
-                }"
-                @click="editBlackColorScale = !editBlackColorScale"
-              />
-              <v-color-picker
-                v-if="editBlackColorScale"
-                :value="overlaySettings.blackColorScale || '#00FF00'"
-                hide-inputs
-                @input="$emit('update:overlay-settings', { ...overlaySettings, blackColorScale: $event })"
-              />
+                    <span> Black Color Replacement:</span>
+                    <div
+                      class="color-box mx-2 edit-color-box"
+                      :style="{
+                        backgroundColor: overlay.blackColorScale,
+                      }"
+                      @click="editBlackColorScale = !editBlackColorScale"
+                    />
+                    <v-color-picker
+                      v-if="editBlackColorScale"
+                      :value="overlay.blackColorScale || '#00FF00'"
+                      hide-inputs
+                      @input="updateOverlaySetting(index, 'blackColorScale', $event)"
+                    />
 
-            </v-row>
-            <v-row
-              v-if="overlaySettings.colorScale"
-              dense
-              class="mt-2"
-              align="center"
-            >
-              <span> White Color Replacement:</span>
-              <div
-                class="color-box mx-2 edit-color-box"
-                :style="{
-                  backgroundColor: overlaySettings.whiteColorScale,
-                }"
-                @click="editWhiteColorScale = !editWhiteColorScale"
-              />
-
-              <v-color-picker
-                v-if="editWhiteColorScale"
-                :value="overlaySettings.whiteColorScale || '#FF0000'"
-                hide-inputs
-                @input="$emit('update:overlay-settings', { ...overlaySettings, whiteColorScale: $event })"
-              />
-
-            </v-row>
-
-            <v-row
-              v-if="overlaySettings.colorTransparency && overlaySettings.overrideValue
-                || overlaySettings.colorScale"
-              dense
-            >
-              <v-spacer />
-              <v-tooltip
-                open-delay="100"
-                bottom
-              >
-                <template #activator="{ on }">
-                  <v-btn
-                    class="ml-2"
-                    v-on="on"
-                    @click="copyJSON"
+                  </v-row>
+                  <v-row
+                    v-if="overlay.colorScale"
+                    dense
+                    class="mt-2"
+                    align="center"
                   >
-                    Copy:
-                    <v-icon>
-                      mdi-content-copy
-                    </v-icon>
-                  </v-btn>
-                </template>
-                <span>Copies the override values to a JSON string to be used in the metadata</span>
-              </v-tooltip>
-              <v-spacer />
+                    <span> White Color Replacement:</span>
+                    <div
+                      class="color-box mx-2 edit-color-box"
+                      :style="{
+                        backgroundColor: overlay.whiteColorScale,
+                      }"
+                      @click="editWhiteColorScale = !editWhiteColorScale"
+                    />
 
-            </v-row>
+                    <v-color-picker
+                      v-if="editWhiteColorScale"
+                      :value="overlay.whiteColorScale || '#FF0000'"
+                      hide-inputs
+                      @input="updateOverlaySetting(index, 'whiteColorScale', $event)"
+                    />
 
+                  </v-row>
+
+                  <v-row
+                    v-if="overlay.colorTransparency && overlay.overrideValue
+                      || overlay.colorScale"
+                    dense
+                  >
+                    <v-spacer />
+                    <v-tooltip
+                      open-delay="100"
+                      bottom
+                    >
+                      <template #activator="{ on }">
+                        <v-btn
+                          class="ml-2"
+                          v-on="on"
+                          @click="copyJSON"
+                        >
+                          Copy:
+                          <v-icon>
+                            mdi-content-copy
+                          </v-icon>
+                        </v-btn>
+                      </template>
+                      <span>Copies the override values to a JSON string to be used in the metadata</span>
+                    </v-tooltip>
+                    <v-spacer />
+
+                  </v-row>
+                </v-expansion-panel-content>
+              </v-expansion-panel>
+            </v-expansion-panels>
           </v-card>
         </v-menu>
 

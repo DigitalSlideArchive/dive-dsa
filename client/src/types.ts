@@ -3,19 +3,23 @@ export interface Mousetrap {
   handler: () => unknown;
 }
 
+export interface OverlayPreferences {
+  name?: string;
+  enabled: boolean;
+  opacity: number;
+  colorTransparency: boolean;
+  overrideValue?: boolean;
+  overrideColor?: string;
+  overrideVariance?: number;
+  colorScale: boolean;
+  blackColorScale?: string;
+  whiteColorScale?: string;
+}
+
 export interface AnnotatorPreferences {
   trackTails: {
     before: number;
     after: number;
   };
-  overlays: {
-    opacity: number;
-    colorTransparency: boolean;
-    overrideValue?: boolean;
-    overrideColor?: string;
-    overrideVariance?: number;
-    colorScale: boolean;
-    blackColorScale?: string;
-    whiteColorScale?: string;
-  };
+  overlays: OverlayPreferences[];
 }

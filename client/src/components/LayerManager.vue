@@ -6,6 +6,7 @@ import {
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import geo, { GeoEvent } from 'geojs';
+import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -16,12 +17,11 @@ import TailLayer from '../layers/AnnotationLayers/TailLayer';
 
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
 import { FrameDataTrack, mergeBounds } from '../layers/LayerTypes';
-import VideoLayer from '../layers/MediaLayers/videoLayer';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
 import AttributeLayer from '../layers/AnnotationLayers/AttributeLayer';
 import AttributeBoxLayer from '../layers/AnnotationLayers/AttributeBoxLayer';
 import type { AnnotationId } from '../BaseAnnotation';
-import { geojsonToBound, hexToRgb } from '../utils';
+import { geojsonToBound } from '../utils';
 import { VisibleAnnotationTypes } from '../layers';
 import ToolTipLayer from '../layers/UILayers/ToolTipLayer';
 import ToolTipWidget from '../layers/UILayers/ToolTipWidget.vue';
@@ -107,14 +107,22 @@ export default defineComponent({
     const frameNumberRef = annotator.frame;
     const flickNumberRef = annotator.flick;
 
-    const videoLayer = new VideoLayer({ annotator, typeStyling: typeStylingRef });
-
+    const videoLayerManager = new VideoLayerManager({ annotator, typeStyling: typeStylingRef });
+    const overlayFilters: Ref<{
+        videoLayerTransparencyVals: number[][][],
+        videoLayerColorTransparencyOn: boolean,
+        colorScaleOn: boolean,
+        colorScaleMatrix: number[],
+        id: number;
+      }[]> = ref([]);
     if (props.overlays && props.overlays.length) {
-      videoLayer.initialize({
-        url: props.overlays[0].url,
-        opacity: props.overlays[0].metadata?.opacity || 1.0,
-        metadata: props.overlays[0].metadata,
-      });
+      for (let i = 0; i < props.overlays.length; i += 1) {
+        videoLayerManager.addOverlay({
+          url: props.overlays[i].url,
+          opacity: props.overlays[i].metadata?.opacity || 1.0,
+          metadata: props.overlays[i].metadata,
+        });
+      }
     }
 
     const rectAnnotationLayer = new RectangleLayer({
@@ -299,16 +307,12 @@ export default defineComponent({
       } else {
         tailLayer.disable();
       }
+
       if (visibleModes.includes('overlays')) {
-        videoLayer.updateSettings(
-          frame,
-          annotatorPrefs.value.overlays.opacity,
-          annotatorPrefs.value.overlays.colorTransparency,
-          annotatorPrefs.value.overlays.colorScale,
-        );
-        globalBounds = mergeBounds(videoLayer.getBounds(), globalBounds);
+        overlayFilters.value = videoLayerManager.updateSettings(frame, annotatorPrefs.value.overlays);
+        globalBounds = mergeBounds(videoLayerManager.getBounds(), globalBounds);
       } else {
-        videoLayer.disable();
+        videoLayerManager.disable();
       }
 
       pointLayer.changeData(frameData);
@@ -523,91 +527,6 @@ export default defineComponent({
     rectAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
     polyAnnotationLayer.bus.$on('annotation-hover', annotationHoverTooltip);
 
-    const generateSVGArray = (rgb: number[], variance: number) => {
-      const colorVals: number[][] = [];
-      for (let i = 0; i < rgb.length; i += 1) {
-        const colorArray: number[] = new Array(255).fill(0);
-        colorArray[rgb[i]] = 1;
-        for (let j = 1; j <= variance; j += 1) {
-          if (rgb[i] - j >= 0) {
-            colorArray[rgb[i] - j] = 1;
-          }
-          if (rgb[i] + j < 255) {
-            colorArray[rgb[i] + j] = 1;
-          }
-        }
-        colorVals.push(colorArray);
-      }
-      return colorVals;
-    };
-    // Data for the video Opacity Filter:
-    // Templating is there for multiple colors but only support a single coor for now
-    const videoLayerTransparencyVals = computed(() => {
-      const transparencyArray: number[][][] = [];
-      if (annotatorPrefs.value.overlays.overrideValue) {
-        const rgb = annotatorPrefs.value.overlays.overrideColor
-          ? hexToRgb(annotatorPrefs.value.overlays.overrideColor) : [0, 0, 0];
-        const variance = annotatorPrefs.value.overlays.overrideVariance || 0;
-        const colorVals = generateSVGArray(rgb, variance);
-        transparencyArray.push(colorVals);
-      } else if (videoLayer.overlayMetadata.transparency) {
-        videoLayer.overlayMetadata.transparency.forEach((transparencyColor) => {
-          const { rgb } = transparencyColor;
-          const variance = transparencyColor.variance || 0;
-          const colorVals = generateSVGArray(rgb, variance);
-          transparencyArray.push(colorVals);
-        });
-      }
-      return transparencyArray;
-    });
-    const videoLayerColorTransparencyOn = computed(
-      () => annotatorPrefs.value.overlays.colorTransparency
-      || videoLayer.overlayMetadata.transparency,
-    );
-    const colorScaleOn = computed(
-      () => !!(annotatorPrefs.value.overlays.colorScale
-        || (videoLayer.overlayMetadata.colorScale)),
-    );
-
-    const colorScaleMatrix = computed(() => {
-      if (annotatorPrefs.value.overlays.colorScale
-        || (videoLayer.overlayMetadata.colorScale)) {
-        let color2 = '#000000';
-        let color1 = '#FFFFFF';
-        if (annotatorPrefs.value.overlays.colorScale
-          && annotatorPrefs.value.overlays.blackColorScale
-          && annotatorPrefs.value.overlays.whiteColorScale) {
-          color2 = annotatorPrefs.value.overlays.blackColorScale;
-          color1 = annotatorPrefs.value.overlays.whiteColorScale;
-        } else if (videoLayer.overlayMetadata.colorScale) {
-          color2 = videoLayer.overlayMetadata.colorScale.black;
-          color1 = videoLayer.overlayMetadata.colorScale.white;
-        }
-        if (color1 !== undefined && color2 !== undefined) {
-          const rgb1 = [
-            parseInt(color1.slice(1, 3), 16) / 255.0,
-            parseInt(color1.slice(3, 5), 16) / 255.0,
-            parseInt(color1.slice(5, 7), 16) / 255.0,
-          ];
-          const rgb2 = [
-            parseInt(color2.slice(1, 3), 16) / 255.0,
-            parseInt(color2.slice(3, 5), 16) / 255.0,
-            parseInt(color2.slice(5, 7), 16) / 255.0,
-          ];
-          const scale = 1;
-          const shift = 0;
-          const matrix = [
-            (rgb1[0] - rgb2[0]) * scale, 0, 0, 0, rgb2[0] * scale + shift,
-            (rgb1[1] - rgb2[1]) * scale, 0, 0, 0, rgb2[1] * scale + shift,
-            (rgb1[2] - rgb2[2]) * scale, 0, 0, 0, rgb2[2] * scale + shift,
-            0, 0, 0, 1, 0,
-          ];
-          return matrix;
-        }
-      }
-      return [];
-    });
-
     const maxHeight = ref(annotator.geoViewerRef.value.size().height);
 
     annotator.geoViewerRef.value.geoOn(geo.event.resize, (e: GeoEvent) => {
@@ -615,10 +534,7 @@ export default defineComponent({
     });
 
     return {
-      videoLayerTransparencyVals,
-      videoLayerColorTransparencyOn,
-      colorScaleOn,
-      colorScaleMatrix,
+      overlayFilters,
       includesAttributeKey,
       attributes,
       maxHeight,
@@ -645,25 +561,25 @@ export default defineComponent({
       height="0"
       style="position: absolute; top: -1px; left: -1px"
     >
-      <defs>
+      <defs v-for="overlay in overlayFilters" :key="overlay.id">
         <filter
-          v-if="videoLayerColorTransparencyOn && videoLayerTransparencyVals.length"
-          id="color-replace"
+          v-if="overlay.videoLayerColorTransparencyOn && overlay.videoLayerTransparencyVals.length"
+          :id="`color-replace-${overlay.id}`"
           color-interpolation-filters="sRGB"
         >
           <!-- Replace rgb(87,78,29) with blue. -->
           <feComponentTransfer>
             <feFuncR
               type="discrete"
-              :tableValues="videoLayerTransparencyVals[0][0]"
+              :tableValues="overlay.videoLayerTransparencyVals[0][0]"
             />
             <feFuncG
               type="discrete"
-              :tableValues="videoLayerTransparencyVals[0][1]"
+              :tableValues="overlay.videoLayerTransparencyVals[0][1]"
             />
             <feFuncB
               type="discrete"
-              :tableValues="videoLayerTransparencyVals[0][2]"
+              :tableValues="overlay.videoLayerTransparencyVals[0][2]"
             />
           </feComponentTransfer>
 
@@ -695,8 +611,8 @@ export default defineComponent({
           />
         </filter>
         <filter
-          v-if="colorScaleOn"
-          id="colorScaleFilter"
+          v-if="overlay.colorScaleOn"
+          :id="`colorScaleFilter-${overlay.id}`"
           filterUnits="objectBoundingBox"
           x="0%"
           y="0%"
@@ -707,7 +623,7 @@ export default defineComponent({
             id="colorScale"
             in="SourceGraphic"
             type="matrix"
-            :values="colorScaleMatrix"
+            :values="overlay.colorScaleMatrix"
           />
         </filter>
       </defs>

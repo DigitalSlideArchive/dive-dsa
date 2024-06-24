@@ -58,6 +58,7 @@ import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue'
 import useURLParameters from 'vue-media-annotator/use/useURLParameters';
 import initializeUINotificationService from 'platform/web-girder/UIControls';
 import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
+import { OverlayPreferences } from 'vue-media-annotator/types';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -238,16 +239,22 @@ export default defineComponent({
           blackHex = overlayData.colorScale.black;
           whiteHex = overlayData.colorScale.white;
         }
-        clientSettings.annotatorPreferences.overlays = {
-          opacity: clientSettings.annotatorPreferences.overlays.opacity,
-          colorTransparency: !!(overlayData.transparency),
-          overrideValue: !!(overlayData.transparency),
-          overrideColor: transparentHex,
-          overrideVariance: (overlayData.transparency?.variance || 0),
-          colorScale: !!(overlayData.colorScale),
-          blackColorScale: blackHex,
-          whiteColorScale: whiteHex,
-        };
+        const tempOverlay: OverlayPreferences[] = [];
+        for (let i = 0; i < overlays.value.length; i += 1) {
+          tempOverlay.push({
+            name: overlays.value[i]?.metadata?.name || overlays.value[i].filename,
+            enabled: i === 0,
+            opacity: clientSettings.annotatorPreferences.overlays[i]?.opacity || 0.25,
+            colorTransparency: !!(overlayData.transparency),
+            overrideValue: !!(overlayData.transparency),
+            overrideColor: transparentHex,
+            overrideVariance: (overlayData.transparency?.variance || 0),
+            colorScale: !!(overlayData.colorScale),
+            blackColorScale: blackHex,
+            whiteColorScale: whiteHex,
+          });
+        }
+        clientSettings.annotatorPreferences.overlays = tempOverlay;
       }
     });
 

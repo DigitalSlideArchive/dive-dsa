@@ -8,6 +8,7 @@ interface Transparency {
 }
 
 interface OverlayMetadata {
+  name?: string;
   transparency?: Transparency[];
   colorScale?: {
     black: string;
@@ -152,6 +153,7 @@ export default class VideoLayer {
 
   updateSettings(
     frame: number,
+    index: number,
     opacity: number,
     colorTransparency: boolean,
     colorScale: boolean,
@@ -160,10 +162,10 @@ export default class VideoLayer {
     this.opacity = opacity;
     this.featureLayer.opacity(opacity / 100.0);
     if (colorTransparency) {
-      this.featureLayer.node().css('filter', 'url(#color-replace)');
+      this.featureLayer.node().css('filter', `url(#color-replace-${index})`);
     }
     if (colorScale) {
-      this.featureLayer.node().css('filter', 'url(#colorScaleFilter)');
+      this.featureLayer.node().css('filter', `url(#colorScaleFilter-${index})`);
     }
   }
 

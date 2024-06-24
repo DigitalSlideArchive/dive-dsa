@@ -70,11 +70,7 @@ const defaultSettings: AnnotationSettings = {
       before: 20,
       after: 10,
     },
-    overlays: {
-      opacity: 25,
-      colorTransparency: false,
-      colorScale: false,
-    },
+    overlays: [],
   },
 };
 
