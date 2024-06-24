@@ -226,25 +226,25 @@ export default defineComponent({
 
     watch(overlays, () => {
       // Make sure clientSettings utilize overlays
-      if (overlays.value && overlays.value[0].metadata) {
-        const overlayData = overlays.value[0].metadata;
-        let transparentHex = '#000000';
-        if (overlayData.transparency?.length) {
-          const baseHex = overlayData.transparency[0].rgb;
-          transparentHex = rgbToHex(baseHex[0], baseHex[1], baseHex[2]);
-        }
-        let blackHex = '#000000';
-        let whiteHex = '#FFFFFF';
-        if (overlayData.colorScale) {
-          blackHex = overlayData.colorScale.black;
-          whiteHex = overlayData.colorScale.white;
-        }
-        const tempOverlay: OverlayPreferences[] = [];
+      const tempOverlay: OverlayPreferences[] = [];
+      if (overlays.value?.length) {
         for (let i = 0; i < overlays.value.length; i += 1) {
+          const overlayData = overlays.value[i].metadata || {};
+          let transparentHex = '#000000';
+          if (overlayData.transparency?.length) {
+            const baseHex = overlayData.transparency[0].rgb;
+            transparentHex = rgbToHex(baseHex[0], baseHex[1], baseHex[2]);
+          }
+          let blackHex = '#000000';
+          let whiteHex = '#FFFFFF';
+          if (overlayData.colorScale) {
+            blackHex = overlayData.colorScale.black;
+            whiteHex = overlayData.colorScale.white;
+          }
           tempOverlay.push({
             name: overlays.value[i]?.metadata?.name || overlays.value[i].filename,
             enabled: i === 0,
-            opacity: clientSettings.annotatorPreferences.overlays[i]?.opacity || 0.25,
+            opacity: clientSettings.annotatorPreferences.overlays[i]?.opacity || 25,
             colorTransparency: !!(overlayData.transparency),
             overrideValue: !!(overlayData.transparency),
             overrideColor: transparentHex,
@@ -254,8 +254,8 @@ export default defineComponent({
             whiteColorScale: whiteHex,
           });
         }
-        clientSettings.annotatorPreferences.overlays = tempOverlay;
       }
+      clientSettings.annotatorPreferences.overlays = tempOverlay;
     });
 
     // Provides wrappers for actions to integrate with settings
