@@ -4,6 +4,7 @@ export interface Mousetrap {
 }
 
 export interface OverlayPreferences {
+  name?: string;
   enabled: boolean;
   opacity: number;
   colorTransparency: boolean;

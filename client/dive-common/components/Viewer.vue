@@ -242,6 +242,7 @@ export default defineComponent({
         const tempOverlay: OverlayPreferences[] = [];
         for (let i = 0; i < overlays.value.length; i += 1) {
           tempOverlay.push({
+            name: overlays.value[i]?.metadata?.name || overlays.value[i].filename,
             enabled: i === 0,
             opacity: clientSettings.annotatorPreferences.overlays[i]?.opacity || 0.25,
             colorTransparency: !!(overlayData.transparency),

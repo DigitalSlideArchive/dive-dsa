@@ -8,6 +8,7 @@ interface Transparency {
 }
 
 interface OverlayMetadata {
+  name?: string;
   transparency?: Transparency[];
   colorScale?: {
     black: string;

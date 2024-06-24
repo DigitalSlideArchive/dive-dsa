@@ -59,6 +59,7 @@ export default Vue.extend({
     overlaySettings: {
       type: Array as PropType<OverlayPreferences[]>,
       default: () => ([{
+        name: 'default',
         enabled: true,
         opacity: 0.25,
         colorTransparency: false,
@@ -416,6 +417,7 @@ export default Vue.extend({
           :close-on-content-click="false"
           :close-on-click="false"
           min-width="400"
+          max-width="400"
         >
           <template #activator="{ on, attrs }">
             <v-btn
@@ -439,7 +441,15 @@ export default Vue.extend({
                 :key="`overlay-${index}`"
                 :title="`Video Overlay:${index}`"
               >
-                <v-expansion-panel-header> <span><v-icon v-if="overlay.enabled" color="success" class="pr-2">mdi-check</v-icon> <v-icon v-else color="error" class="pr-2">mdi-close</v-icon> Video {{ index }}</span></v-expansion-panel-header>
+                <v-expansion-panel-header>
+                  <span style="max-width:300px; overflow:hidden; white-space: nowrap; text-overflow: ellipsis">
+                    <v-icon v-if="overlay.enabled" color="success" class="pr-2">mdi-check</v-icon>
+                    <v-icon v-else color="error" class="pr-2">mdi-close</v-icon>
+                    <span>
+                      Video: {{ overlay.name }}
+                    </span>
+                  </span>
+                </v-expansion-panel-header>
                 <v-expansion-panel-content>
                   <v-row dense>
                     <v-checkbox
