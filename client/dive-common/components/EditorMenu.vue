@@ -570,7 +570,7 @@ export default Vue.extend({
                         && overlay.overrideValue && editTransparentcolor"
                       :value="overlay.overrideColor || 'white'"
                       hide-inputs
-                      @change="updateOverlaySetting(index, 'overrideColor', $event)"
+                      @input="updateOverlaySetting(index, 'overrideColor', $event)"
                     />
                   </v-row>
                   <v-row dense>
@@ -612,7 +612,7 @@ export default Vue.extend({
                       v-if="editBlackColorScale"
                       :value="overlay.blackColorScale || '#00FF00'"
                       hide-inputs
-                      @change="updateOverlaySetting(index, 'blackColorScale', $event)"
+                      @input="updateOverlaySetting(index, 'blackColorScale', $event)"
                     />
 
                   </v-row>
@@ -635,7 +635,7 @@ export default Vue.extend({
                       v-if="editWhiteColorScale"
                       :value="overlay.whiteColorScale || '#FF0000'"
                       hide-inputs
-                      @change="updateOverlaySetting(index, 'whiteColorScale', $event)"
+                      @input="updateOverlaySetting(index, 'whiteColorScale', $event)"
                     />
 
                   </v-row>
