@@ -160,7 +160,6 @@ class DatasetResource(Resource):
             if overlayCloneFolder is not None:
                 overlayFolder = overlayCloneFolder
 
-
         if item["folderId"] == root["_id"] or item["folderId"] == overlayFolder["_id"]:
             files = list(Item().childFiles(item))
             if len(files) != 1:
