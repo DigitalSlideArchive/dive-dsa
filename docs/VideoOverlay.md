@@ -1,4 +1,4 @@
-# Experimental
+# Video Overlays
 
 This includes some documentation for experimental features which may not be fully complete but are in place for testing purposes.
 
@@ -13,12 +13,15 @@ Requirements:
 - To implement video overlays a knowledge of how to add JSON metadata to Girder Folders and Items are required.
 - There should be a folder in the dataset with the Metadata value of `overlayVideo: true`.  Make sure that the metadata is JSON.
 - Within the above folder should be a video with Metadata value of `overlayVideoItem: true`. Make sure that the metadata is JSON.
+- The system supports multiple video Overlays.  If you have multiple files it will display all of them and you can enable or disable each one.
 
 Having the above requirements met there will be a new icon in the visibile for the DIVE Dataset: ==:material-layers:==
 
 ![Video Layer Options](images/Experimental/layer-icon.png)
 
 The Video Layer can be toggled on/off like any other annotation.
+
+- *name* - A display name for the list of video overlays that are visible. 
 - *Opacity* - The global opacity of the video overlay
 - *Color Transparency* - If there is metadata value set with transparency this will attempt to replace the color in the video and make it transparent.
 - *Override* - Allows for specifying the current variance and color independently from the JSON file.  It's used to figure out the settings that you want to use for the system.  You can then click on the copy button to copy the JSON and past it into the metadata fro the video.
@@ -31,6 +34,7 @@ This is configured by adding a new Metadata tag to the video Item : `overlayMeta
 
 ```
 {
+    "name": "Display Name for interface"
     "transparency": [
         {
             "rgb": [0, 255, 0],
