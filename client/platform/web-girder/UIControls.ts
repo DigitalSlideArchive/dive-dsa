@@ -1,7 +1,7 @@
 import girderRest from 'platform/web-girder/plugins/girder';
 import { PromptParams } from 'dive-common/vue-utilities/prompt-service';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
-import { Ref } from 'vue';
+import { Ref, ref } from 'vue';
 import { useModeManager } from 'dive-common/use';
 import { GoToFrameAction, TrackSelectAction, UIDIVEAction } from 'dive-common/use/useActions';
 
@@ -87,66 +87,82 @@ const getActionText = (diveAction: UIDIVEAction) => {
   return text;
 };
 
-const initializeUINotificationService = (params: UINotificationParams) => {
-  const {
-    prompt, handler, aggregateController, reloadAnnotations, datasetId,
-  } = params;
-  const processActions = (notification: UINotification) => {
-    if (notification.reloadAnnotations) {
-      reloadAnnotations();
-      return;
-    }
-    if (typeof (notification.selectedTrack) === 'number') {
-      handler.trackSelect(notification.selectedTrack, false);
-    }
-    if (typeof (notification.selectedFrame) === 'number') {
-      aggregateController.value.seek(notification.selectedFrame);
-    }
-    if (notification.diveActions && notification.diveActions.length) {
-      // We need to process these actions.
-      for (let i = 0; i < notification.diveActions.length; i += 1) {
-        for (let k = 0; k < notification.diveActions[i].actions.length; k += 1) {
-          handler.processAction(notification.diveActions[i].actions[k], true, { frame: aggregateController.value.frame.value });
-        }
-      }
-    }
-  };
+const useUINotifications = (params: UINotificationParams) => {
+  const diveUIActionShortcuts: Ref<UIDIVEAction[]> = ref([]);
+  const initializeUINotificationService = (params: UINotificationParams) => {
+    const {
+      prompt, handler, aggregateController, reloadAnnotations, datasetId,
+    } = params;
 
-  girderRest.$on('message:ui_notification', async ({ data: notification }: { data: UINotification }) => {
-    if (!notification.datasetId.includes(datasetId.value)) {
-      return;
-    }
-    let text = [notification.text];
-    if (notification.reloadAnnotations) {
-      text.push('Reload the Annotations.  Most likely a task has created new annotations to load');
-    } else {
+    const processedShortcuts: UIDIVEAction[] = [];
+    const processActions = (notification: UINotification): UIDIVEAction[] => {
+      if (notification.reloadAnnotations) {
+        reloadAnnotations();
+        return [];
+      }
       if (typeof (notification.selectedTrack) === 'number') {
-        text.push(`Set the Selected TrackId to: ${notification.selectedTrack}`);
+        handler.trackSelect(notification.selectedTrack, false);
       }
       if (typeof (notification.selectedFrame) === 'number') {
-        text.push(`Seeking Frame to: ${notification.selectedFrame}`);
+        aggregateController.value.seek(notification.selectedFrame);
       }
       if (notification.diveActions && notification.diveActions.length) {
+      // We need to process these actions.
         for (let i = 0; i < notification.diveActions.length; i += 1) {
-          const actionText = getActionText(notification.diveActions[i]);
-          text = text.concat(actionText);
+          for (let k = 0; k < notification.diveActions[i].actions.length; k += 1) {
+            if (!notification.diveActions[i].shortcut) {
+              handler.processAction(notification.diveActions[i].actions[k], true, { frame: aggregateController.value.frame.value });
+            } else {
+              processedShortcuts.push(notification.diveActions[i]);
+            }
+          }
         }
       }
-    }
-    text.push('Hit accept to process these actions');
-    const result = await prompt({
-      title: 'User Notification',
-      text,
-      confirm: true,
-      positiveButton: 'Accept',
-      negativeButton: 'Cancel',
+      return processedShortcuts;
+    };
+
+    girderRest.$on('message:ui_notification', async ({ data: notification }: { data: UINotification }) => {
+      if (!notification.datasetId.includes(datasetId.value)) {
+        return;
+      }
+      let text = [notification.text];
+      if (notification.reloadAnnotations) {
+        text.push('Reload the Annotations.  Most likely a task has created new annotations to load');
+      } else {
+        if (typeof (notification.selectedTrack) === 'number') {
+          text.push(`Set the Selected TrackId to: ${notification.selectedTrack}`);
+        }
+        if (typeof (notification.selectedFrame) === 'number') {
+          text.push(`Seeking Frame to: ${notification.selectedFrame}`);
+        }
+        if (notification.diveActions && notification.diveActions.length) {
+          for (let i = 0; i < notification.diveActions.length; i += 1) {
+            const actionText = getActionText(notification.diveActions[i]);
+            text = text.concat(actionText);
+          }
+        }
+      }
+      text.push('Hit accept to process these actions');
+      const result = await prompt({
+        title: 'User Notification',
+        text,
+        confirm: true,
+        positiveButton: 'Accept',
+        negativeButton: 'Cancel',
+      });
+      if (!result) {
+        return;
+      }
+      // Process Actions
+      const shortcuts = processActions(notification);
+      for (let i = 0; i < shortcuts.length; i += 1) {
+        diveUIActionShortcuts.value.push(shortcuts[i]);
+      }
     });
-    if (!result) {
-      return;
-    }
-    // Process Actions
-    processActions(notification);
-  });
+  };
+
+  initializeUINotificationService(params);
+  return diveUIActionShortcuts;
 };
 
-export default initializeUINotificationService;
+export default useUINotifications;

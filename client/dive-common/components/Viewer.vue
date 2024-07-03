@@ -56,7 +56,7 @@ import UseTimelineFilters from 'vue-media-annotator/use/useTimelineFilters';
 import { checkAttributes } from 'dive-common/use/useActions';
 import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue';
 import useURLParameters from 'vue-media-annotator/use/useURLParameters';
-import initializeUINotificationService from 'platform/web-girder/UIControls';
+import useUINotifications from 'platform/web-girder/UIControls';
 import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
 import { OverlayPreferences } from 'vue-media-annotator/types';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
@@ -830,7 +830,7 @@ export default defineComponent({
       discardChanges();
       await loadData();
     };
-    initializeUINotificationService({
+    useUINotifications({
       prompt, handler, aggregateController, reloadAnnotations, datasetId,
     });
 
