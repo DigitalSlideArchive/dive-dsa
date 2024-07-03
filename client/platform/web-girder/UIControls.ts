@@ -3,6 +3,7 @@ import { PromptParams } from 'dive-common/vue-utilities/prompt-service';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { Ref } from 'vue';
 import { useModeManager } from 'dive-common/use';
+import { GoToFrameAction, TrackSelectAction, UIDIVEAction } from 'dive-common/use/useActions';
 
 type ModeManagerType = ReturnType<typeof useModeManager>;
 
@@ -12,6 +13,7 @@ export interface UINotification {
     selectedFrame?: number;
     selectedTrack?: number;
     reloadAnnotations?: boolean;
+    diveActions?: UIDIVEAction[];
 }
 
 export interface UINotificationParams {
@@ -21,6 +23,69 @@ export interface UINotificationParams {
   reloadAnnotations : () => Promise<void>;
   datasetId: Ref<string>;
 }
+
+const getActionText = (diveAction: UIDIVEAction) => {
+  const text: string[] = [];
+  if (diveAction.description) {
+    text.push(diveAction.description);
+  }
+
+  if (diveAction.actions.length) {
+    if (diveAction.shortcut) {
+      let textShortcut = diveAction.shortcut.key;
+      if (diveAction.shortcut.modifiers) {
+        textShortcut = `${textShortcut}+${diveAction.shortcut.modifiers.join('+')}`;
+      }
+      text.push(`- Add shortcut Key: ${textShortcut} with Action(s)`);
+    }
+    for (let i = 0; i < diveAction.actions.length; i += 1) {
+      const { action } = diveAction.actions[i];
+      if (action.type === 'GoToFrame') {
+        const goToFrame = action as GoToFrameAction;
+        if (goToFrame.frame !== undefined && goToFrame.frame > 0) {
+          text.push(`- Go To Frame: ${goToFrame.frame}`);
+        } else {
+          const trackSelection = action.track as TrackSelectAction;
+          const direction = trackSelection.direction ? trackSelection.direction : 'next';
+          text.push(`- Select the ${direction} track  where`);
+          if (trackSelection.typeFilter) {
+            text.push(`- Track Type includes: ${trackSelection.typeFilter.join(',')}`);
+          }
+          if (trackSelection.confidenceFilter) {
+            text.push(`- Confidence Filter is greater than: ${trackSelection.confidenceFilter}`);
+          }
+          if (trackSelection.startFrame !== undefined) {
+            if (trackSelection.startFrame === -1) {
+              text.push('- Frame is greather than currently selected frame');
+            } else {
+              text.push(`- Frame is greather than: ${trackSelection.startFrame}`);
+            }
+          }
+          if (trackSelection.startTrack !== undefined) {
+            if (trackSelection.startFrame === -1) {
+              text.push('- TrackId is greather than currently selected track');
+            } else {
+              text.push(`- TrackId is greather than: ${trackSelection.startTrack}`);
+            }
+          }
+          if (trackSelection.attributes?.track) {
+            const trackAttr = trackSelection.attributes.track;
+            Object.entries(trackAttr).forEach(([key, val]) => {
+              text.push(`- Find Track Attribute: ${key} with value ${val.op}  ${val.val}`);
+            });
+          }
+          if (trackSelection.attributes?.detection) {
+            const detectAttr = trackSelection.attributes.detection;
+            Object.entries(detectAttr).forEach(([key, val]) => {
+              text.push(`- Find Detection Attribute: ${key} with value ${val.op}  ${val.val}`);
+            });
+          }
+        }
+      }
+    }
+  }
+  return text;
+};
 
 const initializeUINotificationService = (params: UINotificationParams) => {
   const {
@@ -37,12 +102,21 @@ const initializeUINotificationService = (params: UINotificationParams) => {
     if (typeof (notification.selectedFrame) === 'number') {
       aggregateController.value.seek(notification.selectedFrame);
     }
+    if (notification.diveActions && notification.diveActions.length) {
+      // We need to process these actions.
+      for (let i = 0; i < notification.diveActions.length; i += 1) {
+        for (let k = 0; k < notification.diveActions[i].actions.length; k += 1) {
+          handler.processAction(notification.diveActions[i].actions[k], true, { frame: aggregateController.value.frame.value });
+        }
+      }
+    }
   };
+
   girderRest.$on('message:ui_notification', async ({ data: notification }: { data: UINotification }) => {
     if (!notification.datasetId.includes(datasetId.value)) {
       return;
     }
-    const text = [notification.text];
+    let text = [notification.text];
     if (notification.reloadAnnotations) {
       text.push('Reload the Annotations.  Most likely a task has created new annotations to load');
     } else {
@@ -51,6 +125,12 @@ const initializeUINotificationService = (params: UINotificationParams) => {
       }
       if (typeof (notification.selectedFrame) === 'number') {
         text.push(`Seeking Frame to: ${notification.selectedFrame}`);
+      }
+      if (notification.diveActions && notification.diveActions.length) {
+        for (let i = 0; i < notification.diveActions.length; i += 1) {
+          const actionText = getActionText(notification.diveActions[i]);
+          text = text.concat(actionText);
+        }
       }
     }
     text.push('Hit accept to process these actions');
