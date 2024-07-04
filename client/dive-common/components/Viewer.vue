@@ -830,7 +830,7 @@ export default defineComponent({
       discardChanges();
       await loadData();
     };
-    useUINotifications({
+    const uiNotification = useUINotifications({
       prompt, handler, aggregateController, reloadAnnotations, datasetId,
     });
 
@@ -907,6 +907,7 @@ export default defineComponent({
         annotatorPreferences: toRef(clientSettings, 'annotatorPreferences'),
         attributes,
         configurationManager,
+        uiNotification,
         cameraStore,
         datasetId,
         editingMode,

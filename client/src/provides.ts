@@ -4,6 +4,7 @@ import {
 } from 'vue';
 
 import { DIVEAction } from 'dive-common/use/useActions';
+import { UseUINotificationType } from 'platform/web-girder/UIControls';
 import type { AnnotatorPreferences as AnnotatorPrefsIface } from './types';
 import StyleManager from './StyleManager';
 import type { EditAnnotationTypes } from './layers/EditAnnotationLayer';
@@ -124,6 +125,8 @@ type ImageEnhancementsType = Readonly<Ref<ImageEnhancements>>;
 const CameraStoreSymbol = Symbol('cameraStore');
 
 const ConfigurationManagerSymbol = Symbol('configurationManager');
+
+const UINotificationSymbol = Symbol('uiNotification');
 
 const TrackStyleManagerSymbol = Symbol('trackTypeStyling');
 const GroupStyleManagerSymbol = Symbol('groupTypeStyling');
@@ -261,6 +264,7 @@ export interface State {
   attributes: AttributesType;
   cameraStore: CameraStore;
   configurationManager: ConfigurationManager;
+  uiNotification: UseUINotificationType;
   datasetId: DatasetIdType;
   editingMode: EditingModeType;
   groupFilters: GroupFilterControls;
@@ -319,6 +323,7 @@ function dummyState(): State {
     attributes: ref([]),
     cameraStore,
     configurationManager,
+    uiNotification: { diveActionShortcuts: ref([]) },
     datasetId: ref(''),
     editingMode: ref(false),
     multiSelectList: ref([]),
@@ -360,6 +365,7 @@ function provideAnnotator(state: State, handler: Handler, attributesFilters: Att
   provide(AttributesSymbol, state.attributes);
   provide(CameraStoreSymbol, state.cameraStore);
   provide(ConfigurationManagerSymbol, state.configurationManager);
+  provide(UINotificationSymbol, state.uiNotification);
   provide(DatasetIdSymbol, state.datasetId);
   provide(EditingModeSymbol, state.editingMode);
   provide(GroupFilterControlsSymbol, state.groupFilters);
@@ -417,6 +423,10 @@ function useCameraStore() {
 }
 function useConfiguration() {
   return use<ConfigurationManager>(ConfigurationManagerSymbol);
+}
+
+function useUINotifications() {
+  return use<UseUINotificationType>(UINotificationSymbol);
 }
 
 function useDatasetId() {
@@ -506,6 +516,7 @@ export {
   useAttributes,
   useCameraStore,
   useConfiguration,
+  useUINotifications,
   useDatasetId,
   useEditingMode,
   useHandler,

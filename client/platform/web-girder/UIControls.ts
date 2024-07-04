@@ -87,7 +87,30 @@ const getActionText = (diveAction: UIDIVEAction) => {
   return text;
 };
 
-const useUINotifications = (params: UINotificationParams) => {
+export interface UseUINotificationType {
+  diveActionShortcuts: Ref<UIDIVEAction[]>;
+}
+
+const getDiveActionShortcutString = (diveActionShortcut: UIDIVEAction) => {
+  let bind: string = '';
+  if (diveActionShortcut.shortcut) {
+    bind = diveActionShortcut.shortcut.key.toLocaleLowerCase();
+    if (diveActionShortcut.shortcut.modifiers) {
+      bind = `${bind}+${diveActionShortcut.shortcut.modifiers?.join('+')}`;
+    }
+  }
+  return bind;
+};
+
+const findExistingShortcut = (existing: UIDIVEAction[], newAction: UIDIVEAction) => existing.findIndex((item) => {
+  const newActionKey = getDiveActionShortcutString(newAction);
+  if (getDiveActionShortcutString(item) === newActionKey) {
+    return true;
+  }
+  return false;
+});
+
+const useUINotifications = (params: UINotificationParams): UseUINotificationType => {
   const diveUIActionShortcuts: Ref<UIDIVEAction[]> = ref([]);
   const initializeUINotificationService = (params: UINotificationParams) => {
     const {
@@ -156,13 +179,18 @@ const useUINotifications = (params: UINotificationParams) => {
       // Process Actions
       const shortcuts = processActions(notification);
       for (let i = 0; i < shortcuts.length; i += 1) {
-        diveUIActionShortcuts.value.push(shortcuts[i]);
+        const newIndex = findExistingShortcut(diveUIActionShortcuts.value, shortcuts[i]);
+        if (newIndex !== -1) {
+          diveUIActionShortcuts.value.splice(newIndex, 1, shortcuts[i]);
+        } else {
+          diveUIActionShortcuts.value.push(shortcuts[i]);
+        }
       }
     });
   };
 
   initializeUINotificationService(params);
-  return diveUIActionShortcuts;
+  return { diveActionShortcuts: diveUIActionShortcuts };
 };
 
 export default useUINotifications;
