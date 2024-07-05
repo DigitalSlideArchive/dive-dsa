@@ -37,6 +37,9 @@ const getActionText = (diveAction: UIDIVEAction) => {
         textShortcut = `${textShortcut}+${diveAction.shortcut.modifiers.join('+')}`;
       }
       text.push(`- Add shortcut Key: ${textShortcut} with Action(s)`);
+      if (diveAction.applyConfig) {
+        text.push('- This shortcut will be added to the configuration');
+      }
     }
     for (let i = 0; i < diveAction.actions.length; i += 1) {
       const { action } = diveAction.actions[i];

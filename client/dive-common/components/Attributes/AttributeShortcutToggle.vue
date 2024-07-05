@@ -2,8 +2,9 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref,
+  watch,
 } from 'vue';
-import { DIVEAction, UIDIVEAction } from 'dive-common/use/useActions';
+import { DIVEAction, DIVEActionShortcut, UIDIVEAction } from 'dive-common/use/useActions';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useStore } from 'platform/web-girder/store/types';
 import {
@@ -47,6 +48,34 @@ export default defineComponent({
       }
       return bind;
     };
+
+    const addUpdateAction = (diveAction: UIDIVEAction) => {
+      const shortcuts = configMan.configuration.value?.shortcuts;
+      if (shortcuts) {
+        const index = shortcuts.findIndex((item) => {
+          if (item.shortcut.key === diveAction.shortcut?.key) {
+            const sortedModifiers = item.shortcut.modifiers?.sort().join('+');
+            const sortedUIModifiers = diveAction.shortcut.modifiers?.sort().join('+');
+            if (sortedModifiers === sortedUIModifiers) {
+              return true;
+            }
+          }
+          return false;
+        });
+        if (diveAction.shortcut) {
+          const convertedToShortcut: DIVEActionShortcut = {
+            shortcut: diveAction.shortcut,
+            actions: diveAction.actions,
+            description: diveAction.description,
+          };
+          configMan.updateShortcut(convertedToShortcut, index);
+          const id = configMan.configuration.value?.general?.baseConfiguration;
+          const config = configMan.configuration;
+          if (id && config.value) {
+            configMan.saveConfiguration(id, config.value);
+          }
+      }
+    };
     const actionShortcuts = computed(() => {
       const dataList: {
         shortcut: string;
@@ -67,6 +96,14 @@ export default defineComponent({
       }
       return dataList;
     });
+
+    watch(diveActionShortcuts, () => {
+      diveActionShortcuts.value.forEach((diveAction) => {
+        if (diveAction.shortcut && diveAction.applyConfig) {
+          addUpdateAction(diveAction);
+        }
+      })
+    })
     const shortcutList = computed(() => {
       const dataList: {
         shortcut: string;
