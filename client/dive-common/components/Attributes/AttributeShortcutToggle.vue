@@ -74,6 +74,7 @@ export default defineComponent({
           if (id && config.value) {
             configMan.saveConfiguration(id, config.value);
           }
+        }
       }
     };
     const actionShortcuts = computed(() => {
@@ -102,8 +103,8 @@ export default defineComponent({
         if (diveAction.shortcut && diveAction.applyConfig) {
           addUpdateAction(diveAction);
         }
-      })
-    })
+      });
+    });
     const shortcutList = computed(() => {
       const dataList: {
         shortcut: string;
