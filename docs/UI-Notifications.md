@@ -27,4 +27,117 @@ The JSON format is relatively simple but may be updated in the future to have ad
 }
 ```
 
+### Adding Actions to UI Notifications
 
+The below example utilizes the UI-Actions to select a track that meets seom requirements.
+You can specify a list of `diveActions` that can be executed sequentially
+The below action will select the next track that is of type `mouse` and has a detection attribute named `mouseState` that is `=` to `scratching`
+the UI-Actions pages has more information about the existing actions and their capabilities and configuration.
+
+```
+{
+    "text": "Testing the Actions Listing",
+    "diveActions": [
+        {
+            "description": "This is a Description of the action",
+            "actions": [
+                {
+                    "action": {
+                        "track": {
+                            "Nth": 0,
+                            "attributes": {
+                                "detection": {
+                                    "mouseState": {
+                                        "op": "=",
+                                        "val": "scratching"
+                                    }
+                                }
+                            },
+                            "direction": "next",
+                            "startFrame": -1,
+                            "startTrack": -1,
+                            "type": "TrackSelection",
+                            "typeFilter": [
+                                "mouse"
+                            ]
+                        },
+                        "type": "GoToFrame"
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
+
+Below adds a keyboard shortcut that will be added tied to the action.  Now when hitting `shift+p` it will perform the actions.
+
+```
+{
+    "text": "Testing the Actions Listing",
+    "diveActions": [
+        {
+            "description": "This is a Description of the action",
+            "shortcut": {
+                "key": "p",
+                "modifiers": ["shift"]
+            },
+            "actions": [
+                {
+                    "action": {
+                        "track": {
+                            "Nth": 0,
+                            "attributes": {
+                                "detection": {
+                                    "mouseState": {
+                                        "op": "=",
+                                        "val": "scratching"
+                                    }
+                                }
+                            },
+                            "direction": "next",
+                            "startFrame": -1,
+                            "startTrack": -1,
+                            "type": "TrackSelection",
+                            "typeFilter": [
+                                "mouse"
+                            ]
+                        },
+                        "type": "GoToFrame"
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
+
+### Type Definitions
+
+UI Notification Type definition. Note:  a `?` at the end of a key means it is optional in Typescript
+```
+export interface UINotification {
+    datasetId: string[];
+    text: string;
+    selectedFrame?: number;
+    selectedTrack?: number;
+    reloadAnnotations?: boolean;
+    diveActions?: UIDIVEAction[];
+}
+```
+
+The UIDIVEAction allows for executing actions or for creating shortcuts.
+A More detailed listing of this is available at: [UI-Actions](UI-Actions.md )
+
+
+```
+export interface UIDIVEAction {
+  shortcut?: {
+    key: string;
+    modifiers?: string[]; //list of modifiers for the keyboard shortcut
+  }
+  description?: string;
+  applyConfig?: boolean; //Add to the system configuration the shortcut/action
+  actions: DIVEAction[];
+}
+```

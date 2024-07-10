@@ -414,6 +414,13 @@ class DIVEShortcut(BaseModel):
     actions: List[DIVEActions]
 
 
+class DIVEUIAction(BaseModel):
+    shortcut: Optional[DIVEShortcut]
+    description: Optional[str]
+    applyConfig: Optional[bool]
+    actions: List[DIVEActions]
+
+
 class FilterTimeline(BaseModel):
     name: str
     enabled: bool

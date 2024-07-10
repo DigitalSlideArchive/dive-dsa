@@ -2,13 +2,22 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref,
+  watch,
 } from 'vue';
-import { DIVEAction } from 'dive-common/use/useActions';
+import { DIVEAction, DIVEActionShortcut, UIDIVEAction } from 'dive-common/use/useActions';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useStore } from 'platform/web-girder/store/types';
 import {
   useAttributes, useCameraStore, useConfiguration, useHandler, useSelectedTrackId, useTime,
+  useUINotifications,
 } from 'vue-media-annotator/provides';
+
+interface MouseTrapInterface {
+  bind: string;
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  handler: Function;
+  disabled: boolean;
+}
 
 export default defineComponent({
   name: 'AttributeShortcutToggle',
@@ -21,6 +30,7 @@ export default defineComponent({
   setup(props) {
     const showShortcuts = ref(false);
     const configMan = useConfiguration();
+    const { diveActionShortcuts } = useUINotifications();
     const store = useStore();
     const { inputValue } = usePrompt();
     const shortcutsOn = ref(true);
@@ -28,6 +38,45 @@ export default defineComponent({
     const selectedTrackIdRef = useSelectedTrackId();
     const cameraStore = useCameraStore();
     const { frame: frameRef } = useTime();
+    const getDiveActionShortcutString = (diveActionShortcut: UIDIVEAction) => {
+      let bind: string = '';
+      if (diveActionShortcut.shortcut) {
+        bind = diveActionShortcut.shortcut.key.toLocaleLowerCase();
+        if (diveActionShortcut.shortcut.modifiers) {
+          bind = `${diveActionShortcut.shortcut.modifiers?.join('+')}+${bind}`;
+        }
+      }
+      return bind;
+    };
+
+    const addUpdateAction = (diveAction: UIDIVEAction) => {
+      const shortcuts = configMan.configuration.value?.shortcuts;
+      if (shortcuts) {
+        const index = shortcuts.findIndex((item) => {
+          if (item.shortcut.key === diveAction.shortcut?.key) {
+            const sortedModifiers = item.shortcut.modifiers?.sort().join('+');
+            const sortedUIModifiers = diveAction.shortcut.modifiers?.sort().join('+');
+            if (sortedModifiers === sortedUIModifiers) {
+              return true;
+            }
+          }
+          return false;
+        });
+        if (diveAction.shortcut) {
+          const convertedToShortcut: DIVEActionShortcut = {
+            shortcut: diveAction.shortcut,
+            actions: diveAction.actions,
+            description: diveAction.description,
+          };
+          configMan.updateShortcut(convertedToShortcut, index);
+          const id = configMan.configuration.value?.general?.baseConfiguration;
+          const config = configMan.configuration;
+          if (id && config.value) {
+            configMan.saveConfiguration(id, config.value);
+          }
+        }
+      }
+    };
     const actionShortcuts = computed(() => {
       const dataList: {
         shortcut: string;
@@ -48,6 +97,15 @@ export default defineComponent({
       }
       return dataList;
     });
+
+    watch(diveActionShortcuts.value, () => {
+      diveActionShortcuts.value.forEach((diveAction) => {
+        if (diveAction.shortcut && diveAction.applyConfig) {
+          addUpdateAction(diveAction);
+        }
+      });
+    });
+
     const shortcutList = computed(() => {
       const dataList: {
         shortcut: string;
@@ -116,18 +174,47 @@ export default defineComponent({
       }
     };
 
+    const runUIAction = (shortcut: string) => {
+      const index = diveActionShortcuts.value.findIndex((item) => {
+        if (item.shortcut) {
+          return (getDiveActionShortcutString(item) === shortcut);
+        }
+        return false;
+      });
+      if (index !== -1) {
+        diveActionShortcuts.value[index].actions.forEach((action) => {
+          systemHandler.processAction(action, true, { frame: frameRef.value });
+        });
+      }
+    };
+
+    const existingShortcut = (actions: MouseTrapInterface[], bind: string) => actions.find((item) => bind === item.bind) !== undefined;
     const mouseTrap = computed(() => {
       // eslint-disable-next-line @typescript-eslint/ban-types
-      const actions: {bind: string; handler: Function; disabled: boolean}[] = [];
+      const actions: MouseTrapInterface[] = [];
+
+      // UINotificaton Shortcuts, These take precendence over Attribute/System Actions
+      diveActionShortcuts.value.forEach((diveActionShortcut) => {
+        const bind = getDiveActionShortcutString(diveActionShortcut);
+        if (!diveActionShortcut.applyConfig) {
+          actions.push({ bind, handler: () => runUIAction(bind), disabled: props.hotkeysDisabled });
+        }
+      });
 
       // System Actions
       actionShortcuts.value.forEach((shortcut) => {
         const bind = shortcut.shortcut;
-        actions.push({ bind, handler: () => runActions(shortcut.shortcut), disabled: props.hotkeysDisabled });
+        if (!existingShortcut(actions, bind)) {
+          actions.push({ bind, handler: () => runActions(shortcut.shortcut), disabled: props.hotkeysDisabled });
+        }
       });
 
+      // Attribute Actions
       shortcutList.value.forEach((shortcut) => {
         const bind = shortcut.shortcut;
+        if (existingShortcut(actions, bind)) {
+          return;
+        }
         // eslint-disable-next-line @typescript-eslint/ban-types
         let handler: Function;
         if (shortcut.type === 'set') {
@@ -180,10 +267,12 @@ export default defineComponent({
     });
     return {
       shortcutList,
+      diveActionShortcuts,
       actionShortcuts,
       shortcutsOn,
       showShortcuts,
       mouseTrap,
+      getDiveActionShortcutString,
     };
   },
 });
@@ -251,9 +340,12 @@ export default defineComponent({
               <span>Description</span>
             </v-col>
           </v-row>
+          <v-row dense class="pl-2">
+            <b>Action Shortcuts</b>
+          </v-row>
           <v-row
             v-for="shortcut in actionShortcuts"
-            :key="`${shortcut.shortcut}`"
+            :key="`${shortcut.shortcut}_Action`"
             class="helpContextRow ma-0 align-cente py-2"
             style="border: 1px solid gray;"
             dense
@@ -270,6 +362,32 @@ export default defineComponent({
             <v-col col="6">
               <v-chip>{{ shortcut.description }}</v-chip>
             </v-col>
+          </v-row>
+          <v-row v-if="diveActionShortcuts.length" dense class="pl-2">
+            <b>UI Notification Shortcuts</b>
+          </v-row>
+          <v-row
+            v-for="shortcut in diveActionShortcuts"
+            :key="`${getDiveActionShortcutString(shortcut)}_DIVEAction`"
+            class="helpContextRow ma-0 align-cente py-2"
+            style="border: 1px solid gray;"
+            dense
+          >
+            <v-col cols="2">
+              <v-chip>{{ getDiveActionShortcutString(shortcut) }}</v-chip>
+            </v-col>
+            <v-col cols="2">
+              <v-chip>UI</v-chip>
+            </v-col>
+            <v-col
+              col="2"
+            />
+            <v-col col="6">
+              <v-chip>{{ shortcut.description }}</v-chip>
+            </v-col>
+          </v-row>
+          <v-row v-if="shortcutList.length" dense class="pl-2">
+            <b>Attribute Shortcuts</b>
           </v-row>
           <v-row
             v-for="shortcut in shortcutList"

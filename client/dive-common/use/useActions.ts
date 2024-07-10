@@ -34,7 +34,7 @@ export interface TrackSelectAction {
 
 export type ActionTypes = 'GoToFrame' | 'SelectTrack' | 'Wait' | 'Popup';
 
-interface GoToFrameAction{
+export interface GoToFrameAction{
     track?: TrackSelectAction; // Go to first frame of track that matches conditions
     frame?: number; // Jump to X frame
     type: 'GoToFrame';
@@ -51,6 +51,17 @@ export interface DIVEActionShortcut {
     };
     description?: string;
     actions: DIVEAction[];
+}
+
+// Either immediately executed action or a keyboard shortcut
+export interface UIDIVEAction {
+  shortcut?: {
+    key: string;
+    modifiers?: string[];
+  }
+  description?: string;
+  applyConfig?: boolean; //Add to the system configuration the shortcut/action
+  actions: DIVEAction[];
 }
 
 const checkAttributes = (attributeMatch: Record<string, AttributeMatch>, attributes: StringKeyObject) => {
