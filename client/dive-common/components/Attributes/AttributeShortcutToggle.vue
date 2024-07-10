@@ -43,7 +43,7 @@ export default defineComponent({
       if (diveActionShortcut.shortcut) {
         bind = diveActionShortcut.shortcut.key.toLocaleLowerCase();
         if (diveActionShortcut.shortcut.modifiers) {
-          bind = `${bind}+${diveActionShortcut.shortcut.modifiers?.join('+')}`;
+          bind = `${diveActionShortcut.shortcut.modifiers?.join('+')}+${bind}`;
         }
       }
       return bind;
@@ -98,13 +98,14 @@ export default defineComponent({
       return dataList;
     });
 
-    watch(diveActionShortcuts, () => {
+    watch(diveActionShortcuts.value, () => {
       diveActionShortcuts.value.forEach((diveAction) => {
         if (diveAction.shortcut && diveAction.applyConfig) {
           addUpdateAction(diveAction);
         }
       });
     });
+
     const shortcutList = computed(() => {
       const dataList: {
         shortcut: string;
@@ -195,7 +196,9 @@ export default defineComponent({
       // UINotificaton Shortcuts, These take precendence over Attribute/System Actions
       diveActionShortcuts.value.forEach((diveActionShortcut) => {
         const bind = getDiveActionShortcutString(diveActionShortcut);
-        actions.push({ bind, handler: () => runUIAction(bind), disabled: props.hotkeysDisabled });
+        if (!diveActionShortcut.applyConfig) {
+          actions.push({ bind, handler: () => runUIAction(bind), disabled: props.hotkeysDisabled });
+        }
       });
 
       // System Actions
@@ -337,12 +340,12 @@ export default defineComponent({
               <span>Description</span>
             </v-col>
           </v-row>
-          <v-row dense>
+          <v-row dense class="pl-2">
             <b>Action Shortcuts</b>
           </v-row>
           <v-row
             v-for="shortcut in actionShortcuts"
-            :key="`${shortcut.shortcut}`"
+            :key="`${shortcut.shortcut}_Action`"
             class="helpContextRow ma-0 align-cente py-2"
             style="border: 1px solid gray;"
             dense
@@ -360,12 +363,12 @@ export default defineComponent({
               <v-chip>{{ shortcut.description }}</v-chip>
             </v-col>
           </v-row>
-          <v-row v-if="diveActionShortcuts.length" dense>
+          <v-row v-if="diveActionShortcuts.length" dense class="pl-2">
             <b>UI Notification Shortcuts</b>
           </v-row>
           <v-row
             v-for="shortcut in diveActionShortcuts"
-            :key="`${getDiveActionShortcutString(shortcut)}`"
+            :key="`${getDiveActionShortcutString(shortcut)}_DIVEAction`"
             class="helpContextRow ma-0 align-cente py-2"
             style="border: 1px solid gray;"
             dense
@@ -383,7 +386,7 @@ export default defineComponent({
               <v-chip>{{ shortcut.description }}</v-chip>
             </v-col>
           </v-row>
-          <v-row v-if="shortcutList.length" dense>
+          <v-row v-if="shortcutList.length" dense class="pl-2">
             <b>Attribute Shortcuts</b>
           </v-row>
           <v-row

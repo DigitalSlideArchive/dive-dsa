@@ -99,7 +99,7 @@ const getDiveActionShortcutString = (diveActionShortcut: UIDIVEAction) => {
   if (diveActionShortcut.shortcut) {
     bind = diveActionShortcut.shortcut.key.toLocaleLowerCase();
     if (diveActionShortcut.shortcut.modifiers) {
-      bind = `${bind}+${diveActionShortcut.shortcut.modifiers?.join('+')}`;
+      bind = `${diveActionShortcut.shortcut.modifiers?.join('+')}+${bind}`;
     }
   }
   return bind;
