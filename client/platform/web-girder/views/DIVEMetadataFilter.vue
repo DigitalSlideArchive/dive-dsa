@@ -63,9 +63,9 @@ export default defineComponent({
       const advanced: DIVEMetadataFilterValueResults['metadataKeys'] = {};
       const displayed: DIVEMetadataFilterValueResults['metadataKeys'] = {};
       Object.entries(filters.value).forEach(([key, item]) => {
-        if (props.displayConfig.display.includes(key)) {
+        if (props.displayConfig.display && props.displayConfig.display.includes(key)) {
           displayed[key] = item;
-        } else if (!props.displayConfig.hide.includes(key)) {
+        } else if (props.displayConfig.hide && !props.displayConfig.hide.includes(key)) {
           advanced[key] = item;
         }
       });
