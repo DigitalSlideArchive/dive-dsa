@@ -1089,6 +1089,7 @@ export default defineComponent({
             />
           </template>
         </EditorMenu>
+        <v-spacer v-else />
         <v-select
           v-if="multiCamList.length > 1"
           :value="selectedCamera"

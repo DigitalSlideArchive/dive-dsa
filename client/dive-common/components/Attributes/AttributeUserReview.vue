@@ -48,9 +48,11 @@ export default defineComponent({
         <div
           v-for="user in userList"
           :key="`userAttributes_${user}`"
-          class=""
+          class="mt-5"
         >
-          <v-row><h4>{{ user }}:</h4></v-row>
+          <v-row class="mb-2">
+            <h4>{{ user }}:</h4>
+          </v-row>
           <attribute-subsection
             mode="Track"
             :user="user"

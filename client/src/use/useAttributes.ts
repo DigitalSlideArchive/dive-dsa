@@ -488,6 +488,90 @@ export default function UseAttributes(
     return autoColorIndex;
   });
 
+  function processSwimlaneKey(
+    key:string,
+    valueMap: Record<string, SwimlaneAttribute>,
+    filter: SwimlaneFilter,
+    track: Track,
+    frame: number,
+    attributes?: StringKeyObject,
+    baseAttribute?: Attribute,
+    settings?: Record<string, SwimlaneGraphSettings>,
+    colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
+    lastValue?: string | boolean | number,
+  ): string | boolean | number | undefined | null {
+    if (key === 'userAttributes') {
+      return null;
+    }
+    if (attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+      // Get user attribute if it exists:
+      const val = attributes[key] as string | number | boolean | undefined;
+      if (val === undefined) {
+        return null;
+      }
+      if (valueMap[key] === undefined) {
+        let dataType: Attribute['datatype'] = 'text';
+        let displayName;
+        if (settings && settings[key]) {
+          displayName = settings[key].displayName;
+        }
+
+        if (typeof (val) === 'number') {
+          dataType = 'number';
+        } else if (typeof (val) === 'boolean') {
+          dataType = 'boolean';
+        }
+        let baseColor = 'white';
+        if (baseAttribute?.color) {
+          baseColor = baseAttribute.color;
+        } else {
+          baseColor = trackStyleManager.typeStyling.value.color(key);
+        }
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key] = {
+          data: [],
+          name: key,
+          color: baseColor,
+          type: dataType,
+          displayName,
+          start: track.begin,
+          end: track.end,
+          order: baseAttribute?.valueOrder,
+        };
+      }
+      // Now we need to push data in based on values and change only when value changes:
+      let color = 'white';
+      if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
+        color = colorScalingNumbers[baseAttribute.key](val);
+      }
+      if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
+        color = getAttributeValueColor(baseAttribute, val);
+      } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
+        color = val === 'true' ? 'green' : 'red';
+      }
+      if (valueMap[key].data.length === 0) {
+        // First value
+        valueMap[key].data.push({
+          begin: frame,
+          end: frame + 1,
+          value: val,
+          color,
+        });
+      } else if (lastValue !== val && valueMap[key].data.length > 0) {
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key].data[valueMap[key].data.length - 1].end = frame;
+        valueMap[key].data.push({
+          begin: frame,
+          end: frame + 1,
+          value: val,
+          color,
+        });
+      }
+      return val;
+    }
+    return null;
+  }
+
   // SWIMLANE Settings
   function generateDetectionSwimlaneData(
     track: Track,
@@ -501,78 +585,25 @@ export default function UseAttributes(
       const { frame } = feature;
       let lastValue: string | boolean | number | undefined;
       if (feature.attributes) {
-        Object.keys(feature.attributes).forEach((key) => {
-          if (feature.attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
-            let val: string | number | boolean | undefined;
-            // Get user attribute if it exists:
+        if (feature.attributes.userAttributes && feature.attributes.userAttributes[login]) {
+          const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
+          Object.keys(userAttr).forEach((key) => {
             const baseAttribute = attributesList.value.find((item) => item.name === key);
-            if (key === 'userAttributes') {
-              return;
-            }
-            if (baseAttribute?.user && feature.attributes.userAttributes) {
-              val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
-            } else {
-              val = feature.attributes[key] as string | number | boolean | undefined;
-            }
-            if (val === undefined) {
-              return;
-            }
-            if (valueMap[key] === undefined) {
-              let dataType: Attribute['datatype'] = 'text';
-              let displayName;
-              if (settings && settings[key]) {
-                displayName = settings[key].displayName;
+            if (feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
+              const val = processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, lastValue);
+              if (val !== null) {
+                lastValue = val;
               }
-
-              if (typeof (val) === 'number') {
-                dataType = 'number';
-              } else if (typeof (val) === 'boolean') {
-                dataType = 'boolean';
-              }
-              let baseColor = 'white';
-              if (baseAttribute?.color) {
-                baseColor = baseAttribute.color;
-              } else {
-                baseColor = trackStyleManager.typeStyling.value.color(key);
-              }
-              valueMap[key] = {
-                data: [],
-                name: key,
-                color: baseColor,
-                type: dataType,
-                displayName,
-                start: track.begin,
-                end: track.end,
-                order: baseAttribute?.valueOrder,
-              };
             }
-            // Now we need to push data in based on values and change only when value changes:
-            let color = 'white';
-            if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
-              color = colorScalingNumbers[baseAttribute.key](val);
-            }
-            if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
-              color = getAttributeValueColor(baseAttribute, val);
-            } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
-              color = val === 'true' ? 'green' : 'red';
-            }
-            if (valueMap[key].data.length === 0) {
-              // First value
-              valueMap[key].data.push({
-                begin: frame,
-                end: frame + 1,
-                value: val,
-                color,
-              });
-            } else if (lastValue !== val && valueMap[key].data.length > 0) {
-              valueMap[key].data[valueMap[key].data.length - 1].end = frame;
-              valueMap[key].data.push({
-                begin: frame,
-                end: frame + 1,
-                value: val,
-                color,
-              });
-            }
+          });
+        }
+        Object.keys(feature.attributes).forEach((key) => {
+          const baseAttribute = attributesList.value.find((item) => item.name === key);
+          if (baseAttribute?.user) {
+            return;
+          }
+          const val = processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, lastValue);
+          if (val !== null) {
             lastValue = val;
           }
         });
