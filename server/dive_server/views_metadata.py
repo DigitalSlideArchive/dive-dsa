@@ -169,6 +169,15 @@ class DIVEMetadata(Resource):
                 "hide": ["ETag", "ETagDuplicated", "Size"],
             },
         )
+        .jsonParam(
+            "ffprobeMetadata",
+            "List Metadata keys to extract from the ffprobe metadata from videos.  Setting 'import' to 'true' will import the data",
+            required=True,
+            default={
+                "import": False,
+                "keys": ["width", "height", "display_aspect_ratio"],
+            },
+        )
         .param(
             "categoricalLimit",
             "Above this number make a field a search field instead of a dropdown",
@@ -178,7 +187,7 @@ class DIVEMetadata(Resource):
         )
     )
     def process_metadata(
-        self, folder, sibling_path, fileType, matcher, path_key, displayConfig, categoricalLimit
+        self, folder, sibling_path, fileType, matcher, path_key, displayConfig, ffprobeMetadata, categoricalLimit
     ):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
@@ -250,6 +259,13 @@ class DIVEMetadata(Resource):
                             if modified_path:
                                 if modified_path == resource_path:
                                     item['pathMatches'] = True
+                                    if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
+                                        ffmetadata = datasetFolder.get('meta', {}).get('ffprobe_info', {})
+                                        print('FFPROBE METADATA')
+                                        ffkeys = ffprobeMetadata.get('keys', [])
+                                        for ffMetadataKey in ffkeys:
+                                            if ffmetadata.get(ffMetadataKey, False):
+                                                item[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(ffMetadataKey, False)
                                     DIVE_Metadata().createMetadata(
                                         datasetFolder, folder, user, item
                                     )
