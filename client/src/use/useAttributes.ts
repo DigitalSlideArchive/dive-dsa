@@ -274,6 +274,75 @@ export default function UseAttributes(
     return filteredAttributes;
   }
 
+  // Processes attribuets and modifies the valueMap with proper data for timeline
+  function processDetectionKey(
+    key:string,
+    valueMap: Record<string, TimelineAttribute>, //modified in place
+    filter: TimeLineFilter,
+    frame: number,
+    attr?: StringKeyObject,
+    settings?: Record<string, TimelineGraphSettings>,
+  ) {
+    if (attr && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+      const val = attr[key] as string | number | boolean | undefined;
+      if (val === undefined) {
+        return;
+      }
+      if (valueMap[key] === undefined) {
+        let dataType: Attribute['datatype'] = 'text';
+        const data: LineChartData = {
+          values: [],
+          name: key,
+          color: attributes.value[`detection_${key}`]?.color || 'white',
+        };
+        if (settings && settings[key]) {
+          data.area = settings[key].area;
+          data.areaColor = settings[key].areaColor;
+          data.areaOpacity = settings[key].areaOpacity;
+          data.lineOpacity = settings[key].lineOpacity;
+          data.type = settings[key].type;
+          data.max = settings[key].max;
+        }
+
+        if (typeof (val) === 'number') {
+          dataType = 'number';
+        } else if (typeof (val) === 'boolean') {
+          dataType = 'boolean';
+        }
+
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key] = {
+          data,
+          maxFrame: -Infinity,
+          minFrame: Infinity,
+          type: dataType,
+
+        };
+      }
+      if (valueMap[key].type === 'number') {
+        valueMap[key].data.values.push([
+          frame,
+          val as number,
+        ]);
+      }
+      if (valueMap[key].type === 'number') {
+        if (valueMap[key].minValue === undefined || valueMap[key].maxValue === undefined) {
+          // eslint-disable-next-line no-param-reassign
+          valueMap[key].minValue = Infinity;
+          // eslint-disable-next-line no-param-reassign
+          valueMap[key].maxValue = -Infinity;
+        }
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key].minValue = Math.min(valueMap[key].minValue as number, val as number);
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key].maxValue = Math.max(valueMap[key].maxValue as number, val as number);
+      }
+      // eslint-disable-next-line no-param-reassign
+      valueMap[key].minFrame = Math.min(valueMap[key].minFrame, frame);
+      // eslint-disable-next-line no-param-reassign
+      valueMap[key].maxFrame = Math.max(valueMap[key].maxFrame, frame);
+    }
+  }
   // ATTRIBUTE TIMELINE SECTION
   function generateDetectionTimelineData(
     track: Track,
@@ -285,65 +354,19 @@ export default function UseAttributes(
     track.features.forEach((feature) => {
       const { frame } = feature;
       if (feature.attributes) {
-        Object.keys(feature.attributes).forEach((key) => {
-          if (feature.attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
-            let val: string | number | boolean | undefined;
-            // Get user attribute if it exists:
+        if (feature.attributes.userAttributes && feature.attributes.userAttributes[login]) {
+          const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
+          Object.keys(userAttr).forEach((key) => {
             const baseAttribute = attributesList.value.find((item) => item.name === key);
-            if (baseAttribute?.user && feature.attributes.userAttributes) {
-              val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
-            } else {
-              val = feature.attributes[key] as string | number | boolean | undefined;
+            if (baseAttribute?.user && feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
+              processDetectionKey(key, valueMap, filter, frame, userAttr, settings);
             }
-            if (val === undefined) {
-              return;
-            }
-            if (valueMap[key] === undefined) {
-              let dataType: Attribute['datatype'] = 'text';
-              const data: LineChartData = {
-                values: [],
-                name: key,
-                color: attributes.value[`detection_${key}`]?.color || 'white',
-              };
-              if (settings && settings[key]) {
-                data.area = settings[key].area;
-                data.areaColor = settings[key].areaColor;
-                data.areaOpacity = settings[key].areaOpacity;
-                data.lineOpacity = settings[key].lineOpacity;
-                data.type = settings[key].type;
-                data.max = settings[key].max;
-              }
-
-              if (typeof (val) === 'number') {
-                dataType = 'number';
-              } else if (typeof (val) === 'boolean') {
-                dataType = 'boolean';
-              }
-
-              valueMap[key] = {
-                data,
-                maxFrame: -Infinity,
-                minFrame: Infinity,
-                type: dataType,
-
-              };
-            }
-            if (valueMap[key].type === 'number') {
-              valueMap[key].data.values.push([
-                frame,
-              val as number,
-              ]);
-            }
-            if (valueMap[key].type === 'number') {
-              if (valueMap[key].minValue === undefined || valueMap[key].maxValue === undefined) {
-                valueMap[key].minValue = Infinity;
-                valueMap[key].maxValue = -Infinity;
-              }
-              valueMap[key].minValue = Math.min(valueMap[key].minValue as number, val as number);
-              valueMap[key].maxValue = Math.max(valueMap[key].maxValue as number, val as number);
-            }
-            valueMap[key].minFrame = Math.min(valueMap[key].minFrame, frame);
-            valueMap[key].maxFrame = Math.max(valueMap[key].maxFrame, frame);
+          });
+        }
+        Object.keys(feature.attributes).forEach((key) => {
+          const baseAttribute = attributesList.value.find((item) => item.name === key);
+          if (!baseAttribute?.user) {
+            processDetectionKey(key, valueMap, filter, frame, feature.attributes, settings);
           }
         });
       }
@@ -488,6 +511,91 @@ export default function UseAttributes(
     return autoColorIndex;
   });
 
+  // Processes attributes and user attributes and modifies valueMap while returning a value
+  function processSwimlaneKey(
+    key:string,
+    valueMap: Record<string, SwimlaneAttribute>, // updates valueMap in place
+    filter: SwimlaneFilter,
+    track: Track,
+    frame: number,
+    attributes?: StringKeyObject,
+    baseAttribute?: Attribute,
+    settings?: Record<string, SwimlaneGraphSettings>,
+    colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
+    lastValue?: string | boolean | number,
+  ): string | boolean | number | undefined | null {
+    if (key === 'userAttributes') {
+      return null;
+    }
+    if (attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+      // Get user attribute if it exists:
+      const val = attributes[key] as string | number | boolean | undefined;
+      if (val === undefined) {
+        return null;
+      }
+      if (valueMap[key] === undefined) {
+        let dataType: Attribute['datatype'] = 'text';
+        let displayName;
+        if (settings && settings[key]) {
+          displayName = settings[key].displayName;
+        }
+
+        if (typeof (val) === 'number') {
+          dataType = 'number';
+        } else if (typeof (val) === 'boolean') {
+          dataType = 'boolean';
+        }
+        let baseColor = 'white';
+        if (baseAttribute?.color) {
+          baseColor = baseAttribute.color;
+        } else {
+          baseColor = trackStyleManager.typeStyling.value.color(key);
+        }
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key] = {
+          data: [],
+          name: key,
+          color: baseColor,
+          type: dataType,
+          displayName,
+          start: track.begin,
+          end: track.end,
+          order: baseAttribute?.valueOrder,
+        };
+      }
+      // Now we need to push data in based on values and change only when value changes:
+      let color = 'white';
+      if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
+        color = colorScalingNumbers[baseAttribute.key](val);
+      }
+      if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
+        color = getAttributeValueColor(baseAttribute, val);
+      } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
+        color = val === 'true' ? 'green' : 'red';
+      }
+      if (valueMap[key].data.length === 0) {
+        // First value
+        valueMap[key].data.push({
+          begin: frame,
+          end: frame + 1,
+          value: val,
+          color,
+        });
+      } else if (lastValue !== val && valueMap[key].data.length > 0) {
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key].data[valueMap[key].data.length - 1].end = frame;
+        valueMap[key].data.push({
+          begin: frame,
+          end: frame + 1,
+          value: val,
+          color,
+        });
+      }
+      return val;
+    }
+    return null;
+  }
+
   // SWIMLANE Settings
   function generateDetectionSwimlaneData(
     track: Track,
@@ -501,78 +609,25 @@ export default function UseAttributes(
       const { frame } = feature;
       let lastValue: string | boolean | number | undefined;
       if (feature.attributes) {
-        Object.keys(feature.attributes).forEach((key) => {
-          if (feature.attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
-            let val: string | number | boolean | undefined;
-            // Get user attribute if it exists:
+        if (feature.attributes.userAttributes && feature.attributes.userAttributes[login]) {
+          const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
+          Object.keys(userAttr).forEach((key) => {
             const baseAttribute = attributesList.value.find((item) => item.name === key);
-            if (key === 'userAttributes') {
-              return;
-            }
-            if (baseAttribute?.user && feature.attributes.userAttributes) {
-              val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
-            } else {
-              val = feature.attributes[key] as string | number | boolean | undefined;
-            }
-            if (val === undefined) {
-              return;
-            }
-            if (valueMap[key] === undefined) {
-              let dataType: Attribute['datatype'] = 'text';
-              let displayName;
-              if (settings && settings[key]) {
-                displayName = settings[key].displayName;
+            if (feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
+              const val = processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, lastValue);
+              if (val !== null) {
+                lastValue = val;
               }
-
-              if (typeof (val) === 'number') {
-                dataType = 'number';
-              } else if (typeof (val) === 'boolean') {
-                dataType = 'boolean';
-              }
-              let baseColor = 'white';
-              if (baseAttribute?.color) {
-                baseColor = baseAttribute.color;
-              } else {
-                baseColor = trackStyleManager.typeStyling.value.color(key);
-              }
-              valueMap[key] = {
-                data: [],
-                name: key,
-                color: baseColor,
-                type: dataType,
-                displayName,
-                start: track.begin,
-                end: track.end,
-                order: baseAttribute?.valueOrder,
-              };
             }
-            // Now we need to push data in based on values and change only when value changes:
-            let color = 'white';
-            if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
-              color = colorScalingNumbers[baseAttribute.key](val);
-            }
-            if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
-              color = getAttributeValueColor(baseAttribute, val);
-            } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
-              color = val === 'true' ? 'green' : 'red';
-            }
-            if (valueMap[key].data.length === 0) {
-              // First value
-              valueMap[key].data.push({
-                begin: frame,
-                end: frame + 1,
-                value: val,
-                color,
-              });
-            } else if (lastValue !== val && valueMap[key].data.length > 0) {
-              valueMap[key].data[valueMap[key].data.length - 1].end = frame;
-              valueMap[key].data.push({
-                begin: frame,
-                end: frame + 1,
-                value: val,
-                color,
-              });
-            }
+          });
+        }
+        Object.keys(feature.attributes).forEach((key) => {
+          const baseAttribute = attributesList.value.find((item) => item.name === key);
+          if (baseAttribute?.user) {
+            return;
+          }
+          const val = processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, lastValue);
+          if (val !== null) {
             lastValue = val;
           }
         });

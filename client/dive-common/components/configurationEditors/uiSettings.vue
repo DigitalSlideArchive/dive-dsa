@@ -136,7 +136,7 @@ export default defineComponent({
           </v-btn>
         </v-card-title>
         <v-card-text>
-          <v-card-title class="text-h6">
+          <div class="text-h6">
             <v-tabs v-model="currentTab">
               <v-tab> Main </v-tab>
               <v-tab :disabled="!UIInteractions">
@@ -164,59 +164,43 @@ export default defineComponent({
                 Timeline
               </v-tab>
             </v-tabs>
-          </v-card-title>
+          </div>
           <v-tabs-items v-model="currentTab">
             <v-tab-item>
-              <v-row dense>
-                <v-switch
-                  v-model="UIInteractions"
-                  label="Interactions"
-                />
-              </v-row>
+              <v-switch
+                v-model="UIInteractions"
+                label="Interactions"
+              />
 
-              <v-row dense>
-                <v-switch
-                  v-model="UITopBar"
-                  label="Top Bar"
-                />
-              </v-row>
-              <v-row dense>
-                <v-switch
-                  v-model="UIToolBar"
-                  label="Tool Bar"
-                />
-              </v-row>
-              <v-row dense>
-                <v-switch
-                  v-model="UISideBar"
-                  label="SideBar (Track Types, Track List)"
-                />
-              </v-row>
-              <v-row dense>
-                <v-switch
-                  v-model="UIContextBar"
-                  label="Context Bar (right side)"
-                />
-              </v-row>
-              <v-row dense>
-                <v-switch
-                  v-model="UITrackDetails"
-                  label="Track Details (Attributes)"
-                />
-              </v-row>
-              <v-row dense>
-                <v-switch
-                  v-model="UIControls"
-                  label="Media Controls"
-                />
-              </v-row>
+              <v-switch
+                v-model="UITopBar"
+                label="Top Bar"
+              />
+              <v-switch
+                v-model="UIToolBar"
+                label="Tool Bar"
+              />
+              <v-switch
+                v-model="UISideBar"
+                label="SideBar (Track Types, Track List)"
+              />
+              <v-switch
+                v-model="UIContextBar"
+                label="Context Bar (right side)"
+              />
+              <v-switch
+                v-model="UITrackDetails"
+                label="Track Details (Attributes)"
+              />
+              <v-switch
+                v-model="UIControls"
+                label="Media Controls"
+              />
 
-              <v-row dense>
-                <v-switch
-                  v-model="UITimeline"
-                  label="Timeline"
-                />
-              </v-row>
+              <v-switch
+                v-model="UITimeline"
+                label="Timeline"
+              />
             </v-tab-item>
             <v-tab-item>
               <ui-interactions />
