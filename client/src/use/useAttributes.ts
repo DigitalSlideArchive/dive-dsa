@@ -274,6 +274,75 @@ export default function UseAttributes(
     return filteredAttributes;
   }
 
+  // Processes attribuets and modifies the valueMap with proper data for timeline
+  function processDetectionKey(
+    key:string,
+    valueMap: Record<string, TimelineAttribute>, //modified in place
+    filter: TimeLineFilter,
+    frame: number,
+    attr?: StringKeyObject,
+    settings?: Record<string, TimelineGraphSettings>,
+  ) {
+    if (attr && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+      const val = attr[key] as string | number | boolean | undefined;
+      if (val === undefined) {
+        return;
+      }
+      if (valueMap[key] === undefined) {
+        let dataType: Attribute['datatype'] = 'text';
+        const data: LineChartData = {
+          values: [],
+          name: key,
+          color: attributes.value[`detection_${key}`]?.color || 'white',
+        };
+        if (settings && settings[key]) {
+          data.area = settings[key].area;
+          data.areaColor = settings[key].areaColor;
+          data.areaOpacity = settings[key].areaOpacity;
+          data.lineOpacity = settings[key].lineOpacity;
+          data.type = settings[key].type;
+          data.max = settings[key].max;
+        }
+
+        if (typeof (val) === 'number') {
+          dataType = 'number';
+        } else if (typeof (val) === 'boolean') {
+          dataType = 'boolean';
+        }
+
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key] = {
+          data,
+          maxFrame: -Infinity,
+          minFrame: Infinity,
+          type: dataType,
+
+        };
+      }
+      if (valueMap[key].type === 'number') {
+        valueMap[key].data.values.push([
+          frame,
+          val as number,
+        ]);
+      }
+      if (valueMap[key].type === 'number') {
+        if (valueMap[key].minValue === undefined || valueMap[key].maxValue === undefined) {
+          // eslint-disable-next-line no-param-reassign
+          valueMap[key].minValue = Infinity;
+          // eslint-disable-next-line no-param-reassign
+          valueMap[key].maxValue = -Infinity;
+        }
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key].minValue = Math.min(valueMap[key].minValue as number, val as number);
+        // eslint-disable-next-line no-param-reassign
+        valueMap[key].maxValue = Math.max(valueMap[key].maxValue as number, val as number);
+      }
+      // eslint-disable-next-line no-param-reassign
+      valueMap[key].minFrame = Math.min(valueMap[key].minFrame, frame);
+      // eslint-disable-next-line no-param-reassign
+      valueMap[key].maxFrame = Math.max(valueMap[key].maxFrame, frame);
+    }
+  }
   // ATTRIBUTE TIMELINE SECTION
   function generateDetectionTimelineData(
     track: Track,
@@ -285,65 +354,19 @@ export default function UseAttributes(
     track.features.forEach((feature) => {
       const { frame } = feature;
       if (feature.attributes) {
-        Object.keys(feature.attributes).forEach((key) => {
-          if (feature.attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
-            let val: string | number | boolean | undefined;
-            // Get user attribute if it exists:
+        if (feature.attributes.userAttributes && feature.attributes.userAttributes[login]) {
+          const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
+          Object.keys(userAttr).forEach((key) => {
             const baseAttribute = attributesList.value.find((item) => item.name === key);
-            if (baseAttribute?.user && feature.attributes.userAttributes) {
-              val = feature.attributes.userAttributes[login] as string | number | boolean | undefined;
-            } else {
-              val = feature.attributes[key] as string | number | boolean | undefined;
+            if (baseAttribute?.user && feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
+              processDetectionKey(key, valueMap, filter, frame, userAttr, settings);
             }
-            if (val === undefined) {
-              return;
-            }
-            if (valueMap[key] === undefined) {
-              let dataType: Attribute['datatype'] = 'text';
-              const data: LineChartData = {
-                values: [],
-                name: key,
-                color: attributes.value[`detection_${key}`]?.color || 'white',
-              };
-              if (settings && settings[key]) {
-                data.area = settings[key].area;
-                data.areaColor = settings[key].areaColor;
-                data.areaOpacity = settings[key].areaOpacity;
-                data.lineOpacity = settings[key].lineOpacity;
-                data.type = settings[key].type;
-                data.max = settings[key].max;
-              }
-
-              if (typeof (val) === 'number') {
-                dataType = 'number';
-              } else if (typeof (val) === 'boolean') {
-                dataType = 'boolean';
-              }
-
-              valueMap[key] = {
-                data,
-                maxFrame: -Infinity,
-                minFrame: Infinity,
-                type: dataType,
-
-              };
-            }
-            if (valueMap[key].type === 'number') {
-              valueMap[key].data.values.push([
-                frame,
-              val as number,
-              ]);
-            }
-            if (valueMap[key].type === 'number') {
-              if (valueMap[key].minValue === undefined || valueMap[key].maxValue === undefined) {
-                valueMap[key].minValue = Infinity;
-                valueMap[key].maxValue = -Infinity;
-              }
-              valueMap[key].minValue = Math.min(valueMap[key].minValue as number, val as number);
-              valueMap[key].maxValue = Math.max(valueMap[key].maxValue as number, val as number);
-            }
-            valueMap[key].minFrame = Math.min(valueMap[key].minFrame, frame);
-            valueMap[key].maxFrame = Math.max(valueMap[key].maxFrame, frame);
+          });
+        }
+        Object.keys(feature.attributes).forEach((key) => {
+          const baseAttribute = attributesList.value.find((item) => item.name === key);
+          if (!baseAttribute?.user) {
+            processDetectionKey(key, valueMap, filter, frame, feature.attributes, settings);
           }
         });
       }
@@ -488,9 +511,10 @@ export default function UseAttributes(
     return autoColorIndex;
   });
 
+  // Processes attributes and user attributes and modifies valueMap while returning a value
   function processSwimlaneKey(
     key:string,
-    valueMap: Record<string, SwimlaneAttribute>,
+    valueMap: Record<string, SwimlaneAttribute>, // updates valueMap in place
     filter: SwimlaneFilter,
     track: Track,
     frame: number,
