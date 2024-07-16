@@ -261,7 +261,6 @@ class DIVEMetadata(Resource):
                                     item['pathMatches'] = True
                                     if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
                                         ffmetadata = datasetFolder.get('meta', {}).get('ffprobe_info', {})
-                                        print('FFPROBE METADATA')
                                         ffkeys = ffprobeMetadata.get('keys', [])
                                         for ffMetadataKey in ffkeys:
                                             if ffmetadata.get(ffMetadataKey, False):
