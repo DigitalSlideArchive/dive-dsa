@@ -14,6 +14,7 @@ import {
   useReadOnlyMode,
   useAttributesFilters,
   useConfiguration,
+  useHandler,
 } from 'vue-media-annotator/provides';
 import type { Attribute, AttributeFilter } from 'vue-media-annotator/use/AttributeTypes';
 import AttributeInput from 'dive-common/components/Attributes/AttributeInput.vue';
@@ -59,6 +60,7 @@ export default defineComponent({
       attributeFilters, sortAndFilterAttributes,
       timelineEnabled, swimlaneEnabled,
     } = useAttributesFilters();
+    const handler = useHandler();
     const timelineActive = computed(
       () => (Object.values(timelineEnabled.value).filter((item) => item).length),
     );
@@ -193,9 +195,38 @@ export default defineComponent({
     }
 
     const selectAttributeRow = (attribute: Attribute) => {
-      console.log('selecting attribute');
-      console.log(attribute);
       highlightedAttribute.value = attribute;
+    };
+
+    const seekToAttribute = (attribute: Attribute, action: 'first' | 'last' | 'next' | 'prev') => {
+      if (selectedTrackIdRef.value !== null) {
+        // Tracks across all cameras get the same attributes set if they are linked
+        const track = cameraStore.getTrack(selectedTrackIdRef.value);
+        let user: null | string = null;
+        if (attribute.user) {
+          user = props.user || store.state.User.user?.login || null;
+        }
+        if (track) {
+          const newFrame = track.getFeatureAttributeFrame(attribute.name, action, frameRef.value, user);
+          if (newFrame !== null) {
+            handler.seekFrame(newFrame);
+          }
+        }
+      }
+    };
+
+    const clearFeatureAttributes = (attribute: Attribute) => {
+      if (selectedTrackIdRef.value !== null) {
+        // Tracks across all cameras get the same attributes set if they are linked
+        const track = cameraStore.getTrack(selectedTrackIdRef.value);
+        let user: null | string = null;
+        if (attribute.user) {
+          user = props.user || store.state.User.user?.login || null;
+        }
+        if (track) {
+          track.clearFeatureAttributeValues(attribute.name, user);
+        }
+      }
     };
 
     return {
@@ -224,6 +255,8 @@ export default defineComponent({
       getUISetting,
       highlightedAttribute,
       selectAttributeRow,
+      seekToAttribute,
+      clearFeatureAttributes,
     };
   },
 });
@@ -319,7 +352,7 @@ export default defineComponent({
           @click="openTimeline('Timeline')"
         />
         <tooltip-btn
-          v-if="mode === 'Detection' && getUISetting('UIAttributeDetails') && user === ''"
+          v-if="mode === 'Detection' && getUISetting('UIAttrnavigateToFeatureAttributeValueibuteDetails') && user === ''"
           icon="mdi-chart-timeline"
           :color="swimlaneActive ? 'primary' : 'default'"
           tooltip-text="Swimlane Settings for Detection Attributes"
@@ -360,26 +393,31 @@ export default defineComponent({
         <tooltip-btn
           icon="mdi-chevron-double-left"
           tooltip-text="Seek to First Value"
+          @click="seekToAttribute(highlightedAttribute, 'first')"
         />
 
         <tooltip-btn
           icon="mdi-chevron-left"
           tooltip-text="Seek to previous Value"
+          @click="seekToAttribute(highlightedAttribute, 'prev')"
         />
 
         <tooltip-btn
           icon="mdi-chevron-right"
           tooltip-text="Seek to next Value"
+          @click="seekToAttribute(highlightedAttribute, 'next')"
         />
 
         <tooltip-btn
           icon="mdi-chevron-double-right"
           tooltip-text="Seek to end Value"
+          @click="seekToAttribute(highlightedAttribute, 'last')"
         />
         <tooltip-btn
           icon="mdi-delete-variant"
           color="yellow"
           tooltip-text="Clear all attribute values"
+          @click="clearFeatureAttributes(highlightedAttribute)"
         />
       </v-row>
     </template>

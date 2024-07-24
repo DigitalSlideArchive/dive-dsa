@@ -30,6 +30,31 @@ export interface Feature {
   tail?: [number, number];
 }
 
+function findAdjacentValue(arr: number[], target: number, direction: 'next' | 'prev'): number | null {
+  let low = 0;
+  let high = arr.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+
+    if (arr[mid] === target) {
+      if (direction === 'next') {
+        return mid + 1 < arr.length ? arr[mid + 1] : null;
+      }
+      return mid - 1 >= 0 ? arr[mid - 1] : null;
+    } if (arr[mid] < target) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  if (direction === 'next') {
+    return low < arr.length ? arr[low] : null;
+  }
+  return high >= 0 ? arr[high] : null;
+}
+
 /** TrackData is the json schema for Track transport */
 export interface TrackData extends BaseData {
   features: Array<Feature>;
@@ -474,9 +499,9 @@ export default class Track extends BaseAnnotation {
       let modified = false;
       if (this.features[frame]) {
         if (user !== null) {
-          if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject).userAttributes === undefined && (((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[name] !== undefined)) {
+          if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject).userAttributes !== undefined && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
             modified = true;
-            delete ((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[name];
+            delete (((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name];
           }
         } else if (this.features[frame].attributes && (this.features[frame].attributes as StringKeyObject)[name] !== undefined) {
           modified = true;
@@ -487,6 +512,30 @@ export default class Track extends BaseAnnotation {
         this.notify('feature', this.features[frame]);
       }
     });
+  }
+
+  getFeatureAttributeFrame(name: string, action: 'first' | 'next' | 'prev' | 'last', startFrame: number = 0, user: null | string = null) {
+    const frameListing: number[] = [];
+    this.features.forEach((feature) => {
+      const { frame } = feature;
+      if (this.features[frame]) {
+        if (user !== null) {
+          if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject).userAttributes !== undefined && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
+            frameListing.push(frame);
+          }
+        } else if (this.features[frame].attributes && (this.features[frame].attributes as StringKeyObject)[name] !== undefined) {
+          frameListing.push(frame);
+        }
+      }
+    });
+    frameListing.sort((a, b) => a - b);
+    if (action === 'first') {
+      return frameListing[0];
+    }
+    if (action === 'last') {
+      return frameListing[frameListing.length - 1];
+    }
+    return findAdjacentValue(frameListing, startFrame, action);
   }
 
   /* Interpolate feature from d0 to d1 @ frame */

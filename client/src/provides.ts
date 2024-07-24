@@ -208,7 +208,7 @@ export interface Handler {
   addFullFrameTrack(trackType: string, trackLength: number): void;
   processAction(action: DIVEAction,
     shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}): void;
-
+  seekFrame(frame: number): void;
 }
 const HandlerSymbol = Symbol('handler');
 
@@ -249,6 +249,7 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     stopLinking(...args) { handle('stopLinking', args); },
     addFullFrameTrack(...args) { handle('addFullFrameTrack', args); },
     processAction(...args) { handle('processAction', args); },
+    seekFrame(...args) { handle('seekFrame', args); },
   };
 }
 
