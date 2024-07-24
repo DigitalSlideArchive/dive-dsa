@@ -162,6 +162,7 @@ export default defineComponent({
         data.frame = Math.floor(newFrame);
         data.flick = Math.round(video.currentTime * Flick);
         data.syncedFrame = data.frame;
+        props.updateTime(data);
         geoViewer.value.scheduleAnimationFrame(syncWithVideo);
       }
       data.currentTime = video.currentTime;
