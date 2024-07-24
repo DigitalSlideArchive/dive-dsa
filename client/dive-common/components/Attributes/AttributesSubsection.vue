@@ -4,6 +4,7 @@ import {
   defineComponent,
   ref,
   PropType,
+  Ref,
   computed,
 } from 'vue';
 import {
@@ -77,6 +78,8 @@ export default defineComponent({
       return null;
     });
 
+    const highlightedAttribute: Ref<Attribute | null> = ref(null);
+
     // Using Revision to nudge the attributes after updating them
     const selectedAttributes = computed(() => {
       if (selectedTrack.value && selectedTrack.value.revision.value) {
@@ -107,7 +110,7 @@ export default defineComponent({
       if (selectedAttributes.value && selectedAttributes.value.attributes) {
         attributeVals = selectedAttributes.value.attributes;
       }
-      return sortAndFilterAttributes(props.attributes, mode, attributeVals, sortingMode.value, additionFilters);
+      return sortAndFilterAttributes(props.attributes, mode, attributeVals, sortingMode.value, additionFilters, highlightedAttribute.value);
     });
 
     const activeAttributesCount = computed(
@@ -189,6 +192,12 @@ export default defineComponent({
       return undefined;
     }
 
+    const selectAttributeRow = (attribute: Attribute) => {
+      console.log('selecting attribute');
+      console.log(attribute);
+      highlightedAttribute.value = attribute;
+    };
+
     return {
       frameRef,
       activeAttributesCount,
@@ -213,6 +222,8 @@ export default defineComponent({
       swimlaneActive,
       filtersActive,
       getUISetting,
+      highlightedAttribute,
+      selectAttributeRow,
     };
   },
 });
@@ -319,6 +330,58 @@ export default defineComponent({
           class="blank-spacer"
         />
       </v-row>
+      <v-row
+        v-if="highlightedAttribute !== null "
+        class="align-center selected-section"
+        no-gutters
+      >
+        <v-col dense>
+          <b class="attribute-header">Selected Attribute:</b>
+          <div
+            no-gutters
+            class="text-caption"
+          >
+            <div
+              class="type-color-box"
+              :style="{
+                backgroundColor: highlightedAttribute.color,
+              }"
+            /><span>{{ highlightedAttribute.name }}:
+            </span>
+          </div>
+        </v-col>
+        <tooltip-btn
+          icon="mdi-close-octagon-outline"
+          color="error"
+          tooltip-text="Deselect Attribute"
+          @click="highlightedAttribute = null"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-double-left"
+          tooltip-text="Seek to First Value"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-left"
+          tooltip-text="Seek to previous Value"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-right"
+          tooltip-text="Seek to next Value"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-double-right"
+          tooltip-text="Seek to end Value"
+        />
+        <tooltip-btn
+          icon="mdi-delete-variant"
+          color="yellow"
+          tooltip-text="Clear all attribute values"
+        />
+      </v-row>
     </template>
 
     <template
@@ -334,6 +397,10 @@ export default defineComponent({
         <span
           v-for="(attribute) of filteredFullAttributes"
           :key="attribute.name"
+          :class="{
+            'detection-row': mode === 'Detection' && !(highlightedAttribute !== null && highlightedAttribute.key === attribute.key),
+            'highlighted-row': highlightedAttribute !== null && highlightedAttribute.key === attribute.key,
+          }"
         >
           <v-row
             v-if="
@@ -341,8 +408,12 @@ export default defineComponent({
                 || selectedAttributes.attributes[attribute.name] !== undefined
             "
             class="ma-0"
+            :class="{
+              'highlighted-row': highlightedAttribute !== null && highlightedAttribute.key === attribute.key,
+            }"
             dense
             align="center"
+            @click="selectAttributeRow(attribute)"
           >
             <v-col class="attribute-name"> <div
               class="type-color-box"
@@ -442,6 +513,20 @@ export default defineComponent({
   min-height: 28px;
   max-width: 28px;
   max-height: 28px;
+}
+
+.highlighted-row {
+  background-color: #005fa288;
+}
+
+.detection-row {
+  :hover {
+    background-color: #005fa2;
+  }
+}
+
+.selected-section {
+  border-top: 1px solid gray;
 }
 
 </style>

@@ -45,7 +45,7 @@ export interface AttributesFilterType {
   addAttributeFilter: (index: number, type: Attribute['belongs'], filter: AttributeFilter) => void;
   modifyAttributeFilter: (index: number, type: Attribute['belongs'], filter: AttributeFilter) => void;
   deleteAttributeFilter: (index: number, type: Attribute['belongs']) => void;
-  sortAndFilterAttributes: (attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[]) => Attribute[];
+  sortAndFilterAttributes: (attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[], highlightedAttribute: Attribute | null) => Attribute[];
   setTimelineEnabled: (name: string, val: boolean) => void;
   setTimelineGraph: (name: string, filter: TimelineGraph) => void;
   setTimelineDefault: (name: string) => void;

@@ -468,6 +468,27 @@ export default class Track extends BaseAnnotation {
     };
   }
 
+  clearFeatureAttributeValues(name: string, user: null | string = null) {
+    this.features.forEach((feature) => {
+      const { frame } = feature;
+      let modified = false;
+      if (this.features[frame]) {
+        if (user !== null) {
+          if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject).userAttributes === undefined && (((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[name] !== undefined)) {
+            modified = true;
+            delete ((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[name];
+          }
+        } else if (this.features[frame].attributes && (this.features[frame].attributes as StringKeyObject)[name] !== undefined) {
+          modified = true;
+          delete (this.features[frame].attributes as StringKeyObject)[name];
+        }
+      }
+      if (modified) {
+        this.notify('feature', this.features[frame]);
+      }
+    });
+  }
+
   /* Interpolate feature from d0 to d1 @ frame */
   static interpolate(frame: number, d0: Feature, d1: Feature): Feature | null {
     if (!d0.interpolate) {

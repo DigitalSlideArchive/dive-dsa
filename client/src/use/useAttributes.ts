@@ -268,9 +268,20 @@ export default function UseAttributes(
    * @param filters - list of filters to applie
    * @returns - sorted list of attributes
    */
-  function sortAndFilterAttributes(attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[]) {
+  function sortAndFilterAttributes(attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number, filters: AttributeFilter[], highlightedAttribute: Attribute | null = null) {
     const sortedAttributes = sortAttributes(attributeList, mode, attribVals, sortingMode);
     const filteredAttributes = filterAttributes(sortedAttributes, mode, attribVals, filters);
+    if (highlightedAttribute) {
+      filteredAttributes.sort((a, b) => {
+        if (a.key === highlightedAttribute.key && b.key !== highlightedAttribute.key) {
+          return -1;
+        }
+        if (a.key !== highlightedAttribute.key && b.key === highlightedAttribute.key) {
+          return 1;
+        }
+        return 0; // Keeps the original order for other elements
+      });
+    }
     return filteredAttributes;
   }
 
