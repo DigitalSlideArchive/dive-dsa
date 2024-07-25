@@ -47,12 +47,15 @@ export default Vue.extend({
   },
   data() {
     return {
+      chartTop: 0,
       x: null,
       tooltip: null,
       startFrame_: this.startFrame,
       endFrame_: this.endFrame,
       hoverTrack: null,
       scrollPos: 0,
+      showSymbols: false,
+      symbolGenerator: null,
     };
   },
   computed: {
@@ -135,6 +138,9 @@ export default Vue.extend({
   mounted() {
     this.initialize();
     this.update();
+    if (this.$refs.chart) {
+      this.chartTop = this.$refs.chart.offsetTop;
+    }
   },
   methods: {
     recordScroll(ev) {
@@ -148,6 +154,7 @@ export default Vue.extend({
         .domain([this.startFrame_, this.endFrame_])
         .range([this.margin, width]);
       this.x = x;
+      this.symbolGenerator = d3.symbol().type(d3.symbolDiamond).size(50);
     },
     update() {
       this.startFrame_ = this.startFrame;
@@ -175,6 +182,20 @@ export default Vue.extend({
           const width = right - left;
           ctx.fillStyle = subSection.color;
           ctx.fillRect(left, bar.top, width, barHeight);
+          if (this.showSymbols) {
+            // Draw symbols at the midpoint of each subSection
+            const path = new Path2D(this.symbolGenerator());
+            ctx.save();
+            ctx.translate(left, bar.top + barHeight / 2);
+            ctx.fillStyle = 'white';
+            ctx.fill(path);
+            // Outline the symbol
+            ctx.strokeStyle = 'black'; // Set the outline color
+            ctx.lineWidth = 1; // Set the outline width
+            ctx.stroke(path);
+
+            ctx.restore();
+          }
         });
       });
     },
@@ -243,6 +264,24 @@ export default Vue.extend({
       @mousewheel.prevent
       @scroll="recordScroll"
     >
+      <v-tooltip
+        open-delay="100"
+        top
+      >
+        <template #activator="{ on }">
+          <div
+            class="yaxisclick"
+            :style="`height: ${clientHeight}px !important; top:${chartTop}px`"
+            v-on="on"
+            @click="showSymbols = !showSymbols; update()"
+          />
+        </template>
+        <span
+          class="ma-0 pa-1"
+        >
+          Click to toggle Symbols for set Values
+        </span>
+      </v-tooltip>
       <canvas
         ref="canvas"
         @mousemove="mousemove"
@@ -287,7 +326,7 @@ export default Vue.extend({
 .event-chart {
   position: relative;
   height: calc(100% - 10px);
-  margin: 5px 0;
+  margin: 0px 0;
   overflow-y: visible;
   overflow-x: hidden;
 
@@ -309,6 +348,19 @@ export default Vue.extend({
   max-width: 10px;
   min-height: 10px;
   max-height: 10px;
+}
+.yaxisclick {
+  width: 20px;
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  background-color: transparent;
+  &:hover {
+    cursor: pointer;
+    border: lightgreen solid 1px;
+    background-color: rgba(144,238,144,0.20);
+
+  }
 }
 
 </style>

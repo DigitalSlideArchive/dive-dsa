@@ -24,6 +24,7 @@ import context from 'dive-common/store/context';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 
 export default defineComponent({
   components: {
@@ -51,6 +52,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const readOnlyMode = useReadOnlyMode();
+    const { prompt } = usePrompt();
+
     const { frame: frameRef } = useTime();
     const selectedTrackIdRef = useSelectedTrackId();
     const store = useStore();
@@ -215,7 +218,16 @@ export default defineComponent({
       }
     };
 
-    const clearFeatureAttributes = (attribute: Attribute) => {
+    const clearFeatureAttributes = async (attribute: Attribute) => {
+      const result = await prompt({
+        title: 'Confirm',
+        text: `Do you want to delete all of ${attribute.name} values?`,
+        confirm: true,
+      });
+      if (!result) {
+        return;
+      }
+
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const track = cameraStore.getTrack(selectedTrackIdRef.value);
@@ -414,7 +426,7 @@ export default defineComponent({
           @click="seekToAttribute(highlightedAttribute, 'last')"
         />
         <tooltip-btn
-          icon="mdi-delete-variant"
+          icon="mdi-delete-alert"
           color="yellow"
           tooltip-text="Clear all attribute values"
           @click="clearFeatureAttributes(highlightedAttribute)"
