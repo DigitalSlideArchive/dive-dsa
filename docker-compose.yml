@@ -3,6 +3,7 @@
 # Use YAML anchors for the common config between both workers
 x-worker: &base-worker
   ipc: host
+  platform: 'linux/amd64'
   build:
     context: .
     dockerfile: docker/girder_worker.Dockerfile
@@ -50,6 +51,7 @@ services:
       - ${MONGO_DB_PATH:-mongo_db}:/data/db
 
   girder:
+    platform: 'linux/amd64'
     build:
       context: .
       dockerfile: docker/girder.Dockerfile
