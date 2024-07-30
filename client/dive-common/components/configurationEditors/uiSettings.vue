@@ -51,7 +51,7 @@ export default defineComponent({
     const setVal = (key: keyof UISettings, val: boolean) => {
       const keyVal = configMan.getUISettingValue(key);
       if (keyVal !== undefined) {
-        if (typeof (keyVal) === 'object') {
+        if (typeof (keyVal) === 'object' && val) {
           return keyVal;
         }
         return val;

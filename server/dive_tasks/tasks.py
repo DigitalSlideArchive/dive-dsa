@@ -139,8 +139,9 @@ def convert_video(
         )
         jsoninfo = json.loads(stdout)
         videostream = list(filter(lambda x: x["codec_type"] == "video", jsoninfo["streams"]))
+        multiple_video_streams = None
         if len(videostream) != 1:
-            raise Exception('Expected 1 video stream, found {}'.format(len(videostream)))
+            multiple_video_streams = "More than One video stream found, defaulting to the first stream"
 
         # Extract average framerate
         avgFpsString: str = videostream[0]["avg_frame_rate"]
@@ -176,6 +177,9 @@ def convert_video(
                     "codec": "h264",
                 },
             )
+            ffprobe_info = videostream[0]
+            if multiple_video_streams:
+                ffprobe_info['multiple_video_streams'] = multiple_video_streams
             gc.addMetadataToFolder(
                 folderId,
                 {
@@ -184,7 +188,8 @@ def convert_video(
                     constants.OriginalFPSStringMarker: avgFpsString,
                     constants.FPSMarker: newAnnotationFps,
                     constants.MarkForPostProcess: False,
-                    "ffprobe_info": videostream[0],
+                    "ffprobe_info": ffprobe_info,
+
                 },
             )
             return

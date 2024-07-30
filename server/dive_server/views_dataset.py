@@ -341,12 +341,12 @@ class DatasetResource(Resource):
         accessList = Folder().getFullAccessList(folder)
         accessUsers = accessList['users']
         userList = []
-        for user in accessUsers:
-            if user['level'] == 2:
+        for subUser in accessUsers:
+            if subUser['level'] == 2:
                 userList.append(
                     {
-                        "name": user['login'],
-                        "id": str(user["id"]),
+                        "name": subUser['login'],
+                        "id": str(subUser["id"]),
                     }
                 )
         accessGroups = accessList['groups']
@@ -445,7 +445,7 @@ class DatasetResource(Resource):
             str(folderParentId), level=AccessType.READ, user=user, force=True
         )
         childFolders = list(
-            Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]])
+            Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]], user=user)
         )
         for index, item in enumerate(childFolders):
             if item.get('_id') == folder.get('_id'):

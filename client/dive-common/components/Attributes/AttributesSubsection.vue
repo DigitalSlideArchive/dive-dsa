@@ -4,7 +4,9 @@ import {
   defineComponent,
   ref,
   PropType,
+  Ref,
   computed,
+  watch,
 } from 'vue';
 import {
   useSelectedTrackId,
@@ -13,6 +15,7 @@ import {
   useReadOnlyMode,
   useAttributesFilters,
   useConfiguration,
+  useHandler,
 } from 'vue-media-annotator/provides';
 import type { Attribute, AttributeFilter } from 'vue-media-annotator/use/AttributeTypes';
 import AttributeInput from 'dive-common/components/Attributes/AttributeInput.vue';
@@ -22,6 +25,7 @@ import context from 'dive-common/store/context';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 
 export default defineComponent({
   components: {
@@ -49,6 +53,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const readOnlyMode = useReadOnlyMode();
+    const { prompt } = usePrompt();
+
     const { frame: frameRef } = useTime();
     const selectedTrackIdRef = useSelectedTrackId();
     const store = useStore();
@@ -58,6 +64,7 @@ export default defineComponent({
       attributeFilters, sortAndFilterAttributes,
       timelineEnabled, swimlaneEnabled,
     } = useAttributesFilters();
+    const handler = useHandler();
     const timelineActive = computed(
       () => (Object.values(timelineEnabled.value).filter((item) => item).length),
     );
@@ -76,6 +83,8 @@ export default defineComponent({
       }
       return null;
     });
+
+    const highlightedAttribute: Ref<Attribute | null> = ref(null);
 
     // Using Revision to nudge the attributes after updating them
     const selectedAttributes = computed(() => {
@@ -107,7 +116,7 @@ export default defineComponent({
       if (selectedAttributes.value && selectedAttributes.value.attributes) {
         attributeVals = selectedAttributes.value.attributes;
       }
-      return sortAndFilterAttributes(props.attributes, mode, attributeVals, sortingMode.value, additionFilters);
+      return sortAndFilterAttributes(props.attributes, mode, attributeVals, sortingMode.value, additionFilters, highlightedAttribute.value);
     });
 
     const activeAttributesCount = computed(
@@ -189,6 +198,59 @@ export default defineComponent({
       return undefined;
     }
 
+    const selectAttributeRow = (attribute: Attribute) => {
+      highlightedAttribute.value = attribute;
+    };
+
+    watch(() => props.attributes, () => {
+      if (highlightedAttribute.value) {
+        const found = filteredFullAttributes.value.find((item) => item.key === highlightedAttribute.value?.key);
+        if (found) {
+          highlightedAttribute.value = found;
+        }
+      }
+    });
+
+    const seekToAttribute = (attribute: Attribute, action: 'first' | 'last' | 'next' | 'prev') => {
+      if (selectedTrackIdRef.value !== null) {
+        // Tracks across all cameras get the same attributes set if they are linked
+        const track = cameraStore.getTrack(selectedTrackIdRef.value);
+        let user: null | string = null;
+        if (attribute.user) {
+          user = props.user || store.state.User.user?.login || null;
+        }
+        if (track) {
+          const newFrame = track.getFeatureAttributeFrame(attribute.name, action, frameRef.value, user);
+          if (newFrame !== null) {
+            handler.seekFrame(newFrame);
+          }
+        }
+      }
+    };
+
+    const clearFeatureAttributes = async (attribute: Attribute) => {
+      const result = await prompt({
+        title: 'Confirm',
+        text: `Do you want to delete all of ${attribute.name} values?`,
+        confirm: true,
+      });
+      if (!result) {
+        return;
+      }
+
+      if (selectedTrackIdRef.value !== null) {
+        // Tracks across all cameras get the same attributes set if they are linked
+        const track = cameraStore.getTrack(selectedTrackIdRef.value);
+        let user: null | string = null;
+        if (attribute.user) {
+          user = props.user || store.state.User.user?.login || null;
+        }
+        if (track) {
+          track.clearFeatureAttributeValues(attribute.name, user);
+        }
+      }
+    };
+
     return {
       frameRef,
       activeAttributesCount,
@@ -213,6 +275,10 @@ export default defineComponent({
       swimlaneActive,
       filtersActive,
       getUISetting,
+      highlightedAttribute,
+      selectAttributeRow,
+      seekToAttribute,
+      clearFeatureAttributes,
     };
   },
 });
@@ -308,7 +374,7 @@ export default defineComponent({
           @click="openTimeline('Timeline')"
         />
         <tooltip-btn
-          v-if="mode === 'Detection' && getUISetting('UIAttributeDetails') && user === ''"
+          v-if="mode === 'Detection' && getUISetting('UIAttrnavigateToFeatureAttributeValueibuteDetails') && user === ''"
           icon="mdi-chart-timeline"
           :color="swimlaneActive ? 'primary' : 'default'"
           tooltip-text="Swimlane Settings for Detection Attributes"
@@ -317,6 +383,63 @@ export default defineComponent({
         <div
           v-else
           class="blank-spacer"
+        />
+      </v-row>
+      <v-row
+        v-if="highlightedAttribute !== null "
+        class="align-center selected-section"
+        no-gutters
+      >
+        <v-col dense>
+          <b class="attribute-header">Selected Attribute:</b>
+          <div
+            no-gutters
+            class="text-caption"
+          >
+            <div
+              class="type-color-box"
+              :style="{
+                backgroundColor: highlightedAttribute.color,
+              }"
+            /><span>{{ highlightedAttribute.name }}:
+            </span>
+          </div>
+        </v-col>
+        <tooltip-btn
+          icon="mdi-close-octagon-outline"
+          color="error"
+          tooltip-text="Deselect Attribute"
+          @click="highlightedAttribute = null"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-double-left"
+          tooltip-text="Seek to First Value"
+          @click="seekToAttribute(highlightedAttribute, 'first')"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-left"
+          tooltip-text="Seek to previous Value"
+          @click="seekToAttribute(highlightedAttribute, 'prev')"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-right"
+          tooltip-text="Seek to next Value"
+          @click="seekToAttribute(highlightedAttribute, 'next')"
+        />
+
+        <tooltip-btn
+          icon="mdi-chevron-double-right"
+          tooltip-text="Seek to end Value"
+          @click="seekToAttribute(highlightedAttribute, 'last')"
+        />
+        <tooltip-btn
+          icon="mdi-delete-alert"
+          color="yellow"
+          tooltip-text="Clear all attribute values"
+          @click="clearFeatureAttributes(highlightedAttribute)"
         />
       </v-row>
     </template>
@@ -333,7 +456,11 @@ export default defineComponent({
       >
         <span
           v-for="(attribute) of filteredFullAttributes"
-          :key="attribute.name"
+          :key="`${attribute.name}_${attribute.user}`"
+          :class="{
+            'detection-row': mode === 'Detection' && !(highlightedAttribute !== null && highlightedAttribute.key === attribute.key),
+            'highlighted-row': highlightedAttribute !== null && highlightedAttribute.key === attribute.key,
+          }"
         >
           <v-row
             v-if="
@@ -341,8 +468,12 @@ export default defineComponent({
                 || selectedAttributes.attributes[attribute.name] !== undefined
             "
             class="ma-0"
+            :class="{
+              'highlighted-row': highlightedAttribute !== null && highlightedAttribute.key === attribute.key,
+            }"
             dense
             align="center"
+            @click="selectAttributeRow(attribute)"
           >
             <v-col class="attribute-name"> <div
               class="type-color-box"
@@ -442,6 +573,20 @@ export default defineComponent({
   min-height: 28px;
   max-width: 28px;
   max-height: 28px;
+}
+
+.highlighted-row {
+  background-color: #005fa288;
+}
+
+.detection-row {
+  :hover {
+    background-color: #005fa2;
+  }
+}
+
+.selected-section {
+  border-top: 1px solid gray;
 }
 
 </style>

@@ -812,6 +812,10 @@ export default function useModeManager({
     }
   }
 
+  function seekFrame(frame: number) {
+    aggregateController.value.seek(frame);
+  }
+
   return {
     selectedTrackId,
     editingGroupId,
@@ -852,6 +856,7 @@ export default function useModeManager({
       stopLinking: handleStopLinking,
       processAction,
       addFullFrameTrack,
+      seekFrame,
     },
   };
 }
