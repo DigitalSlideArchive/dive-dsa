@@ -624,6 +624,9 @@ export default function UseAttributes(
           const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
           Object.keys(userAttr).forEach((key) => {
             const baseAttribute = attributesList.value.find((item) => item.name === key);
+            if (!baseAttribute?.user) {
+              return;
+            }
             if (feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
               const val = processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, lastValue);
               if (val !== null) {

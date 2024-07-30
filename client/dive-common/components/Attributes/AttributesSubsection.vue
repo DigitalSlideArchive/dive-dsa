@@ -6,6 +6,7 @@ import {
   PropType,
   Ref,
   computed,
+  watch,
 } from 'vue';
 import {
   useSelectedTrackId,
@@ -200,6 +201,15 @@ export default defineComponent({
     const selectAttributeRow = (attribute: Attribute) => {
       highlightedAttribute.value = attribute;
     };
+
+    watch(() => props.attributes, () => {
+      if (highlightedAttribute.value) {
+        const found = filteredFullAttributes.value.find((item) => item.key === highlightedAttribute.value?.key);
+        if (found) {
+          highlightedAttribute.value = found;
+        }
+      }
+    });
 
     const seekToAttribute = (attribute: Attribute, action: 'first' | 'last' | 'next' | 'prev') => {
       if (selectedTrackIdRef.value !== null) {
@@ -446,7 +456,7 @@ export default defineComponent({
       >
         <span
           v-for="(attribute) of filteredFullAttributes"
-          :key="attribute.name"
+          :key="`${attribute.name}_${attribute.user}`"
           :class="{
             'detection-row': mode === 'Detection' && !(highlightedAttribute !== null && highlightedAttribute.key === attribute.key),
             'highlighted-row': highlightedAttribute !== null && highlightedAttribute.key === attribute.key,
