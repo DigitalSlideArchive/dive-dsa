@@ -499,7 +499,10 @@ export default class Track extends BaseAnnotation {
       let modified = false;
       if (this.features[frame]) {
         if (user !== null) {
-          if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject).userAttributes !== undefined && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
+          if (this.features[frame].attributes !== undefined
+            && (this.features[frame].attributes as StringKeyObject).userAttributes !== undefined
+            && (((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user])
+            && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
             modified = true;
             delete (((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name];
           }
