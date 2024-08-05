@@ -10,6 +10,7 @@ from girder.exceptions import RestException
 from girder.models.folder import Folder
 
 from dive_utils import constants, models, setContentDisposition
+from dive_utils.serializers import dive, viame
 
 from . import crud, crud_annotation
 
@@ -44,6 +45,7 @@ class AnnotationResource(Resource):
         self.route("PATCH", (), self.save_annotations)
         self.route("PUT", ("track",), self.update_tracks)
         self.route("POST", ("rollback",), self.rollback)
+        self.route("POST", ("process_json",), self.process_json)
 
     @access.user
     @autoDescribeRoute(GetAnnotationParams)
@@ -194,6 +196,59 @@ class AnnotationResource(Resource):
     def rollback(self, folder, revision):
         crud.verify_dataset(folder)
         crud_annotation.rollback(folder, revision)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Upload a Complete TrackJSON File to system and process it for attributes")
+        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+        .jsonParam(
+            "body",
+            "TrackJSON data to upload to the folderId",
+            paramType="body",
+            requireObject=True,
+        )
+        .param(
+            "additive",
+            "Whether to add new annotations to existing ones.  Annotations \
+            will be added with Ids starting at the last existing Id+1",
+            paramType="query",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
+        .param(
+            "additivePrepend",
+            "When using additive the prepend to types: I.E. 'prepend_type' \
+            so the string will be added to all types that are imported",
+            paramType="query",
+            dataType="string",
+            default='',
+            required=False,
+        )
+    )
+    def process_json(self, folder, body, additive, additivePrepend):
+        crud.verify_dataset(folder)
+        user = self.getCurrentUser()
+        annotations = dive.migrate(body)
+        _oldannotations, attributes = viame.load_json_as_track_and_attributes(body)
+        if annotations:
+            updated_tracks = annotations['tracks'].values()
+            if additive:  # get annotations and add them to the end
+                tracks = crud_annotation.add_annotations(
+                    folder, annotations['tracks'], additivePrepend
+                )
+                updated_tracks = tracks.values()
+            print(f'Saving Annotations: {user}')
+            crud_annotation.save_annotations(
+                folder,
+                user,
+                upsert_tracks=updated_tracks,
+                upsert_groups=annotations['groups'].values(),
+                overwrite=True,
+                description=f'POST trackJSON from {user["login"]}',
+            )
+        if attributes:
+            crud.saveImportAttributes(folder, attributes, user)
 
     @access.user
     @autoDescribeRoute(
