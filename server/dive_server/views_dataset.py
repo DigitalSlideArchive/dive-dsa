@@ -510,7 +510,6 @@ class DatasetResource(Resource):
     def get_task_defaults(self, folder):
         return crud_dataset.get_task_defaults(folder, self.getCurrentUser()).dict(exclude_none=True)
 
-
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
         Description("Get a Recursive list of all DIVE Datasets within a parent folder").modelParam(
