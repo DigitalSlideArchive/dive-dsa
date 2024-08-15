@@ -25,7 +25,7 @@
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "dependencies": {
-    "vue-girder-slicer-cli-ui": "0.0.8",
+    "vue-girder-slicer-cli-ui": "0.0.9",
     "@flatten-js/interval-tree": "^1.0.11",
     "@girder/components": "^3.2.0",
     "@mdi/font": "^6.2.95",

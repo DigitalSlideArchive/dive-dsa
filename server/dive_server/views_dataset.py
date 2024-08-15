@@ -56,6 +56,7 @@ class DatasetResource(Resource):
         self.route("GET", (":id",), self.get_meta)
         self.route("GET", (":id", "media"), self.get_media)
         self.route("GET", (":id", "task-defaults"), self.get_task_defaults)
+        self.route("GET", (":id", "recursive"), self.get_recursive)
         self.route("GET", ("export",), self.export)
         self.route("GET", (":id", "configuration"), self.get_configuration)
         self.route("GET", (":id", "export_configuration"), self.export_configuration)
@@ -508,6 +509,28 @@ class DatasetResource(Resource):
     )
     def get_task_defaults(self, folder):
         return crud_dataset.get_task_defaults(folder, self.getCurrentUser()).dict(exclude_none=True)
+
+
+    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @autoDescribeRoute(
+        Description("Get a Recursive list of all DIVE Datasets within a parent folder").modelParam(
+            "id",
+            level=AccessType.READ,
+            **DatasetModelParam,
+        )
+        .param(
+            "limit",
+            "Limit the number of Datasets returned, -1 is no limit",
+            dataType="integer",
+            default=-1,
+            required=False,
+        )
+
+    )
+    def get_recursive(self, folder, limit):
+        datasetList = []
+        crud_dataset.get_recursive_datasets(folder, self.getCurrentUser(), datasetList, limit)
+        return datasetList
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(

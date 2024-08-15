@@ -179,6 +179,19 @@ def get_task_defaults(
     )
 
 
+def get_recursive_datasets(
+    dsFolder: types.GirderModel, user: types.GirderUserModel, datasetList: List[types.GirderModel], limit: int = -1
+):
+    subFolders = list(Folder().childFolders(dsFolder, 'folder', user))
+    for child in subFolders:
+        if child.get('meta', {}).get(constants.DatasetMarker, False):
+            if limit == -1 or len(datasetList) < limit:
+                datasetList.append(child)
+            else:
+                return
+        get_recursive_datasets(child, user, datasetList, limit)
+
+
 def get_media(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> models.DatasetSourceMedia:
