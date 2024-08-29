@@ -678,7 +678,7 @@ class DIVEMetadata(Resource):
             description="The folder to set the key on",
             model=Folder,
             level=AccessType.READ,
-            destName="rootId",
+            destName="folder",
         ).param(
             "key",
             "Metadata key to add",
