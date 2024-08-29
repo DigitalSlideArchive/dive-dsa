@@ -71,7 +71,7 @@ class DIVE_Metadata(Model):
             raise ValidationException('root must be a string')
         return doc
     
-    def updateKey(self, folder, root, owner, key, value, categoricalLimit):
+    def updateKey(self, folder, root, owner, key, value, categoricalLimit=50):
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
@@ -146,7 +146,7 @@ class DIVE_MetadataKeys(Model):
             raise ValidationException('owner must be a string')
         return doc
 
-    def modifyKeyPermission(self, folder, owner, key, locked):
+    def modifyKeyPermission(self, folder, owner, key, unlocked):
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
@@ -159,13 +159,13 @@ class DIVE_MetadataKeys(Model):
                 if not existing.get('unlocked', False):
                     existing['unlocked'] = []
                     self.save(existing)
-                if not locked and key not in existing.get('unlocked', {}):
+                if unlocked and key not in existing.get('unlocked', {}):
                     existing['unlocked'].append(key)
-                if locked and key in existing['unlocked']:
+                if not unlocked and key in existing['unlocked']:
                     existing.remove(key)
                     self.save(existing)
         
-    def addKey(self, folder, owner, key, info={"set": set(), "count": 0, "category": "categorical"}, locked=True):
+    def addKey(self, folder, owner, key, info={"set": set(), "count": 0, "category": "categorical"}, unlocked=True):
         # info is {"type": datatype, "set": set(), "count": 0} may include range: {min: number, max: number}
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
@@ -177,7 +177,7 @@ class DIVE_MetadataKeys(Model):
                 raise Exception(f'Key: {key} already exists in the dataset and cannot be added')
             else:
                 existing["metadataKeys"][key] = info
-                if locked and key not in existing.get('unlocked', {}):
+                if unlocked and key not in existing.get('unlocked', {}):
                     existing['unlocked'].append(key)
                 self.save(existing)
         
