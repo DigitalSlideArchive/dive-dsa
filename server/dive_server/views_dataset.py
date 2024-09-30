@@ -446,7 +446,9 @@ class DatasetResource(Resource):
             str(folderParentId), level=AccessType.READ, user=user, force=True
         )
         childFolders = list(
-            Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]], user=user)
+            Folder().childFolders(
+                folderParent, folderParentType, sort=[['lowerName', 1]], user=user
+            )
         )
         for index, item in enumerate(childFolders):
             if item.get('_id') == folder.get('_id'):
@@ -463,7 +465,6 @@ class DatasetResource(Resource):
                 if index + 1 < len(childFolders):
                     counter = 1
                     while index + counter < len(childFolders):
-                        print(childFolders[index + counter].get('meta', {}))
                         if childFolders[index + counter].get('meta', {}).get('annotate', False):
                             next = childFolders[index + counter]
                             break
@@ -487,7 +488,6 @@ class DatasetResource(Resource):
             'hierarchy': hierarchy,
             'metadata': combinedConfiguration,
         }
-        print(returnVal)
         return json.dumps(returnVal, indent=4)
 
     @access.user
@@ -512,7 +512,8 @@ class DatasetResource(Resource):
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
-        Description("Get a Recursive list of all DIVE Datasets within a parent folder").modelParam(
+        Description("Get a Recursive list of all DIVE Datasets within a parent folder")
+        .modelParam(
             "id",
             level=AccessType.READ,
             **DatasetModelParam,
@@ -524,7 +525,6 @@ class DatasetResource(Resource):
             default=-1,
             required=False,
         )
-
     )
     def get_recursive(self, folder, limit):
         datasetList = []

@@ -114,14 +114,15 @@ class DIVEMetadata(Resource):
             ),
             self.filter_folder,
         )
+        self.route("POST", ("create_metadata_folder", ":id"), self.create_metadata_folder)
         self.route("POST", (':id', "clone_filter"), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
         self.route("DELETE", (':rootId',), self.delete_metadata)
-        self.route("DELETE", (':rootId','delete_key'), self.delete_metadata_key)
-        self.route("PUT", (':rootId','add_key'), self.add_metadata_key)
-        self.route("PATCH", (':rootId','modify_key_permission'), self.modify_key_permission)
-        self.route("PATCH", (':folderId',), self.set_key_value)
+        self.route("DELETE", (':rootId', 'delete_key'), self.delete_metadata_key)
+        self.route("PUT", (':root', 'add_key'), self.add_metadata_key)
+        self.route("PATCH", (':root', 'modify_key_permission'), self.modify_key_permission)
+        self.route("PATCH", (':divedataset',), self.set_key_value)
 
     @access.user
     @autoDescribeRoute(
@@ -191,7 +192,15 @@ class DIVEMetadata(Resource):
         )
     )
     def process_metadata(
-        self, folder, sibling_path, fileType, matcher, path_key, displayConfig, ffprobeMetadata, categoricalLimit
+        self,
+        folder,
+        sibling_path,
+        fileType,
+        matcher,
+        path_key,
+        displayConfig,
+        ffprobeMetadata,
+        categoricalLimit,
     ):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
@@ -263,12 +272,22 @@ class DIVEMetadata(Resource):
                             if modified_path:
                                 if modified_path == resource_path:
                                     item['pathMatches'] = True
-                                    if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
-                                        ffmetadata = datasetFolder.get('meta', {}).get('ffprobe_info', {})
+                                    # add in DIVE Keys:
+                                    item['DIVE_DatasetId'] = str(datasetFolder['_id'])
+                                    item['DIVE_Name'] = datasetFolder['lowerName']
+                                    datasetFolder.get('name')
+                                    if ffprobeMetadata.get(
+                                        'import', False
+                                    ):  # Add in ffprobe metadata to the system
+                                        ffmetadata = datasetFolder.get('meta', {}).get(
+                                            'ffprobe_info', {}
+                                        )
                                         ffkeys = ffprobeMetadata.get('keys', [])
                                         for ffMetadataKey in ffkeys:
                                             if ffmetadata.get(ffMetadataKey, False):
-                                                item[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(ffMetadataKey, False)
+                                                item[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(
+                                                    ffMetadataKey, False
+                                                )
                                     DIVE_Metadata().createMetadata(
                                         datasetFolder, folder, user, item
                                     )
@@ -342,6 +361,143 @@ class DIVEMetadata(Resource):
 
     @access.user
     @autoDescribeRoute(
+        Description("Processing a folder and any children folder that have a specified format")
+        .modelParam(
+            "id",
+            description="Parent Folder of where to add the new metadata folder",
+            model=Folder,
+            level=AccessType.WRITE,
+        )
+        .param(
+            "name",
+            description="Metadata Folder Name",
+            paramType="formData",
+            dataType="string",
+            default='New Metadata Folder Name',
+            required=False,
+        )
+        .param(
+            "rootFolderId",
+            "Root folder to search for all files underneath and crate metadata entries for all of them",
+            paramType="formData",
+            dataType="string",
+            required=True,
+        )
+        .jsonParam(
+            "displayConfig",
+            "List of Main Display Keys for the metadata and keys to hide from the filter",
+            required=True,
+            default={
+                "display": ['DIVE_DatasetId', 'DIVE_Name'],
+                "hide": [""],
+            },
+        )
+        .jsonParam(
+            "ffprobeMetadata",
+            "List Metadata keys to extract from the ffprobe metadata from videos.  Setting 'import' to 'true' will import the data",
+            required=True,
+            default={
+                "import": True,
+                "keys": ["width", "height", "display_aspect_ratio"],
+            },
+        )
+        .param(
+            "categoricalLimit",
+            "Above this number make a field a search field instead of a dropdown",
+            paramType="formData",
+            dataType="integer",
+            default=50,
+        )
+    )
+    def create_metadata_folder(
+        self, folder, name, rootFolderId, displayConfig, ffprobeMetadata, categoricalLimit
+    ):
+        # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
+        # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
+        user = self.getCurrentUser()
+        # first determine the search folder for the system
+        search_folder = rootFolderId
+
+        base_folder = Folder().createFolder(folder, name)
+        data = None
+        errorLog = []
+        added = 0
+        metadataKeys = {}
+        datasetList = []
+        rootFolder = Folder().load(
+            rootFolderId,
+            level=AccessType.READ,
+            user=user,
+            force=True,
+        )
+        crud_dataset.get_recursive_datasets(rootFolder, user, datasetList)
+
+        for item in datasetList:
+            data = {}
+            data['DIVE_DatasetId'] = str(item['_id'])
+            data['DIVE_Name'] = str(item['lowerName'])
+            if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
+                ffmetadata = item.get('meta', {}).get('ffprobe_info', {})
+                ffkeys = ffprobeMetadata.get('keys', [])
+                for ffMetadataKey in ffkeys:
+                    if ffmetadata.get(ffMetadataKey, False):
+                        data[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(ffMetadataKey, False)
+            DIVE_Metadata().createMetadata(item, base_folder, user, data)
+            for key in data.keys():
+                if key not in metadataKeys.keys() and data[key] is not None:
+                    datatype = python_to_javascript_type(type(data[key]))
+                    metadataKeys[key] = {"type": datatype, "set": set(), "count": 0}
+                if data[key] is None:
+                    continue  # we skip null values for processing
+                if metadataKeys[key]['type'] == 'string':
+                    metadataKeys[key]['set'].add(data[key])
+                    metadataKeys[key]['count'] += 1
+                if metadataKeys[key]['type'] == 'array':
+                    for arrayitem in data[key]:
+                        if python_to_javascript_type(type(arrayitem)) == 'string':
+                            metadataKeys[key]['set'].add(arrayitem)
+                    metadataKeys[key]['count'] += 1
+                if metadataKeys[key]['type'] == 'number':
+                    if 'range' not in metadataKeys[key].keys():
+                        metadataKeys[key]['range'] = {"min": data[key], "max": data[key]}
+                    metadataKeys[key]['range'] = {
+                        "min": min(data[key], metadataKeys[key]["range"]["min"]),
+                        "max": max(data[key], metadataKeys[key]["range"]["max"]),
+                    }
+
+            # now we need to determine what is categorical vs what is a search field
+        for key in metadataKeys.keys():
+            item = metadataKeys[key]
+            metadataKeys[key]["unique"] = len(item["set"])
+            if item["type"] in ['string', 'array'] and (
+                item["unique"] < categoricalLimit
+                or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
+            ):
+                metadataKeys[key]["category"] = "categorical"
+                metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
+            elif item["type"] == 'string':
+                metadataKeys[key]["category"] = "search"
+                del metadataKeys[key]['set']
+            elif item["type"] == 'number':
+                metadataKeys[key]["category"] = "numerical"
+                del metadataKeys[key]['set']
+            else:
+                del metadataKeys[key]['set']
+        DIVE_MetadataKeys().createMetadataKeys(base_folder, user, metadataKeys)
+        # add metadata to root folder for
+        base_folder['meta'][DIVEMetadataMarker] = True
+        displayConfig['categoricalLimit'] = categoricalLimit
+        base_folder['meta'][DIVEMetadataFilter] = displayConfig
+        Folder().save(base_folder)
+
+        return {
+            "results": f"added {added} folders",
+            "errors": errorLog,
+            "metadataKeys": metadataKeys,
+        }
+
+    @access.user
+    @autoDescribeRoute(
         Description(
             "Get a list of filter keys for a specific folder.  This is more used for debugging values in the metadata"
         ).modelParam(
@@ -361,6 +517,16 @@ class DIVEMetadata(Resource):
             query=query,
             user=user,
         )
+        keys = metadata_key['metadataKeys']
+        for key in keys:
+            item = keys[key]
+            if item['category'] == 'numerical':
+                if (
+                    item['range']
+                    and item['range']['min'] == float('inf')
+                    or item['range']['max'] == float('-inf')
+                ):
+                    item['range'] = {'min': 0, 'max': 0}
         return metadata_key
 
     @access.user
@@ -548,42 +714,41 @@ class DIVEMetadata(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Delete Folder VideoState").modelParam(
-            "rootId",
+        Description("Delete Folder Metadata").modelParam(
+            "root",
             description="FolderId to get state from",
             model=Folder,
             level=AccessType.READ,
-            destName="rootId",
+            destName="root",
         )
     )
-    def delete_metadata(self, rootId):
+    def delete_metadata(self, root):
         user = self.getCurrentUser()
-        query = {"root": str(rootId["_id"])}
+        query = {"root": str(root["_id"])}
         found = DIVE_Metadata().findOne(query=query, user=user)
         if found:
             DIVE_Metadata().removeWithQuery(query)
             DIVE_MetadataKeys().removeWithQuery(query)
-            rootId = Folder().setMetadata(
-                rootId, {DIVEMetadataMarker: None, DIVEMetadataFilter: None}
-            )
-            Folder().save(rootId)
+            root = Folder().setMetadata(root, {DIVEMetadataMarker: None, DIVEMetadataFilter: None})
+            Folder().save(root)
         else:
             raise RestException('Could not find a state to delete')
 
     @access.user
     @autoDescribeRoute(
-        Description("Delete Metadata Key from Metadata Folder").modelParam(
+        Description("Delete Metadata Key from Metadata Folder")
+        .modelParam(
             "rootId",
             description="Root metadata FolderId",
             model=Folder,
             level=AccessType.READ,
             destName="rootId",
-        ).param(
+        )
+        .param(
             "key",
             "Metadata key to remove",
             required=True,
         )
-
     )
     def delete_metadata_key(self, rootId, key):
         user = self.getCurrentUser()
@@ -596,23 +761,27 @@ class DIVEMetadata(Resource):
             raise RestException(f'Could not Metadata for FolderId: {rootId["_id"]} to delete key.')
 
     @autoDescribeRoute(
-        Description("Add Metadata Key to Metdata Folder").modelParam(
-            "rootId",
+        Description("Add Metadata Key to Metdata Folder")
+        .modelParam(
+            "root",
             description="Root metadata FolderId",
             model=Folder,
             level=AccessType.READ,
-            destName="rootId",
-        ).param(
+            destName="root",
+        )
+        .param(
             "key",
             "Metadata key to add",
             required=False,
-        ).param(
+        )
+        .param(
             "category",
             "type of metadata to add",
             enum=['numerical', 'categorical', 'search', 'boolean'],
             required=True,
             default='numerical',
-        ).param(
+        )
+        .param(
             "unlocked",
             "If this value for each metadata item should be modified by regular users",
             dataType='boolean',
@@ -623,83 +792,87 @@ class DIVEMetadata(Resource):
             "values",
             "List of values, either numbers for numerical category or string for categorical, for search this field isn't required. I.E ['key1', 'key2'] or [0, 20]",
             required=False,
-            default=[]
+            default=[],
         )
     )
-    def add_metadata_key(self, rootId, key, category, unlocked, values=[]):
+    def add_metadata_key(self, root, key, category, unlocked, values=[]):
         user = self.getCurrentUser()
-        query = {"root": str(rootId["_id"])}
+        query = {"root": str(root["_id"])}
         found = DIVE_Metadata().findOne(query=query, user=user)
         if found:
-            info= { "count": 0, "category": category}
+            info = {"count": 0, "category": category}
             if category == 'categorical':
                 info['set'] = set(values)
             if category == 'numerical':
-                info['range'] = { 'min': float('inf'), 'max': float('-inf')}
-            DIVE_MetadataKeys().addKey(rootId["_Id"], user, key, info, unlocked)
-            Folder().save(rootId)
+                info['range'] = {'min': float('inf'), 'max': float('-inf')}
+            DIVE_MetadataKeys().addKey(root, user, key, info, unlocked)
+            Folder().save(root)
         else:
-            raise RestException(f'Could not Metadata for FolderId: {rootId["_id"]} to delete key.')
-        
+            raise RestException(f'Could not Metadata for FolderId: {root["_id"]} to delete key.')
+
     @autoDescribeRoute(
-        Description("Add Metadata Key to Metdata Folder").modelParam(
-            "rootId",
+        Description("Add Metadata Key to Metdata Folder")
+        .modelParam(
+            "root",
             description="Root metadata FolderId",
             model=Folder,
             level=AccessType.READ,
-            destName="rootId",
-        ).param(
+            destName="root",
+        )
+        .param(
             "key",
             "Metadata key to add",
             required=False,
-        ).param(
+        )
+        .param(
             "unlocked",
             "If this value for each metadata item should be modified by regular users",
             dataType='boolean',
             required=True,
             default=False,
         )
-
     )
-    def modify_key_permission(self, rootId, key, unlocked):
+    def modify_key_permission(self, root, key, unlocked):
         user = self.getCurrentUser()
-        query = {"root": str(rootId["_id"])}
+        query = {"root": str(root["_id"])}
         found = DIVE_Metadata().findOne(query=query, user=user)
         if found:
-            DIVE_MetadataKeys().modifyKeyPermission(rootId["_Id"], user, key, unlocked)
-            Folder().save(rootId)
+            DIVE_MetadataKeys().modifyKeyPermission(root, user, key, unlocked)
+            Folder().save(root)
         else:
-            raise RestException(f'Could not Metadata for FolderId: {rootId["_id"]} to delete key.')
-        
+            raise RestException(f'Could not Metadata for FolderId: {root["_id"]} to delete key.')
 
     @autoDescribeRoute(
-        Description("Set MetadataKey value for a folder").modelParam(
-            "folder",
+        Description("Set MetadataKey value for a folder")
+        .modelParam(
+            "divedataset",
             description="The folder to set the key on",
             model=Folder,
-            level=AccessType.READ,
-            destName="folder",
-        ).param(
+            level=AccessType.WRITE,
+            destName="divedataset",
+        )
+        .param(
             "key",
             "Metadata key to add",
             required=False,
-        ).param(
+        )
+        .param(
             "value",
             "Value to set the key to, empty is a None value",
             required=True,
             default=None,
         )
-
     )
-    def set_key_value(self, folder, key, value):
+    def set_key_value(self, divedataset, key, value):
         user = self.getCurrentUser()
-        query = {"DIVEDataset": str(folder["_id"])}
+        query = {"DIVEDataset": str(divedataset["_id"])}
         found = DIVE_Metadata().findOne(query=query, user=user)
         if found:
             rootId = found['root']
             rootFolder = Folder().load(rootId, user=user)
-            categoricalLimit = rootFolder['meta'].get(DIVEMetadataFilter, {}).get('categoricalLimit', 50)
-            DIVE_Metadata().updateKey(folder["id"],rootId["_Id"], user, key, value, categoricalLimit)
-            Folder().save(rootId)
+            categoricalLimit = (
+                rootFolder['meta'].get(DIVEMetadataFilter, {}).get('categoricalLimit', 50)
+            )
+            DIVE_Metadata().updateKey(divedataset, rootId, user, key, value, categoricalLimit)
         else:
             raise RestException(f'Could not Metadata for FolderId: {rootId["_id"]} to delete key.')

@@ -61,8 +61,6 @@ class DIVE_Metadata(Model):
             existing['root'] = str(root['_id'])
         existing = self.save(existing)
         return existing
-    
-
 
     def validate(self, doc):
         if not doc.get('DIVEDataset') or not isinstance(doc['DIVEDataset'], str):
@@ -70,25 +68,27 @@ class DIVE_Metadata(Model):
         if 'root' not in doc or not isinstance(doc['root'], str):
             raise ValidationException('root must be a string')
         return doc
-    
+
     def updateKey(self, folder, root, owner, key, value, categoricalLimit=50):
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
-        query = {'root': str(folder['_id'])}
+        query = {'root': existing['root']}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,
-            user=owner,
+            owner=str(owner['_id']),
         )
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
         if key not in metadataKeys['unlocked']:
             raise Exception(f'Key {key} is not unlocked for this metadata and cannot be modified')
-        existing['metadata'][key] = value
+        if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
+            existing['metadata'][key] = float(value)
+        else:
+            existing['metadata'][key] = value
         self.save(existing)
         # now we need to update the metadataKey
-        DIVE_MetadataKeys().updateKeyValue(folder, owner, key, value, categoricalLimit)
-
+        DIVE_MetadataKeys().updateKeyValue(existing['root'], owner, key, value, categoricalLimit)
 
 
 class DIVE_MetadataKeys(Model):
@@ -113,6 +113,7 @@ class DIVE_MetadataKeys(Model):
         self.ensureIndices(
             [
                 'root',
+                'owner',
                 (
                     [
                         ('created', SortDir.ASCENDING),
@@ -135,9 +136,11 @@ class DIVE_MetadataKeys(Model):
                 metadataKeys=metadataKeys,
                 unlocked=[],
                 created=created,
+                owner=str(owner['_id']),
             )
         else:
             existing['metadataKeys'] = metadataKeys
+            existing['owner'] = str(owner['_id'])
         self.save(existing)
         return existing
 
@@ -150,7 +153,7 @@ class DIVE_MetadataKeys(Model):
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
-        if owner and self.owner != owner:
+        if owner['_id'] and existing['owner'] != str(owner['_id']):
             raise Exception('Only the Owner can modify key permissions')
         elif existing:
             if key not in existing['metadataKeys'].keys():
@@ -164,13 +167,20 @@ class DIVE_MetadataKeys(Model):
                 if not unlocked and key in existing['unlocked']:
                     existing.remove(key)
                     self.save(existing)
-        
-    def addKey(self, folder, owner, key, info={"set": set(), "count": 0, "category": "categorical"}, unlocked=True):
+
+    def addKey(
+        self,
+        folder,
+        owner,
+        key,
+        info={"set": set(), "count": 0, "category": "categorical"},
+        unlocked=True,
+    ):
         # info is {"type": datatype, "set": set(), "count": 0} may include range: {min: number, max: number}
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
-        if owner and self.owner != owner:
+        if owner['_id'] and existing['owner'] != str(owner['_id']):
             raise Exception('Only the Owner can modify key permissions')
         elif existing:
             if key in existing['metadataKeys'].keys():
@@ -180,12 +190,12 @@ class DIVE_MetadataKeys(Model):
                 if unlocked and key not in existing.get('unlocked', {}):
                     existing['unlocked'].append(key)
                 self.save(existing)
-        
+
     def deleteKey(self, folder, owner, key):
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
-        if owner and self.owner != owner:
+        if owner['_id'] and existing['owner'] != str(owner['_id']):
             raise Exception('Only the Owner can modify key permissions')
         elif existing:
             if key in existing['unlocked']:
@@ -196,15 +206,13 @@ class DIVE_MetadataKeys(Model):
             else:
                 raise Exception(f'Key: {key} not found in the current metdata')
 
-
-
-    def updateKeyValue(self, folder, owner, key, value, categoricalLimit):
-        existing = self.findOne({'root': str(folder['_id'])})
+    def updateKeyValue(self, folderId, owner, key, value, categoricalLimit):
+        existing = self.findOne({'root': folderId})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
+            raise Exception(f'Note MetadataKeys with folderId: {folderId} not found')
         if key not in existing['metadataKeys'].keys():
             raise Exception(f'Key: {key} is not in the metadata')
-        keyData = existing['metdataKeys'][key]
+        keyData = existing['metadataKeys'][key]
         category = keyData['category']
         if category == 'categorical':
             if len(keyData['set']) + 1 < categoricalLimit:
@@ -214,9 +222,8 @@ class DIVE_MetadataKeys(Model):
                 del keyData['set']
         if category == 'numerical' and keyData.get('range', False):
             range = keyData['range']
-            range['min'] = min(value, range['min'])
-            range['max'] = max(value, range['max'])
+            range['min'] = min(float(value), float(range['min']))
+            range['max'] = max(float(value), float(range['max']))
             keyData['range'] = range
-        existing['metdataKeys'][key] = keyData
+        existing['metadataKeys'][key] = keyData
         self.save(existing)
-

@@ -141,7 +141,9 @@ def convert_video(
         videostream = list(filter(lambda x: x["codec_type"] == "video", jsoninfo["streams"]))
         multiple_video_streams = None
         if len(videostream) != 1:
-            multiple_video_streams = "More than One video stream found, defaulting to the first stream"
+            multiple_video_streams = (
+                "More than One video stream found, defaulting to the first stream"
+            )
 
         # Extract average framerate
         avgFpsString: str = videostream[0]["avg_frame_rate"]
@@ -189,7 +191,6 @@ def convert_video(
                     constants.FPSMarker: newAnnotationFps,
                     constants.MarkForPostProcess: False,
                     "ffprobe_info": ffprobe_info,
-
                 },
             )
             return
