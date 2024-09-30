@@ -53,12 +53,13 @@ class DIVE_Metadata(Model):
                 root=str(root['_id']),
                 metadata=metadata,
                 created=created,
-                owner=owner,
+                owner=str(owner['_id']),
             )
         else:
             existing['metadata'] = metadata
             existing['filename'] = str(folder['name'])
             existing['root'] = str(root['_id'])
+            existing['owner'] = str(owner['_id'])
         existing = self.save(existing)
         return existing
 
@@ -89,6 +90,20 @@ class DIVE_Metadata(Model):
         self.save(existing)
         # now we need to update the metadataKey
         DIVE_MetadataKeys().updateKeyValue(existing['root'], owner, key, value, categoricalLimit)
+
+    def deleteKey(self, folder, root, owner, key):
+        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
+        query = {'root': existing['root']}
+        metadataKeys = DIVE_MetadataKeys().findOne(
+            query=query,
+            owner=str(owner['_id']),
+        )
+        if not metadataKeys:
+            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+        del existing['metadata'][key]
+        self.save(existing)
 
 
 class DIVE_MetadataKeys(Model):
@@ -164,6 +179,7 @@ class DIVE_MetadataKeys(Model):
                     self.save(existing)
                 if unlocked and key not in existing.get('unlocked', {}):
                     existing['unlocked'].append(key)
+                    self.save(existing)
                 if not unlocked and key in existing['unlocked']:
                     existing.remove(key)
                     self.save(existing)

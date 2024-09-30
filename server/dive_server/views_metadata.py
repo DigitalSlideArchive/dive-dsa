@@ -118,11 +118,19 @@ class DIVEMetadata(Resource):
         self.route("POST", (':id', "clone_filter"), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
-        self.route("DELETE", (':rootId',), self.delete_metadata)
+        self.route(
+            "DELETE",
+            (
+                ':rootId',
+                'root_metadata',
+            ),
+            self.delete_metadata,
+        )
         self.route("DELETE", (':rootId', 'delete_key'), self.delete_metadata_key)
         self.route("PUT", (':root', 'add_key'), self.add_metadata_key)
         self.route("PATCH", (':root', 'modify_key_permission'), self.modify_key_permission)
         self.route("PATCH", (':divedataset',), self.set_key_value)
+        self.route("DELETE", (':divedataset',), self.delete_key_value)
 
     @access.user
     @autoDescribeRoute(
@@ -752,13 +760,16 @@ class DIVEMetadata(Resource):
     )
     def delete_metadata_key(self, rootId, key):
         user = self.getCurrentUser()
-        query = {"root": str(rootId["_id"])}
-        found = DIVE_Metadata().findOne(query=query, user=user)
+        query = {"root": str(rootId["_id"]), "owner": str(user['_id'])}
+        found = DIVE_MetadataKeys().findOne(query=query, user=user)
+        print(found)
         if found:
-            DIVE_MetadataKeys().deleteKey(rootId["_Id"], user, key)
+            DIVE_MetadataKeys().deleteKey(rootId, user, key)
             Folder().save(rootId)
         else:
-            raise RestException(f'Could not Metadata for FolderId: {rootId["_id"]} to delete key.')
+            raise RestException(
+                f'Could not find Metadata for FolderId: {rootId["_id"]} to delete key.'
+            )
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -797,8 +808,8 @@ class DIVEMetadata(Resource):
     )
     def add_metadata_key(self, root, key, category, unlocked, values=[]):
         user = self.getCurrentUser()
-        query = {"root": str(root["_id"])}
-        found = DIVE_Metadata().findOne(query=query, user=user)
+        query = {"root": str(root["_id"]), "owner": str(user['_id'])}
+        found = DIVE_MetadataKeys().findOne(query=query)
         if found:
             info = {"count": 0, "category": category}
             if category == 'categorical':
@@ -808,7 +819,7 @@ class DIVEMetadata(Resource):
             DIVE_MetadataKeys().addKey(root, user, key, info, unlocked)
             Folder().save(root)
         else:
-            raise RestException(f'Could not Metadata for FolderId: {root["_id"]} to delete key.')
+            raise RestException(f'Could not find for FolderId: {root["_id"]} to delete key.')
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -835,12 +846,14 @@ class DIVEMetadata(Resource):
     def modify_key_permission(self, root, key, unlocked):
         user = self.getCurrentUser()
         query = {"root": str(root["_id"])}
-        found = DIVE_Metadata().findOne(query=query, user=user)
+        found = DIVE_MetadataKeys().findOne(query=query, owner=str(user['_id']))
         if found:
             DIVE_MetadataKeys().modifyKeyPermission(root, user, key, unlocked)
             Folder().save(root)
         else:
-            raise RestException(f'Could not Metadata for FolderId: {root["_id"]} to delete key.')
+            raise RestException(
+                f'Could not find Metadata for FolderId: {root["_id"]} to delete key.'
+            )
 
     @autoDescribeRoute(
         Description("Set MetadataKey value for a folder")
@@ -875,4 +888,29 @@ class DIVEMetadata(Resource):
             )
             DIVE_Metadata().updateKey(divedataset, rootId, user, key, value, categoricalLimit)
         else:
-            raise RestException(f'Could not Metadata for FolderId: {rootId["_id"]} to delete key.')
+            raise RestException(f'Could not find for FolderId: {rootId["_id"]} to delete key.')
+
+    @autoDescribeRoute(
+        Description("Delete a key from a specific DIVE Dataset")
+        .modelParam(
+            "divedataset",
+            description="The folder to delete the key from",
+            model=Folder,
+            level=AccessType.WRITE,
+            destName="divedataset",
+        )
+        .param(
+            "key",
+            "Metadata key to delete",
+            required=False,
+        )
+    )
+    def delete_key_value(self, divedataset, key):
+        user = self.getCurrentUser()
+        query = {"DIVEDataset": str(divedataset["_id"])}
+        found = DIVE_Metadata().findOne(query=query, user=user)
+        if found:
+            rootId = found['root']
+            DIVE_Metadata().deleteKey(divedataset, rootId, user, key)
+        else:
+            raise RestException(f'Could not find for FolderId: {divedataset["_id"]} to delete key.')
