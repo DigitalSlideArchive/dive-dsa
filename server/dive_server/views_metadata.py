@@ -423,8 +423,6 @@ class DIVEMetadata(Resource):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
-        # first determine the search folder for the system
-        search_folder = rootFolderId
 
         base_folder = Folder().createFolder(folder, name)
         data = None
@@ -806,7 +804,7 @@ class DIVEMetadata(Resource):
             default=[],
         )
     )
-    def add_metadata_key(self, root, key, category, unlocked, values=[]):
+    def add_metadata_key(self, root, key, category, unlocked, values=[]):  # noqa: B006
         user = self.getCurrentUser()
         query = {"root": str(root["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query)

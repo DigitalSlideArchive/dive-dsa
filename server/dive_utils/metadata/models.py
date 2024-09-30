@@ -39,7 +39,7 @@ class DIVE_Metadata(Model):
             ]
         )
 
-    def createMetadata(self, folder, root, owner, metadata, created_date=None, unlocked=[]):
+    def createMetadata(self, folder, root, owner, metadata, created_date=None):   # noqa: B006
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             if created_date is None:
@@ -138,7 +138,7 @@ class DIVE_MetadataKeys(Model):
             ]
         )
 
-    def createMetadataKeys(self, root, owner, metadataKeys, created_date=None, unlocked=[]):
+    def createMetadataKeys(self, root, owner, metadataKeys, created_date=None):
         existing = self.findOne({'root': str(root['_id'])})
         if not existing:
             if created_date is None:
@@ -189,7 +189,7 @@ class DIVE_MetadataKeys(Model):
         folder,
         owner,
         key,
-        info={"set": set(), "count": 0, "category": "categorical"},
+        info={"set": set(), "count": 0, "category": "categorical"},  # noqa: B006
         unlocked=True,
     ):
         # info is {"type": datatype, "set": set(), "count": 0} may include range: {min: number, max: number}
