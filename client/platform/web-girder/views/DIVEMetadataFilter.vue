@@ -43,6 +43,10 @@ export default defineComponent({
       default: () => {},
 
     },
+    ownerAdmin: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const { prompt } = usePrompt();
@@ -236,6 +240,23 @@ export default defineComponent({
           </v-icon>
           Advanced Filters
         </v-btn>
+        <v-btn
+          class="ma-1 pa-0"
+          outlined
+          color="warning"
+          text
+          x-small
+          :to="`/metadata-edit/${id}`"
+        >
+          <v-icon
+            left
+            class="mx-1"
+          >
+            mdi-pencil
+          </v-icon>
+          Edit Filters
+        </v-btn>
+
         <v-spacer />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select

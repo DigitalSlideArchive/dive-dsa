@@ -35,6 +35,7 @@ export interface DIVEMetadataFilterValueResults {
     created: string;
     root: string;
     metadataKeys: Record<string, MetadataFilterKeysItem>;
+    unlocked: string[];
 }
 
 export interface DIVEMetadataResults {

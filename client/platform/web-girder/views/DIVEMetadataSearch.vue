@@ -6,6 +6,7 @@ import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
+import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -32,6 +33,7 @@ export default defineComponent({
     const currentPage = ref(0);
     const count = ref(0);
     const filtered = ref(0);
+    const girderRest = useGirderRest();
     const filters: Ref<DIVEMetadataFilter> = ref(props.filter || {});
     const locationStore = {
       _id: props.id,
@@ -39,7 +41,7 @@ export default defineComponent({
     };
 
     const currentFilter: Ref<DIVEMetadataFilter> = ref(props.filter || {});
-
+    const isOwnerAdmin = ref(false);
     const processFilteredMetadataResults = (data: DIVEMetadataResults) => {
       folderList.value = data.pageResults;
       totalPages.value = data.totalPages;
@@ -55,6 +57,9 @@ export default defineComponent({
       const folder = (await getFolder(id)).data;
       if (folder.meta.DIVEMetadata) {
         displayConfig.value = folder.meta.DIVEMetadataFilter;
+      }
+      if (folder.creatorId === girderRest.user._id || girderRest.user.admin) {
+        isOwnerAdmin.value = true;
       }
     };
 
