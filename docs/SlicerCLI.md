@@ -1,8 +1,7 @@
 ### Slicer CLI Task Runner
 
-**BETA Feature** 
 
-This a temporary tool to use Girder Slicer CLI inside of DIVE itself.
+This a tool to use Girder Slicer CLI inside of DIVE itself.
 
 When enabled there is a an icon * ==:material-docker:== in the main toolbar that will open the Slicer CLI task tool.
 

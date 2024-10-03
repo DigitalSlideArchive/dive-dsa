@@ -74,8 +74,68 @@ function createDiveMetadataClone(folder: string, filters: DIVEMetadataFilter, de
   });
 }
 
+function createDiveMetadataFolder(
+  parentFolder: string,
+  name: string,
+  rootFolderId: string,
+  categoricalLimit = 50,
+  displayConfig = {
+    display: ['DIVE_DatasetId', 'DIVE_Name'],
+  },
+  ffprobeMetadata = {
+    import: true, keys: ['width', 'height', 'display_aspect_ratio'],
+  },
+) {
+  return girderRest.post<DIVEMetadataResults>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
+    params: {
+      name, rootFolderId, categoricalLimit, displayConfig, ffprobeMetadata,
+    },
+  });
+}
+
+function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, unlocked: boolean) {
+  return girderRest.patch(`dive_metadata/${rootMetadataFolder}/modify_key_permission`, null, {
+    params: {
+      key, unlocked,
+    },
+  });
+}
+
+function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, values = []) {
+  return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
+    params: {
+      key, category, unlocked, values,
+    },
+  });
+}
+
+function deleteDiveMetadataKey(rootMetadataFolder:string, key: string) {
+  return girderRest.delete(`dive_metadata/${rootMetadataFolder}/delete_key`, {
+    params: {
+      key,
+    },
+  });
+}
+
+function deleteDiveDatasetMetadataKey(diveDatasetId: string, key: string) {
+  return girderRest.delete(`dive_metadata/${diveDatasetId}`, { params: { key } });
+}
+function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, value: number | string | boolean) {
+  return girderRest.patch(`dive_metadata/${diveDatasetId}`, {
+    params: {
+      key, value,
+    },
+  });
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
   createDiveMetadataClone,
+  createDiveMetadataFolder,
+  modifyDiveMetadataPermission,
+  addDiveMetadataKey,
+  deleteDiveMetadataKey,
+  deleteDiveDatasetMetadataKey,
+  setDiveDatasetMetadataKey,
 };
