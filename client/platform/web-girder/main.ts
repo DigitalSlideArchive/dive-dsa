@@ -1,7 +1,5 @@
 import Vue from 'vue';
 import VueGtag from 'vue-gtag';
-import { init as SentryInit } from '@sentry/browser';
-import { Vue as SentryVue } from '@sentry/integrations';
 
 import registerNotifications from 'vue-media-annotator/notificatonBus';
 import promptService from 'dive-common/vue-utilities/prompt-service';
@@ -22,15 +20,6 @@ if (
   process.env.NODE_ENV === 'production'
   && window.location.hostname !== 'localhost'
 ) {
-  SentryInit({
-    dsn: process.env.VUE_APP_SENTRY_DSN,
-    integrations: [
-      new SentryVue({ Vue, logErrors: true }),
-    ],
-    release: process.env.VUE_APP_GIT_HASH,
-    environment: (window.location.hostname === 'viame.kitware.com')
-      ? 'production' : 'development',
-  });
   Vue.use(VueGtag, {
     config: { id: process.env.VUE_APP_GTAG },
   }, router);

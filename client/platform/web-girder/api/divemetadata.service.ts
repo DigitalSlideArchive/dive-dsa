@@ -1,4 +1,5 @@
 import girderRest from 'platform/web-girder/plugins/girder';
+import { GirderModelBase } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 export interface MetadataFilterItem {
@@ -101,10 +102,10 @@ function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, u
   });
 }
 
-function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, values = []) {
+function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, values: string[] = [], defaultValue?: number | string | boolean) {
   return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
     params: {
-      key, category, unlocked, values,
+      key, category, unlocked, values, default_value: defaultValue,
     },
   });
 }
@@ -128,6 +129,28 @@ function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, value: nu
   });
 }
 
+async function updateDiveMetadataDisplay(folderId: string, key: string, state: 'display' | 'hidden' | 'none') {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as {display: string[], hide: string[], categoricalLimit: number};
+  if (DIVEMetadataFilter) {
+    const { display } = DIVEMetadataFilter;
+    const { hide } = DIVEMetadataFilter;
+    if (display.includes(key)) {
+      display.splice(display.findIndex((item) => item === key), 1);
+    }
+    if (hide.includes(key)) {
+      hide.splice(hide.findIndex((item) => item === key), 1);
+    }
+    if (state === 'display') {
+      display.push(key);
+    }
+    if (state === 'hidden') {
+      hide.push(key);
+    }
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
@@ -138,4 +161,5 @@ export {
   deleteDiveMetadataKey,
   deleteDiveDatasetMetadataKey,
   setDiveDatasetMetadataKey,
+  updateDiveMetadataDisplay,
 };

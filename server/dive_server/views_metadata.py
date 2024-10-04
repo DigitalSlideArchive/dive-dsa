@@ -803,8 +803,15 @@ class DIVEMetadata(Resource):
             required=False,
             default=[],
         )
+        .param(
+            "default_value",
+            "If this value for each metadata item should be modified by regular users",
+            required=False,
+            default=None,
+        )
+
     )
-    def add_metadata_key(self, root, key, category, unlocked, values=[]):  # noqa: B006
+    def add_metadata_key(self, root, key, category, unlocked, values=[], default_value=None):  # noqa: B006
         user = self.getCurrentUser()
         query = {"root": str(root["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query)
@@ -818,6 +825,13 @@ class DIVEMetadata(Resource):
             Folder().save(root)
         else:
             raise RestException(f'Could not find for FolderId: {root["_id"]} to delete key.')
+        if default_value is not None:
+            query = {"root": str(root["_id"])}
+            existing_data = DIVE_Metadata().find(query)
+            for item in existing_data:
+                DIVE_Metadata().updateKey(item['DIVEDataset'], root, user, key, default_value)
+        
+
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
