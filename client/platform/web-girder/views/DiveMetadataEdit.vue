@@ -138,7 +138,7 @@ export default defineComponent({
     const deleteMetadata = async (index: number) => {
       const item = formattedKeys.value[index];
       if (item) {
-        deleteDiveMetadataKey(props.id, item.name);
+        await deleteDiveMetadataKey(props.id, item.name);
         getFolderInfo(props.id);
         getData();
       }

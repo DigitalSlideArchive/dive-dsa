@@ -775,7 +775,7 @@ class DIVEMetadata(Resource):
             "root",
             description="Root metadata FolderId",
             model=Folder,
-            level=AccessType.READ,
+            level=AccessType.WRITE,
             destName="root",
         )
         .param(
@@ -829,7 +829,8 @@ class DIVEMetadata(Resource):
             query = {"root": str(root["_id"])}
             existing_data = DIVE_Metadata().find(query)
             for item in existing_data:
-                DIVE_Metadata().updateKey(item['DIVEDataset'], root, user, key, default_value)
+                diveDatasetFolder = Folder().load(item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True)
+                DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value)
         
 
 
