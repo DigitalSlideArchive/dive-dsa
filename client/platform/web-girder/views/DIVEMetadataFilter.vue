@@ -98,6 +98,7 @@ export default defineComponent({
     const getFilters = async () => {
       const filterData = await getMetadataFilterValues(props.id);
       filters.value = filterData.data.metadataKeys;
+      emit('filterData', filters.value.data);
     };
     onBeforeMount(async () => {
       await getFilters();

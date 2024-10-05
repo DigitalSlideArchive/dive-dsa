@@ -12,7 +12,7 @@ import DataShared from './views/DataShared.vue';
 import DataBrowser from './views/DataBrowser.vue';
 import Summary from './views/Summary.vue';
 import DIVEMetadataSearchVue from './views/DIVEMetadataSearch.vue';
-import DiveMetadataEditVue from './views/DiveMetadataEdit.vue';
+import DiveMetadataEditVue from './views/DIVEMetadataEdit.vue';
 
 Vue.use(Router);
 

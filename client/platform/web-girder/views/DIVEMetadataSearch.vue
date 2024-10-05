@@ -4,17 +4,22 @@ import {
 } from 'vue';
 import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
+  DIVEMetadataFilterValueResults,
+  MetadataFilterKeysItem,
+  setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
+import DIVEMetadataEditKey from './DIVEMetadataEditKey.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataSearch',
   components: {
     DIVEMetadataFilterVue,
     DIVEMetadataCloneVue,
+    DIVEMetadataEditKey,
   },
   props: {
     id: {
@@ -28,6 +33,7 @@ export default defineComponent({
   },
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
+    const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
     const totalPages = ref(0);
     const currentPage = ref(0);
@@ -79,7 +85,7 @@ export default defineComponent({
     const storedSortVal = ref('filename');
     const storedSortDir = ref(1);
 
-    const updateFilter = async ({ filter, sortVal, sortDir } : { filter?:DIVEMetadataFilter, sortVal?: string, sortDir?: number}) => {
+    const updateFilter = async ({ filter, sortVal, sortDir }: { filter?: DIVEMetadataFilter, sortVal?: string, sortDir?: number }) => {
       if (filter) {
         filters.value = filter;
         currentPage.value = 0;
@@ -116,6 +122,21 @@ export default defineComponent({
       return advancedList;
     };
     const openClone = ref(false);
+
+    const setFilterData = (data: DIVEMetadataFilterValueResults) => {
+      //get unlock fields and their data types:
+      const { unlocked } = data;
+      unlockedMap.value = {};
+      unlocked.forEach((item) => {
+        if (data.metadataKeys[item]) {
+          unlockedMap.value[item] = data.metadataKeys[item];
+        }
+      });
+    };
+
+    const updateDiveMetadataKeyVal = async (key: string, val: boolean | number | string) => {
+      await setDiveDatasetMetadataKey(props.id, key, val);
+    };
     return {
       totalPages,
       count,
@@ -131,6 +152,9 @@ export default defineComponent({
       //Cloning
       openClone,
       currentFilter,
+      setFilterData,
+      unlockedMap,
+      updateDiveMetadataKeyVal,
     };
   },
 });
@@ -148,34 +172,22 @@ export default defineComponent({
       :display-config="displayConfig"
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
+      @filter-data="setFilterData($event)"
     >
       <template slot="leftOptions">
-        <v-tooltip
-          bottom
-          open-delay="400"
-        >
+        <v-tooltip bottom open-delay="400">
           <template #activator="{ on }">
-            <v-btn
-              :disabled="id === null"
-              class="ml-2"
-              v-on="on"
-              @click="openClone = true"
-            >
+            <v-btn :disabled="id === null" class="ml-2" v-on="on" @click="openClone = true">
               <v-icon>
                 mdi-content-copy
               </v-icon>
-              <span
-                class="pl-1 ,l-1"
-              >
+              <span class="pl-1 ,l-1">
                 Clone
               </span>
               <v-spacer />
             </v-btn>
             <v-dialog v-model="openClone" width="800">
-              <DIVEMetadataCloneVue
-                :base-id="id"
-                :filter="currentFilter"
-              />
+              <DIVEMetadataCloneVue :base-id="id" :filter="currentFilter" />
             </v-dialog>
           </template>
           <span>Create a clone of this data</span>
@@ -183,11 +195,7 @@ export default defineComponent({
       </template>
     </DIVEMetadataFilterVue>
     <span v-if="!openClone">
-      <v-card
-        v-for="(item, key) in folderList"
-        :key="key"
-        class="my-2 pa-2"
-      >
+      <v-card v-for="(item, key) in folderList" :key="key" class="my-2 pa-2">
         <v-row class="ma-4">
           <div>{{ item.filename }}</div>
           <div>
@@ -204,7 +212,15 @@ export default defineComponent({
         </v-row>
         <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4">
           <b>{{ display }}:</b>
-          <div class="mx-2">
+          <div v-if="unlockedMap[display] !== undefined">
+            <DIVEMetadataEditKey
+              :category="unlockedMap[display].category"
+              :value="item.metadata[display]"
+              :set-values="unlockedMap[display].set || []"
+              @update="updateDiveMetadataKeyVal(display, $event)"
+            />
+          </div>
+          <div v-else class="mx-2">
             {{ item.metadata[display] }}
           </div>
         </v-row>
@@ -217,7 +233,15 @@ export default defineComponent({
                   <b>{{ dataKey }}:</b>
                 </v-col>
                 <v-col cols="10">
-                  <div class="mx-2">
+                  <div v-if="unlockedMap[dataKey] !== undefined">
+                    <DIVEMetadataEditKey
+                      :category="unlockedMap[dataKey].category"
+                      :value="data"
+                      :set-values="unlockedMap[dataKey].set || []"
+                      @update="updateDiveMetadataKeyVal(dataKey, $event)"
+                    />
+                  </div>
+                  <div v-else class="mx-2">
                     {{ data }}
                   </div>
                 </v-col>
@@ -233,9 +257,10 @@ export default defineComponent({
 
 <style scoped>
 .border {
-    border:1px solid white
+  border: 1px solid white
 }
+
 .list {
-    overflow-y: scroll;
+  overflow-y: scroll;
 }
 </style>
