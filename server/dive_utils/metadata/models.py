@@ -138,6 +138,17 @@ class DIVE_MetadataKeys(Model):
             ]
         )
 
+    def initialize_updated_data(self, folder, user):
+        existing = self.findOne({'root': str(folder['_id'])})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
+        else:
+            if existing.get('unlocked', False) is False:
+                existing['unlocked'] = []
+            if user is not None:
+                existing['owner'] = str(user['_id'])
+            self.save(existing)
+
     def createMetadataKeys(self, root, owner, metadataKeys, created_date=None):
         existing = self.findOne({'root': str(root['_id'])})
         if not existing:
@@ -181,7 +192,7 @@ class DIVE_MetadataKeys(Model):
                     existing['unlocked'].append(key)
                     self.save(existing)
                 if not unlocked and key in existing['unlocked']:
-                    existing.remove(key)
+                    existing['unlocked'].remove(key)
                     self.save(existing)
 
     def addKey(
@@ -230,9 +241,10 @@ class DIVE_MetadataKeys(Model):
             raise Exception(f'Key: {key} is not in the metadata')
         keyData = existing['metadataKeys'][key]
         category = keyData['category']
+        keyDataSet = set(keyData['set'])
         if category == 'categorical':
             if len(keyData['set']) + 1 < categoricalLimit:
-                keyData['set'].add(value)
+                keyDataSet.add(value)
             else:
                 keyData['category'] = 'search'
                 del keyData['set']
@@ -241,5 +253,6 @@ class DIVE_MetadataKeys(Model):
             range['min'] = min(float(value), float(range['min']))
             range['max'] = max(float(value), float(range['max']))
             keyData['range'] = range
+        keyData['set'] = list(keyDataSet)
         existing['metadataKeys'][key] = keyData
         self.save(existing)

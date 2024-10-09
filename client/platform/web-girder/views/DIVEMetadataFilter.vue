@@ -98,7 +98,7 @@ export default defineComponent({
     const getFilters = async () => {
       const filterData = await getMetadataFilterValues(props.id);
       filters.value = filterData.data.metadataKeys;
-      emit('filterData', filters.value.data);
+      emit('filter-data', filterData.data);
     };
     onBeforeMount(async () => {
       await getFilters();
@@ -242,6 +242,7 @@ export default defineComponent({
           Advanced Filters
         </v-btn>
         <v-btn
+          v-if="ownerAdmin"
           class="ma-1 pa-0"
           outlined
           color="warning"

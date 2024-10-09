@@ -13,6 +13,7 @@ import {
 } from 'platform/web-girder/api/divemetadata.service';
 import { getFolder } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
+import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 
@@ -43,6 +44,8 @@ export default defineComponent({
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
 
     const girderRest = useGirderRest();
+    const router = useRouter();
+
     const isOwnerAdmin = ref(false);
     const unlocked: Ref<string[]> = ref([]);
     const metadataKeys: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
@@ -194,6 +197,10 @@ export default defineComponent({
       addKeyDialog.value = true;
     };
 
+    const returnToMetadata = () => {
+      router.push({ name: 'metadata', params: { id: props.id } });
+    };
+
     return {
       metadataHeader,
       formattedKeys,
@@ -206,6 +213,7 @@ export default defineComponent({
       cancelNewKey,
       saveNewKey,
       initializeNewKey,
+      returnToMetadata,
     };
   },
 });
@@ -213,7 +221,10 @@ export default defineComponent({
 
 <template>
   <v-container>
-    <v-row dense>
+    <v-row dense class="pb-4">
+      <v-btn color="warning" @click="returnToMetadata()">
+        Return to Metadata
+      </v-btn>
       <v-spacer />
       <v-btn color="success" @click="initializeNewKey()">
         Add Metadata Field

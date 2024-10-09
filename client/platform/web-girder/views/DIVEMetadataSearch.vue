@@ -8,8 +8,9 @@ import {
   MetadataFilterKeysItem,
   setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
-import { getFolder } from 'platform/web-girder/api/girder.service';
+import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataEditKey from './DIVEMetadataEditKey.vue';
@@ -48,6 +49,7 @@ export default defineComponent({
 
     const currentFilter: Ref<DIVEMetadataFilter> = ref(props.filter || {});
     const isOwnerAdmin = ref(false);
+    const prompt = usePrompt();
     const processFilteredMetadataResults = (data: DIVEMetadataResults) => {
       folderList.value = data.pageResults;
       totalPages.value = data.totalPages;
@@ -61,6 +63,19 @@ export default defineComponent({
 
     const getFolderInfo = async (id: string) => {
       const folder = (await getFolder(id)).data;
+      try {
+        const access = (await getFolderAccess(id)).data;
+        const accessMap: Record<string, AccessType> = {};
+        access.users.forEach((item) => {
+          accessMap[item.id] = item;
+        });
+        if (accessMap[girderRest.user._id] && accessMap[girderRest.user._id].level === 2) {
+          isOwnerAdmin.value = true;
+        }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        console.log('Cannot Access Folder assuming not an owner');
+      }
       if (folder.meta.DIVEMetadata) {
         displayConfig.value = folder.meta.DIVEMetadataFilter;
       }
@@ -127,6 +142,9 @@ export default defineComponent({
       //get unlock fields and their data types:
       const { unlocked } = data;
       unlockedMap.value = {};
+      if (!unlocked) {
+        return;
+      }
       unlocked.forEach((item) => {
         if (data.metadataKeys[item]) {
           unlockedMap.value[item] = data.metadataKeys[item];
@@ -134,8 +152,16 @@ export default defineComponent({
       });
     };
 
-    const updateDiveMetadataKeyVal = async (key: string, val: boolean | number | string) => {
-      await setDiveDatasetMetadataKey(props.id, key, val);
+    const updateDiveMetadataKeyVal = async (id: string, key: string, val: boolean | number | string) => {
+      try {
+        await setDiveDatasetMetadataKey(id, key, val);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        prompt.prompt({
+          title: 'Error Setting Data',
+          text: err.response.data.message,
+        });
+      }
     };
     return {
       totalPages,
@@ -149,6 +175,7 @@ export default defineComponent({
       displayConfig,
       getAdvanced,
       filters,
+      isOwnerAdmin,
       //Cloning
       openClone,
       currentFilter,
@@ -170,6 +197,7 @@ export default defineComponent({
       :count="count"
       :filtered="filtered"
       :display-config="displayConfig"
+      :owner-admin="isOwnerAdmin"
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
       @filter-data="setFilterData($event)"
@@ -217,7 +245,7 @@ export default defineComponent({
               :category="unlockedMap[display].category"
               :value="item.metadata[display]"
               :set-values="unlockedMap[display].set || []"
-              @update="updateDiveMetadataKeyVal(display, $event)"
+              @update="updateDiveMetadataKeyVal(item.DIVEDataset, display, $event)"
             />
           </div>
           <div v-else class="mx-2">
@@ -238,7 +266,7 @@ export default defineComponent({
                       :category="unlockedMap[dataKey].category"
                       :value="data"
                       :set-values="unlockedMap[dataKey].set || []"
-                      @update="updateDiveMetadataKeyVal(dataKey, $event)"
+                      @update="updateDiveMetadataKeyVal(item.DIVEDataset, dataKey, $event)"
                     />
                   </div>
                   <div v-else class="mx-2">

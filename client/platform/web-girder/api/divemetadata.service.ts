@@ -75,6 +75,15 @@ function createDiveMetadataClone(folder: string, filters: DIVEMetadataFilter, de
   });
 }
 
+export interface createDiveMetadataResponse {
+  'results': string,
+  'errors': string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  'metadataKeys': any[];
+  'folderId': string;
+
+}
+
 function createDiveMetadataFolder(
   parentFolder: string,
   name: string,
@@ -87,7 +96,7 @@ function createDiveMetadataFolder(
     import: true, keys: ['width', 'height', 'display_aspect_ratio'],
   },
 ) {
-  return girderRest.post<DIVEMetadataResults>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
+  return girderRest.post<createDiveMetadataResponse>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
     params: {
       name, rootFolderId, categoricalLimit, displayConfig, ffprobeMetadata,
     },
@@ -102,7 +111,8 @@ function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, u
   });
 }
 
-function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, values: string[] = [], defaultValue?: number | string | boolean) {
+function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, valueList: string[] = [], defaultValue?: number | string | boolean) {
+  const values = valueList.length ? valueList : undefined;
   return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
     params: {
       key, category, unlocked, values, default_value: defaultValue,
@@ -121,8 +131,9 @@ function deleteDiveMetadataKey(rootMetadataFolder:string, key: string) {
 function deleteDiveDatasetMetadataKey(diveDatasetId: string, key: string) {
   return girderRest.delete(`dive_metadata/${diveDatasetId}`, { params: { key } });
 }
-function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, value: number | string | boolean) {
-  return girderRest.patch(`dive_metadata/${diveDatasetId}`, {
+function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, updateValue?: number | string | boolean) {
+  const value = updateValue === undefined ? null : updateValue;
+  return girderRest.patch(`dive_metadata/${diveDatasetId}`, null, {
     params: {
       key, value,
     },

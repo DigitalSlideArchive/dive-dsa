@@ -12,8 +12,8 @@ export default defineComponent({
       required: true,
     },
     value: {
-      type: [String, Number, Boolean] as PropType<string | number | boolean>,
-      required: true,
+      type: [String, Number, Boolean] as PropType<string | number | boolean | null>,
+      default: () => null,
     },
     setValues: {
       type: Array as PropType<string[]>,
@@ -21,8 +21,8 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const localValue = ref<number | string | boolean>(props.value);
-
+    const localValue = ref<number | string | boolean | null>(props.value);
+    const openDialog = ref(false);
     // Initialize local values
     const initialize = () => {
       // Set initial values based on the category
@@ -40,12 +40,14 @@ export default defineComponent({
     // Function to emit an update
     const emitUpdate = (value: number | string | boolean) => {
       emit('update', value);
+      openDialog.value = false;
     };
 
     // Watch for changes in the local values and call setDiveDatasetMetadataKey
     return {
       localValue,
       emitUpdate,
+      openDialog,
     };
   },
 });
@@ -53,27 +55,31 @@ export default defineComponent({
 
 <template>
   <div>
-    <div v-if="category === 'search'">
-      <v-text-field v-model="localValue" label="Value" @change="emitUpdate(key, localValue)" />
-    </div>
-    <div v-else-if="metadataItem.category === 'numerical'">
-      <v-text-field
-        v-model.number="localValue"
-        label="Value"
-        type="number"
-        @change="emitUpdate(key, localValue)"
-      />
-    </div>
-    <div v-else-if="metadataItem.category === 'boolean'">
-      <v-switch v-model="localValue" label="Value" @change="emitUpdate(key, localValue)" />
-    </div>
-    <div v-else-if="metadataItem.category === 'categorical'">
-      <v-combobox
-        v-model="localValue"
-        label="Value"
-        :items="setValues"
-        @change="emitUpdate(key, localValue)"
-      />
+    <span v-if="!openDialog"> <v-icon color="warning" class="mx-2" @click="openDialog = true">mdi-pencil</v-icon>{{ localValue }} </span>
+
+    <div v-else-if="openDialog">
+      <div v-if="category === 'search'">
+        <v-text-field v-model="localValue" label="Value" @change="emitUpdate(key, localValue)" />
+      </div>
+      <div v-else-if="category === 'numerical'">
+        <v-text-field
+          v-model.number="localValue"
+          label="Value"
+          type="number"
+          @change="emitUpdate(localValue)"
+        />
+      </div>
+      <div v-else-if="category === 'boolean'">
+        <v-switch v-model="localValue" label="Value" @change="emitUpdate(localValue)" />
+      </div>
+      <div v-else-if="category === 'categorical'">
+        <v-combobox
+          v-model="localValue"
+          label="Value"
+          :items="setValues"
+          @change="emitUpdate(localValue)"
+        />
+      </div>
     </div>
   </div>
 </template>

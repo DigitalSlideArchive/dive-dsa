@@ -493,6 +493,8 @@ class DIVEMetadata(Resource):
         # add metadata to root folder for
         base_folder['meta'][DIVEMetadataMarker] = True
         displayConfig['categoricalLimit'] = categoricalLimit
+        if displayConfig.get('hide', False) is False:
+            displayConfig['hide'] = [""]
         base_folder['meta'][DIVEMetadataFilter] = displayConfig
         Folder().save(base_folder)
 
@@ -500,6 +502,7 @@ class DIVEMetadata(Resource):
             "results": f"added {added} folders",
             "errors": errorLog,
             "metadataKeys": metadataKeys,
+            "folderId": str(base_folder['_id'])
         }
 
     @access.user
@@ -526,13 +529,17 @@ class DIVEMetadata(Resource):
         keys = metadata_key['metadataKeys']
         for key in keys:
             item = keys[key]
-            if item['category'] == 'numerical':
-                if (
-                    item['range']
-                    and item['range']['min'] == float('inf')
-                    or item['range']['max'] == float('-inf')
-                ):
-                    item['range'] = {'min': 0, 'max': 0}
+            if item.get('category', False):
+                if item['category'] == 'numerical':
+                    if (
+                        item['range']
+                        and item['range']['min'] == float('inf')
+                        or item['range']['max'] == float('-inf')
+                    ):
+                        item['range'] = {'min': 0, 'max': 0}
+        if metadata_key.get('unlocked', False) is False:
+            metadata_key['unlocked'] = []
+            DIVE_MetadataKeys().initialize_updated_data(folder, None)
         return metadata_key
 
     @access.user
@@ -686,6 +693,9 @@ class DIVEMetadata(Resource):
     def get_metadata_filter(self, folder, keys=None):
         # Create initial Meva State based off of information
         query = {'root': str(folder['_id'])}
+        found = DIVE_MetadataKeys().findOne(query=query)
+        unlocked = found['unlocked']
+        print(f'UNLOCKED: {unlocked}')
         metadata_items = list(
             DIVE_Metadata().find(
                 query,
@@ -703,11 +713,11 @@ class DIVEMetadata(Resource):
                 for key in item['metadata'].keys():
                     if keys is None and key not in results.keys():
                         results[key] = set()
-                    if item['metadata'].get(key, None) is not None and not isinstance(
+                    if (item['metadata'].get(key, None) is not None or key in unlocked) and not isinstance(
                         item['metadata'][key], list
                     ):
                         results[key].add(item['metadata'][key])
-                    elif item['metadata'].get(key, None) is not None and isinstance(
+                    elif (item['metadata'].get(key, None) is not None or key in unlocked) and isinstance(
                         item['metadata'][key], list
                     ):
                         for array_item in item['metadata'][key]:
@@ -817,22 +827,21 @@ class DIVEMetadata(Resource):
         found = DIVE_MetadataKeys().findOne(query=query)
         if found:
             info = {"count": 0, "category": category}
-            if category == 'categorical':
-                info['set'] = set(values)
+            if category == 'categorical' and values and len(values) > 0:
+                info['set'] = list(set(values))
             if category == 'numerical':
                 info['range'] = {'min': float('inf'), 'max': float('-inf')}
+            if info.get('set', None) is None:
+                info['set'] = []
             DIVE_MetadataKeys().addKey(root, user, key, info, unlocked)
             Folder().save(root)
         else:
             raise RestException(f'Could not find for FolderId: {root["_id"]} to delete key.')
-        if default_value is not None:
-            query = {"root": str(root["_id"])}
-            existing_data = DIVE_Metadata().find(query)
-            for item in existing_data:
-                diveDatasetFolder = Folder().load(item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True)
-                DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value)
-        
-
+        query = {"root": str(root["_id"])}
+        existing_data = DIVE_Metadata().find(query)
+        for item in existing_data:
+            diveDatasetFolder = Folder().load(item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True)
+            DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value)
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -861,6 +870,8 @@ class DIVEMetadata(Resource):
         query = {"root": str(root["_id"])}
         found = DIVE_MetadataKeys().findOne(query=query, owner=str(user['_id']))
         if found:
+            if found.get('owner', False) is False:
+                DIVE_MetadataKeys().initialize_updated_data(root, user)
             DIVE_MetadataKeys().modifyKeyPermission(root, user, key, unlocked)
             Folder().save(root)
         else:
@@ -868,6 +879,7 @@ class DIVEMetadata(Resource):
                 f'Could not find Metadata for FolderId: {root["_id"]} to delete key.'
             )
 
+    @access.user
     @autoDescribeRoute(
         Description("Set MetadataKey value for a folder")
         .modelParam(
@@ -892,16 +904,16 @@ class DIVEMetadata(Resource):
     def set_key_value(self, divedataset, key, value):
         user = self.getCurrentUser()
         query = {"DIVEDataset": str(divedataset["_id"])}
-        found = DIVE_Metadata().findOne(query=query, user=user)
+        found = DIVE_Metadata().findOne(query=query, user=user, level=AccessType.WRITE)
         if found:
             rootId = found['root']
-            rootFolder = Folder().load(rootId, user=user)
+            rootFolder = Folder().load(rootId, user=user, level=AccessType.WRITE)
             categoricalLimit = (
                 rootFolder['meta'].get(DIVEMetadataFilter, {}).get('categoricalLimit', 50)
             )
             DIVE_Metadata().updateKey(divedataset, rootId, user, key, value, categoricalLimit)
         else:
-            raise RestException(f'Could not find for FolderId: {rootId["_id"]} to delete key.')
+            raise RestException(f'Could not find for FolderId: {divedataset["_id"]} to modify key-value: {key} - {value}.')
 
     @autoDescribeRoute(
         Description("Delete a key from a specific DIVE Dataset")
