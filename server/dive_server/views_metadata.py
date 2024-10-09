@@ -432,7 +432,7 @@ class DIVEMetadata(Resource):
         datasetList = []
         rootFolder = Folder().load(
             rootFolderId,
-            level=AccessType.READ,
+            level=AccessType.WRITE,
             user=user,
             force=True,
         )
