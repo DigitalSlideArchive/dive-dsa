@@ -19,6 +19,7 @@ import ShareTab from './ShareTab.vue';
 import DataShared from './DataShared.vue';
 import { useStore } from '../store/types';
 import eventBus from '../eventBus';
+import CreateDIVEMetadata from './CreateDIVEMetadata.vue';
 
 const buttonOptions = {
   block: true,
@@ -45,6 +46,7 @@ export default defineComponent({
     Upload,
     DataShared,
     ShareTab,
+    CreateDIVEMetadata,
   },
   // everything below needs to be refactored to composition-api
   inject: ['girderRest'],
@@ -155,6 +157,11 @@ export default defineComponent({
                   v-bind="{ buttonOptions, menuOptions }"
                   :dataset-ids="locationInputs"
                 />
+                <CreateDIVEMetadata
+                  v-bind="{ buttonOptions, menuOptions }"
+                  :dataset-id="location._id"
+                />
+
                 <v-btn
                   :disabled="!selected.length"
                   v-bind="{ ...buttonOptions }"

@@ -180,7 +180,10 @@ def get_task_defaults(
 
 
 def get_recursive_datasets(
-    dsFolder: types.GirderModel, user: types.GirderUserModel, datasetList: List[types.GirderModel], limit: int = -1
+    dsFolder: types.GirderModel,
+    user: types.GirderUserModel,
+    datasetList: List[types.GirderModel],
+    limit: int = -1,
 ):
     subFolders = list(Folder().childFolders(dsFolder, 'folder', user))
     for child in subFolders:

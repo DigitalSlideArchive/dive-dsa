@@ -1,4 +1,5 @@
 import girderRest from 'platform/web-girder/plugins/girder';
+import { GirderModelBase } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 export interface MetadataFilterItem {
@@ -35,6 +36,7 @@ export interface DIVEMetadataFilterValueResults {
     created: string;
     root: string;
     metadataKeys: Record<string, MetadataFilterKeysItem>;
+    unlocked: string[];
 }
 
 export interface DIVEMetadataResults {
@@ -73,8 +75,102 @@ function createDiveMetadataClone(folder: string, filters: DIVEMetadataFilter, de
   });
 }
 
+export interface createDiveMetadataResponse {
+  'results': string,
+  'errors': string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  'metadataKeys': any[];
+  'folderId': string;
+
+}
+
+function createDiveMetadataFolder(
+  parentFolder: string,
+  name: string,
+  rootFolderId: string,
+  categoricalLimit = 50,
+  displayConfig = {
+    display: ['DIVE_DatasetId', 'DIVE_Name'],
+  },
+  ffprobeMetadata = {
+    import: true, keys: ['width', 'height', 'display_aspect_ratio'],
+  },
+) {
+  return girderRest.post<createDiveMetadataResponse>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
+    params: {
+      name, rootFolderId, categoricalLimit, displayConfig, ffprobeMetadata,
+    },
+  });
+}
+
+function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, unlocked: boolean) {
+  return girderRest.patch(`dive_metadata/${rootMetadataFolder}/modify_key_permission`, null, {
+    params: {
+      key, unlocked,
+    },
+  });
+}
+
+function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, valueList: string[] = [], defaultValue?: number | string | boolean) {
+  const values = valueList.length ? valueList : undefined;
+  return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
+    params: {
+      key, category, unlocked, values, default_value: defaultValue,
+    },
+  });
+}
+
+function deleteDiveMetadataKey(rootMetadataFolder:string, key: string) {
+  return girderRest.delete(`dive_metadata/${rootMetadataFolder}/delete_key`, {
+    params: {
+      key,
+    },
+  });
+}
+
+function deleteDiveDatasetMetadataKey(diveDatasetId: string, key: string) {
+  return girderRest.delete(`dive_metadata/${diveDatasetId}`, { params: { key } });
+}
+function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, updateValue?: number | string | boolean) {
+  const value = updateValue === undefined ? null : updateValue;
+  return girderRest.patch(`dive_metadata/${diveDatasetId}`, null, {
+    params: {
+      key, value,
+    },
+  });
+}
+
+async function updateDiveMetadataDisplay(folderId: string, key: string, state: 'display' | 'hidden' | 'none') {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as {display: string[], hide: string[], categoricalLimit: number};
+  if (DIVEMetadataFilter) {
+    const { display } = DIVEMetadataFilter;
+    const { hide } = DIVEMetadataFilter;
+    if (display.includes(key)) {
+      display.splice(display.findIndex((item) => item === key), 1);
+    }
+    if (hide.includes(key)) {
+      hide.splice(hide.findIndex((item) => item === key), 1);
+    }
+    if (state === 'display') {
+      display.push(key);
+    }
+    if (state === 'hidden') {
+      hide.push(key);
+    }
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
   createDiveMetadataClone,
+  createDiveMetadataFolder,
+  modifyDiveMetadataPermission,
+  addDiveMetadataKey,
+  deleteDiveMetadataKey,
+  deleteDiveDatasetMetadataKey,
+  setDiveDatasetMetadataKey,
+  updateDiveMetadataDisplay,
 };

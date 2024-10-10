@@ -27,6 +27,22 @@ function getFolder(folderId: string) {
   return girderRest.get<GirderModel>(`folder/${folderId}`);
 }
 
+export interface AccessType {
+  flags: string[];
+  id: string;
+  level: number;
+  login: string;
+  name: string;
+}
+export interface FolderAccessType {
+  groups: AccessType[];
+  users: AccessType[];
+}
+
+function getFolderAccess(folderId: string) {
+  return girderRest.get<FolderAccessType>(`folder/${folderId}/access`);
+}
+
 function setUsePrivateQueue(userId: string, value = false) {
   return girderRest.put<{
     user_private_queue_enabled: boolean;
@@ -42,4 +58,5 @@ export {
   getItemsInFolder,
   getFolder,
   setUsePrivateQueue,
+  getFolderAccess,
 };

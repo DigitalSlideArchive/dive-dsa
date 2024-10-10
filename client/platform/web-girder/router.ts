@@ -12,6 +12,7 @@ import DataShared from './views/DataShared.vue';
 import DataBrowser from './views/DataBrowser.vue';
 import Summary from './views/Summary.vue';
 import DIVEMetadataSearchVue from './views/DIVEMetadataSearch.vue';
+import DiveMetadataEditVue from './views/DIVEMetadataEdit.vue';
 
 Vue.use(Router);
 
@@ -80,6 +81,22 @@ const router = new Router({
               return {
                 id: route.params.id, // Map route parameter to prop
                 filter: JSON.parse(route.query.filter as string), // Map query parameter to prop
+              };
+            }
+            return {
+              id: route.params.id,
+            };
+          },
+          beforeEnter,
+        },
+        {
+          path: '/metadata-edit/:id/',
+          name: 'metadata-edit',
+          component: DiveMetadataEditVue,
+          props: (route) => {
+            if (route.query.filter) {
+              return {
+                id: route.params.id, // Map route parameter to prop
               };
             }
             return {
