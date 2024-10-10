@@ -109,9 +109,9 @@ export default defineComponent({
       }
     };
 
-    onMounted(() => {
-      getFolderInfo(props.id);
-      getData();
+    onMounted(async () => {
+      await getFolderInfo(props.id);
+      await getData();
     });
 
     const getEyeState = (item: FormattedMetadataKeys) => {
