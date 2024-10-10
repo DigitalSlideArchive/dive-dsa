@@ -16,7 +16,6 @@ import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
-import { warn } from 'console';
 
 interface FormattedMetadataKeys {
     name: string,
