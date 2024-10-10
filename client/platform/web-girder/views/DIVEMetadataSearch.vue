@@ -74,7 +74,7 @@ export default defineComponent({
         }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
-        console.log('Cannot Access Folder assuming not an owner');
+        console.warn('Cannot Access Folder assuming not an owner');
       }
       if (folder.meta.DIVEMetadata) {
         displayConfig.value = folder.meta.DIVEMetadataFilter;

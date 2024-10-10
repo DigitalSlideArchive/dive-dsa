@@ -11,11 +11,12 @@ import {
   modifyDiveMetadataPermission,
   updateDiveMetadataDisplay,
 } from 'platform/web-girder/api/divemetadata.service';
-import { getFolder } from 'platform/web-girder/api/girder.service';
+import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
+import { warn } from 'console';
 
 interface FormattedMetadataKeys {
     name: string,
@@ -88,11 +89,24 @@ export default defineComponent({
     ]);
     const getFolderInfo = async (id: string) => {
       const folder = (await getFolder(id)).data;
-      if (folder.meta.DIVEMetadata) {
-        displayConfig.value = folder.meta.DIVEMetadataFilter;
-        if (folder.creatorId === girderRest.user._id || girderRest.user.admin) {
+      try {
+        const access = (await getFolderAccess(id)).data;
+        const accessMap: Record<string, AccessType> = {};
+        access.users.forEach((item) => {
+          accessMap[item.id] = item;
+        });
+        if (accessMap[girderRest.user._id] && accessMap[girderRest.user._id].level === 2) {
           isOwnerAdmin.value = true;
         }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        console.warn('Cannot Access Folder assuming not an owner');
+      }
+      if (folder.meta.DIVEMetadata) {
+        displayConfig.value = folder.meta.DIVEMetadataFilter;
+      }
+      if (folder.creatorId === girderRest.user._id || girderRest.user.admin) {
+        isOwnerAdmin.value = true;
       }
     };
 
@@ -214,13 +228,14 @@ export default defineComponent({
       saveNewKey,
       initializeNewKey,
       returnToMetadata,
+      isOwnerAdmin,
     };
   },
 });
 </script>
 
 <template>
-  <v-container>
+  <v-container v-if="isOwnerAdmin">
     <v-row dense class="pb-4">
       <v-btn color="warning" @click="returnToMetadata()">
         Return to Metadata
@@ -308,6 +323,11 @@ export default defineComponent({
         </v-card-actions>
       </v-card>
     </v-dialog>
+  </v-container>
+  <v-container v-else>
+    <v-alert color="warning">
+      You don't have owner privileges on this DIVEMetadata Folder.  Request Owner access to be able to edit fields
+    </v-alert>
   </v-container>
 </template>
 
