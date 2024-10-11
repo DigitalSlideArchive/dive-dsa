@@ -100,10 +100,14 @@ export default defineComponent({
     const storedSortVal = ref('filename');
     const storedSortDir = ref(1);
 
-    const updateFilter = async ({ filter, sortVal, sortDir }: { filter?: DIVEMetadataFilter, sortVal?: string, sortDir?: number }) => {
-      if (filter?.metadataFilters && Object.keys(filter.metadataFilters).length) {
-        filters.value = filter;
+    const updateFilter = async ({
+      filter, sortVal, sortDir, resetPage,
+    }: { filter?: DIVEMetadataFilter, sortVal?: string, sortDir?: number, resetPage? : boolean }) => {
+      if (resetPage) {
         currentPage.value = 0;
+      }
+      if (filter) {
+        filters.value = filter;
         currentFilter.value = filter;
       }
       if (sortVal) {

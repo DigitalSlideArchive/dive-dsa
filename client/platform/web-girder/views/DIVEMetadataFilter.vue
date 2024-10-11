@@ -171,7 +171,9 @@ export default defineComponent({
           value,
         };
       }
-      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+      emit('updateFilters', {
+        filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value, resetPage: true,
+      });
     };
 
     const changePage = async (page: number) => {
