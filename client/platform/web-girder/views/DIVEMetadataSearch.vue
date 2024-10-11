@@ -101,7 +101,7 @@ export default defineComponent({
     const storedSortDir = ref(1);
 
     const updateFilter = async ({ filter, sortVal, sortDir }: { filter?: DIVEMetadataFilter, sortVal?: string, sortDir?: number }) => {
-      if (filter) {
+      if (filter?.metadataFilters && Object.keys(filter.metadataFilters).length) {
         filters.value = filter;
         currentPage.value = 0;
         currentFilter.value = filter;
