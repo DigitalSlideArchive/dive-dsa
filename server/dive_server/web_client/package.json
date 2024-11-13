@@ -8,7 +8,10 @@
     "girderPlugin": {
         "name": "dive_server",
         "main": "./main.js",
-        "webpack": "webpack.helper"
+        "webpack": "webpack.helper",
+        "dependencies": [
+            "large_image"
+        ]
     },
     "dependencies": {
         "dive-dsa": "^1.10.3",

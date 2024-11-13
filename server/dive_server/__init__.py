@@ -42,6 +42,7 @@ class GirderPlugin(plugin.GirderPlugin):
 
         # required because girder doesn't load plugins in order so we need to manually load first.
         getPlugin('jobs').load(info)
+        getPlugin('large_image').load(info)
         # Setup route additions for exsting resources
         info['apiRoot'].job.route("GET", ("queued",), countJobs)
         info["apiRoot"].user.route("PUT", (":id", "use_private_queue"), use_private_queue)
