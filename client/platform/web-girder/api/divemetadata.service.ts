@@ -112,7 +112,7 @@ function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, u
 }
 
 function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, valueList: string[] = [], defaultValue?: number | string | boolean) {
-  const values = valueList.length ? valueList : undefined;
+  const values = valueList.length ? valueList.join(',') : undefined;
   return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
     params: {
       key, category, unlocked, values, default_value: defaultValue,

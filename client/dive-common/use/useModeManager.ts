@@ -74,7 +74,7 @@ export default function useModeManager({
   let creating = false;
   const { prompt } = usePrompt();
   const annotationModes = reactive({
-    visible: ['rectangle', 'Polygon', 'LineString', 'text'] as VisibleAnnotationTypes[],
+    visible: ['rectangle', 'Polygon', 'LineString', 'text', 'Time'] as VisibleAnnotationTypes[],
     editing: 'rectangle' as EditAnnotationTypes,
   });
   const trackSettings = toRef(clientSettings, 'trackSettings');
@@ -149,7 +149,7 @@ export default function useModeManager({
           if (feature) {
             if (!feature?.bounds?.length) {
               return 'Creating';
-            } if (annotationModes.editing === 'rectangle') {
+            } if (annotationModes.editing === 'rectangle' || annotationModes.editing === 'Time') {
               return 'Editing';
             }
             return (feature.geometry?.features.filter((item) => item.geometry.type === annotationModes.editing).length ? 'Editing' : 'Creating');
@@ -170,7 +170,7 @@ export default function useModeManager({
 
   /**
    * Figure out if a new feature should enable interpolation
-   * based on current state and the result of canInterolate.
+   * based on current state and the result of canInterpolate.
    */
   function _shouldInterpolate(canInterpolate: boolean) {
     // if this is a track, then whether to interpolate
@@ -267,6 +267,12 @@ export default function useModeManager({
     }
     /* Do not allow editing when merge is in progress */
     selectTrack(trackId, edit && !multiSelectActive.value);
+    if (edit && !multiSelectActive.value && annotationModes.editing !== 'Time' && selectedTrackId.value !== null) {
+      const track = cameraStore.getTrack(selectedTrackId.value, selectedCamera.value);
+      if (track.meta?.time) {
+        annotationModes.editing = 'Time';
+      }
+    }
   }
 
   /** Put UI into group editing mode. */
@@ -362,19 +368,18 @@ export default function useModeManager({
     creating = newCreatingValue;
   }
 
-  function handleUpdateRectBounds(frameNum: number, flickNum: number, bounds: RectBounds) {
+  function handleUpdateRectBounds(frameNum: number, flickNum: number, bounds: RectBounds, forceInterpolate = false) {
     if (selectedTrackId.value !== null) {
       const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
       if (track) {
         // Determines if we are creating a new Detection
         const { interpolate } = track.canInterpolate(frameNum);
-
         track.setFeature({
           frame: frameNum,
           flick: flickNum,
           bounds,
           keyframe: true,
-          interpolate: _shouldInterpolate(interpolate),
+          interpolate: _shouldInterpolate(interpolate) || forceInterpolate,
         });
         newTrackSettingsAfterLogic(track);
       }
@@ -532,6 +537,10 @@ export default function useModeManager({
       const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
       if (track) {
         const { frame } = aggregateController.value;
+        if (track.meta?.time && annotationModes.editing === 'Time') {
+          track.setTimeMode(false);
+          handleSetAnnotationState({ editing: 'rectangle' });
+        }
         recipes.forEach((r) => {
           if (r.active.value) {
             r.delete(frame.value, track, selectedKey.value, annotationModes.editing);
@@ -646,6 +655,12 @@ export default function useModeManager({
       annotationModes.editing = editing;
       _selectKey(key);
       handleSelectTrack(selectedTrackId.value, true);
+      if (editing !== 'Time' && selectedTrackId.value !== null) {
+        const track = cameraStore.getTrack(selectedTrackId.value, selectedCamera.value);
+        if (track.meta?.time) {
+          annotationModes.editing = 'Time';
+        }
+      }
       recipes.forEach((r) => {
         if (recipeName !== r.name) {
           r.deactivate();
@@ -816,6 +831,19 @@ export default function useModeManager({
     aggregateController.value.seek(frame);
   }
 
+  function toggleKeyFrame(track?: number) {
+    const selectedTrack = selectedTrackId.value !== null ? selectedTrackId.value : track;
+    if (selectedTrack !== null && selectedTrack !== undefined) {
+      const track = cameraStore.getPossibleTrack(selectedTrack, selectedCamera.value);
+      if (track) {
+        const {
+          frame,
+        } = aggregateController.value;
+        track.toggleKeyframe(frame.value);
+      }
+    }
+  }
+
   return {
     selectedTrackId,
     editingGroupId,
@@ -857,6 +885,8 @@ export default function useModeManager({
       processAction,
       addFullFrameTrack,
       seekFrame,
+      toggleKeyFrame,
+
     },
   };
 }

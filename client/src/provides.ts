@@ -158,6 +158,7 @@ export interface Handler {
     frameNum: number,
     flickNum: number,
     bounds: RectBounds,
+    forceInterpolate?: boolean,
   ): void;
   /* update geojson for track */
   updateGeoJSON(
@@ -209,6 +210,7 @@ export interface Handler {
   processAction(action: DIVEAction,
     shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}): void;
   seekFrame(frame: number): void;
+  toggleKeyFrame(selectedTrack?: number): void;
 }
 const HandlerSymbol = Symbol('handler');
 
@@ -250,6 +252,7 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     addFullFrameTrack(...args) { handle('addFullFrameTrack', args); },
     processAction(...args) { handle('processAction', args); },
     seekFrame(...args) { handle('seekFrame', args); },
+    toggleKeyFrame(...args) { handle('toggleKeyFrame', args); },
   };
 }
 

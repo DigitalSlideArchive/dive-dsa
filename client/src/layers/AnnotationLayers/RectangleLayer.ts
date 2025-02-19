@@ -96,7 +96,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
   formatData(frameData: FrameDataTrack[]) {
     const arr: RectGeoJSData[] = [];
     frameData.forEach((track: FrameDataTrack) => {
-      if (track.features && track.features.bounds) {
+      if (track.features && track.features.bounds && !track.track.meta?.time) {
         const polygon = boundToGeojson(track.features.bounds);
         let hasPoly = false;
         if (track.features.geometry?.features) {

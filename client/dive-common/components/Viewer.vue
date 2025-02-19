@@ -1086,6 +1086,7 @@ export default defineComponent({
               class="mr-2"
               @delete-point="handler.removePoint"
               @delete-annotation="handler.removeAnnotation"
+              @toggle-time="handler.toggleKeyFrame"
             />
           </template>
         </EditorMenu>

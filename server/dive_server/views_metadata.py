@@ -807,9 +807,9 @@ class DIVEMetadata(Resource):
             required=True,
             default=False,
         )
-        .jsonParam(
+        .param(
             "values",
-            "List of values, either numbers for numerical category or string for categorical, for search this field isn't required. I.E ['key1', 'key2'] or [0, 20]",
+            "List of values, either numbers for numerical category or string for categorical, for search this field isn't required. I.E key1, key2, key3",
             required=False,
             default=[],
         )
@@ -821,14 +821,20 @@ class DIVEMetadata(Resource):
         )
 
     )
-    def add_metadata_key(self, root, key, category, unlocked, values=[], default_value=None):  # noqa: B006
+    def add_metadata_key(
+        self, root, key, category, unlocked, values='', default_value=None  # noqa: B006
+        ):
         user = self.getCurrentUser()
         query = {"root": str(root["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query)
+        if len(values) > 0:
+            values_arr = values.split(',')
+        else:
+            values_arr = []
         if found:
             info = {"count": 0, "category": category}
-            if category == 'categorical' and values and len(values) > 0:
-                info['set'] = list(set(values))
+            if category == 'categorical' and values_arr and len(values_arr) > 0:
+                info['set'] = list(set(values_arr))
             if category == 'numerical':
                 info['range'] = {'min': float('inf'), 'max': float('-inf')}
             if info.get('set', None) is None:

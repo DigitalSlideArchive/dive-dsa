@@ -1,10 +1,10 @@
 /*eslint class-methods-use-this: "off"*/
 import geo, { GeoEvent } from 'geojs';
-import { boundToGeojson, reOrdergeoJSON } from '../utils';
+import { boundToGeojson, RectBounds, reOrdergeoJSON } from '../utils';
 import { FrameDataTrack } from './LayerTypes';
 import BaseLayer, { BaseLayerParams, LayerStyle } from './BaseLayer';
 
-export type EditAnnotationTypes = 'Point' | 'rectangle' | 'Polygon' | 'LineString';
+export type EditAnnotationTypes = 'Point' | 'rectangle' | 'Polygon' | 'LineString' | 'Time';
 interface EditAnnotationLayerParams {
   type: EditAnnotationTypes;
 }
@@ -22,6 +22,15 @@ const typeMapper = new Map([
   ['Polygon', 'polygon'],
   ['Point', 'point'],
   ['rectangle', 'rectangle'],
+  ['Time', 'Time'],
+]);
+
+const typeIconMapper = new Map([
+  ['LineString', 'mdi-vector-line'],
+  ['Polygon', 'mdi-vector-polygon'],
+  ['Point', 'mdi-vector-point'],
+  ['rectangle', 'mdi-vector-rectangle'],
+  ['Time', 'mdi-timer-outline'],
 ]);
 /**
  * correct matching of drag handle to cursor direction relies on strict ordering of
@@ -298,7 +307,7 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
   calculateCursorImage() {
     if (this.getMode() === 'creation') {
       // TODO:  we may want to make this more generic or utilize the icons from editMenu
-      this.annotator.setImageCursor(`mdi-vector-${typeMapper.get(this.type)}`);
+      this.annotator.setImageCursor(`${typeIconMapper.get(this.type)}`);
     }
   }
 
@@ -342,6 +351,35 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
     return geoJSONData;
   }
 
+  convertToTime() {
+    const { frameSize } = this.annotator;
+    const newbounds: RectBounds = [0, 0, frameSize.value[0], frameSize.value[1]];
+    const newGeojson = boundToGeojson(newbounds);
+    this.formattedData = [{
+      geometry: newGeojson,
+      properties: {
+        annotationType: this.type,
+      },
+      type: 'Feature',
+    }];
+    this.applyStylesToAnnotations();
+
+    this.annotator.setCursor('default');
+    this.annotator.setImageCursor('');
+    //This makes sure the click for the end point doesn't kick us out of the mode
+    this.disableModeSync = true;
+    this.bus.$emit(
+      'update:geojson',
+      'editing',
+      false, // creation mode
+      this.formattedData[0],
+      this.type,
+      this.selectedKey,
+      this.skipNextFunc(),
+    );
+    return [];
+  }
+
   /** overrides default function to disable and clear anotations before drawing again */
   async changeData(frameData: FrameDataTrack[]) {
     if (this.skipNextExternalUpdate === false) {
@@ -374,10 +412,12 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
     this.bus.$emit('update:selectedIndex', this.selectedHandleIndex, this.type, this.selectedKey);
     if (frameData.length > 0) {
       const track = frameData[0];
-      if (track.features && track.features.bounds) {
+      if (track.features && track.features.bounds && !track.track.meta?.time) {
         let geoJSONData: GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString | undefined;
         if (this.type === 'rectangle') {
           geoJSONData = boundToGeojson(track.features.bounds);
+        } else if (this.type === 'Time') {
+          return this.convertToTime();
         } else {
           // TODO: this assumes only one polygon
           geoJSONData = this.getGeoJSONData(track);
@@ -402,6 +442,8 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
           this.setMode(this.type, annotation);
           return [geojsonFeature];
         }
+      } else if (this.type === 'Time') {
+        return this.convertToTime();
       }
     }
     // if there wasn't a valid track in frameData
