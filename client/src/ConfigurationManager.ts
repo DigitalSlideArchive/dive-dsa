@@ -55,11 +55,11 @@ interface UISideBar {
     UITrackDetails? : boolean;
     UIAttributeSettings? : boolean;
     UIAttributeAdding? : boolean;
-    UIAttributeUserReview?: boolean;
-
 }
 
 interface UIContextBar {
+    UIContextBarDefaultNotOpen?: boolean;
+    UIContextBarNotStatic?: boolean;
     UIThresholdControls? : boolean;
     UIImageEnhancements? : boolean;
     UIGroupManager? : boolean;
@@ -67,6 +67,7 @@ interface UIContextBar {
     UIRevisionHistory? : boolean;
     UITrackList? : boolean;
     UIDatasetInfo?: boolean;
+    UIAttributeUserReview?: boolean;
 }
 
 interface UITrackDetails {
@@ -128,6 +129,12 @@ export interface TimelineConfiguration {
   timelines: TimelineDisplay[];
 }
 
+export interface CustomUISettings {
+  title?: string;
+  information?: string[]; // multiple markdown pages of information to be displayed if it exists
+  width? : number;
+  }
+
 export interface Configuration {
   general?: {
     configurationMerge? : 'merge up' | 'merge down' | 'disabled';
@@ -140,6 +147,7 @@ export interface Configuration {
   shortcuts?: DIVEActionShortcut[];
   filterTimelines?: FilterTimeline[];
   timelineConfigs?: TimelineConfiguration;
+  customUI?: CustomUISettings;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -276,6 +284,12 @@ export default class ConfigurationManager {
       }
     }
     return true;
+  }
+
+  setCustomUI(customUI: CustomUISettings | undefined) {
+    if (this.configuration.value) {
+      this.configuration.value.customUI = customUI;
+    }
   }
 
   getUISettingValue(key: UISettingsKey) {

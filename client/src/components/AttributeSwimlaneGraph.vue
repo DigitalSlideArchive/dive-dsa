@@ -190,6 +190,11 @@ export default defineComponent({
                 </v-chip>
               </template>
             </v-select>
+            <v-checkbox
+              v-model="editSwimlaneDisplay.displayFrameIndicators"
+              label="Display Set Value Indicators"
+              class="mx-2"
+            />
           </v-row>
         </div>
       </div>

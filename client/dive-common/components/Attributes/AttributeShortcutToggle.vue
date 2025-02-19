@@ -114,6 +114,7 @@ export default defineComponent({
         dataType: 'number' | 'text' | 'boolean';
         description: string; belongs: 'track' | 'detection'; name: string;
         list?: string[];
+        lockedValues?: boolean;
       }[] = [];
       attributes.value.forEach((attribute) => {
         if (attribute.shortcuts && attribute.shortcuts.length > 0) {
@@ -133,6 +134,7 @@ export default defineComponent({
               dataType: attribute.datatype,
               name: attribute.name,
               list: attribute.values,
+              lockedValues: !!attribute.lockedValues,
             });
           });
         }
@@ -251,6 +253,7 @@ export default defineComponent({
               confirm: true,
               valueType: shortcut.dataType,
               valueList: shortcut.list,
+              lockedValueList: !!shortcut.lockedValues,
             });
             if (val !== null) {
               updateAttribute({

@@ -35,9 +35,8 @@ interface AttributeLayerParams {
   formatter?: FormatTextRow;
 }
 
-const lineHeight = 15;
 // function to calculate x,y as well as bounds based on render settings
-export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: Attribute['render'], renderIndex: number, renderAttrLength: number) {
+export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: Attribute['render'], renderIndex: number,renderAttrLength: number, lineHeight = 15) {
   // Calculate X Position
   if (renderSettings && renderSettings.layout === 'vertical') {
     const trackWidth = baseBounds[2] - baseBounds[0];
@@ -67,7 +66,7 @@ export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: A
     const newBounds: RectBounds = [baseBounds[2], baseBounds[1] + (height * renderIndex), baseBounds[2] + width, baseBounds[1] + (height * renderIndex) + height];
 
     return {
-      displayX, displayHeight, valueX, valueHeight, newBounds,
+      displayX, displayHeight, valueX, valueHeight, newBounds, offsetX: 0, offsetY: 0, textAlign: 'start',
     };
   }
   if (renderSettings && renderSettings.layout === 'horizontal') {
@@ -84,15 +83,33 @@ export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: A
 
     const displayX = anchor[0];
     const valueX = anchor[0];
-    const displayHeight = anchor[1];
+    const displayHeight = anchor[1] + lineHeight * (renderIndex);
     const valueHeight = displayHeight;
-    const offsetY = (lineHeight * (renderIndex));
+    let offsetYAdjusment = (renderSettings.location === 'inside' && ['SW', 'SE'].includes(renderSettings?.corner || '') ? -lineHeight * 1 : 0);
+    if (renderSettings.location === 'inside' && ['NW', 'NE'].includes(renderSettings?.corner || '')) {
+      offsetYAdjusment = lineHeight * 1;
+    }
+    let offsetXAdjusment = (renderSettings.location === 'inside' && ['SW', 'NW'].includes(renderSettings?.corner || '') ? 5 : 0);
+    if (renderSettings.location === 'inside' && ['SE', 'NE'].includes(renderSettings?.corner || '')) {
+      offsetXAdjusment = -5;
+    }
+
+    const offsetY = offsetYAdjusment;
+    let textAlign = 'end';
+    if (renderSettings.location === 'inside') {
+      if (['SW', 'NW'].includes(renderSettings?.corner || '')) {
+        textAlign = 'start';
+      }
+      if (['SE', 'NE'].includes(renderSettings?.corner || '')) {
+        textAlign = 'end';
+      }
+    }
     return {
-      displayX, displayHeight, valueX, valueHeight, offsetY, newBounds: [0, 0, 0, 0] as RectBounds,
+      displayX, displayHeight: displayHeight + offsetY, valueX, valueHeight: valueHeight + offsetY, offsetY: 0, offsetX: 0 + offsetXAdjusment, textAlign, newBounds: [0, 0, 0, 0] as RectBounds,
     };
   }
   return {
-    displayX: 0, displayHeight: 0, valueX: 0, valueHeight: 0, offsetY: 0, newBounds: [0, 0, 0, 0] as RectBounds,
+    displayX: 0, displayHeight: 0, valueX: 0, valueHeight: 0, offsetY: 0, offsetX: 20, textAlign: 'start', newBounds: [0, 0, 0, 0] as RectBounds,
   };
 }
 
@@ -115,6 +132,8 @@ function defaultFormatter(
     const { bounds } = annotation.features;
     const arr: AttributeTextData[] = [];
     // figure out the attributes we are displaying:
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
     const renderFiltered = renderAttr.filter((item) => {
       if (item.render) {
         if (!item.render.typeFilter.includes('all')) {
@@ -129,6 +148,23 @@ function defaultFormatter(
       }
       return false;
     });
+    let lineHeight = 15;
+    // Calculation of the max line height for spacing purposes
+    const maxSize = renderFiltered.reduce((max, item) => {
+      // Get the sizes or default to 16
+      const displaySize = item.render?.displayTextSize ?? 16;
+      const valueSize = item.render?.valueTextSize ?? 16;
+      // Compare the current maximum with both sizes
+      return Math.max(max, displaySize, valueSize);
+    }, 0); // Initial maximum is 16 (default value)
+    if (context) {
+      const font = `bold ${maxSize}px sans-serif`;
+      context.font = font;
+      const data = context.measureText('A!');
+      // eslint-disable-next-line dot-notation
+      const baseHeight = data.actualBoundingBoxAscent;
+      lineHeight = baseHeight * 1.30;
+    }
 
     for (let i = 0; i < renderFiltered.length; i += 1) {
       const currentRender = renderFiltered[i].render;
@@ -192,8 +228,8 @@ function defaultFormatter(
           }
         }
         const {
-          displayX, displayHeight, valueX, valueHeight, offsetY,
-        } = calculateAttributeArea(bounds, currentRender, i, renderFiltered.length);
+          displayX, displayHeight, valueX, valueHeight, offsetY, offsetX, textAlign,
+        } = calculateAttributeArea(bounds, currentRender, i, renderFiltered.length, lineHeight);
 
         const displayColor = currentRender.displayColor === 'auto' ? renderAttr[i].color : currentRender.displayColor;
         const { displayTextSize } = currentRender;
@@ -205,17 +241,27 @@ function defaultFormatter(
           // eslint-disable-next-line no-continue
           continue;
         }
+        let displayTextAlign = textAlign;
+        let displayOffsetWidth = 0;
+        if (context && currentRender.layout === 'horizontal' && currentRender.location === 'inside' && ['SE', 'NE'].includes(currentRender?.corner || '')) {
+          const font = `bold ${currentRender?.displayTextSize || 16}px sans-serif`;
+          context.font = font;
+          const { width } = context.measureText(`${displayName}${value.toString()}`);
+          displayOffsetWidth = -width;
+          displayTextAlign = 'start';
+        }
+
         arr.push({
           selected: annotation.selected,
           editing: annotation.editing,
           color: displayColor || 'white',
-          text: displayHeight === valueHeight ? `${displayName} : ` : displayName,
+          text: displayHeight === valueHeight ? `${displayName}` : displayName,
           fontSize: displayTextSize === -1 ? undefined : `${displayTextSize}px`,
-          x: displayX,
+          x: displayX + displayOffsetWidth,
           y: displayHeight,
-          textAlign: displayHeight === valueHeight ? 'end' : 'center',
+          textAlign: displayTextAlign,
           offsetY,
-          offsetX: displayHeight === valueHeight ? 20 : 0,
+          offsetX,
         });
 
         const valueColor = autoColorIndex[i](value);
@@ -223,23 +269,42 @@ function defaultFormatter(
         if (value === undefined) {
           value = '';
         }
+        let textWidth = 0;
+        let valX = valueX;
+        let valTextAlign = textAlign;
+        if (currentRender.layout === 'horizontal' && currentRender.location === 'outside') {
+          valTextAlign = 'start';
+        }
+        if (currentRender.layout === 'horizontal' && currentRender.location === 'inside') {
+          valTextAlign = 'start';
+        }
+        if (context && currentRender.layout === 'horizontal' && currentRender.location === 'inside') {
+          const font = `bold ${currentRender?.displayTextSize || 16}px sans-serif`;
+          context.font = font;
+          const { width } = context.measureText(displayName);
+          textWidth = width;
+          valX = valueX + textWidth;
+          if (['SE', 'NE'].includes(currentRender.corner || '')) {
+            const { width } = context.measureText(value.toString());
+            textWidth = -width;
+            valX = displayX + textWidth;
+            valTextAlign = 'start';
+          }
+        }
         arr.push({
           selected: annotation.selected,
           editing: annotation.editing,
           color: valueColor || 'white',
           text: value.toString(),
           fontSize: valueTextSize === -1 ? undefined : `${valueTextSize}px`,
-          x: valueX,
+          x: valX,
           y: valueHeight,
-          textAlign: displayHeight === valueHeight ? 'start' : 'center',
-          offsetX: displayHeight === valueHeight ? 20 : 0,
+          textAlign: valTextAlign,
           offsetY,
         });
       }
     }
     return arr;
-    // .sort((a, b) => (+b.currentPair) - (+a.currentPair)) // sort currentPair=true first
-    // .map((v, i) => ({ ...v, y: bounds[1] - (lineHeight * i) })); // calculate y after sort
   }
   return null;
 }

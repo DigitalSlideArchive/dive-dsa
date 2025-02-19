@@ -2,13 +2,17 @@
 import {
   computed, defineComponent, ref, PropType, Ref,
 } from 'vue';
-import { AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
+import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
 import { uniq } from 'lodash';
+import ButtonShortcutEditor from '../CustomUI/ButtonShortcutEditor.vue';
 
 export default defineComponent({
   name: 'AttributeShortcuts',
+  components: {
+    ButtonShortcutEditor,
+  },
   props: {
     value: {
       type: Array as PropType<AttributeShortcut[]>,
@@ -29,6 +33,7 @@ export default defineComponent({
     const shortcutTypes: Ref<string[]> = ref(['set', 'dialog', 'remove']);
     const selectedShortcutKey = ref('');
     const selectedShortcutModifiers: Ref<string[]> = ref([]);
+    const selectedShortcutButton: Ref<ButtonShortcut | undefined> = ref(undefined);
     const copy = ref(props.value);
     const awaitingKeyPress = ref(false);
     const shortcutError: Ref<{description: string; type: 'System' | 'Custom'}| null> = ref(null);
@@ -70,6 +75,7 @@ export default defineComponent({
       selectedShortcutDescription.value = shortcut.description || 'Enter a Description';
       selectedShortcutValue.value = shortcut.value || 0;
       selectedShortcutKey.value = getShortcutDisplay(shortcut);
+      selectedShortcutButton.value = shortcut.button || undefined;
       editShortcutDialog.value = true;
     };
 
@@ -80,6 +86,7 @@ export default defineComponent({
       selectedShortcutDescription.value = '';
       selectedShortcutValue.value = '';
       selectedShortcutKey.value = '';
+      selectedShortcutButton.value = undefined;
     };
     const save = () => {
       editShortcutDialog.value = false;
@@ -89,7 +96,9 @@ export default defineComponent({
         modifiers: selectedShortcutModifiers.value,
         value: selectedShortcutValue.value,
         description: selectedShortcutDescription.value,
+        button: selectedShortcutButton.value,
       };
+      selectedShortcutButton.value = undefined;
       emit('input', copy.value);
     };
     const deleteShortcut = (index: number) => {
@@ -112,6 +121,7 @@ export default defineComponent({
       }
       selectedShortcutKey.value = '';
       selectedShortcutModifiers.value = [];
+      selectedShortcutButton.value = undefined;
       editShortcutDialog.value = true;
     };
 
@@ -201,6 +211,7 @@ export default defineComponent({
       selectedShortcutValue,
       shortcutTypes,
       selectedDisplayKey,
+      selectedShortcutButton,
       awaitingKeyPress,
       shortcutError,
       getShortcutDisplay,
@@ -350,6 +361,9 @@ awaitingKeyPress
               label="Description"
             />
           </v-row>
+          <button-shortcut-editor
+            v-model="selectedShortcutButton"
+          />
         </v-card-text>
         <v-card-actions>
           <v-btn

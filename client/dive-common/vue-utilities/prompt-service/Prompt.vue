@@ -17,6 +17,7 @@ export default defineComponent({
     const valueType: Ref<'text' | 'number' | 'boolean' | undefined > = ref(undefined);
     const value: Ref<string | boolean | number| null> = ref(null);
     const valueList: Ref<string[] | undefined> = ref(undefined);
+      const lockedValueList = ref(true);
 
     /**
      * Placeholder resolver function.  Wrapped in object so that
@@ -117,6 +118,7 @@ export default defineComponent({
       value,
       valueType,
       valueList,
+      lockedValueList,
       clickPositive,
       clickNegative,
       select,
@@ -156,16 +158,24 @@ export default defineComponent({
         </div>
       </v-card-text>
       <v-card-text v-else>
-        {{ text }}
+        <p>{{ text }}</p>
         <v-row v-if="valueType !== undefined">
+          <v-combobox
+            v-if="valueType === 'text' && valueList && valueList.length && !lockedValueList"
+            ref="input"
+            v-model="value"
+            :items="valueList"
+            outlined
+            autofocus
+          />
           <v-text-field
-            v-if="valueType === 'text' && !valueList"
+            v-else-if="valueType === 'text' && (!valueList || !lockedValueList)"
             ref="input"
             v-model="value"
             autofocus
           />
           <v-select
-            v-if="valueType === 'text' && valueList && valueList.length"
+            v-else-if="valueType === 'text' && valueList && valueList.length"
             ref="input"
             v-model="value"
             :items="valueList"

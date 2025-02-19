@@ -7,6 +7,7 @@ import AttributesSideBar from 'dive-common/components/Attributes/AttributesSideB
 import AtributeUserReview from 'dive-common/components/Attributes/AttributeUserReview.vue';
 import MultiCamTools from 'dive-common/components/MultiCamTools.vue';
 import DatasetInfo from 'dive-common/components/DatasetInfo.vue';
+import CustomUIBase from 'dive-common/components/CustomUI/CustomUIBase.vue';
 
 interface ContextState {
   last: string;
@@ -63,6 +64,12 @@ const componentMap: Record<string, ComponentMapItem> = {
     component: AtributeUserReview,
     width: 300,
   },
+  [CustomUIBase.name]: {
+    description: 'Custom UI',
+    component: CustomUIBase,
+    width: 300,
+  },
+
 };
 
 function register(item: ComponentMapItem) {
@@ -92,7 +99,7 @@ function getComponents() {
   return components;
 }
 
-function toggle(active: string | null | undefined) {
+function toggle(active?: string | null) {
   if (active === undefined) {
     if (state.active) {
       state.active = null;

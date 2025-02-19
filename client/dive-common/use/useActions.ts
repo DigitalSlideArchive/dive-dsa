@@ -1,9 +1,11 @@
 /* eslint-disable max-len */
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import { ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Action {
     type: string;
+    
 }
 
 export type MatchOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'range' | 'in';
@@ -51,6 +53,7 @@ export interface DIVEActionShortcut {
     };
     description?: string;
     actions: DIVEAction[];
+    button?: ButtonShortcut;
 }
 
 // Either immediately executed action or a keyboard shortcut

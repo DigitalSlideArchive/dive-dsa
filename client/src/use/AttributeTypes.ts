@@ -5,7 +5,11 @@ export interface SwimlaneGraph {
   filter: AttributeKeyFilter;
   enabled: boolean;
   default?: boolean;
-  displaySettings?: { display: 'static' | 'selected'; trackFilter: string[] };
+  displaySettings?: {
+    display: 'static' | 'selected';
+    trackFilter: string[];
+    displayFrameIndicators?: boolean;
+  };
   settings?: Record<string, SwimlaneGraphSettings>;
 }
 
@@ -42,12 +46,20 @@ export interface StringAttributeEditorOptions {
     type: 'locked'| 'freeform';
   }
 
+export interface ButtonShortcut {
+    buttonText: string;
+    buttonToolTip?: string;
+    iconAppend?: string;
+    iconPrepend?: string;
+    buttonColor?: string; // 'auto' or can be overridden
+  }
 export interface AttributeShortcut {
     key: string;
     type: 'set' | 'dialog' | 'remove';
     modifiers?: string[];
     value: number | boolean | string;
     description?: string;
+    button?: ButtonShortcut;
   }
 
 export interface AttributeRendering {
@@ -85,9 +97,11 @@ export interface Attribute {
     valueColors?: Record<string, string>;
     valueOrder?: Record<string, number>;
     name: string;
+    description?: string;
     key: string;
     color?: string;
     user?: boolean;
+    lockedValues?: boolean;
     editor?: NumericAttributeEditorOptions | StringAttributeEditorOptions;
     shortcuts?: AttributeShortcut[];
     render?: AttributeRendering;

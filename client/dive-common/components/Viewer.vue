@@ -65,6 +65,7 @@ import MultiCamToolsVue from './MultiCamTools.vue';
 import PrevNext from './PrevNext.vue';
 import AttributesSideBarVue from './Attributes/AttributesSideBar.vue';
 import TypeThresholdVue from './TypeThreshold.vue';
+import CustomUIBase from './CustomUI/CustomUIBase.vue';
 import AttributeUserReviewVue from './Attributes/AttributeUserReview.vue';
 import DatasetInfo from './DatasetInfo.vue';
 
@@ -311,6 +312,7 @@ export default defineComponent({
       attributeSwimlaneData,
       swimlaneGraphs,
       swimlaneEnabled,
+      swimlaneDisplaySettings,
       swimlaneDefault,
       getAttributeValueColor,
       attributeKeyVisible,
@@ -798,6 +800,13 @@ export default defineComponent({
             component: RevisionHistoryVue,
           });
         }
+        if (configurationManager.configuration.value?.customUI) {
+          context.register({
+            description: configurationManager.configuration.value.customUI.title || 'CustomUI',
+            width: configurationManager.configuration.value.customUI.width,
+            component: CustomUIBase,
+          });
+        }
         context.resetActive();
       } catch (err) {
         progress.loaded = false;
@@ -820,6 +829,9 @@ export default defineComponent({
           handler.trackSelect,
           aggregateController.value.seek,
         );
+        if (!getUISetting('UIContextBarDefaultNotOpen')) {
+          context.toggle();
+        }
       });
     };
     loadData();
@@ -898,6 +910,7 @@ export default defineComponent({
       attributeSwimlaneData,
       swimlaneGraphs,
       swimlaneEnabled,
+      swimlaneDisplaySettings,
       swimlaneDefault,
       getAttributeValueColor,
     };
@@ -1112,7 +1125,7 @@ export default defineComponent({
           class="mx-2"
         />
         <v-icon
-          v-if="getUISetting('UIContextBar') && Object.values(context.componentMap).length"
+          v-if="getUISetting('UIContextBar') && Object.values(context.componentMap).length && getUISetting('UIContextBarNotStatic')"
           @click="context.toggle()"
         >
           {{ context.state.active ? 'mdi-chevron-right-box' : 'mdi-chevron-left-box' }}

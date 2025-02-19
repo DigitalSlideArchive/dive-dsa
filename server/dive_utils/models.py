@@ -129,12 +129,21 @@ class RevisionLog(BaseModel):
     description: Optional[str]
 
 
+class ButtonShortcut(BaseModel):
+    buttonText: str
+    buttonToolTip: Optional[str]
+    iconAppend: Optional[str]
+    iconPrepend: Optional[str]
+    buttonColor: Optional[str]
+
+
 class ShortcutAttributeOptions(BaseModel):
     key: str  # keyboard key
     modifiers: Optional[List[str]]
     value: Union[str, float, bool]
     description: Optional[str]
     type: Literal['set', 'dialog', 'remove']
+    button: Optional[ButtonShortcut]
 
 
 class NumericAttributeOptions(BaseModel):
@@ -177,14 +186,17 @@ class RenderingAttributes(BaseModel):
 class DisplayTrackFilterSettings(BaseModel):
     display: Literal['static', 'selected']
     trackFilter: List[str]
+    displayFrameIndicators: Optional[bool]
 
 
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
     datatype: Literal['text', 'number', 'boolean']
     values: Optional[List[str]]
+    lockedValues: Optional[bool]
     valueColors: Optional[Dict[str, str]]
     name: str
+    description: Optional[str]
     key: str
     color: Optional[str]
     user: Optional[bool]
@@ -322,16 +334,18 @@ class UISideBar(BaseModel):
     UITrackDetails: Optional[bool]
     UIAttributeSettings: Optional[bool]
     UIAttributeAdding: Optional[bool]
-    UIAttributeUserReview: Optional[bool]
 
 
 class UIContextBar(BaseModel):
+    UIContextBarDefaultNotOpen: Optional[bool]
+    UIContextBarNotStatic: Optional[bool]
     UIThresholdControls: Optional[bool]
     UIImageEnhancements: Optional[bool]
     UIGroupManager: Optional[bool]
     UIAttributeDetails: Optional[bool]
     UIRevisionHistory: Optional[bool]
     UIDatasetInfo: Optional[bool]
+    UIAttributeUserReview: Optional[bool]
 
 
 class UITrackDetails(BaseModel):
@@ -444,6 +458,12 @@ class TimelineConfiguration(BaseModel):
     timelines: List[TimelineDisplay]
 
 
+class CustomUISettings(BaseModel):
+    title: Optional[str]
+    information: Optional[List[str]]
+    width: Optional[int]
+
+
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]
     UISettings: Optional[UISettings]
@@ -451,7 +471,7 @@ class DIVEConfiguration(BaseModel):
     shortcuts: Optional[List[DIVEShortcut]]
     filterTimelines: Optional[List[FilterTimeline]]
     timelineConfigs: Optional[TimelineConfiguration]
-
+    customUI: Optional[CustomUISettings]
 
 class MetadataMutable(BaseModel):
     version = (

@@ -65,6 +65,7 @@ export interface AttributesFilterType {
   Readonly<Ref<Record<string, Record<string, SwimlaneAttribute>>>>;
   swimlaneGraphs: Readonly<Ref<Record<string, SwimlaneGraph>>>;
   swimlaneEnabled: Readonly<Ref<Record<string, boolean>>>;
+  swimlaneDisplaySettings: Readonly<Ref<Record<string, SwimlaneGraph['displaySettings']>>>;
   swimlaneDefault: Readonly<Ref<string | null>>;
   getAttributeValueColor: (attribute: Attribute, val: string) => string;
 

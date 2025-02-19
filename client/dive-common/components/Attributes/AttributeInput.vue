@@ -38,6 +38,10 @@ export default defineComponent({
       type: Object as PropType<null | NumericAttributeEditorOptions | StringAttributeEditorOptions>,
       default: null,
     },
+    lockedValue: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const tempVal = ref(props.value as null | boolean | number | string);
@@ -133,9 +137,8 @@ export default defineComponent({
         {{ type }}
       </option>
     </datalist>
-
     <input
-      v-if="datatype === 'text'"
+      v-if="datatype === 'text' && !lockedValue"
       ref="inputBoxRef"
       v-model="tempVal"
       type="text"
@@ -146,6 +149,13 @@ export default defineComponent({
       @focus="onFocus"
       @keydown="onInputKeyEvent"
     >
+    <v-select
+      v-else-if="datatype === 'text' && lockedValue"
+      v-model="tempVal"
+      :items="values"
+      class="input-box"
+      dense
+    />
     <input
       v-else-if="datatype === 'number' && (!typeSettings || typeSettings.type === 'combo')"
       ref="inputBoxRef"
