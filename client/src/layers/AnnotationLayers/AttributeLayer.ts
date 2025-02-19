@@ -36,7 +36,7 @@ interface AttributeLayerParams {
 }
 
 // function to calculate x,y as well as bounds based on render settings
-export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: Attribute['render'], renderIndex: number,renderAttrLength: number, lineHeight = 15) {
+export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: Attribute['render'], renderIndex: number, renderAttrLength: number, lineHeight = 15) {
   // Calculate X Position
   if (renderSettings && renderSettings.layout === 'vertical') {
     const trackWidth = baseBounds[2] - baseBounds[0];

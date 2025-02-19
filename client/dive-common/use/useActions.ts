@@ -5,7 +5,7 @@ import { ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Action {
     type: string;
-    
+
 }
 
 export type MatchOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'range' | 'in';

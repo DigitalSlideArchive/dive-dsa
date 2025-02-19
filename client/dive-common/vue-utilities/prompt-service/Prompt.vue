@@ -17,7 +17,7 @@ export default defineComponent({
     const valueType: Ref<'text' | 'number' | 'boolean' | undefined > = ref(undefined);
     const value: Ref<string | boolean | number| null> = ref(null);
     const valueList: Ref<string[] | undefined> = ref(undefined);
-      const lockedValueList = ref(true);
+    const lockedValueList = ref(true);
 
     /**
      * Placeholder resolver function.  Wrapped in object so that

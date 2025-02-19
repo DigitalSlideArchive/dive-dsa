@@ -20,7 +20,6 @@ export default defineComponent({
     const UIDatasetInfo = ref(configMan.getUISetting('UIDatasetInfo') as boolean);
     const UIAttributeUserReview = ref(configMan.getUISetting('UIAttributeUserReview') as boolean);
 
-
     const CustomUIEnabled = ref(!!configMan.configuration.value?.customUI);
     const customUITitle = ref(configMan.configuration.value?.customUI?.title || 'Custom UI');
     const customUIInformation = ref(configMan.configuration.value?.customUI?.information || ['Custom UI Information']);
