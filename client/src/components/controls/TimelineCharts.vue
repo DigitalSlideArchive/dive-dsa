@@ -382,6 +382,7 @@ export default defineComponent({
             :data="data"
             :client-width="clientWidth"
             :client-height="clientHeight / timelineList.length"
+            :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
             :margin="margin"
             @scroll-swimlane="swimlaneOffset = $event"
           />

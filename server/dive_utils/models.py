@@ -475,6 +475,7 @@ class DIVEConfiguration(BaseModel):
     timelineConfigs: Optional[TimelineConfiguration]
     customUI: Optional[CustomUISettings]
 
+
 class MetadataMutable(BaseModel):
     version = (
         constants.JsonMetaCurrentVersion
