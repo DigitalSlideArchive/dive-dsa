@@ -15,9 +15,16 @@ import DIVEMetadataSearchVue from './views/DIVEMetadataSearch.vue';
 import DiveMetadataEditVue from './views/DIVEMetadataEdit.vue';
 
 Vue.use(Router);
+let previousViewerRoute = '';
 
+export function getPreviousViewerRoute() {
+  return previousViewerRoute;
+}
 // eslint-disable-next-line @typescript-eslint/ban-types
 function beforeEnter(to: Route, from: Route, next: Function) {
+  if (to.fullPath.includes('/viewer') && !from.fullPath.includes('/viewer')) {
+    previousViewerRoute = from.fullPath;
+  }
   if (!girderRest.user) {
     next('/login');
   } else {
