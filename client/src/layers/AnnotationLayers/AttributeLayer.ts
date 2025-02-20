@@ -64,9 +64,9 @@ export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: A
 
     // [x1, y1, x2, y2] as (left, top), (bottom, right)
     const newBounds: RectBounds = [baseBounds[2], baseBounds[1] + (height * renderIndex), baseBounds[2] + width, baseBounds[1] + (height * renderIndex) + height];
-
+    const textAlign = renderSettings.location === 'outside' ? 'center' : 'start';
     return {
-      displayX, displayHeight, valueX, valueHeight, newBounds, offsetX: 0, offsetY: 0, textAlign: 'start',
+      displayX, displayHeight, valueX, valueHeight, newBounds, offsetX: 0, offsetY: 0, textAlign,
     };
   }
   if (renderSettings && renderSettings.layout === 'horizontal') {
