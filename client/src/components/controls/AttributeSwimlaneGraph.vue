@@ -50,7 +50,6 @@ export default Vue.extend({
     },
   },
   data() {
-    console.log(this.displayFrameIndicators);
     return {
       chartTop: 0,
       x: null,
