@@ -139,7 +139,7 @@ class ButtonShortcut(BaseModel):
 
 
 class ShortcutAttributeOptions(BaseModel):
-    key: str  # keyboard key
+    key: Optional[str]  # keyboard key
     modifiers: Optional[List[str]]
     value: Union[str, float, bool]
     description: Optional[str]
