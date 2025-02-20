@@ -44,6 +44,10 @@ export default Vue.extend({
       type: Object,
       required: true,
     },
+    displayFrameIndicators: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -54,7 +58,7 @@ export default Vue.extend({
       endFrame_: this.endFrame,
       hoverTrack: null,
       scrollPos: 0,
-      showSymbols: false,
+      showSymbols: this.displayFrameIndicators,
       symbolGenerator: null,
     };
   },

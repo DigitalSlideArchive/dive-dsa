@@ -105,7 +105,7 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
     return this.annotationMap.get(annotationId);
   }
 
-  getFromAction(trackAction: TrackSelectAction) {
+  getFromAction(trackAction: TrackSelectAction, user?: string) {
     const tracksFound: number[] = [];
     let skipRest = false;
     let foundFrame = -1;
@@ -136,7 +136,7 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
       //attribute checking
       if (trackAction.attributes) {
         if (trackAction.attributes.track) {
-          vals.push(checkAttributes(trackAction.attributes.track, track.attributes));
+          vals.push(checkAttributes(trackAction.attributes.track, track.attributes, user));
         }
         //Need a separate check for detection attributes
         if (trackAction.attributes.detection) {
@@ -154,7 +154,7 @@ export default abstract class BaseAnnotationStore<T extends Track | Group> {
               }
             }
             if (feature.attributes) {
-              const result = checkAttributes(trackAction.attributes.detection, feature.attributes);
+              const result = checkAttributes(trackAction.attributes.detection, feature.attributes, user);
               if (result) {
                 vals.push(result);
                 if (trackAction.direction && trackAction.direction === 'previous' && trackAction.startFrame) {

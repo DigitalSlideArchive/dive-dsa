@@ -51,7 +51,7 @@
 }
 
 .imageCursor {
-  z-index: 10; //So it will be above the annotator layers
+  z-index: 99; //So it will be above the annotator layers
   position: fixed;
   backface-visibility: hidden;
   top: 0;

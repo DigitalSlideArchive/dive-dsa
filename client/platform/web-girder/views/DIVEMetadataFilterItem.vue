@@ -75,7 +75,7 @@ export default defineComponent({
 
 <template>
   <div class="mx-2">
-    <div v-if="filterItem.category === 'categorical' && filterItem.unique < categoricalLimit && set">
+    <div v-if="filterItem.category === 'categorical' && filterItem.unique || 0 < categoricalLimit && set">
       <v-select
         v-model="value"
         :items="set"

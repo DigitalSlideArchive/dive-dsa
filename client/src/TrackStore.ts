@@ -1,6 +1,6 @@
 import Track from './track';
 import BaseAnnotationStore from './BaseAnnotationStore';
-import { AnnotationId } from './BaseAnnotation';
+import BaseAnnotation, { AnnotationId } from './BaseAnnotation';
 
 export default class TrackStore extends BaseAnnotationStore<Track> {
   add(
@@ -8,11 +8,13 @@ export default class TrackStore extends BaseAnnotationStore<Track> {
     defaultType: string,
     afterId: AnnotationId | undefined,
     overrideTrackId: number,
+    meta: undefined | BaseAnnotation['meta'] = undefined,
   ) {
     const track = new Track(overrideTrackId, {
       begin: frame,
       end: frame,
       confidencePairs: [[defaultType, 1]],
+      meta,
     });
     this.insert(track, { afterId });
     this.markChangesPending({ action: 'upsert', track, cameraName: this.cameraName });

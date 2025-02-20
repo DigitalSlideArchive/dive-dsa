@@ -39,6 +39,12 @@ export default Vue.extend({
         this.$emit('delete-annotation');
       }
     },
+    toggleTime() {
+      if (this.disabled) {
+        throw new Error('Cannot endTime while disabled!');
+      }
+      this.$emit('toggle-time');
+    },
   },
 });
 </script>
@@ -66,6 +72,16 @@ export default Vue.extend({
       >
         mdi-delete
       </v-icon>
+    </v-btn>
+    <v-btn
+      v-if="editingMode === 'Time'"
+      color="primary"
+      depressed
+      small
+      class="mx-1"
+      @click="toggleTime"
+    >
+      Keyframe <v-icon>mdi-star</v-icon>
     </v-btn>
   </span>
 </template>

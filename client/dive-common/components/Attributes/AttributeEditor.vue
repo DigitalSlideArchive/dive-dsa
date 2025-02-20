@@ -34,6 +34,7 @@ export default defineComponent({
     const { prompt } = usePrompt();
     const trackStyleManager = useTrackStyleManager();
     const name: Ref<string> = ref(props.selectedAttribute.name);
+    const description: Ref<string> = ref(props.selectedAttribute.description || '');
     const belongs: Ref<Attribute['belongs']> = ref(props.selectedAttribute.belongs);
     const datatype: Ref<Attribute['datatype']> = ref(props.selectedAttribute.datatype);
     const attributeColors:
@@ -66,11 +67,13 @@ export default defineComponent({
       },
 
     });
+    const lockedValues = ref(!!props.selectedAttribute.lockedValues);
     const attributeRendering = ref(!!props.selectedAttribute.render);
     const renderingVals = ref(props.selectedAttribute.render);
 
     function setDefaultValue() {
       name.value = '';
+      description.value = '';
       belongs.value = 'track';
       datatype.value = 'number';
       values = [];
@@ -90,6 +93,7 @@ export default defineComponent({
 
       const data: Attribute = {
         name: name.value,
+        description: description.value || undefined,
         belongs: belongs.value,
         datatype: datatype.value,
         values: datatype.value === 'text' && values ? values : [],
@@ -100,6 +104,7 @@ export default defineComponent({
         shortcuts: shortcuts.value,
         user: user.value ? true : undefined,
         render: renderingVals.value,
+        lockedValues: lockedValues.value,
       };
       if (valueOrder) {
         data.valueOrder = valueOrder;
@@ -222,6 +227,7 @@ export default defineComponent({
     };
     return {
       name,
+      description,
       belongs,
       color,
       colorEditor,
@@ -235,6 +241,7 @@ export default defineComponent({
       renderingVals,
       currentTab,
       attributeColors,
+      lockedValues,
       //computed
       textValues,
       shortcuts,
@@ -293,6 +300,10 @@ export default defineComponent({
                   || 'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
                 required
               />
+              <v-text-field
+                v-model="description"
+                label="Description"
+              />
               <v-select
                 :value="datatype"
                 :items="[
@@ -320,14 +331,24 @@ export default defineComponent({
                   />
                 </v-radio-group>
               </div>
-              <div>
+              <v-row dense>
                 <v-checkbox
                   v-model="user"
                   label="User Attribute"
                   hint="Attribute data is saved per user instead of globally."
                   persistent-hint
+                  class="py-2 mx-2"
                 />
-              </div>
+                <v-spacer />
+                <v-checkbox
+                  v-if="textValues.length && datatype === 'text'"
+                  v-model="lockedValues"
+                  label="Lock Values"
+                  hint="Lock Values to only predefined Values"
+                  persistent-hint
+                  class="py-2 mx-2"
+                />
+              </v-row>
               <div v-if="datatype === 'number' && editor && editor.type === 'slider'">
                 <v-row class="pt-2">
                   <v-text-field

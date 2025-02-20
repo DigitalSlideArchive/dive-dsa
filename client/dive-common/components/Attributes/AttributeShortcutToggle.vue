@@ -114,6 +114,7 @@ export default defineComponent({
         dataType: 'number' | 'text' | 'boolean';
         description: string; belongs: 'track' | 'detection'; name: string;
         list?: string[];
+        lockedValues?: boolean;
       }[] = [];
       attributes.value.forEach((attribute) => {
         if (attribute.shortcuts && attribute.shortcuts.length > 0) {
@@ -133,6 +134,7 @@ export default defineComponent({
               dataType: attribute.datatype,
               name: attribute.name,
               list: attribute.values,
+              lockedValues: !!attribute.lockedValues,
             });
           });
         }
@@ -169,7 +171,7 @@ export default defineComponent({
       const index = actionShortcuts.value.findIndex((item) => item.shortcut === shortcut);
       if (index !== -1) {
         actionShortcuts.value[index].actions.forEach((action) => {
-          systemHandler.processAction(action, true, { frame: frameRef.value });
+          systemHandler.processAction(action, true, { frame: frameRef.value }, store.state.User.user?.login);
         });
       }
     };
@@ -183,7 +185,7 @@ export default defineComponent({
       });
       if (index !== -1) {
         diveActionShortcuts.value[index].actions.forEach((action) => {
-          systemHandler.processAction(action, true, { frame: frameRef.value });
+          systemHandler.processAction(action, true, { frame: frameRef.value }, store.state.User.user?.login);
         });
       }
     };
@@ -251,6 +253,7 @@ export default defineComponent({
               confirm: true,
               valueType: shortcut.dataType,
               valueList: shortcut.list,
+              lockedValueList: !!shortcut.lockedValues,
             });
             if (val !== null) {
               updateAttribute({

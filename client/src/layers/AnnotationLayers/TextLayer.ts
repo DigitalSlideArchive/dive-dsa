@@ -32,7 +32,7 @@ function defaultFormatter(
   annotation: FrameDataTrack,
   typeStyling?: TypeStyling,
 ): TextData[] | null {
-  if (annotation.features && annotation.features.bounds) {
+  if (annotation.features && annotation.features.bounds && !annotation.track.meta?.time) {
     const { bounds } = annotation.features;
     let confidencePairs = [annotation.styleType];
     if (annotation.groups.length) {

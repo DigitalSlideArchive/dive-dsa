@@ -103,8 +103,8 @@ export default {
   },
   methods: {
     initialize() {
-      const width = this.$refs.workarea.clientWidth || 0;
-      const height = this.$refs.workarea.clientHeight || 0;
+      const width = this.$refs.workarea?.clientWidth || 0;
+      const height = this.$refs.workarea?.clientHeight || 0;
       // clientWidth and clientHeight are properties used to resize child elements
       this.clientWidth = width - this.margin;
       // Timeline height needs to offset so it doesn't overlap the frame number
