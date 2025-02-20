@@ -55,7 +55,7 @@ export interface ButtonShortcut {
     displayValue?: boolean;
   }
 export interface AttributeShortcut {
-    key: string;
+    key?: string;
     type: 'set' | 'dialog' | 'remove';
     modifiers?: string[];
     value: number | boolean | string;
