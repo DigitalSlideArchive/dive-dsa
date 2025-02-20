@@ -13,6 +13,7 @@ import {
 import ActionEditor from './ActionEditor.vue';
 import GetShortcut from './GetShortcut.vue';
 import TrackFilter from './TrackFilter.vue';
+import ButtonShortcutEditor from '../CustomUI/ButtonShortcutEditor.vue';
 
 export default defineComponent({
   name: 'ActionShortcuts',
@@ -20,6 +21,7 @@ export default defineComponent({
     TrackFilter,
     GetShortcut,
     ActionEditor,
+    ButtonShortcutEditor,
   },
   props: {
     disabled: {
@@ -348,6 +350,12 @@ export default defineComponent({
                 @cancel="addEditAction = false"
               />
             </div>
+          </div>
+          <div v-if="editingShortcut">
+            <button-shortcut-editor
+              v-model="editingShortcut.button"
+              :attribute="false"
+            />
           </div>
           <v-row
             v-if="editingShortcut !== null"

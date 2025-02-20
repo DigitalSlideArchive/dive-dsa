@@ -140,10 +140,10 @@ export default class CameraStore {
     return track;
   }
 
-  getTrackFromAction(trackAction: TrackSelectAction) {
+  getTrackFromAction(trackAction: TrackSelectAction, user?: string) {
     let track: Track | undefined;
     this.camMap.value.forEach((camera) => {
-      const { track: trackNum } = camera.trackStore.getFromAction(trackAction);
+      const { track: trackNum } = camera.trackStore.getFromAction(trackAction, user);
       if (trackNum > -1) {
         track = camera.trackStore.getPossible(trackNum);
       }
@@ -154,10 +154,10 @@ export default class CameraStore {
     return undefined;
   }
 
-  getFrameFomAction(trackAction: TrackSelectAction) {
+  getFrameFomAction(trackAction: TrackSelectAction, user?: string) {
     let frame = -1;
     this.camMap.value.forEach((camera) => {
-      const { frame: foundFrame } = camera.trackStore.getFromAction(trackAction);
+      const { frame: foundFrame } = camera.trackStore.getFromAction(trackAction, user);
       if (foundFrame > -1) {
         frame = foundFrame;
       }

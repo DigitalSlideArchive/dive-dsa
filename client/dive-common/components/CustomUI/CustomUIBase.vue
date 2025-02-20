@@ -13,6 +13,7 @@ import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import { DIVEAction } from 'dive-common/use/useActions';
+import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 interface AttributeDisplayButton {
     name: string;
@@ -20,6 +21,10 @@ interface AttributeDisplayButton {
     prependIcon?: string;
     appendIcon?: string;
     buttonToolTip?: string;
+    displayValue?: boolean;
+    attrName: string;
+    type: Attribute['belongs'];
+    userAttribute: boolean;
     action: () => void;
 }
 
@@ -156,6 +161,10 @@ export default defineComponent({
                 appendIcon: shortcut.button.iconAppend,
                 buttonToolTip: shortcut.button.buttonToolTip,
                 action: createShortcutHandler(shortcut, attribute),
+                displayValue: shortcut.button.displayValue,
+                attrName: attribute.name,
+                type: attribute.belongs,
+                userAttribute: !!attribute.user,
               });
             }
           });
@@ -176,6 +185,7 @@ export default defineComponent({
 
     const actionButtons = computed(() => {
       const dataList: ActionDisplayButton[] = [];
+      const user = store.state.User.user?.login;
       if (configMan.configuration.value?.shortcuts) {
         configMan.configuration.value.shortcuts.forEach((item) => {
           if (item.button) {
@@ -187,7 +197,7 @@ export default defineComponent({
               appendIcon: item.button.iconAppend,
               action: () => {
                 item.actions.forEach((action: DIVEAction) => {
-                  systemHandler.processAction(action, true, { frame: frameRef.value });
+                  systemHandler.processAction(action, true, { frame: frameRef.value }, user);
                 });
               },
             });
@@ -196,6 +206,36 @@ export default defineComponent({
       }
       return dataList;
     });
+
+    const selectedTrack = computed(() => {
+      if (selectedTrackIdRef.value !== null) {
+        return cameraStore.getAnyTrack(selectedTrackIdRef.value);
+      }
+      return null;
+    });
+    const selectedAttributes = computed(() => {
+      if (selectedTrack.value && selectedTrack.value.revision.value) {
+        const t = selectedTrack.value;
+        if (t !== undefined && t !== null) {
+          const [real] = t.getFeature(frameRef.value);
+          return { trackAttributes: t.attributes, detectionAttributes: real?.attributes };
+        }
+      }
+      return { trackAttributes: {}, detectionAttributes: {} };
+    });
+    const getAttributeValue = (key: string, type: Attribute['belongs'], userAttr: boolean) => {
+      const attributes = type === 'detection' ? selectedAttributes.value.detectionAttributes : selectedAttributes.value.trackAttributes;
+      if (userAttr && attributes?.userAttributes) {
+        const user = store.state.User.user?.login;
+        if (user && attributes.userAttributes[user]) {
+          return (attributes.userAttributes[user] as StringKeyObject)[key];
+        }
+      } else if (attributes) {
+        return attributes[key];
+      }
+      return '';
+    };
+
     return {
       attributes,
       title,
@@ -204,6 +244,7 @@ export default defineComponent({
       attributeButtons,
       actionButtons,
       selectedTrackIdRef,
+      getAttributeValue,
 
     };
   },
@@ -221,8 +262,11 @@ export default defineComponent({
           {{ item }}
         </p>
         <v-divider />
-        <v-row v-for="(button, index) in actionButtons" :key="`action_${index}`">
-          <v-col cols="12">
+        <v-row v-if="actionButtons.length" dense>
+          Action Buttons
+        </v-row>
+        <v-row v-if="actionButtons.length" class="my-1">
+          <v-col v-for="(button, index) in actionButtons" :key="`action_${index}`">
             <v-tooltip bottom>
               <template #activator="{ on }">
                 <v-btn
@@ -248,6 +292,9 @@ export default defineComponent({
         <v-divider />
         <p v-if="attributeButtons.length && selectedTrackIdRef === null">
           Attribute Action Buttons are disabled because no track is selected
+        </p>
+        <p v-else>
+          Attribute Buttons
         </p>
         <v-row v-for="(attribute, index) in attributeButtons" :key="`attribute_${index}`">
           <v-col cols="12">
@@ -283,6 +330,9 @@ export default defineComponent({
                 </template>
                 <span>{{ button.buttonToolTip }}</span>
               </v-tooltip>
+              <span v-if="button.displayValue">
+                {{ getAttributeValue(button.attrName, button.type, button.userAttribute) }}
+              </span>
             </v-col>
           </v-row>
         </v-row>

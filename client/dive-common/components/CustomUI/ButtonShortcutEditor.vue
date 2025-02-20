@@ -11,6 +11,10 @@ export default defineComponent({
       type: Object as PropType<ButtonShortcut | undefined>,
       required: false,
     },
+    attribute: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props, { emit }) {
     const buttonShortcutEnabled = ref(!!props.value);
@@ -53,6 +57,7 @@ export default defineComponent({
       <v-text-field v-model="buttonShortcut.iconPrepend" label="Prepend Icon" />
       <v-text-field v-model="buttonShortcut.iconAppend" label="Append Icon" />
       <v-color-picker v-model="buttonShortcut.buttonColor" label="Button Color" />
+      <v-checkbox v-if="attribute" v-model="buttonShortcut.displayValue" label="Display Value" />
     </div>
   </div>
 </template>

@@ -52,6 +52,7 @@ export interface ButtonShortcut {
     iconAppend?: string;
     iconPrepend?: string;
     buttonColor?: string; // 'auto' or can be overridden
+    displayValue?: boolean;
   }
 export interface AttributeShortcut {
     key: string;

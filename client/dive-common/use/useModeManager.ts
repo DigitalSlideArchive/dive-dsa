@@ -796,17 +796,18 @@ export default function useModeManager({
     actionRoot: DIVEAction,
     shortcut = false,
     data?: {frame?: number; selectedTrack?: number},
+    user?: string,
   ) {
     const action = cloneDeep(actionRoot);
     if (action.action.type === 'GoToFrame') {
       if (action.action.track) {
         if (shortcut) { //if Frame/is -1 we use currently selected as basis
-          if (action.action.track.startFrame === -1 && data?.frame) {
+          if (action.action.track.startFrame === -1 && data?.frame !== undefined) {
             // eslint-disable-next-line no-param-reassign
             action.action.track.startFrame = data.frame;
           }
         }
-        const frame = cameraStore.getFrameFomAction(action.action.track);
+        const frame = cameraStore.getFrameFomAction(action.action.track, user);
         if (frame !== -1) {
           aggregateController.value.seek(frame);
         }
@@ -820,7 +821,7 @@ export default function useModeManager({
         action.action.startTrack = selectedTrackId.value || -1;
       }
 
-      const track = cameraStore.getTrackFromAction(action.action);
+      const track = cameraStore.getTrackFromAction(action.action, user);
       if (track) {
         selectTrack(track.id, false);
       }

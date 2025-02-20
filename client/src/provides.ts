@@ -209,7 +209,7 @@ export interface Handler {
   stopLinking(): void;
   addFullFrameTrack(trackType: string, trackLength: number): void;
   processAction(action: DIVEAction,
-    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}): void;
+    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}, user?: string): void;
   seekFrame(frame: number): void;
   toggleKeyFrame(selectedTrack?: number): void;
 }
