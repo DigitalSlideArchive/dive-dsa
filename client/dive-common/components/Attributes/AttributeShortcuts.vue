@@ -388,7 +388,9 @@ awaitingKeyPress
           />
           <v-row v-if="!!shortcutError || (selectedDisplayKey === '' && !selectedShortcutButton?.buttonText) ">
             <v-spacer />
-            <v-alert type="warning">Saving requires either a Keyboard Shortcut or a Button</v-alert>
+            <v-alert type="warning">
+              Saving requires either a Keyboard Shortcut or a Button
+            </v-alert>
             <v-spacer />
           </v-row>
         </v-card-text>

@@ -27,14 +27,18 @@ export default defineComponent({
       type: Number,
       default: 50,
     },
+    regExValue: {
+      type: Boolean,
+      default: undefined,
+    },
   },
   setup(props, { emit }) {
     const set = ref(props.filterItem.set);
     const value: Ref<undefined | boolean | number | string | string[] | number[]> = ref(props.defaultValue);
-    const regEx: Ref<boolean | undefined> = ref();
+    const regEx: Ref<boolean | undefined> = ref(props.regExValue);
     const rangeFilterEnabled = ref(false);
     const enabled = ref(props.defaultEnabled); // numerical enabled filter
-    watch([value, enabled], () => {
+    watch([value, enabled, regEx], () => {
       if (enabled.value) {
         if (value.value === undefined && props.filterItem.category === 'numerical' && props.filterItem.range) {
           value.value = [props.filterItem.range.min, props.filterItem.range.max];
@@ -53,7 +57,6 @@ export default defineComponent({
         emit('clear-filter');
         return; // skip emitting the value unless the checkbox is enabled
       }
-      console.log(update);
       emit('update-value', update);
     });
     if (enabled.value) {
