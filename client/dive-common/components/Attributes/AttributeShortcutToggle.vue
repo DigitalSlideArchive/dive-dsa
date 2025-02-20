@@ -171,7 +171,7 @@ export default defineComponent({
       const index = actionShortcuts.value.findIndex((item) => item.shortcut === shortcut);
       if (index !== -1) {
         actionShortcuts.value[index].actions.forEach((action) => {
-          systemHandler.processAction(action, true, { frame: frameRef.value });
+          systemHandler.processAction(action, true, { frame: frameRef.value }, store.state.User.user?.login);
         });
       }
     };
@@ -185,7 +185,7 @@ export default defineComponent({
       });
       if (index !== -1) {
         diveActionShortcuts.value[index].actions.forEach((action) => {
-          systemHandler.processAction(action, true, { frame: frameRef.value });
+          systemHandler.processAction(action, true, { frame: frameRef.value }, store.state.User.user?.login);
         });
       }
     };

@@ -135,6 +135,7 @@ class ButtonShortcut(BaseModel):
     iconAppend: Optional[str]
     iconPrepend: Optional[str]
     buttonColor: Optional[str]
+    displayValue: Optional[bool]
 
 
 class ShortcutAttributeOptions(BaseModel):
@@ -426,6 +427,7 @@ class DIVEShortcut(BaseModel):
     shortcut: ShortCut
     description: str
     actions: List[DIVEActions]
+    button: Optional[ButtonShortcut]
 
 
 class DIVEUIAction(BaseModel):
