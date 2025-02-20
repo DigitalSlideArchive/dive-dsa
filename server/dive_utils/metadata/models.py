@@ -70,7 +70,7 @@ class DIVE_Metadata(Model):
             raise ValidationException('root must be a string')
         return doc
 
-    def updateKey(self, folder, root, owner, key, value, categoricalLimit=50):
+    def updateKey(self, folder, root, owner, key, value, categoricalLimit=50, force=False):
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
@@ -81,7 +81,7 @@ class DIVE_Metadata(Model):
         )
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
-        if key not in metadataKeys['unlocked']:
+        if key not in metadataKeys['unlocked'] and force == False:
             raise Exception(f'Key {key} is not unlocked for this metadata and cannot be modified')
         if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
             existing['metadata'][key] = float(value)
@@ -102,9 +102,24 @@ class DIVE_Metadata(Model):
         )
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+        if existing['metadata'].get(key, None) is not None:
+            del existing['metadata'][key]
+            self.save(existing)
+
+
+    def deleteKeys(self, root, owner, key):
+        existing = self.find({'root': str(root['_id'])})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {root["_id"]} found')
+        query = {'root': existing['root']}
+        metadataKeys = DIVE_MetadataKeys().findOne(
+            query=query,
+            owner=str(owner['_id']),
+        )
+        if not metadataKeys:
+            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
         del existing['metadata'][key]
         self.save(existing)
-
 
 class DIVE_MetadataKeys(Model):
     # This is NOT an access controlled model; it is expected that all endpoints

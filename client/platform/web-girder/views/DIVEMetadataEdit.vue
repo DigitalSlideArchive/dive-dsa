@@ -46,6 +46,9 @@ export default defineComponent({
     const girderRest = useGirderRest();
     const router = useRouter();
 
+    const processing = ref(false);
+    const deleteDialog = ref(false);
+    const deleteKey = ref('');
     const isOwnerAdmin = ref(false);
     const unlocked: Ref<string[]> = ref([]);
     const metadataKeys: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
@@ -151,13 +154,22 @@ export default defineComponent({
       }
     };
 
-    const deleteMetadata = async (index: number) => {
-      const item = formattedKeys.value[index];
-      if (item) {
-        await deleteDiveMetadataKey(props.id, item.name);
+    const deleteMetadata = async (name: string, purge = false) => {
+      if (name) {
+        processing.value = true;
+        await deleteDiveMetadataKey(props.id, name, purge);
         getFolderInfo(props.id);
-        getData();
+        await getData();
+        processing.value = false;
+        deleteKey.value = '';
+        deleteDialog.value = false;
       }
+    };
+
+    const prepDeleteMetadata = (index: number) => {
+      const item = formattedKeys.value[index];
+      deleteKey.value = item.name;
+      deleteDialog.value = true;
     };
 
     const cancelNewKey = () => {
@@ -186,6 +198,7 @@ export default defineComponent({
           defaultValue = addKeyData.value.defaultValue;
         }
       }
+      processing.value = true;
       await addDiveMetadataKey(
         props.id,
         addKeyData.value.key,
@@ -195,8 +208,9 @@ export default defineComponent({
         defaultValue,
       );
       cancelNewKey();
-      getFolderInfo(props.id);
-      getData();
+      await getFolderInfo(props.id);
+      await getData();
+      processing.value = false;
     };
 
     const initializeNewKey = () => {
@@ -228,6 +242,10 @@ export default defineComponent({
       initializeNewKey,
       returnToMetadata,
       isOwnerAdmin,
+      processing,
+      deleteDialog,
+      deleteKey,
+      prepDeleteMetadata,
     };
   },
 });
@@ -282,16 +300,47 @@ export default defineComponent({
           <v-icon :color="!item.unlocked ? '' : 'warning'" @click="toggleUnlock(index)">
             {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
           </v-icon>
-          <v-icon color="error" @click="deleteMetadata(index)">
+          <v-icon color="error" @click="prepDeleteMetadata(index)">
             mdi-delete
           </v-icon>
         </v-row>
       </template>
     </v-data-table>
+    <v-dialog v-model="deleteDialog" width="600">
+      <v-card>
+        <v-card-title>Delete Metadata Key: {{ deleteKey }}</v-card-title>
+        <v-card-text v-if="!processing">
+          <p>The simple 'Delete' Button will delete the key from the Metadata structure but the values will remain on all DIVEDatasets but won't be displayed in the filters</p>
+          <p>The 'Purge' option will remove the value from all the datasets.  This will take longer to process</p>
+        </v-card-text>
+        <v-card-text v-else-if="processing">
+          <p>Processing the Delete request</p>
+          <v-row>
+            <v-spacer />
+            <v-progress-circular color="primary" indeterminate :size="128" :width="12" />
+            <v-spacer />
+          </v-row>
+        </v-card-text>
+        <v-card-actions>
+          <v-row dense>
+            <v-spacer />
+            <v-btn color="" :disabled="processing" class="mx-2" @click="deleteDialog = false; deleteKey = ''">
+              Cancel
+            </v-btn>
+            <v-btn color="error" :disabled="processing" class="mx-2" @click="deleteMetadata(deleteKey)">
+              Delete <v-icon>mdi-delete</v-icon>
+            </v-btn>
+            <v-btn color="error" :disabled="processing" class="mx-2" @click="deleteMetadata(deleteKey, true)">
+              Purge <v-icon>mdi-nuke</v-icon>
+            </v-btn>
+          </v-row>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <v-dialog v-model="addKeyDialog" width="600">
       <v-card>
         <v-card-title>Add New Metadata Key</v-card-title>
-        <v-card-text>
+        <v-card-text v-if="!processing">
           <v-row dense>
             <v-text-field v-model="addKeyData.key" label="Name" />
           </v-row>
@@ -309,13 +358,21 @@ export default defineComponent({
             <v-text-field v-else v-model="addKeyData.defaultValue" label="Default Value" />
           </v-row>
         </v-card-text>
+        <v-card-text v-else-if="processing">
+          <p>Processing the update/save request</p>
+          <v-row>
+            <v-spacer />
+            <v-progress-circular color="primary" indeterminate :size="128" :width="12" />
+            <v-spacer />
+          </v-row>
+        </v-card-text>
         <v-card-actions>
           <v-row>
             <v-spacer />
-            <v-btn color="error" class="mx-2" @click="cancelNewKey()">
+            <v-btn color="error" :disabled="processing" class="mx-2" @click="cancelNewKey()">
               Cancel
             </v-btn>
-            <v-btn color="success" class="mx-2" @click="saveNewKey()">
+            <v-btn color="success" :disabled="processing" class="mx-2" @click="saveNewKey()">
               Save
             </v-btn>
           </v-row>

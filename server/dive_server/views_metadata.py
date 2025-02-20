@@ -775,8 +775,15 @@ class DIVEMetadata(Resource):
             "Metadata key to remove",
             required=True,
         )
+        .param(
+            "removeValues",
+            "Will remove all values set on DIVE Dataset Metadata for this value",
+            dataType='boolean',
+            required=False,
+            default=False,
+        )
     )
-    def delete_metadata_key(self, rootId, key):
+    def delete_metadata_key(self, rootId, key, removeValues):
         user = self.getCurrentUser()
         query = {"root": str(rootId["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query, user=user)
@@ -788,6 +795,16 @@ class DIVEMetadata(Resource):
             raise RestException(
                 f'Could not find Metadata for FolderId: {rootId["_id"]} to delete key.'
             )
+        if removeValues:
+            query = {"root": str(rootId["_id"]),}
+            existing_data = DIVE_Metadata().find(query)
+            for item in existing_data:
+                diveDatasetFolder = Folder().load(
+                    item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
+                )
+                DIVE_Metadata().deleteKey(diveDatasetFolder, rootId, user, key)
+
+
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -858,7 +875,8 @@ class DIVEMetadata(Resource):
             diveDatasetFolder = Folder().load(
                 item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
             )
-            DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value)
+            if default_value:
+                DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value, force=True)
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -948,6 +966,7 @@ class DIVEMetadata(Resource):
             "Metadata key to delete",
             required=False,
         )
+
     )
     def delete_key_value(self, divedataset, key):
         user = self.getCurrentUser()

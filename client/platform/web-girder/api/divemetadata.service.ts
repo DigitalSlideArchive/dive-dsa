@@ -123,10 +123,11 @@ function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: '
   });
 }
 
-function deleteDiveMetadataKey(rootMetadataFolder:string, key: string) {
+function deleteDiveMetadataKey(rootMetadataFolder:string, key: string, removeValues = false) {
   return girderRest.delete(`dive_metadata/${rootMetadataFolder}/delete_key`, {
     params: {
       key,
+      removeValues,
     },
   });
 }
