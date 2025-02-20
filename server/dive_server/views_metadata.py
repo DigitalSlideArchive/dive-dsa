@@ -645,9 +645,14 @@ class DIVEMetadata(Resource):
         if filters is not None:
             query = {'$and': [query]}
             if 'search' in filters.keys():
-                query["$and"].append(
-                    {'filename': {'$regex': re.escape(filters['search'])}},
-                )
+                if 'searchRegEx' in filters.keys():
+                    query["$and"].append(
+                        {'filename': {'$regex':filters['search']}},
+                    )
+                else:
+                    query["$and"].append(
+                        {'filename': {'$regex': re.escape(filters['search'])}},
+                    )
             # Now we need to go through the other filters and create querys for them
             # each filter in metadataFilters will have a type associated with it
             if 'metadataFilters' in filters.keys():
@@ -670,9 +675,14 @@ class DIVEMetadata(Resource):
                             }
                         )
                     if filter['category'] == 'search':
-                        query["$and"].append(
-                            {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
-                        )
+                        if filter.get('regEx', False) is True:
+                            query["$and"].append(
+                                {f'metadata.{key}': {'$regex': filter['value']}}
+                            )
+                        else:
+                            query["$and"].append(
+                                {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
+                            )
         return query
 
     @access.user

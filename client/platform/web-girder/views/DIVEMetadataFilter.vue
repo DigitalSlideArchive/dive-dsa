@@ -62,6 +62,7 @@ export default defineComponent({
     watch(() => props.displayConfig, () => checkConfig());
 
     const search: Ref<string> = ref(props.rootFilter.search || '');
+    const regEx: Ref<undefined | boolean> = ref(props.rootFilter.searchRegEx);
     const filters: Ref<DIVEMetadataFilterValueResults['metadataKeys']> = ref({});
     const splitFilters = computed(() => {
       const advanced: DIVEMetadataFilterValueResults['metadataKeys'] = {};
@@ -120,6 +121,9 @@ export default defineComponent({
       if (props.rootFilter.search) {
         search.value = props.rootFilter.search;
       }
+      if (props.rootFilter.searchRegEx) {
+        regEx.value = true;
+      }
     };
 
     watch(() => props.rootFilter, () => {
@@ -138,8 +142,9 @@ export default defineComponent({
       }
     });
 
-    watch(search, () => {
+    watch([search, regEx], () => {
       currentFilter.value.search = search.value;
+      currentFilter.value.searchRegEx = regEx.value;
       emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     });
 
@@ -152,7 +157,7 @@ export default defineComponent({
       }
       emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     };
-    const updateFilter = (key: string, { value, category } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category']}) => {
+    const updateFilter = (key: string, { value, category, regEx } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category'], regEx?: boolean}) => {
       if (!currentFilter.value.metadataFilters) {
         currentFilter.value.metadataFilters = {};
       }
@@ -169,6 +174,7 @@ export default defineComponent({
         currentFilter.value.metadataFilters[key] = {
           category,
           value,
+          regEx,
         };
       }
       emit('updateFilters', {
@@ -200,6 +206,14 @@ export default defineComponent({
       categoricalLimit.value = props.displayConfig.categoricalLimit;
     });
 
+    const toggleRegex = () => {
+      if (regEx.value) {
+        regEx.value = undefined;
+      } else {
+        regEx.value = true;
+      }
+    };
+
     return {
 
       pageList,
@@ -217,6 +231,8 @@ export default defineComponent({
       sortValue,
       sortParams,
       sortDir,
+      toggleRegex,
+      regEx,
     };
   },
 });
@@ -290,6 +306,11 @@ export default defineComponent({
           clearable
           @change="updateFilter"
         />
+        <v-btn variant="plain" :ripple="false" icon :color="regEx ? 'blue' : ''" @click="toggleRegex()">
+          <v-icon>
+            mdi-regex
+          </v-icon>
+        </v-btn>
       </v-row>
       <v-row
         no-wrap

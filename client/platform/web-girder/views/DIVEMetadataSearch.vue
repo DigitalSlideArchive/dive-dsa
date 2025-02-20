@@ -103,6 +103,7 @@ export default defineComponent({
     const updateFilter = async ({
       filter, sortVal, sortDir, resetPage,
     }: { filter?: DIVEMetadataFilter, sortVal?: string, sortDir?: number, resetPage? : boolean }) => {
+      console.log(filter);
       if (resetPage) {
         currentPage.value = 0;
       }
