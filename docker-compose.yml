@@ -69,8 +69,6 @@ services:
         source: ${PUBLIC_DATA_PATH:-./docker/girder_data}
         target: /data/public
         read_only: true
-        volume:
-          nocopy: true
     environment:
       - "DSA_USER=${DSA_USER:-}"
       - "GIRDER_MONGO_URI=mongodb://mongo:27017/girder"

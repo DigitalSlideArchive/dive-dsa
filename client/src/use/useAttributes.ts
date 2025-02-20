@@ -738,6 +738,16 @@ export default function UseAttributes(
     return filters;
   });
 
+  const swimlaneDisplaySettings = computed(() => {
+    const displaySettings: Record<string, SwimlaneGraph['displaySettings']> = {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _nudgeVal = attributeSwimlaneData.value; // reactive to changes in the data
+    Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
+      displaySettings[key] = graph.displaySettings;
+    });
+    return displaySettings;
+  });
+
   const swimlaneDefault = computed(() => {
     const defVal = Object.entries(swimlaneGraphs.value).find(([, item]) => item.default);
     if (defVal) {
@@ -779,6 +789,7 @@ export default function UseAttributes(
     removeSwimlaneFilter,
     attributeSwimlaneData,
     swimlaneGraphs,
+    swimlaneDisplaySettings,
     swimlaneEnabled,
     swimlaneDefault,
     // Tools

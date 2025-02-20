@@ -35,6 +35,7 @@ export default defineComponent({
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
+    const loading = ref(true);
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
     const totalPages = ref(0);
     const currentPage = ref(0);
@@ -95,6 +96,7 @@ export default defineComponent({
     onMounted(() => {
       getFolderInfo(props.id);
       getData();
+      loading.value = false;
     });
 
     const storedSortVal = ref('filename');
@@ -186,13 +188,14 @@ export default defineComponent({
       setFilterData,
       unlockedMap,
       updateDiveMetadataKeyVal,
+      loading,
     };
   },
 });
 </script>
 
 <template>
-  <v-container>
+  <v-container v-if="!loading">
     <DIVEMetadataFilterVue
       :id="id"
       :current-page="currentPage"

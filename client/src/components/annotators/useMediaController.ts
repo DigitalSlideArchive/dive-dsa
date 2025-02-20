@@ -222,13 +222,13 @@ export function useMediaController() {
     });
 
     function setCursor(newCursor: string) {
-      if (state.camera) {
+      if (state[camera]) {
         state[camera].cursor = `${newCursor}`;
       }
     }
 
     function setImageCursor(newCursor: string) {
-      if (state.camera) {
+      if (state[camera]) {
         state[camera].imageCursor = `${newCursor}`;
       }
     }

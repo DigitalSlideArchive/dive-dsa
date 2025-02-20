@@ -239,19 +239,9 @@ export default defineComponent({
 
 <template>
   <div class="d-flex flex-column">
-    <v-container
-      dense
-      class="py-0"
-    >
-      <v-row
-        class="border-highlight"
-        align="center"
-        dense
-      >
-        <v-col
-          id="type-header"
-          class="d-flex flex-row align-center py-0 mr-8"
-        >
+    <v-container dense class="py-0">
+      <v-row class="border-highlight" align="center" dense>
+        <v-col id="type-header" class="d-flex flex-row align-center py-0 mr-8">
           <v-checkbox
             :input-value="headCheckState !== -1 ? headCheckState : false"
             :indeterminate="headCheckState === -1"
@@ -270,10 +260,7 @@ export default defineComponent({
             @click="clickSortToggle"
           />
           <slot name="settings" />
-          <v-tooltip
-            open-delay="100"
-            bottom
-          >
+          <v-tooltip open-delay="100" bottom>
             <template #activator="{ on }">
               <v-btn
                 v-if="getUISetting('UIEditing')"
@@ -284,10 +271,7 @@ export default defineComponent({
                 v-on="on"
                 @click="clickDelete()"
               >
-                <v-icon
-                  small
-                  color="error"
-                >
+                <v-icon small color="error">
                   mdi-delete
                 </v-icon>
               </v-btn>
@@ -305,13 +289,7 @@ export default defineComponent({
       class="mx-2 mt-2 mb-1 shrink input-box"
     >
     <div class="pb-2 overflow-y-hidden">
-      <v-virtual-scroll
-        class="tracks"
-        :items="virtualTypes"
-        :item-height="30"
-        :height="virtualHeight"
-        bench="1"
-      >
+      <v-virtual-scroll class="tracks" :items="virtualTypes" :item-height="30" :height="virtualHeight" bench="1">
         <template #default="{ item }">
           <type-item
             :type="item.type"
@@ -326,10 +304,7 @@ export default defineComponent({
         </template>
       </v-virtual-scroll>
     </div>
-    <v-dialog
-      v-model="data.showPicker"
-      width="350"
-    >
+    <v-dialog v-model="data.showPicker" width="350">
       <TypeEditor
         :selected-type="data.selectedType"
         :filter-controls="filterControls"
@@ -345,8 +320,8 @@ export default defineComponent({
 @import 'src/components/styles/common.scss';
 
 .border-highlight {
-   border-bottom: 1px solid gray;
- }
+  border-bottom: 1px solid gray;
+}
 
 .type-checkbox {
   max-width: 80%;
@@ -364,6 +339,7 @@ export default defineComponent({
     }
   }
 }
+
 .outlined {
   background-color: gray;
   color: #222;

@@ -54,6 +54,9 @@ export default defineComponent({
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+    if (getUISetting('UIDetections') === false && getUISetting('UIEvents')) {
+      currentView.value = 'Events';
+    }
     const enabledKey = ref(false);
     const dismissedButtons: Ref<string[]> = ref([]); // buttons that have been dismissed from the timelineConfig;
     const dismissedHeights: Ref<{name: string; height: number}[]> = ref([]);

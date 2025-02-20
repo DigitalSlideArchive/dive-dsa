@@ -11,8 +11,8 @@ export default defineComponent({
   },
   setup() {
     const configMan = useConfiguration();
-    const editVisTypes = ref(['bounding box', 'polygon', 'line']);
-    const visTypes = ref(['bounding box', 'polygon', 'line', 'text', 'tooltip']);
+    const editVisTypes = ref(['bounding box', 'polygon', 'line', 'time']);
+    const visTypes = ref(['bounding box', 'polygon', 'line', 'time', 'text', 'tooltip']);
     const transferArr = (data: boolean[], typesUsed: Ref<string[]>) => {
       const results: string[] = [];
       typesUsed.value.forEach((item, index) => {
@@ -24,8 +24,8 @@ export default defineComponent({
     };
 
     const UIEditingInfo = ref(configMan.getUISetting('UIEditingInfo') as boolean);
-    const UIEditingTypes = ref(isObject(configMan.getUISetting('UIEditingTypes')) ? transferArr(configMan.getUISetting('UIEditingTypes') as boolean[], editVisTypes) : ['bounding box', 'polygon', 'line']);
-    const UIVisibility = ref(isObject(configMan.getUISetting('UIVisibility')) ? transferArr(configMan.getUISetting('UIVisibility') as boolean[], visTypes) : ['bounding box', 'polygon', 'line']);
+    const UIEditingTypes = ref(isObject(configMan.getUISetting('UIEditingTypes')) ? transferArr(configMan.getUISetting('UIEditingTypes') as boolean[], editVisTypes) : ['bounding box', 'polygon', 'line', 'time']);
+    const UIVisibility = ref(isObject(configMan.getUISetting('UIVisibility')) ? transferArr(configMan.getUISetting('UIVisibility') as boolean[], visTypes) : ['bounding box', 'polygon', 'line', 'time']);
     const UITrackTrails = ref(configMan.getUISetting('UITrackTrails') as boolean);
 
     const convertArr = (data: string[], typesUseD: Ref<string[]>) => {

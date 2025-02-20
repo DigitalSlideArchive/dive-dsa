@@ -492,6 +492,7 @@ export default defineComponent({
                   || (mode === 'Detection' && selectedAttributes.keyframe === false)"
                 :values="attribute.values ? attribute.values : null"
                 :value="getAttributeValue(attribute)"
+                :locked-value="!!attribute.lockedValues"
                 :type-settings="attribute.editor || null"
                 @change="
                   updateAttribute($event, attribute)"
@@ -511,6 +512,7 @@ export default defineComponent({
                     :disabled="readOnlyMode"
                     :values="attribute.values ? attribute.values : null"
                     :value="getAttributeValue(attribute)"
+                    :locked-value="!!attribute.lockedValues"
                     :type-settings="attribute.editor || null"
                     focus
                     @change="updateAttribute($event, attribute)"
