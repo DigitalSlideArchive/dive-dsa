@@ -81,7 +81,7 @@ class DIVE_Metadata(Model):
         )
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
-        if key not in metadataKeys['unlocked'] and force == False:
+        if key not in metadataKeys['unlocked'] and force is False:
             raise Exception(f'Key {key} is not unlocked for this metadata and cannot be modified')
         if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
             existing['metadata'][key] = float(value)
@@ -106,7 +106,6 @@ class DIVE_Metadata(Model):
             del existing['metadata'][key]
             self.save(existing)
 
-
     def deleteKeys(self, root, owner, key):
         existing = self.find({'root': str(root['_id'])})
         if not existing:
@@ -117,9 +116,10 @@ class DIVE_Metadata(Model):
             owner=str(owner['_id']),
         )
         if not metadataKeys:
-            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+            raise Exception(f'Could not find the root metadataKeys with folderId: {root["_id"]}')
         del existing['metadata'][key]
         self.save(existing)
+
 
 class DIVE_MetadataKeys(Model):
     # This is NOT an access controlled model; it is expected that all endpoints
@@ -256,18 +256,18 @@ class DIVE_MetadataKeys(Model):
             raise Exception(f'Key: {key} is not in the metadata')
         keyData = existing['metadataKeys'][key]
         category = keyData['category']
-        keyDataSet = set(keyData['set'])
         if category == 'categorical':
-            if len(keyData['set']) + 1 < categoricalLimit:
+            keyDataSet = set(keyData['set'])
+            if len(keyDataSet) + 1 < categoricalLimit:
                 keyDataSet.add(value)
             else:
                 keyData['category'] = 'search'
                 del keyData['set']
+            keyData['set'] = list(keyDataSet)
         if category == 'numerical' and keyData.get('range', False):
             range = keyData['range']
             range['min'] = min(float(value), float(range['min']))
             range['max'] = max(float(value), float(range['max']))
             keyData['range'] = range
-        keyData['set'] = list(keyDataSet)
         existing['metadataKeys'][key] = keyData
         self.save(existing)

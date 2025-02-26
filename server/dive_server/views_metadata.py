@@ -647,7 +647,7 @@ class DIVEMetadata(Resource):
             if 'search' in filters.keys():
                 if 'searchRegEx' in filters.keys():
                     query["$and"].append(
-                        {'filename': {'$regex':filters['search']}},
+                        {'filename': {'$regex': filters['search']}},
                     )
                 else:
                     query["$and"].append(
@@ -674,11 +674,9 @@ class DIVEMetadata(Resource):
                                 ]
                             }
                         )
-                    if filter['category'] == 'search':
+                    if filter['category'] == 'search' and filter.get('value', False):
                         if filter.get('regEx', False) is True:
-                            query["$and"].append(
-                                {f'metadata.{key}': {'$regex': filter['value']}}
-                            )
+                            query["$and"].append({f'metadata.{key}': {'$regex': filter['value']}})
                         else:
                             query["$and"].append(
                                 {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
@@ -796,15 +794,15 @@ class DIVEMetadata(Resource):
                 f'Could not find Metadata for FolderId: {rootId["_id"]} to delete key.'
             )
         if removeValues:
-            query = {"root": str(rootId["_id"]),}
+            query = {
+                "root": str(rootId["_id"]),
+            }
             existing_data = DIVE_Metadata().find(query)
             for item in existing_data:
                 diveDatasetFolder = Folder().load(
                     item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
                 )
                 DIVE_Metadata().deleteKey(diveDatasetFolder, rootId, user, key)
-
-
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -876,7 +874,9 @@ class DIVEMetadata(Resource):
                 item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
             )
             if default_value:
-                DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value, force=True)
+                DIVE_Metadata().updateKey(
+                    diveDatasetFolder, root, user, key, default_value, force=True
+                )
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -966,7 +966,6 @@ class DIVEMetadata(Resource):
             "Metadata key to delete",
             required=False,
         )
-
     )
     def delete_key_value(self, divedataset, key):
         user = self.getCurrentUser()

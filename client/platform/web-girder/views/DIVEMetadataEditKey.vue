@@ -2,7 +2,7 @@
 import { MetadataFilterKeysItem } from 'platform/web-girder/api/divemetadata.service';
 import {
   onMounted,
-  defineComponent, ref, PropType,
+  defineComponent, ref, PropType, watch,
 } from 'vue';
 
 export default defineComponent({
@@ -34,6 +34,10 @@ export default defineComponent({
         localValue.value = false;
       }
     };
+
+    watch(() => props.value, () => {
+      localValue.value = props.value;
+    });
 
     onMounted(() => initialize);
 

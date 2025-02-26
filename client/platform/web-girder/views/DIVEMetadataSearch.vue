@@ -93,10 +93,11 @@ export default defineComponent({
       }
     };
 
-    onMounted(() => {
-      getFolderInfo(props.id);
-      getData();
+    onMounted(async () => {
+      loading.value = true;
+      await getFolderInfo(props.id);
       loading.value = false;
+      await getData();
     });
 
     const storedSortVal = ref('filename');

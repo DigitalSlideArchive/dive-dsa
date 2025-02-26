@@ -100,10 +100,11 @@ export default defineComponent({
       emit('filter-data', filterData.data);
     };
     onMounted(async () => {
-      await getFilters();
       if (props.rootFilter.metadataFilters) {
+        loadCurrentFilter();
         const metadataKeys: string[] = [];
         const advancedKeys: string[] = [];
+        await getFilters();
         Object.keys(filters.value).forEach((key) => {
           if (props.displayConfig.display && props.displayConfig.display.includes(key)) {
             metadataKeys.push(key);
@@ -112,11 +113,14 @@ export default defineComponent({
           }
         });
         defaultEnabledKeys.value = metadataKeys;
-        if (intersection(metadataKeys, advancedKeys).length) {
-          filtersOn.value = true;
+        if (currentFilter.value?.metadataFilters) {
+          if (intersection(Object.keys(currentFilter.value.metadataFilters), advancedKeys).length) {
+            filtersOn.value = true;
+          }
         }
+      } else {
+        await getFilters();
       }
-      loadCurrentFilter();
     });
 
     const loadCurrentFilter = async () => {
@@ -166,7 +170,7 @@ export default defineComponent({
       if (!currentFilter.value.metadataFilters) {
         currentFilter.value.metadataFilters = {};
       }
-      if (value === '' || (Array.isArray(value) && value.length === 0)) {
+      if (value === '' || ((Array.isArray(value) && value.length === 0))) {
         if (currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
           delete currentFilter.value.metadataFilters[key];
         }
@@ -175,6 +179,10 @@ export default defineComponent({
           category,
           range: value as [number, number],
         };
+      } else if (value === undefined) {
+        if (currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
+          delete currentFilter.value.metadataFilters[key];
+        }
       } else {
         currentFilter.value.metadataFilters[key] = {
           category,
@@ -361,9 +369,9 @@ export default defineComponent({
       <v-row
         v-if="filtersOn"
         no-wrap
-        class="
-          mt-3"
+        class="mt-3 mb-4"
       >
+        <v-spacer />
         <div v-for="(filterItem, key) in splitFilters.advanced" :key="`filterItem_${key}`">
           <DIVEMetadataFilterItemVue
             :label="key"
@@ -376,6 +384,7 @@ export default defineComponent({
             @clear-filter="clearFilter(key)"
           />
         </div>
+        <v-spacer />
       </v-row>
       <v-row class="mt-3">
         <slot name="leftOptions" />
