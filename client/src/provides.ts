@@ -65,6 +65,7 @@ export interface AttributesFilterType {
   Readonly<Ref<Record<string, Record<string, SwimlaneAttribute>>>>;
   swimlaneGraphs: Readonly<Ref<Record<string, SwimlaneGraph>>>;
   swimlaneEnabled: Readonly<Ref<Record<string, boolean>>>;
+  swimlaneDisplaySettings: Readonly<Ref<Record<string, SwimlaneGraph['displaySettings']>>>;
   swimlaneDefault: Readonly<Ref<string | null>>;
   getAttributeValueColor: (attribute: Attribute, val: string) => string;
 
@@ -158,6 +159,7 @@ export interface Handler {
     frameNum: number,
     flickNum: number,
     bounds: RectBounds,
+    forceInterpolate?: boolean,
   ): void;
   /* update geojson for track */
   updateGeoJSON(
@@ -207,8 +209,9 @@ export interface Handler {
   stopLinking(): void;
   addFullFrameTrack(trackType: string, trackLength: number): void;
   processAction(action: DIVEAction,
-    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}): void;
+    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}, user?: string): void;
   seekFrame(frame: number): void;
+  toggleKeyFrame(selectedTrack?: number): void;
 }
 const HandlerSymbol = Symbol('handler');
 
@@ -250,6 +253,7 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     addFullFrameTrack(...args) { handle('addFullFrameTrack', args); },
     processAction(...args) { handle('processAction', args); },
     seekFrame(...args) { handle('seekFrame', args); },
+    toggleKeyFrame(...args) { handle('toggleKeyFrame', args); },
   };
 }
 

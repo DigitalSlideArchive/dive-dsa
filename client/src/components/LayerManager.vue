@@ -18,6 +18,7 @@ import TailLayer from '../layers/AnnotationLayers/TailLayer';
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
 import { FrameDataTrack, mergeBounds } from '../layers/LayerTypes';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
+import TimeLayer from '../layers/AnnotationLayers/TimeLayer';
 import AttributeLayer from '../layers/AnnotationLayers/AttributeLayer';
 import AttributeBoxLayer from '../layers/AnnotationLayers/AttributeBoxLayer';
 import type { AnnotationId } from '../BaseAnnotation';
@@ -157,6 +158,11 @@ export default defineComponent({
       stateStyling: trackStyleManager.stateStyles,
       typeStyling: typeStylingRef,
       formatter: props.formatTextRow,
+    });
+    const timeLayer = new TimeLayer({
+      annotator,
+      stateStyling: trackStyleManager.stateStyles,
+      typeStyling: typeStylingRef,
     });
 
     const attributeBoxLayer = new AttributeBoxLayer({
@@ -328,6 +334,11 @@ export default defineComponent({
         attributeLayer.disable();
         attributeBoxLayer.disable();
       }
+      if (visibleModes.includes('Time')) {
+        timeLayer.changeData(frameData);
+      } else {
+        timeLayer.disable();
+      }
 
       if (selectedTrackId !== null) {
         if ((editingTrack) && !currentFrameIds.includes(selectedTrackId)
@@ -459,6 +470,8 @@ export default defineComponent({
     });
     rectAnnotationLayer.bus.$on('annotation-clicked', Clicked);
     rectAnnotationLayer.bus.$on('annotation-right-clicked', Clicked);
+    timeLayer.bus.$on('annotation-clicked', Clicked);
+    timeLayer.bus.$on('annotation-right-clicked', Clicked);
     polyAnnotationLayer.bus.$on('annotation-clicked', Clicked);
     polyAnnotationLayer.bus.$on('annotation-right-clicked', Clicked);
     editAnnotationLayer.bus.$on('update:geojson', (
@@ -473,6 +486,14 @@ export default defineComponent({
         const bounds = geojsonToBound(data as GeoJSON.Feature<GeoJSON.Polygon>);
         cb();
         handler.updateRectBounds(frameNumberRef.value, flickNumberRef.value, bounds);
+      } else if (type === 'Time') {
+        const bounds = geojsonToBound(data as GeoJSON.Feature<GeoJSON.Polygon>);
+        cb();
+        handler.updateRectBounds(frameNumberRef.value, flickNumberRef.value, bounds, true);
+        if (selectedTrackIdRef.value !== null) {
+          const timeTrack = trackStore.get(selectedTrackIdRef.value);
+          timeTrack.setTimeMode(true);
+        }
       } else {
         handler.updateGeoJSON(mode, frameNumberRef.value, flickNumberRef.value, data, key, cb);
       }

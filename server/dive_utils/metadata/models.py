@@ -39,7 +39,7 @@ class DIVE_Metadata(Model):
             ]
         )
 
-    def createMetadata(self, folder, root, owner, metadata, created_date=None):   # noqa: B006
+    def createMetadata(self, folder, root, owner, metadata, created_date=None):  # noqa: B006
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
             if created_date is None:

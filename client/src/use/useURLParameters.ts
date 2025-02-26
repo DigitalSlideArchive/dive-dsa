@@ -26,14 +26,14 @@ export default function useURLParameters(
     }
     const currentLocation = window.location.href;
     if (values.length === 0) {
-      window.location.href = currentLocation.replace(/\?.*/, '');
+      window.history.replaceState(null, '', currentLocation.replace(/\?.*/, '')); // Override history
       return;
     }
     const urlParameters = `?${values.join('&')}`;
     if (currentLocation.includes('?')) {
-      window.location.href = currentLocation.replace(/\?.*/, urlParameters);
+      window.history.replaceState(null, '', currentLocation.replace(/\?.*/, urlParameters)); // Override history
     } else {
-      window.location.href = `${currentLocation}${urlParameters}`;
+      window.history.replaceState(null, '', `${currentLocation}${urlParameters}`); // Override history
     }
   });
 

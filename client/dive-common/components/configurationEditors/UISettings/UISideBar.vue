@@ -17,16 +17,14 @@ export default defineComponent({
     const UITrackDetails = ref(configMan.getUISetting('UITrackDetails') as boolean);
     const UIAttributeSettings = ref(configMan.getUISetting('UIAttributeSettings') as boolean);
     const UIAttributeAdding = ref(configMan.getUISetting('UIAttributeAdding') as boolean);
-    const UIAttributeUserReview = ref(configMan.getUISetting('UIAttributeUserReview') as boolean);
 
-    watch([UITrackTypes, UIConfidenceThreshold, UITrackList, UITrackDetails, UIAttributeSettings, UIAttributeAdding, UIAttributeUserReview], () => {
+    watch([UITrackTypes, UIConfidenceThreshold, UITrackList, UITrackDetails, UIAttributeSettings, UIAttributeAdding], () => {
       const data = {
         UITrackTypes: UITrackTypes.value ? undefined : false,
         UIConfidenceThreshold: UIConfidenceThreshold.value ? undefined : false,
         UITrackList: UITrackList.value ? undefined : false,
         UIAttributeSettings: UIAttributeSettings.value ? undefined : false,
         UIAttributeAdding: UIAttributeAdding.value ? undefined : false,
-        UIAttributeUserReview: UIAttributeUserReview.value ? undefined : false,
 
       };
       configMan.setUISettings('UISideBar', data);
@@ -38,7 +36,6 @@ export default defineComponent({
       UITrackDetails,
       UIAttributeSettings,
       UIAttributeAdding,
-      UIAttributeUserReview,
     };
   },
 
@@ -84,12 +81,6 @@ export default defineComponent({
           <v-switch
             v-model="UIAttributeAdding"
             label="Adding Attributes"
-          />
-        </v-row>
-        <v-row dense>
-          <v-switch
-            v-model="UIAttributeUserReview"
-            label="Attribute User Review"
           />
         </v-row>
       </div>

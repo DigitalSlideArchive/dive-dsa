@@ -1,7 +1,8 @@
 <script lang="ts">
-import { flatten } from 'lodash';
-import Vue, { PropType } from 'vue';
-
+import {
+  defineComponent, ref, computed, watch, PropType,
+} from 'vue';
+import { cloneDeep, flatten } from 'lodash';
 import { Mousetrap, OverlayPreferences } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
@@ -14,44 +15,23 @@ interface ButtonData {
   active: boolean;
   mousetrap?: Mousetrap[];
   tooltip?: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  color?: string;
   click: () => void;
 }
 
-export default Vue.extend({
+export default defineComponent({
   name: 'EditorMenu',
   props: {
-    editingTrack: {
-      type: Boolean,
-      required: true,
-    },
-    visibleModes: {
-      type: Array as PropType<(VisibleAnnotationTypes)[]>,
-      required: true,
-    },
-    editingMode: {
-      type: [String, Boolean] as PropType<false | EditAnnotationTypes>,
-      required: true,
-    },
-    editingDetails: {
-      type: String as PropType<'disabled' | 'Creating' | 'Editing'>,
-      required: true,
-    },
-    recipes: {
-      type: Array as PropType<Recipe[]>,
-      required: true,
-    },
-    multiSelectActive: {
-      type: Boolean,
-      default: false,
-    },
-    groupEditActive: {
-      type: Boolean,
-      default: false,
-    },
-    attributeKey: {
-      type: Boolean,
-      default: false,
-    },
+    editingTrack: { type: Boolean, required: true },
+    visibleModes: { type: Array as PropType<(VisibleAnnotationTypes)[]>, required: true },
+    editingMode: { type: [String, Boolean] as PropType<false | EditAnnotationTypes>, required: true },
+    editingDetails: { type: String as PropType<'disabled' | 'Creating' | 'Editing'>, required: true },
+    recipes: { type: Array as PropType<Recipe[]>, required: true },
+    multiSelectActive: { type: Boolean, default: false },
+    groupEditActive: { type: Boolean, default: false },
+    attributeKey: { type: Boolean, default: false },
     tailSettings: {
       type: Object as PropType<{ before: number; after: number }>,
       default: () => ({ before: 20, after: 10 }),
@@ -72,195 +52,222 @@ export default Vue.extend({
       }]),
     },
     overlays: {
-      type: Array as PropType<{filename: string; url: string; id: string}[]>,
+      type: Array as PropType<{ filename: string; url: string; id: string }[]>,
       default: () => [],
     },
-    getUISetting: {
-      type: Function,
-      required: true,
-    },
+    getUISetting: { type: Function, required: true },
   },
-  data() {
-    return {
-      toolTipForce: false,
-      toolTimeTimeout: 0,
-      editBlackColorScale: false,
-      editWhiteColorScale: false,
-      editTransparentcolor: false,
-      modeToolTips: {
-        Creating: {
-          rectangle: 'Drag to draw rectangle. Press ESC to exit.',
-          Polygon: 'Click to place vertices. Right click to close.',
-          LineString: 'Click to place head/tail points.',
-        },
-        Editing: {
-          rectangle: 'Drag vertices to resize the rectangle',
-          Polygon: 'Drag midpoints to create new vertices. Click vertices to select for deletion.',
-          LineString: 'Click endpoints to select for deletion.',
-        },
+  setup(props, { emit }) {
+    const toolTipForce = ref(false);
+    let toolTimeTimeout: number | undefined;
+    const modeToolTips = {
+      Creating: {
+        rectangle: 'Drag to draw rectangle. Press ESC to exit.',
+        Polygon: 'Click to place vertices. Right click to close.',
+        LineString: 'Click to place head/tail points.',
+        Time: 'Automatically creating Time',
       },
-      overrideOverlay: false,
+      Editing: {
+        rectangle: 'Drag vertices to resize the rectangle',
+        Polygon: 'Drag midpoints to create new vertices. Click vertices to select for deletion.',
+        LineString: 'Click endpoints to select for deletion.',
+        Time: 'Use the keyframe indicator to modify the time annotation, Delete to return to rectangle annotations',
+      },
     };
-  },
-  computed: {
-    editButtons(): ButtonData[] {
-      const em = this.editingMode;
-      return [
-        {
-          id: 'rectangle',
-          icon: 'mdi-vector-square',
-          active: this.editingTrack && em === 'rectangle',
-          mousetrap: [{
-            bind: '1',
-            handler: () => {
-              this.$emit('set-annotation-state', { editing: 'rectangle' });
-            },
-          }],
-          click: () => {
-            this.$emit('set-annotation-state', { editing: 'rectangle' });
-          },
-        },
-        /* Include recipes as editing modes if they're toggleable */
-        ...this.recipes.filter((r) => r.toggleable.value).map((r, i) => ({
+
+    const editButtons = computed((): ButtonData[] => {
+      const buttons: ButtonData[] = [{
+        id: 'rectangle',
+        icon: 'mdi-vector-square',
+        active: props.editingTrack && props.editingMode === 'rectangle',
+        mousetrap: [{
+          bind: '1',
+          handler: () => emit('set-annotation-state', { editing: 'rectangle' }),
+        }],
+        click: () => emit('set-annotation-state', { editing: 'rectangle' }),
+      },
+      ...props.recipes
+        .filter((r) => r.toggleable.value)
+        .map((r, i) => ({
           id: r.name,
           icon: r.icon.value || 'mdi-pencil',
-          active: this.editingTrack && r.active.value,
+          active: props.editingTrack && r.active.value,
           click: () => r.activate(),
           mousetrap: [
-            {
-              bind: (i + 2).toString(),
-              handler: () => r.activate(),
-            },
+            { bind: (i + 2).toString(), handler: () => r.activate() },
             ...r.mousetrap(),
           ],
         })),
+      {
+        id: 'Time',
+        icon: 'mdi-timer-outline',
+        active: props.editingTrack && props.editingMode === 'Time',
+        mousetrap: [{
+          bind: '4',
+          handler: () => emit('set-annotation-state', { editing: 'Time' }),
+        }],
+        click: () => emit('set-annotation-state', { editing: 'Time' }),
+      },
       ];
-    },
-    viewButtons(): ButtonData[] {
-      /* Only geometry primitives can be visible types right now */
+      // Others should be disabled with a reason
+      for (let i = 0; i < buttons.length; i += 1) {
+        const button = buttons[i];
+        if (button.id !== 'Time' && props.editingTrack && props.editingMode === 'Time') {
+          button.disabled = true;
+          button.disabledReason = 'Time Annotation is Active, delete the Time annotation to enable other modes';
+          button.color = 'error';
+        } else {
+          button.disabled = !props.editingMode;
+          button.disabledReason = undefined;
+          button.color = button.active ? editingHeader.value.color : '';
+        }
+      }
+      return buttons;
+    });
+
+    const viewButtons = computed((): ButtonData[] => {
       const buttons: ButtonData[] = [
         {
           id: 'rectangle',
           type: 'rectangle',
           icon: 'mdi-vector-square',
-          active: this.isVisible('rectangle'),
+          active: isVisible('rectangle'),
           tooltip: 'Bounding Box Annotation',
-          click: () => this.toggleVisible('rectangle'),
+          click: () => toggleVisible('rectangle'),
         },
         {
           id: 'Polygon',
           type: 'Polygon',
           icon: 'mdi-vector-polygon',
-          active: this.isVisible('Polygon'),
+          active: isVisible('Polygon'),
           tooltip: 'Polygon Annotation',
-          click: () => this.toggleVisible('Polygon'),
+          click: () => toggleVisible('Polygon'),
         },
         {
           id: 'LineString',
           type: 'LineString',
-          active: this.isVisible('LineString'),
+          active: isVisible('LineString'),
           icon: 'mdi-vector-line',
           tooltip: '2-Point Line',
-          click: () => this.toggleVisible('LineString'),
+          click: () => toggleVisible('LineString'),
+        },
+        {
+          id: 'Time',
+          type: 'Time',
+          active: isVisible('Time'),
+          icon: 'mdi-timer-outline',
+          tooltip: 'Time Annotation Display',
+          click: () => toggleVisible('Time'),
         },
         {
           id: 'text',
           type: 'text',
-          active: this.isVisible('text'),
+          active: isVisible('text'),
           icon: 'mdi-format-text',
           tooltip: 'Confidence/Attribute Text Display',
-          click: () => this.toggleVisible('text'),
+          click: () => toggleVisible('text'),
         },
         {
           id: 'tooltip',
           type: 'tooltip',
-          active: this.isVisible('tooltip'),
+          active: isVisible('tooltip'),
           icon: 'mdi-tooltip-text-outline',
           tooltip: 'Tooltip Information about Hovered over annotations',
-          click: () => this.toggleVisible('tooltip'),
+          click: () => toggleVisible('tooltip'),
         },
       ];
-      if (this.attributeKey) {
+      if (props.attributeKey) {
         buttons.push({
           id: 'attributeKey',
           type: 'attributeKey',
-          active: this.isVisible('attributeKey'),
+          active: isVisible('attributeKey'),
           icon: 'mdi-view-list',
           tooltip: 'Attribute Colors Key',
-          click: () => this.toggleVisible('attributeKey'),
+          click: () => toggleVisible('attributeKey'),
         });
       }
       return buttons;
-    },
-    mousetrap(): Mousetrap[] {
-      return flatten(this.editButtons.map((b) => b.mousetrap || []));
-    },
-    editingHeader() {
-      if (this.groupEditActive) {
+    });
+
+    const isVisible = (mode: VisibleAnnotationTypes) => props.visibleModes.includes(mode);
+
+    const toggleVisible = (mode: VisibleAnnotationTypes) => {
+      if (isVisible(mode)) {
+        emit('set-annotation-state', {
+          visible: props.visibleModes.filter((m) => m !== mode),
+        });
+      } else {
+        emit('set-annotation-state', {
+          visible: props.visibleModes.concat([mode]),
+        });
+      }
+    };
+
+    const copyJSON = (index: number) => {
+      const variance = props.overlaySettings[index].overrideVariance;
+      const rgb = hexToRgb(props.overlaySettings[index].overrideColor || '#000000');
+      const colorScale = {
+        black: props.overlaySettings[index].blackColorScale,
+        white: props.overlaySettings[index].whiteColorScale,
+      };
+      const obj = {
+        transparency: [{ rgb, variance }],
+        colorScale: props.overlaySettings[index].colorScale ? colorScale : undefined,
+      };
+      navigator.clipboard.writeText(JSON.stringify(obj));
+    };
+
+    const updateOverlaySetting = (index: number, key: keyof OverlayPreferences, val: number | boolean | string | undefined) => {
+      if (index < props.overlaySettings.length) {
+        const overLayCopy = cloneDeep(props.overlaySettings);
+        overLayCopy[index][key] = val as never;
+        emit('update:overlay-settings', overLayCopy);
+      }
+    };
+
+    watch(
+      () => props.editingDetails,
+      (newVal) => {
+        clearTimeout(toolTimeTimeout);
+        if (newVal !== 'disabled') {
+          toolTipForce.value = true;
+          toolTimeTimeout = setTimeout(() => { toolTipForce.value = false; }, 2000) as unknown as number;
+        } else {
+          toolTipForce.value = false;
+        }
+      },
+    );
+
+    const mousetrap = computed((): Mousetrap[] => flatten(editButtons.value.filter((b) => !b.disabled).map((b) => b.mousetrap || [])));
+    const editingHeader = computed(() => {
+      if (props.groupEditActive) {
         return { text: 'Group Edit Mode', icon: 'mdi-group', color: 'primary' };
       }
-      if (this.multiSelectActive) {
+      if (props.multiSelectActive) {
         return { text: 'Multi-select Mode', icon: 'mdi-call-merge', color: 'error' };
       }
-      if (this.editingDetails !== 'disabled') {
+      if (props.editingDetails !== 'disabled') {
         return {
-          text: `${this.editingDetails} ${this.editingMode} `,
-          icon: this.editingDetails === 'Creating' ? 'mdi-pencil-plus' : 'mdi-pencil',
-          color: this.editingDetails === 'Creating' ? 'success' : 'primary',
+          text: `${props.editingDetails} ${props.editingMode}`,
+          icon: props.editingDetails === 'Creating' ? 'mdi-pencil-plus' : 'mdi-pencil',
+          color: props.editingDetails === 'Creating' ? 'success' : 'primary',
         };
       }
       return { text: 'Not editing', icon: 'mdi-pencil-off-outline', color: '' };
-    },
-  },
-  watch: {
-    editingDetails() {
-      clearTimeout(this.toolTimeTimeout);
-      if (this.editingDetails !== 'disabled') {
-        this.toolTipForce = true;
-        this.toolTimeTimeout = setTimeout(() => { this.toolTipForce = false; }, 2000) as unknown as number;
-      } else {
-        this.toolTipForce = false;
-      }
-    },
-  },
-  methods: {
-    isVisible(mode: VisibleAnnotationTypes) {
-      return this.visibleModes.includes(mode);
-    },
+    });
 
-    toggleVisible(mode: VisibleAnnotationTypes) {
-      if (this.isVisible(mode)) {
-        this.$emit('set-annotation-state', {
-          visible: this.visibleModes.filter((m) => m !== mode),
-        });
-      } else {
-        this.$emit('set-annotation-state', {
-          visible: this.visibleModes.concat([mode]),
-        });
-      }
-    },
-    copyJSON(index: number) {
-      const variance = this.overlaySettings[index].overrideVariance;
-      const rgb = hexToRgb(this.overlaySettings[index].overrideColor || '#000000');
-      const colorScale = {
-        black: this.overlaySettings[index].blackColorScale,
-        white: this.overlaySettings[index].whiteColorScale,
-      };
-      const obj = {
-        transparency: [{
-          rgb,
-          variance,
-        }],
-        colorScale: this.overlaySettings[index].colorScale ? colorScale : undefined,
-      };
-      navigator.clipboard.writeText(JSON.stringify(obj));
-    },
-    updateOverlaySetting(index: number, key: keyof OverlayPreferences, val: number | boolean | string | undefined) {
-      if (index < this.overlaySettings.length) {
-        this.overlaySettings[index][key] = val as never;
-        this.$emit('update:overlay-settings', this.overlaySettings);
-      }
-    },
+    return {
+      toolTipForce,
+      editButtons,
+      viewButtons,
+      copyJSON,
+      updateOverlaySetting,
+      toggleVisible,
+      isVisible,
+      mousetrap,
+      editingHeader,
+      modeToolTips,
+    };
   },
 });
 </script>
@@ -305,19 +312,25 @@ export default Vue.extend({
         v-for="(button, index) in editButtons"
         :key="button.id + 'view'"
       >
-        <v-btn
-          v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[index]"
-          :disabled="!editingMode"
-          :outlined="!button.active"
-          :color="button.active ? editingHeader.color : ''"
-          class="mx-1"
-          small
-          @click="button.click"
-        >
-          <pre v-if="button.mousetrap">{{ button.mousetrap[0].bind }}:</pre>
-          <v-icon>{{ button.icon }}</v-icon>
-        </v-btn>
-      </span>
+        <v-tooltip bottom>
+          <template #activator="{ on }">
+            <div v-on="on">
+              <v-btn
+                v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[index]"
+                :disabled="button.disabled"
+                :outlined="!button.active"
+                :color="button.color || ''"
+                class="mx-1"
+                small
+                @click="button.click"
+              >
+                <pre v-if="button.mousetrap">{{ button.mousetrap[0].bind }}:</pre>
+                <v-icon>{{ button.icon }}</v-icon>
+              </v-btn>
+            </div>
+          </template>
+          <span v-if="button.disabledReason"> {{ button.disabledReason }}</span>
+        </v-tooltip></span>
       <slot name="delete-controls" />
       <v-spacer />
       <span class="pb-1">

@@ -37,7 +37,7 @@ export interface BaseAnnotationParams {
 export default abstract class BaseAnnotation {
   id: AnnotationId;
 
-  meta?: StringKeyObject;
+  meta?: StringKeyObject & { time?: boolean };
 
   attributes: StringKeyObject & { userAttributes?: StringKeyObject };
 

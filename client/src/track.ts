@@ -544,6 +544,17 @@ export default class Track extends BaseAnnotation {
     return findAdjacentValue(frameListing, startFrame, action);
   }
 
+  setTimeMode(val: boolean) {
+    if (val) {
+      if (!this.meta) {
+        this.meta = {};
+      }
+      this.meta.time = true;
+    } else if (this.meta && !val) {
+      delete this.meta.time;
+    }
+  }
+
   /* Interpolate feature from d0 to d1 @ frame */
   static interpolate(frame: number, d0: Feature, d1: Feature): Feature | null {
     if (!d0.interpolate) {

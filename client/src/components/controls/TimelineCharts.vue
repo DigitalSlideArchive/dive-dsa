@@ -81,7 +81,7 @@ export default defineComponent({
     const enabledKey = ref(true);
     const {
       timelineEnabled, attributeTimelineData,
-      swimlaneEnabled, attributeSwimlaneData,
+      swimlaneEnabled, swimlaneDisplaySettings, attributeSwimlaneData,
     } = useAttributesFilters();
     const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     // Format the Attribute data if it is available
@@ -176,6 +176,7 @@ export default defineComponent({
       attributeDataTimeline,
       swimlaneEnabled,
       attributeSwimlaneData,
+      swimlaneDisplaySettings,
       enabledSwimlanes,
       enabledTimelines,
       // Timeline Ref
@@ -266,6 +267,7 @@ export default defineComponent({
               :client-width="clientWidth"
               :client-height="getTimelineHeight(timeline)"
               :margin="margin"
+              :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
               :class="{ 'timeline-config': timelineList.length }"
               @scroll-swimlane="swimlaneOffset = $event"
             />
@@ -380,6 +382,7 @@ export default defineComponent({
             :data="data"
             :client-width="clientWidth"
             :client-height="clientHeight / timelineList.length"
+            :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
             :margin="margin"
             @scroll-swimlane="swimlaneOffset = $event"
           />

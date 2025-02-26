@@ -1,6 +1,8 @@
 <script lang="ts">
 import { computed, defineComponent } from 'vue';
 import context from 'dive-common/store/context';
+import { useConfiguration } from 'vue-media-annotator/provides';
+import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 export default defineComponent({
   props: {
@@ -10,11 +12,14 @@ export default defineComponent({
     },
   },
   setup() {
+    const configMan = useConfiguration();
+    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+
     const options = computed(() => Object.entries(context.componentMap).map(([value, entry]) => ({
       text: entry.description,
       value,
     })));
-    return { context, options };
+    return { context, options, getUISetting };
   },
 });
 </script>
@@ -42,6 +47,7 @@ export default defineComponent({
         />
         <v-spacer />
         <v-btn
+          v-if="getUISetting('UIContextBarNotStatic')"
           icon
           color="white"
           class="shrink"
