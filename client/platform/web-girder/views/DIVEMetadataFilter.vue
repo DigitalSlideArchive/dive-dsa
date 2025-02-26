@@ -79,7 +79,7 @@ export default defineComponent({
     const currentFilter: Ref<DIVEMetadataFilter> = ref({});
     const sortParams = computed(() => {
       if (splitFilters.value) {
-        return ['filename'];// ...Object.keys(splitFilters.value.displayed), ...Object.keys(splitFilters.value.advanced)];
+        return ['filename', ...Object.keys(splitFilters.value.displayed), ...Object.keys(splitFilters.value.advanced)];
       }
       return ['filename'];
     });

@@ -63,7 +63,7 @@ export default defineComponent({
 
     <div v-else-if="openDialog">
       <div v-if="category === 'search'">
-        <v-text-field v-model="localValue" label="Value" @change="emitUpdate(key, localValue)" />
+        <v-text-field v-model="localValue" label="Value" hide-details @change="emitUpdate(key, localValue)" />
       </div>
       <div v-else-if="category === 'numerical'">
         <v-text-field
@@ -81,6 +81,7 @@ export default defineComponent({
           v-model="localValue"
           label="Value"
           :items="setValues"
+          hide-details
           @change="emitUpdate(localValue)"
         />
       </div>

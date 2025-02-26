@@ -246,13 +246,14 @@ export default defineComponent({
             </v-btn>
           </div>
         </v-row>
-        <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4">
+        <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4" align="center">
           <b>{{ display }}:</b>
           <div v-if="unlockedMap[display] !== undefined">
             <DIVEMetadataEditKey
               :category="unlockedMap[display].category"
               :value="item.metadata[display]"
               :set-values="unlockedMap[display].set || []"
+              class="pl-2"
               @update="updateDiveMetadataKeyVal(item.DIVEDataset, display, $event)"
             />
           </div>
