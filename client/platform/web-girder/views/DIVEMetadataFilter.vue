@@ -101,7 +101,7 @@ export default defineComponent({
     };
     onMounted(async () => {
       if (props.rootFilter.metadataFilters) {
-        loadCurrentFilter();
+        const enabledFilters = loadCurrentFilter();
         const metadataKeys: string[] = [];
         const advancedKeys: string[] = [];
         await getFilters();
@@ -112,7 +112,7 @@ export default defineComponent({
             advancedKeys.push(key);
           }
         });
-        defaultEnabledKeys.value = metadataKeys;
+        defaultEnabledKeys.value = enabledFilters;
         if (currentFilter.value?.metadataFilters) {
           if (intersection(Object.keys(currentFilter.value.metadataFilters), advancedKeys).length) {
             filtersOn.value = true;
@@ -123,9 +123,11 @@ export default defineComponent({
       }
     });
 
-    const loadCurrentFilter = async () => {
+    const loadCurrentFilter = () => {
+      let enabledFilters: string[] = [];
       if (props.rootFilter.metadataFilters && Object.keys(props.rootFilter.metadataFilters).length) {
         currentFilter.value.metadataFilters = props.rootFilter.metadataFilters;
+        enabledFilters = Object.keys(props.rootFilter.metadataFilters);
       }
       if (props.rootFilter.search) {
         search.value = props.rootFilter.search;
@@ -133,6 +135,7 @@ export default defineComponent({
       if (props.rootFilter.searchRegEx) {
         regEx.value = true;
       }
+      return enabledFilters;
     };
 
     watch(() => props.rootFilter, () => {

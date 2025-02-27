@@ -38,6 +38,9 @@ export default defineComponent({
     const regEx: Ref<boolean | undefined> = ref(props.regExValue);
     const rangeFilterEnabled = ref(false);
     const enabled = ref(props.defaultEnabled); // numerical enabled filter
+    watch(() => props.defaultEnabled, () => {
+      enabled.value = props.defaultEnabled;
+    });
     watch([value, enabled, regEx], () => {
       if (enabled.value) {
         if (value.value === undefined && props.filterItem.category === 'numerical' && props.filterItem.range) {
