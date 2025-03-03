@@ -6,6 +6,7 @@ export interface MetadataFilterItem {
     category: 'search' | 'categorical' | 'numerical' | 'boolean',
     value?: boolean | string | string[] | number | number[]
     range?: number[]
+    regEx?: boolean;
 }
 
 export interface FilterDisplayConfig {
@@ -18,6 +19,7 @@ export interface MetadataFilterKeysItem {
     category: 'search' | 'categorical' | 'numerical' | 'boolean';
     count: number;
     unique: number;
+    regEx?: boolean;
     set?: string[] | number[];
     range?: {
         min: number,
@@ -28,6 +30,7 @@ export interface MetadataFilterKeysItem {
 
 export interface DIVEMetadataFilter {
     search?: string;
+    searchRegEx?: boolean;
     metadataFilters?: Record<string, MetadataFilterItem>;
 }
 
@@ -120,10 +123,11 @@ function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: '
   });
 }
 
-function deleteDiveMetadataKey(rootMetadataFolder:string, key: string) {
+function deleteDiveMetadataKey(rootMetadataFolder:string, key: string, removeValues = false) {
   return girderRest.delete(`dive_metadata/${rootMetadataFolder}/delete_key`, {
     params: {
       key,
+      removeValues,
     },
   });
 }

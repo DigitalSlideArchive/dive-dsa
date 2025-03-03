@@ -3,7 +3,7 @@ import {
   DIVEMetadataFilter, MetadataFilterItem, DIVEMetadataFilterValueResults, getMetadataFilterValues, FilterDisplayConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import {
-  computed, defineComponent, onBeforeMount, PropType, Ref, ref, watch,
+  computed, defineComponent, onMounted, PropType, Ref, ref, watch,
 } from 'vue';
 import { intersection } from 'lodash';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
@@ -50,7 +50,6 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { prompt } = usePrompt();
-
     const checkConfig = async () => {
       if (typeof (props.displayConfig) === 'string') {
         await prompt({
@@ -60,8 +59,8 @@ export default defineComponent({
       }
     };
     watch(() => props.displayConfig, () => checkConfig());
-
     const search: Ref<string> = ref(props.rootFilter.search || '');
+    const regEx: Ref<undefined | boolean> = ref(props.rootFilter.searchRegEx);
     const filters: Ref<DIVEMetadataFilterValueResults['metadataKeys']> = ref({});
     const splitFilters = computed(() => {
       const advanced: DIVEMetadataFilterValueResults['metadataKeys'] = {};
@@ -100,26 +99,43 @@ export default defineComponent({
       filters.value = filterData.data.metadataKeys;
       emit('filter-data', filterData.data);
     };
-    onBeforeMount(async () => {
-      await getFilters();
+    onMounted(async () => {
       if (props.rootFilter.metadataFilters) {
-        const metadataKeys = Object.keys(props.rootFilter.metadataFilters);
-        const advancedKeys = Object.keys(splitFilters.value.advanced);
-        defaultEnabledKeys.value = metadataKeys;
-        if (intersection(metadataKeys, advancedKeys)) {
-          filtersOn.value = true;
+        const enabledFilters = loadCurrentFilter();
+        const metadataKeys: string[] = [];
+        const advancedKeys: string[] = [];
+        await getFilters();
+        Object.keys(filters.value).forEach((key) => {
+          if (props.displayConfig.display && props.displayConfig.display.includes(key)) {
+            metadataKeys.push(key);
+          } else if (props.displayConfig.hide && !props.displayConfig.hide.includes(key)) {
+            advancedKeys.push(key);
+          }
+        });
+        defaultEnabledKeys.value = enabledFilters;
+        if (currentFilter.value?.metadataFilters) {
+          if (intersection(Object.keys(currentFilter.value.metadataFilters), advancedKeys).length) {
+            filtersOn.value = true;
+          }
         }
+      } else {
+        await getFilters();
       }
-      loadCurrentFilter();
     });
 
-    const loadCurrentFilter = async () => {
+    const loadCurrentFilter = () => {
+      let enabledFilters: string[] = [];
       if (props.rootFilter.metadataFilters && Object.keys(props.rootFilter.metadataFilters).length) {
         currentFilter.value.metadataFilters = props.rootFilter.metadataFilters;
+        enabledFilters = Object.keys(props.rootFilter.metadataFilters);
       }
       if (props.rootFilter.search) {
         search.value = props.rootFilter.search;
       }
+      if (props.rootFilter.searchRegEx) {
+        regEx.value = true;
+      }
+      return enabledFilters;
     };
 
     watch(() => props.rootFilter, () => {
@@ -138,8 +154,9 @@ export default defineComponent({
       }
     });
 
-    watch(search, () => {
+    watch([search, regEx], () => {
       currentFilter.value.search = search.value;
+      currentFilter.value.searchRegEx = regEx.value;
       emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     });
 
@@ -152,11 +169,11 @@ export default defineComponent({
       }
       emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     };
-    const updateFilter = (key: string, { value, category } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category']}) => {
+    const updateFilter = (key: string, { value, category, regEx } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category'], regEx?: boolean}) => {
       if (!currentFilter.value.metadataFilters) {
         currentFilter.value.metadataFilters = {};
       }
-      if (value === '' || (Array.isArray(value) && value.length === 0)) {
+      if (value === '' || ((Array.isArray(value) && value.length === 0))) {
         if (currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
           delete currentFilter.value.metadataFilters[key];
         }
@@ -165,10 +182,15 @@ export default defineComponent({
           category,
           range: value as [number, number],
         };
+      } else if (value === undefined) {
+        if (currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
+          delete currentFilter.value.metadataFilters[key];
+        }
       } else {
         currentFilter.value.metadataFilters[key] = {
           category,
           value,
+          regEx,
         };
       }
       emit('updateFilters', {
@@ -195,10 +217,31 @@ export default defineComponent({
       }
       return undefined;
     };
+
+    const getRegExVal = (key: string) => {
+      if (currentFilter.value.metadataFilters) {
+        if (currentFilter.value.metadataFilters[key] && currentFilter.value.metadataFilters[key].category === 'numerical') {
+          return undefined;
+        }
+        if (currentFilter.value.metadataFilters[key]) {
+          return currentFilter.value.metadataFilters[key].regEx;
+        }
+      }
+      return undefined;
+    };
+
     const categoricalLimit = ref(props.displayConfig.categoricalLimit);
     watch(() => props.displayConfig, () => {
       categoricalLimit.value = props.displayConfig.categoricalLimit;
     });
+
+    const toggleRegex = () => {
+      if (regEx.value) {
+        regEx.value = undefined;
+      } else {
+        regEx.value = true;
+      }
+    };
 
     return {
 
@@ -214,9 +257,12 @@ export default defineComponent({
       updateFilter,
       clearFilter,
       getDefaultValue,
+      getRegExVal,
       sortValue,
       sortParams,
       sortDir,
+      toggleRegex,
+      regEx,
     };
   },
 });
@@ -290,6 +336,19 @@ export default defineComponent({
           clearable
           @change="updateFilter"
         />
+        <v-tooltip
+          open-delay="100"
+          bottom
+        >
+          <template #activator="{ on }">
+            <v-btn variant="plain" :ripple="false" icon :color="regEx ? 'blue' : ''" v-on="on" @click="toggleRegex()">
+              <v-icon>
+                mdi-regex
+              </v-icon>
+            </v-btn>
+          </template>
+          <span>Enable/Disable Regular Expressions</span>
+        </v-tooltip>
       </v-row>
       <v-row
         no-wrap
@@ -300,6 +359,7 @@ export default defineComponent({
           <DIVEMetadataFilterItemVue
             :label="key"
             :default-value="getDefaultValue(key)"
+            :reg-ex-value="getRegExVal(key)"
             :filter-item="filterItem"
             :default-enabled="defaultEnabledKeys.includes(key)"
             :categorical-limit="categoricalLimit"
@@ -312,13 +372,14 @@ export default defineComponent({
       <v-row
         v-if="filtersOn"
         no-wrap
-        class="
-          mt-3"
+        class="mt-3 mb-4"
       >
+        <v-spacer />
         <div v-for="(filterItem, key) in splitFilters.advanced" :key="`filterItem_${key}`">
           <DIVEMetadataFilterItemVue
             :label="key"
             :default-value="getDefaultValue(key)"
+            :reg-ex-value="getRegExVal(key)"
             :filter-item="filterItem"
             :default-enabled="defaultEnabledKeys.includes(key)"
             :categorical-limit="categoricalLimit"
@@ -326,6 +387,7 @@ export default defineComponent({
             @clear-filter="clearFilter(key)"
           />
         </div>
+        <v-spacer />
       </v-row>
       <v-row class="mt-3">
         <slot name="leftOptions" />

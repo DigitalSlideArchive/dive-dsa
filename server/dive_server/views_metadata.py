@@ -645,9 +645,14 @@ class DIVEMetadata(Resource):
         if filters is not None:
             query = {'$and': [query]}
             if 'search' in filters.keys():
-                query["$and"].append(
-                    {'filename': {'$regex': re.escape(filters['search'])}},
-                )
+                if 'searchRegEx' in filters.keys():
+                    query["$and"].append(
+                        {'filename': {'$regex': filters['search']}},
+                    )
+                else:
+                    query["$and"].append(
+                        {'filename': {'$regex': re.escape(filters['search'])}},
+                    )
             # Now we need to go through the other filters and create querys for them
             # each filter in metadataFilters will have a type associated with it
             if 'metadataFilters' in filters.keys():
@@ -669,10 +674,13 @@ class DIVEMetadata(Resource):
                                 ]
                             }
                         )
-                    if filter['category'] == 'search':
-                        query["$and"].append(
-                            {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
-                        )
+                    if filter['category'] == 'search' and filter.get('value', False):
+                        if filter.get('regEx', False) is True:
+                            query["$and"].append({f'metadata.{key}': {'$regex': filter['value']}})
+                        else:
+                            query["$and"].append(
+                                {f'metadata.{key}': {'$regex': re.escape(filter['value'])}}
+                            )
         return query
 
     @access.user
@@ -765,8 +773,15 @@ class DIVEMetadata(Resource):
             "Metadata key to remove",
             required=True,
         )
+        .param(
+            "removeValues",
+            "Will remove all values set on DIVE Dataset Metadata for this value",
+            dataType='boolean',
+            required=False,
+            default=False,
+        )
     )
-    def delete_metadata_key(self, rootId, key):
+    def delete_metadata_key(self, rootId, key, removeValues):
         user = self.getCurrentUser()
         query = {"root": str(rootId["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query, user=user)
@@ -778,6 +793,16 @@ class DIVEMetadata(Resource):
             raise RestException(
                 f'Could not find Metadata for FolderId: {rootId["_id"]} to delete key.'
             )
+        if removeValues:
+            query = {
+                "root": str(rootId["_id"]),
+            }
+            existing_data = DIVE_Metadata().find(query)
+            for item in existing_data:
+                diveDatasetFolder = Folder().load(
+                    item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
+                )
+                DIVE_Metadata().deleteKey(diveDatasetFolder, rootId, user, key)
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -848,7 +873,10 @@ class DIVEMetadata(Resource):
             diveDatasetFolder = Folder().load(
                 item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
             )
-            DIVE_Metadata().updateKey(diveDatasetFolder, root, user, key, default_value)
+            if default_value:
+                DIVE_Metadata().updateKey(
+                    diveDatasetFolder, root, user, key, default_value, force=True
+                )
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")

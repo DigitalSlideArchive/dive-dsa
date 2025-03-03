@@ -2,7 +2,7 @@
 import { MetadataFilterKeysItem } from 'platform/web-girder/api/divemetadata.service';
 import {
   onMounted,
-  defineComponent, ref, PropType,
+  defineComponent, ref, PropType, watch,
 } from 'vue';
 
 export default defineComponent({
@@ -35,6 +35,10 @@ export default defineComponent({
       }
     };
 
+    watch(() => props.value, () => {
+      localValue.value = props.value;
+    });
+
     onMounted(() => initialize);
 
     // Function to emit an update
@@ -59,7 +63,7 @@ export default defineComponent({
 
     <div v-else-if="openDialog">
       <div v-if="category === 'search'">
-        <v-text-field v-model="localValue" label="Value" @change="emitUpdate(key, localValue)" />
+        <v-text-field v-model="localValue" label="Value" hide-details @change="emitUpdate(key, localValue)" />
       </div>
       <div v-else-if="category === 'numerical'">
         <v-text-field
@@ -77,6 +81,7 @@ export default defineComponent({
           v-model="localValue"
           label="Value"
           :items="setValues"
+          hide-details
           @change="emitUpdate(localValue)"
         />
       </div>

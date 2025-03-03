@@ -35,6 +35,7 @@ export default defineComponent({
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
+    const loading = ref(true);
     const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
     const totalPages = ref(0);
     const currentPage = ref(0);
@@ -92,9 +93,11 @@ export default defineComponent({
       }
     };
 
-    onMounted(() => {
-      getFolderInfo(props.id);
-      getData();
+    onMounted(async () => {
+      loading.value = true;
+      await getFolderInfo(props.id);
+      loading.value = false;
+      await getData();
     });
 
     const storedSortVal = ref('filename');
@@ -186,13 +189,14 @@ export default defineComponent({
       setFilterData,
       unlockedMap,
       updateDiveMetadataKeyVal,
+      loading,
     };
   },
 });
 </script>
 
 <template>
-  <v-container>
+  <v-container v-if="!loading">
     <DIVEMetadataFilterVue
       :id="id"
       :current-page="currentPage"
@@ -242,13 +246,14 @@ export default defineComponent({
             </v-btn>
           </div>
         </v-row>
-        <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4">
+        <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4" align="center">
           <b>{{ display }}:</b>
           <div v-if="unlockedMap[display] !== undefined">
             <DIVEMetadataEditKey
               :category="unlockedMap[display].category"
               :value="item.metadata[display]"
               :set-values="unlockedMap[display].set || []"
+              class="pl-2"
               @update="updateDiveMetadataKeyVal(item.DIVEDataset, display, $event)"
             />
           </div>

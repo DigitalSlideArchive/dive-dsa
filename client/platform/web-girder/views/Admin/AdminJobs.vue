@@ -332,7 +332,7 @@ export default defineComponent({
                   v-bind="attrs"
                   x-small
                   depressed
-                  :href="`/girder/#job/${item.actions}`"
+                  :href="`/#job/${item.actions}`"
                   color="info"
                   class="ma-2"
                   v-on="on"

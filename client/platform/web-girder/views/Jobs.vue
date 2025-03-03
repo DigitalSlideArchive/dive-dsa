@@ -88,7 +88,7 @@ export default defineComponent({
               v-bind="attrs"
               x-small
               depressed
-              :href="`/girder/#job/${item._id}`"
+              :href="`/#job/${item._id}`"
               color="info"
               class="mx-2"
               v-on="on"
