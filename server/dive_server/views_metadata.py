@@ -116,6 +116,7 @@ class DIVEMetadata(Resource):
         )
         self.route("POST", ("create_metadata_folder", ":id"), self.create_metadata_folder)
         self.route("POST", (':id', "clone_filter"), self.clone_filter)
+        self.route("POST", (':rootId/slicer-cli-task',), self.run_slicer_cli_task)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
         self.route(
@@ -639,6 +640,55 @@ class DIVEMetadata(Resource):
             return str(destFolder['_id'])
         else:
             raise RestException('Filter is empty can not clone', code=404)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Run Slicer-CLI Task on metadata Filter")
+        .modelParam(
+            "id",
+            destName="baseFolder",
+            description="Base root Folder to filter on",
+            model=Folder,
+            level=AccessType.READ,
+            required=True,
+        )
+        .jsonParam(
+            "filters",
+            paramType='formData',
+            "JSON Settings for the filtering",
+            required=False,
+        )
+        .param(
+            'taskId',
+            'TaskId',
+            paramType='formData',
+            dataType='string',
+            required=True,
+        )
+        .jsonParam(
+            "params",
+            "Task Params",
+            paramType="formData",
+            required=False,
+            default=None,
+            requireArray=True,
+        )
+    )
+    def run_slicer_cli_task(
+        self,
+        baseFolder,
+        filters,
+        taskId,
+        params,
+    ):
+        if baseFolder['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
+
+        user = self.getCurrentUser()
+        query = self.get_filter_query(baseFolder, user, filters)
+        metadata_items = DIVE_Metadata().find(query, user=self.getCurrentUser())
+        
+
 
     def get_filter_query(self, folder, user, filters):
         query = {'root': str(folder['_id'])}
