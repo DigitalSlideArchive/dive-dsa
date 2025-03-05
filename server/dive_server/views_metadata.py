@@ -678,7 +678,7 @@ class DIVEMetadata(Resource):
         self,
         baseFolder,
         filters,
-        taskId,
+        cliId,
         params,
     ):
         if baseFolder['meta'].get(DIVEMetadataMarker, False) is False:
@@ -686,7 +686,10 @@ class DIVEMetadata(Resource):
 
         user = self.getCurrentUser()
         query = self.get_filter_query(baseFolder, user, filters)
-        metadata_items = DIVE_Metadata().find(query, user=self.getCurrentUser())
+        metadata_items = list(DIVE_Metadata().find(query, user=self.getCurrentUser()))
+        # TODO Maybe convert to using cursor in the future
+
+        
         
 
 

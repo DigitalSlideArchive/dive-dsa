@@ -7,7 +7,7 @@ import threading
 import time
 
 from bson.objectid import ObjectId
-from typing import TypedDict, List
+from typing import TypedDict, List, Optional
 from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.models.token import Token
@@ -22,11 +22,6 @@ from girder.api.rest import Resource, RestException, boundHandler, getApiUrl, ge
 from slicer_cli_web.rest_slicer_cli import genHandlerToRunDockerCLI, FOLDER_SUFFIX
 
 
-class DiveDatasetList(TypedDict):
-    DIVEDataset: str
-    DIVEMetadata: str
-    DIVEMetadataRoot: str
-    DIVEDatasetName: str
 
 def batchCLIJob(cliItem: CLIItem, params, user, cliTitle, dive_dataset_list: List[DiveDatasetList]):
     """
@@ -109,28 +104,10 @@ def batchCLITaskProcess(job):  # noqa C901
                 # TODO ADD in DIVE Directory calculation
             if param.name == 'DIVEVideo':
                 # TODO ADD in DIVE Video calculation
-
-    for param in batchParams:
-        q = {
-            'folderId': ObjectId(params.get(param.identifier() + FOLDER_SUFFIX)),
-            'name': {'$regex': params.get(param.identifier())}
-        }
-        if param.typ == 'image':
-            q['largeImage.fileId'] = {'$exists': True}
-        curparams = {'query': q, 'sort': [('lowerName', SortDir.ASCENDING)], 'user': user}
-        cursor = Item().findWithPermissions(**curparams)
-        batchCursors.append([cursor, curparams])
-        if count is None:
-            count = cursor.count()
-        elif cursor.count() != count:
-            job = Job().updateJob(
-                job, log='Failed batch processing %s - different number '
-                'of entries on batch inputs\n' % cliTitle,
-                status=JobStatus.ERROR)
-            return
     scheduled = 0
     done = False
     lastSubJob = None
+    currentDiveList = None
     try:
         while not done or (lastSubJob and lastSubJob['status'] not in {
                 JobStatus.CANCELED, JobStatus.ERROR, JobStatus.SUCCESS}):
@@ -142,6 +119,16 @@ def batchCLITaskProcess(job):  # noqa C901
             if lastSubJob is None or lastSubJob['status'] not in {
                     JobStatus.QUEUED, JobStatus.INACTIVE}:
                 jobParams = params.copy()
+                dive_info = dive_dataset_list[scheduled]
+                for key in jobParams.keys():
+                    if key == 'DIVEDirectory':
+                        param.value = dive_info['DIVEDataset']
+                    if key == 'DIVEVideo':
+                        param.value = dive_info['DIVEVideo']
+                    if key == 'DIVEMetadata':
+                        param.value = dive_info['DIVEMetadata']
+                    if key == 'DIVEMetadataRoot':
+                        param.value = dive_info['DIVEMetadataRoot']
                 paramText = []
                 for idx, param in enumerate(batchParams):
                     try:
