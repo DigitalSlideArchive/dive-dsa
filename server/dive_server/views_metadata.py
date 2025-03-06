@@ -655,7 +655,7 @@ class DIVEMetadata(Resource):
         .jsonParam(
             "filters",
             paramType='formData',
-            "JSON Settings for the filtering",
+            description="JSON Settings for the filtering",
             required=False,
         )
         .param(
