@@ -55,14 +55,14 @@ export default defineComponent({
           },
         };
       }
+      if (addEditActionType.value === 'TrackSelection') {
+        editingAction.value = {
+          action: {
+            type: 'TrackSelection',
+          },
+        };
+      }
     };
-    if (addEditActionType.value === 'TrackSelection') {
-      editingAction.value = {
-        action: {
-          type: 'TrackSelection',
-        },
-      };
-    }
 
     const getAttributeColor = (item: string) => {
       const found = attributesList.value.find((atr) => atr.key === item || atr.key === `detection_${item}`);

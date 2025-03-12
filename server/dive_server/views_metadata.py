@@ -121,7 +121,7 @@ class DIVEMetadata(Resource):
         self.route(
             "DELETE",
             (
-                ':rootId',
+                ':root',
                 'root_metadata',
             ),
             self.delete_metadata,
@@ -213,6 +213,15 @@ class DIVEMetadata(Resource):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
+        # Delete existing data if it is there already:
+        rootQuery = {"root": str(folder["_id"])}
+        found = DIVE_Metadata().findOne(query=rootQuery, user=user)
+        if found:
+            DIVE_Metadata().removeWithQuery(rootQuery)
+            DIVE_MetadataKeys().removeWithQuery(rootQuery)
+            rootFolder = Folder().setMetadata(folder, {DIVEMetadataMarker: None, DIVEMetadataFilter: None})
+            Folder().save(rootFolder)
+
         # first determine the search folder for the system
         search_folder = folder
         if sibling_path:

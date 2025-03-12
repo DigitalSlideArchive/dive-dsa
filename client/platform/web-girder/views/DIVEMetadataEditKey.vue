@@ -42,7 +42,7 @@ export default defineComponent({
     onMounted(() => initialize);
 
     // Function to emit an update
-    const emitUpdate = (value: number | string | boolean) => {
+    const emitUpdate = (value: number | string | boolean | null) => {
       emit('update', value);
       openDialog.value = false;
     };
@@ -63,7 +63,7 @@ export default defineComponent({
 
     <div v-else-if="openDialog">
       <div v-if="category === 'search'">
-        <v-text-field v-model="localValue" label="Value" hide-details @change="emitUpdate(key, localValue)" />
+        <v-text-field v-model="localValue" label="Value" hide-details @change="emitUpdate(localValue)" />
       </div>
       <div v-else-if="category === 'numerical'">
         <v-text-field

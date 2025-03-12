@@ -93,7 +93,7 @@ export default defineComponent({
 
 <template>
   <div class="mx-4">
-    <div v-if="filterItem.category === 'categorical' && filterItem.unique || 0 < categoricalLimit && set">
+    <div v-if="filterItem.category === 'categorical' && filterItem.unique || 0 < categoricalLimit && set?.length">
       <v-row dense>
         <v-select
           v-model="value"
