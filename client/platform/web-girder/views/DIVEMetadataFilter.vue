@@ -353,6 +353,7 @@ export default defineComponent({
       <v-row
         no-wrap
         class="mt-3 mx-2"
+        :class="{ 'mb-4': !filtersOn }"
       >
         <v-spacer />
         <div v-for="(filterItem, key) in splitFilters.displayed" :key="`filterItem_${key}`">
