@@ -59,6 +59,7 @@ import useURLParameters from 'vue-media-annotator/use/useURLParameters';
 import useUINotifications from 'platform/web-girder/UIControls';
 import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
 import { OverlayPreferences } from 'vue-media-annotator/types';
+import { useRoute } from 'vue-router/composables';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
@@ -119,6 +120,7 @@ export default defineComponent({
       clear: mediaControllerClear,
     } = useMediaController();
     const { time, updateTime, initialize: initTime } = useTimeObserver();
+    const route = useRoute();
     const imageData = ref({ singleCam: [] } as Record<string, FrameImage[]>);
     const datasetType: Ref<DatasetType> = ref('image-sequence');
     const datasetName = ref('');
@@ -185,6 +187,15 @@ export default defineComponent({
       new PolygonBase(),
       new HeadTail(),
     ];
+
+    watch(() => route.query, (newQuery) => {
+      if (newQuery.selectedTrackId) {
+        const selectedTrackId = parseInt(newQuery.selectedTrackId as string, 10);
+        if (progress.loaded) {
+          globalHandler.trackSelect(selectedTrackId);
+        }
+      }
+    });
 
     const vuetify = inject('vuetify') as Vuetify;
     const trackStyleManager = new StyleManager({ markChangesPending, vuetify });

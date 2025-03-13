@@ -6,6 +6,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import context from 'dive-common/store/context';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { useRoute } from 'vue-router/composables';
 import { injectAggregateController } from '../annotators/useMediaController';
 
 export default defineComponent({
@@ -17,6 +18,7 @@ export default defineComponent({
     });
     const mediaController = injectAggregateController().value;
     const { visible } = usePrompt();
+    const route = useRoute();
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
 
@@ -47,6 +49,15 @@ export default defineComponent({
     function toggleEnhancements() {
       context.toggle('ImageEnhancements');
     }
+    watch(() => route.query, (newQuery) => {
+      if (newQuery.frame) {
+        const frame = parseInt(newQuery.frame as string, 10);
+        if (frame !== mediaController.frame.value) {
+          mediaController.seek(frame);
+        }
+      }
+    });
+
     return {
       data,
       mediaController,
