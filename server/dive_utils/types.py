@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import TypedDict
 
@@ -94,3 +94,24 @@ class DIVEAnnotationSchema(TypedDict):
     tracks: Dict[str, dict]
     groups: Dict[str, dict]
     version: int
+
+
+class DiveDatasetList(TypedDict):
+    DIVEDataset: str
+    DIVEMetadata: str
+    DIVEMetadataRoot: str
+    DIVEDatasetName: str
+    DIVEVideo: Optional[str]
+
+
+class DIVEMetadataSlicerCLITaskParams(TypedDict):
+    """Describes the paramteers for running training"""
+
+    dive_dataset_list: DiveDatasetList
+    cli_item: str
+    slicer_params: Dict[
+        str, Union[int, float, List[int], List[float], str, List[str], bool]
+    ]  # Name of the new pipeline to train
+    userId: str
+    girderToken: str
+    girerApiUrl: str
