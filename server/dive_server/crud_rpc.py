@@ -292,6 +292,7 @@ def postprocess(
 
         if imageItems.count() > safeImageItems.count():
             newjob = tasks.convert_images.apply_async(
+                queue='celery',
                 kwargs=dict(
                     folderId=dsFolder["_id"],
                     user_id=str(user["_id"]),

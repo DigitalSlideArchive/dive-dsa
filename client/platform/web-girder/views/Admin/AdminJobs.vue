@@ -132,7 +132,7 @@ export default defineComponent({
     const modifyJob = async (state: 'Delete' | 'Cancel', jobId: string, title: string) => {
       const result = await prompt({
         title: `${state} Job`,
-        text: ['Do you want to delete thie following job?', title],
+        text: [`Do you want to ${state} the following job?`, title],
         confirm: true,
       });
       if (!result) {

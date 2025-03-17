@@ -91,6 +91,7 @@ services:
 
   # Worker for misc non gpu-bound tasks
   girder_worker_default:
+    image: ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-worker:${TAG:-latest}
     # Merge base-worker object with this config
     << : *base-worker
     deploy: {}

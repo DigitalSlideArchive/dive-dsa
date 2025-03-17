@@ -1,16 +1,19 @@
 import json
 import re
 import math
+import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource
+from girder.api.rest import Resource, getApiUrl
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.file import File
 from girder.exceptions import RestException
 from girder.utility import path as path_util
+from dive_utils.types import DIVEMetadataSlicerCLITaskParams, DiveDatasetList
 import pymongo
+from girder.models.setting import Setting
 
 from dive_utils import TRUTHY_META_VALUES, FALSY_META_VALUES
 from dive_utils.constants import (
@@ -23,6 +26,11 @@ from dive_utils.constants import (
 )
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from . import crud_dataset
+from dive_tasks.dive_metadata_slicer_cli import metadata_filter_slicer_cli_task
+from dive_utils import constants
+from girder.models.token import Token
+from girder_jobs.models.job import Job
+from girder_worker.girder_plugin.utils import getWorkerApiUrl
 
 
 def python_to_javascript_type(py_type):
@@ -131,6 +139,14 @@ class DIVEMetadata(Resource):
         self.route("PATCH", (':root', 'modify_key_permission'), self.modify_key_permission)
         self.route("PATCH", (':divedataset',), self.set_key_value)
         self.route("DELETE", (':divedataset',), self.delete_key_value)
+        self.route(
+            "POST",
+            (
+                ':rootId',
+                'slicer-cli-task',
+            ),
+            self.run_slicer_cli_task,
+        )
 
     @access.user
     @autoDescribeRoute(
@@ -987,3 +1003,106 @@ class DIVEMetadata(Resource):
             DIVE_Metadata().deleteKey(divedataset, rootId, user, key)
         else:
             raise RestException(f'Could not find for FolderId: {divedataset["_id"]} to delete key.')
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Run Slicer-CLI Task on metadata Filter")
+        .modelParam(
+            "rootId",
+            destName="rootId",
+            description="Base root Folder to filter on",
+            model=Folder,
+            level=AccessType.READ,
+            required=True,
+        )
+        .param(
+            'taskId',
+            'TaskId',
+            paramType='formData',
+            dataType='string',
+            required=True,
+        )
+        .jsonParam(
+            "filterParams",
+            paramType='formData',
+            description="JSON Settings for the filtering",
+            required=False,
+            default={"filters": {}, "params": {}},
+        )
+    )
+    def run_slicer_cli_task(
+        self,
+        rootId,
+        taskId,
+        filterParams,
+    ):
+        if rootId['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
+
+        filters = filterParams['filters']
+        params = filterParams['params']
+        user = self.getCurrentUser()
+        query = self.get_filter_query(rootId, user, filters)
+        metadata_items = list(DIVE_Metadata().find(query, user=self.getCurrentUser()))
+        # TODO Maybe convert to using cursor in the future
+
+        dataset_list: DiveDatasetList = []
+        for item in metadata_items:
+            dataset_id = str(item['DIVEDataset'])
+            datasetFolder = Folder().load(dataset_id, level=AccessType.READ, user=user, force=True)
+            task_defaults = crud_dataset.get_task_defaults(
+                datasetFolder, self.getCurrentUser()
+            ).dict(exclude_none=True)
+            video_id = None
+            if 'video' in task_defaults.keys():
+                video_id = task_defaults['video']['fileId']
+            dataset_list.append(
+                {
+                    "DIVEDataset": dataset_id,
+                    "DIVEMetadata": str(item['_id']),
+                    "DIVEDatasetName": item['filename'],
+                    "DIVEVideo": video_id,
+                }
+            )
+        token = Token().createToken(user=user, days=2)
+
+        dive_metadata_slicer_task_params: DIVEMetadataSlicerCLITaskParams = {
+            "dataset_list": dataset_list,
+            "cli_item": taskId,
+            "DIVEMetadataRoot": str(rootId['_id']),
+            "filter": filters,
+            "slicer_params": params,
+            "userId": str(user['_id']),
+            "girderToken": str(token['_id']),
+            "girderApiUrl": getWorkerApiUrl(),
+        }
+        if not Setting().get('worker.api_url'):
+            Setting().set('worker.api_url', getApiUrl())
+        job = Job().createLocalJob(
+            module='dive_tasks.dive_metadata_slicer_cli',
+            function='batchSlicerMetadataTask',
+            kwargs={'params': dive_metadata_slicer_task_params, 'url': cherrypy.url()},
+            title='Batch process Dive Metadata Filter',
+            type='Dive Metadata Slicer CLI Batch',
+            user=user,
+            public=True,
+            asynchronous=True,
+        )
+        job = Job().save(job)
+        Job().scheduleJob(job)
+        return job
+
+        newjob = metadata_filter_slicer_cli_task.apply_async(
+            kwargs=dict(
+                params=dive_metadata_slicer_task_params,
+                girder_client_token=token["_id"],
+                girder_job_title="Slicer CLI Metadata Run",
+                girder_job_type="Slicer CLI Metadata Run",
+            ),
+        )
+        newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = False
+        newjob.job[constants.JOBCONST_CREATOR] = str(user['_id'])
+
+        Job().save(newjob.job)
+
+        return newjob.job

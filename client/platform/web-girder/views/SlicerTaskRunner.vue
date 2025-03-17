@@ -192,7 +192,7 @@ export default defineComponent({
             Any bugs that are found please provide details in an issue (including a screenshot if possible) to: <a target="_blank" href="https://github.com/DigitalSlideArchive/dive-dsa/issues"> DIVE-DSA Github Isssue Page </a>
           </p>
           <p><a href="https://github.com/DigitalSlideArchive/dive-dsa/tree/main/dive-dsa-slicer/example-docker-containers" target="_blank">Sample DIVE Tasks</a></p>
-          <p>Sample tasks are on the Github Container Registry under the tag: <b>ghcr.io/bryonlewis/dive-dsa-slicer/dive-dsa-slicer:latest</b></p>
+          <p>Sample tasks are on the Github Container Registry under the tag: <b>ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-slicer-examples:latest</b></p>
           <p>Below are some notes about it's operation</p>
           <ul style="list-style-type:disc;line-height: 2em;">
             <li><b>DIVEVideo</b> An  input with the ID of "DIVEVideo" will auto populate with a reference to the Source Video for this DIVE Dataset </li>
