@@ -219,7 +219,9 @@ class DIVEMetadata(Resource):
         if found:
             DIVE_Metadata().removeWithQuery(rootQuery)
             DIVE_MetadataKeys().removeWithQuery(rootQuery)
-            rootFolder = Folder().setMetadata(folder, {DIVEMetadataMarker: None, DIVEMetadataFilter: None})
+            rootFolder = Folder().setMetadata(
+                folder, {DIVEMetadataMarker: None, DIVEMetadataFilter: None}
+            )
             Folder().save(rootFolder)
 
         # first determine the search folder for the system

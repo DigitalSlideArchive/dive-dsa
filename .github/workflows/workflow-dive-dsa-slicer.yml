@@ -27,5 +27,5 @@ jobs:
         with:
           context: ./dive-dsa-slicer
           file: example-docker-containers/Dockerfile
-          tags: ghcr.io/DigitalSlideArchive/dive-dsa/dive-dsa-slicer-examples:latest
+          tags: ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-slicer-examples:latest
           push: true

@@ -231,7 +231,7 @@ def calculate_attribute_types(
                         float(key)
                     except ValueError:
                         attribute_type = 'boolean'
-                if attribute_type == 'boolean' and key != 'True' and key != 'False':
+                if attribute_type == 'boolean' and key not in ['True', 'true', 'False', 'False']:
                     attribute_type = 'text'
             # If all text values are used 3 or more times they are defined values
             if low_count >= predefined_min_count and 'text' in attribute_type:
