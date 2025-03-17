@@ -1060,7 +1060,6 @@ class DIVEMetadata(Resource):
                 {
                     "DIVEDataset": dataset_id,
                     "DIVEMetadata": str(item['_id']),
-                    "DIVEMetadataRoot": str(item['root']),
                     "DIVEDatasetName": item['filename'],
                     "DIVEVideo": video_id,
                 }
@@ -1070,6 +1069,8 @@ class DIVEMetadata(Resource):
         dive_metadata_slicer_task_params: DIVEMetadataSlicerCLITaskParams = {
             "dataset_list": dataset_list,
             "cli_item": taskId,
+            "DIVEMetadataRoot": str(rootId['_id']),
+            "filter": filters,
             "slicer_params": params,
             "userId": str(user['_id']),
             "girderToken": str(token['_id']),

@@ -99,7 +99,6 @@ class DIVEAnnotationSchema(TypedDict):
 class DiveDatasetList(TypedDict):
     DIVEDataset: str
     DIVEMetadata: str
-    DIVEMetadataRoot: str
     DIVEDatasetName: str
     DIVEVideo: Optional[str]
 
@@ -108,10 +107,12 @@ class DIVEMetadataSlicerCLITaskParams(TypedDict):
     """Describes the paramteers for running training"""
 
     dive_dataset_list: DiveDatasetList
+    DIVEMetadataRoot: str
     cli_item: str
     slicer_params: Dict[
         str, Union[int, float, List[int], List[float], str, List[str], bool]
     ]  # Name of the new pipeline to train
     userId: str
     girderToken: str
+    filter: Dict[str, Any]
     girerApiUrl: str

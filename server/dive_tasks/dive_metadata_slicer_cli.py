@@ -26,7 +26,6 @@ from slicer_cli_web.rest_slicer_cli import (
     stringifyParam,
     FOLDER_SUFFIX,
     prepare_task,
-    _addReturnParameterFileParamToHandler,
 )
 
 
@@ -72,10 +71,12 @@ def cliSubHandler(cliItem, params, user, token, datalist=None):
     clim = as_model(cliItem.xml)
     index_params, opt_params, simple_out_params = get_cli_parameters(clim)
 
+    # NOTE: I don't believe this should be needed for DIVEMetadata Jobs
+    # but leaving it in if it is used in the future
     has_simple_return_file = len(simple_out_params) > 0
-    if has_simple_return_file:
-        print('Add Simple Paramemter File Handler')
-        # _addReturnParameterFileParamToHandler(handlerDesc)
+    # if has_simple_return_file:
+    #     print('Add Simple Paramemter File Handler')
+    #     _addReturnParameterFileParamToHandler(handlerDesc)
 
     sub_index_params, sub_opt_params = index_params, opt_params
     if datalist:
@@ -166,7 +167,7 @@ def create_sub_job(
     dataset_params['DIVEDataset'] = dive_params['DIVEDataset']
     dataset_params['DIVEDirectory'] = dive_params['DIVEDataset']
     dataset_params['DIVEMetadata'] = dive_params['DIVEMetadata']
-    dataset_params['DIVEMetadataRoot'] = dive_params['DIVEMetadataRoot']
+    dataset_params['DIVEMetadataRoot'] = base_params['DIVEMetadataRoot']
     dataset_params['girderToken'] = base_params['girderToken']
     dataset_params['girderApiUrl'] = base_params['girderApiUrl']
     name = dive_params['DIVEDatasetName']
@@ -226,7 +227,9 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
                     )
                     Job().updateJob(
                         baseJob,
-                        log=f'Scheduling job {scheduled} of {total_count}\n',
+                        log=f'Scheduling job {scheduled} of {total_count} on dataset: {dive_dataset_list[scheduled]["DIVEDatasetName"]}\n',
+                        progressCurrent=scheduled,
+                        progressTotal=total_count,
                         status=JobStatus.RUNNING,
                     )
                     scheduled += 1
