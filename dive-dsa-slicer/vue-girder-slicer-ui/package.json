@@ -1,5 +1,9 @@
 {
   "name": "vue-girder-slicer-cli-ui",
+  "author": {
+    "name": "Kitware, Inc.",
+    "email": "Bryon.Lewis@kitware.com"
+  },
   "version": "0.0.9",
   "type": "module",
   "files": [
@@ -23,12 +27,9 @@
       "require": "./dist/tailwind.css"
     }
   },
-  "publishConfig": {
-    "@BryonLewis:registry": "https://npm.pkg.github.com"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/BryonLewis/dive-dsa-slicer/tree/main/vue-girder-slicer-ui"
+    "url": "https://github.com/DigitalSlideArchive/dive-dsa/tree/main/dive-dsa-slicer/vue-girder-slicer-ui"
   },
   "scripts": {
     "dev": "vite",
