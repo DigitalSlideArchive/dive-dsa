@@ -189,9 +189,9 @@ export default defineComponent({
         <v-card-text>
           <p>
             This is a beta version of providing a Slicer CLI task running interface inside of DIVE.  It will eventually be used inside of other DSA projects like volview and histomics.  Please underststand that this is a <b>Beta</b> version and will likely have some bugs.
-            Any bugs that are found please provide details in an issue (including a screenshot if possible) to: <a target="_blank" href="https://github.com/BryonLewis/dive-dsa-slicer/issues"> DIVE-DSA Github Isssue Page </a>
+            Any bugs that are found please provide details in an issue (including a screenshot if possible) to: <a target="_blank" href="https://github.com/DigitalSlideArchive/dive-dsa/issues"> DIVE-DSA Github Isssue Page </a>
           </p>
-          <p><a href="https://github.com/BryonLewis/dive-dsa-slicer/tree/main/small-docker" target="_blank">Sample DIVE Tasks</a></p>
+          <p><a href="https://github.com/DigitalSlideArchive/dive-dsa/tree/main/dive-dsa-slicer/example-docker-containers" target="_blank">Sample DIVE Tasks</a></p>
           <p>Sample tasks are on the Github Container Registry under the tag: <b>ghcr.io/bryonlewis/dive-dsa-slicer/dive-dsa-slicer:latest</b></p>
           <p>Below are some notes about it's operation</p>
           <ul style="list-style-type:disc;line-height: 2em;">

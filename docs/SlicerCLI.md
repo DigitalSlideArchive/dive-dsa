@@ -15,6 +15,6 @@ The system will also populate any folder output with the DIVE Dataset Folder if 
 
 #### Examples
 
-There are examples located at [**DIVE-DSA-Slicer Repository**](https://github.com/BryonLewis/dive-dsa-slicer/tree/main/small-docker).  These are simple examples that show the generation of fullframe tracks.  The more important one is the LongRunning or GirderClient versions.  They show how to automatically push the data back to the system and kick off the post process event to load the new tracks in to the Dataset.
+There are examples located at [**DIVE-DSA-Slicer Repository**](https://github.com/DigitalSlideArchive/dive-dsa/tree/main/dive-dsa-slicer/example-docker-containers).  These are simple examples that show the generation of fullframe tracks.  The more important one is the LongRunning or GirderClient versions.  They show how to automatically push the data back to the system and kick off the post process event to load the new tracks in to the Dataset.
 
 
