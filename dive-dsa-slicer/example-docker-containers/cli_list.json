@@ -1,0 +1,17 @@
+{
+  "FullFrameTracks": {
+    "type": "python"
+  },
+  "FullFrameTracksGirderClient": {
+    "type": "python"
+  },
+  "FullFrameTracksLongRunning": {
+    "type": "python"
+  },
+  "DIVEUINotifications": {
+    "type": "python"
+  },
+  "MultipleFullFrameDatasets": {
+    "type": "python"
+  }
+}

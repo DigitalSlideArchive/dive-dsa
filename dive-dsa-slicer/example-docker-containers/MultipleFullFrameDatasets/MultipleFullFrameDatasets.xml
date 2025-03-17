@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>DIVE</category>
+  <title>Multiple Dataset Full Frame Tracks</title>
+  <description>Takes a Video and Generates Full Frame Tracks for the Video from Multiple Datasets</description>
+  <version>0.1.0</version>
+  <documentation-url></documentation-url>
+  <license>Apache 2.0</license>
+  <contributor>Bryon Lewis</contributor>
+  <acknowledgements>This work is part of the DIVE project.</acknowledgements>
+  <parameters>
+    <label>IO</label>
+    <description>Input/output parameters</description>
+    <directory>
+      <name>DIVEDirectory</name>
+      <longflag>DIVEDirectory</longflag>
+      <description><![CDATA[An input DIVE Directory. If no default is specified, the current directory is used,]]></description>
+      <label>Input DIVE directory</label>
+      <channel>input</channel>
+    </directory>
+        <boolean>
+      <name>recursive</name>
+      <longflag>recurisve</longflag>
+      <description><![CDATA[Should this task apply recurisvely to the base DiveDirectory]]></description>
+      <label>Recursive</label>
+    </boolean>
+
+  </parameters>
+  <parameters >
+    <label>Variables</label>
+    <description>Variables</description>
+    <string>
+      <name>trackType</name>
+      <longflag>trackType</longflag>
+      <label>Track Type</label>
+      <description><![CDATA[Track Type for full frame tracks]]></description>
+      <default>unknown</default>
+    </string>
+  </parameters>
+  <parameters advanced="true">
+    <label>Girder API URL and Key</label>
+    <description>A Girder API URL and token for Girder client</description>
+    <string>
+      <name>girderApiUrl</name>
+      <longflag>api-url</longflag>
+      <label>Girder API URL</label>
+      <description>A Girder API URL (e.g., https://girder.example.com:443/api/v1)</description>
+      <default></default>
+    </string>
+    <string>
+      <name>girderToken</name>
+      <longflag>girder-token</longflag>
+      <label>Girder Token</label>
+      <description>A Girder token</description>
+      <default></default>
+    </string>
+  </parameters>
+</executable>
