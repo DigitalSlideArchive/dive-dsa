@@ -1,8 +1,6 @@
-<img src="http://www.viametoolkit.org/wp-content/uploads/2016/08/viami_logo.png" alt="VIAME Logo" width="200" height="78">
-
 DIVE is a web interface for performing data management, video annotation, and running a portion of the algorithms stored within the [VIAME](https://github.com/VIAME/VIAME) repository. When compiled, docker instances for DIVE can be run either as local servers or online in web services. A sample instance of DIVE is running on a public server at [viame.kitware.com](https://viame.kitware.com).
 
-THis is a version of DIVE that integrates with [Digital Slide Archive](https://digitalslidearchive.github.io/digital_slide_archive/).  There are features and differences with the core DIVE functionality.  The DIVE-DSA user guide lists all new features and functionality.
+This is a version of DIVE that integrates with [Digital Slide Archive](https://digitalslidearchive.github.io/digital_slide_archive/).  There are features and differences with the core DIVE functionality.  The [DIVE-DSA user guide] (https://DigitalSlideArchive.github.io/dive-dsa/) lists all new features and functionality.
 
 ![docs/images/Banner.png](docs/images/Banner.png)
 

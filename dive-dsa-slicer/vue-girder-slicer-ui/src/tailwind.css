@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* :root {
+  --gsu-color-primary: rgb(59, 130, 246);
+  --gsu-color-secondary: #000;
+  --gsu-color-link: rgb(56, 189, 248);
+  --gsu-color-text: #696969;
+  --gsu-color-muted-text: #b8b8b8;
+  --gsu-color-background: rgb(255, 255, 255);
+  --gsu-background-muted: rgb(136, 136, 136);
+  --gsu-color-highlight: rgb(250, 204, 21);
+  --gsu-color-selected: "#ffff":
+} */
+
+
+/*
+          primary: '#90CAF9',
+          secondary: '#9FA8DA',
+          accent: '#81C784',
+          error: '#E57373',
+          warning: '#FFD54F',
+          info: '#80CBC4',
+          success: '#A5D6A7',
+          background: '#424242',
+          surface: '#212121',
+          onPrimary: '#FFFFFF',
+          onSecondary: '#FFFFFF',
+          onAccent: '#FFFFFF',
+          onError: '#FFFFFF',
+          onWarning: '#000000',
+          onInfo: '#000000',
+          onSuccess: '#000000',
+          onBackground: '#FFFFFF',
+          onSurface: '#FFFFFF',
+  */
+
+  :root {
+    --gsu-color-primary: #90CAF9; /* Primary color */
+    --gsu-color-secondary: #9FA8DA; /* Secondary color */
+    --gsu-color-link: #2c7596; /* Link color */
+    --gsu-color-text: #FFFFFF; /* Text color */
+    --gsu-color-muted-text: #B0BEC5; /* Muted text color */
+    --gsu-color-background: rgb(39, 39, 39);/* Background color */
+    --gsu-color-border: rgba(255,255,255,0.3);
+    --gsu-background-muted: #212121; /* Muted background color */
+    --gsu-color-highlight: #717171bb; /* Highlighted color */
+    --gsu-color-selected: #A5D6A7; /* Selected color */
+  }
+/*
+:root {
+  --gsu-color-primary: rgb(59, 130, 246);
+  --gsu-color-secondary: #000;
+  --gsu-color-link: rgb(56, 189, 248);
+  --gsu-color-text: #dcdcdc;
+  --gsu-color-muted-text: #d6d6d692;
+  --gsu-color-background: rgb(75, 85, 99);
+  --gsu-background-muted: rgb(107, 114, 128);
+  --gsu-color-highlight: rgb(250, 204, 21);
+  --gsu-color-selected: rgb(250, 204, 21):
+}
+*/
+
+
+@layer components {
+
+    .gsu-background {
+      @apply bg-backgroundColor;
+    }
+    .gsu-link {
+      @apply text-linkColor;
+    }
+
+    .gsu-breadcrumb {
+        @apply bg-backgroundColor text-linkColor border-solid border-l-2 border-r-2 border-t-2 border-borderColor;
+      }
+    .gsu-disabled-icon {
+      @apply text-bgMutedColor;
+    }
+    .gsu-disabled-icon:hover {
+      cursor: default;
+    }
+
+    .gsu-card {
+      @apply bg-backgroundColor border-2 border-borderColor text-textColor
+    }
+
+    .gsu-input {
+      @apply bg-backgroundColor border-borderColor border-2 border-solid;
+    }
+    .gsu-btn {
+      @apply bg-backgroundColor hover:bg-bgMutedColor border-solid border-2 border-borderColor text-textColor
+    }
+
+    .gsu-btn-accept {
+      @apply hover:bg-primary border-solid border-2 border-borderColor hover:cursor-pointer text-textColor
+    }
+    .gsu-btn-disabled {
+      @apply bg-bgMutedColor hover:bg-backgroundColor text-textMutedColor hover:cursor-not-allowed
+    }
+      
+    .gsu-icon {
+        @apply text-linkColor;
+        display:inline;
+      }
+    .gsu-clickable {
+        @apply text-linkColor hover:cursor-pointer;
+      }
+  
+    .number-badge {
+        position: relative;
+        bottom: -10px;
+        right: 5px;
+        font-size: 10px;
+    }
+    .gsu-item-row {
+      @apply border-solid border-t-2 border-x-2 border-borderColor hover:bg-highlightedColor hover:cursor-pointer;
+    }
+    .gsu-row-info {
+      @apply text-textColor;
+      padding-right: 10px;
+    }
+    .data-list {
+      max-height: 70vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      @apply border-solid border-b-2 border-borderColor;
+    }
+    .folder-header {
+      user-select: none;
+      @apply border-solid border-t-2 border-x-2 border-borderColor;
+    }
+    .item-header {
+      user-select: none;
+      @apply border-solid border-t-2 border-x-2 border-borderColor;
+
+    }
+    .error-msg {
+      font-weight: bold;
+      color:red;
+    }
+    .gsu-selected-items {
+      @apply bg-yellow-200;
+    }
+    .header{
+      color: var(--bs-body-color);
+    }
+    .gsu-selection {
+    }
+    .text-left {
+      text-align: left;
+    }
+    
+    .number-input {
+      border:1px solid gray;
+    }
+
+    .gsu-disabled-button {
+      @apply bg-backgroundColor cursor-not-allowed opacity-50
+    }
+
+    .gsu-menu-item {
+      @apply text-textColor bg-backgroundColor  hover:bg-highlightedColor hover:cursor-pointer border-2 border-borderColor;
+    }
+  }

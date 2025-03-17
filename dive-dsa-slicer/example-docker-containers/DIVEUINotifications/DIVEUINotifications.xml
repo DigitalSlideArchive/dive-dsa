@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>DIVE</category>
+  <title>Full Frame Tracks</title>
+  <description>Takes a Video and Generates Full Frame Tracks for the Video</description>
+  <version>0.1.0</version>
+  <documentation-url></documentation-url>
+  <license>Apache 2.0</license>
+  <contributor>Bryon Lewis</contributor>
+  <acknowledgements>This work is part of the DIVE project.</acknowledgements>
+  <parameters >
+    <label>IO</label>
+    <description>Input/output parameters</description>
+    <file>
+      <name>DIVEVideo</name>
+      <label>Input Video</label>
+      <description>Input video</description>
+      <channel>input</channel>
+      <index>0</index>
+    </file>
+    <directory>
+      <name>DIVEDirectory</name>
+      <longflag>DIVEDirectory</longflag>
+      <description><![CDATA[An input DIVE Directory. If no default is specified, the current directory is used,]]></description>
+      <label>Input DIVE directory</label>
+      <channel>input</channel>
+    </directory>
+    <string>
+      <name>notificationText</name>
+      <longflag>notificationText</longflag>
+      <label>NotificationText</label>
+      <description>Simple Text to display in the UI Notification</description>
+      <default>This is a basic notification</default>
+    </string>
+    <integer>
+      <name>selectedTrack</name>
+      <longflag>selectedTrack</longflag>
+      <description><![CDATA[Optional Track to select (-1 is default/no vale)]]></description>
+      <label>Select TrackId</label>
+      <default>-1</default>
+    </integer>
+    <integer>
+      <name>selectedFrame</name>
+      <longflag>selectedFrame</longflag>
+      <description><![CDATA[Optional Frame to jump to (-1 is default/no vale)]]></description>
+      <label>Select Frame</label>
+      <default>-1</default>
+    </integer>
+  </parameters>
+  <parameters advanced="true">
+    <label>Girder API URL and Key</label>
+    <description>A Girder API URL and token for Girder client</description>
+    <string>
+      <name>girderApiUrl</name>
+      <longflag>api-url</longflag>
+      <label>Girder API URL</label>
+      <description>A Girder API URL (e.g., https://girder.example.com:443/api/v1)</description>
+      <default></default>
+    </string>
+    <string>
+      <name>girderToken</name>
+      <longflag>girder-token</longflag>
+      <label>Girder Token</label>
+      <description>A Girder token</description>
+      <default></default>
+    </string>
+  </parameters>
+</executable>
