@@ -24,6 +24,10 @@ export default defineComponent({
     defaults: {
         type: Function as PropType<(item: XMLParameters) => undefined | null | XMLParameters>,
         default: (_item: XMLParameters) => undefined,
+    },
+    interceptRunTask: {
+      type: Boolean,
+      default: false,
     }
   },
   setup() {
@@ -61,7 +65,13 @@ export default defineComponent({
                         :filter="filter"
                         @selected="select($event)"
                     />
-                    <girder-slicer-task-card :task-id="selected" :defaults="defaults" @cancel="cancel()" @run-task="$emit('run-task', $event)" />
+                    <girder-slicer-task-card
+                      :task-id="selected"
+                      :defaults="defaults"
+                      :interceptRunTask="interceptRunTask"
+                      @cancel="cancel()"
+                      @run-task="$emit('run-task', $event)"
+                      @intercept-run-task="$emit('intercept-run-task', $event)" />
                 </div>
             </div>
         </div>

@@ -26,6 +26,10 @@ export default defineComponent({
     defaults: {
         type: Function as PropType<(item: XMLParameters) => undefined | null | XMLParameters>,
         default: (_item: XMLParameters) => undefined,
+    },
+    interceptRunTask: {
+      type: Boolean,
+      default: false,
     }
   },
   setup(props, { emit }) {
@@ -79,11 +83,15 @@ export default defineComponent({
     const runTask = async () => {
       // First we need to validate the task has all parameters required.
       if (result.value && props.taskId) {
-        const resp = await slicerApi.runTask(result.value, props.taskId);
-        if (resp) {
-          console.log(resp);
-          jobData.value = resp;
-          emit('run-task', jobData.value);
+        if (props.interceptRunTask) {
+          emit('intercept-run-task', { taskId: props.taskId, params: result.value })
+        } else {
+          const resp = await slicerApi.runTask(result.value, props.taskId);
+          if (resp) {
+            console.log(resp);
+            jobData.value = resp;
+            emit('run-task', jobData.value);
+          }
         }
       }
     }
