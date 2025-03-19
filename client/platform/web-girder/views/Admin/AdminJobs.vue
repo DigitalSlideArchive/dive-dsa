@@ -55,7 +55,7 @@ export default defineComponent({
     const initTypes = async () => {
       const typesAndStatus = (await getJobTypesStatus());
       jobTypes.value = typesAndStatus.data.types;
-      filterTypes.value = typesAndStatus.data.types;
+      filterTypes.value = ['convert', 'Dive Metadata Slicer CLI Batch', 'slicer_cli_web_job', 'Slicer CLI Metadata Run'];
     };
     const getData = async () => {
       const statusNums = filterStatus.value.map(

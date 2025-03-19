@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Ref, defineComponent, ref, PropType } from 'vue';
-import GirderSlicerTaskMenuModalButton from './GlicerSlicerTaskMenuModalButton.tw.vue';
+import GirderSlicerTaskMenuModalButton from './GirderSlicerTaskMenuModalButton.tw.vue';
 import GirderSlicerTaskCard from './GirderSlicerTaskCard.tw.vue';
 import type { XMLParameters } from '../parser/parserTypes';
 import { SlicerImage } from '../api/girderSlicerApi';
@@ -28,6 +28,10 @@ export default defineComponent({
     interceptRunTask: {
       type: Boolean,
       default: false,
+    },
+    skipValidation: {
+      type: Array as PropType<string[]>,
+      default: () => [],
     }
   },
   setup() {
@@ -69,6 +73,7 @@ export default defineComponent({
                       :task-id="selected"
                       :defaults="defaults"
                       :interceptRunTask="interceptRunTask"
+                      :skipValidation="skipValidation"
                       @cancel="cancel()"
                       @run-task="$emit('run-task', $event)"
                       @intercept-run-task="$emit('intercept-run-task', $event)" />

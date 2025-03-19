@@ -812,7 +812,6 @@ class DIVEMetadata(Resource):
         user = self.getCurrentUser()
         query = {"root": str(rootId["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query, user=user)
-        print(found)
         if found:
             DIVE_MetadataKeys().deleteKey(rootId, user, key)
             Folder().save(rootId)
@@ -830,6 +829,10 @@ class DIVEMetadata(Resource):
                     item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
                 )
                 DIVE_Metadata().deleteKey(diveDatasetFolder, rootId, user, key)
+        display_items = rootId['meta'].get('DIVEMetadataFilter', {}).get('display', False)
+        if display_items and key in display_items:
+            display_items.remove(key)
+            Folder().save(rootId)
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")

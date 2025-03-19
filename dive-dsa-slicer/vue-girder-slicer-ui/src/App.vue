@@ -3,8 +3,8 @@ import { Ref, defineComponent, ref } from 'vue';
 import GirderSlicerTaskButton from './components/GirderSlicerTaskButton.tw.vue';
 import GirderSlicerTaskCard from './components/GirderSlicerTaskCard.tw.vue';
 import GirderSlicerTaskMenu from './components/GirderSlicerTaskMenu.tw.vue';
-import GirderSlicerTaskMenuModal from './components/GlicerSlicerTaskMenuModalButton.tw.vue';
-import GirderSlicerTasksIntegrated from './components/GriderSlicerTasksIntegrated.tw.vue'
+import GirderSlicerTaskMenuModal from './components/GirderSlicerTaskMenuModalButton.tw.vue';
+import GirderSlicerTasksIntegrated from './components/GirderSlicerTasksIntegrated.tw.vue'
 import DataBrowser from './components/FileBrowser/DataBrowser.tw.vue';
 import Modal from './components/FileBrowser/Modal.tw.vue';
 import type { GirderModel } from './girderTypes';

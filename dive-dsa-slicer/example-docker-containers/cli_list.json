@@ -13,5 +13,8 @@
   },
   "MultipleFullFrameDatasets": {
     "type": "python"
+  },
+  "MultipleFullFrameMetadata": {
+    "type": "python"
   }
 }
