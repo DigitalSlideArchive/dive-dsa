@@ -76,7 +76,6 @@ export default defineComponent({
         filterTypes,
       )).data;
       const filteredJobs = results.filter((item) => item?.kwargs?.params?.DIVEMetadataRoot === props.metadataRoot);
-      console.log(filteredJobs);
       if (filteredJobs.length) {
         jobId.value = filteredJobs[0]._id;
         jobRunning.value = true;
@@ -87,7 +86,6 @@ export default defineComponent({
     onMounted(() => getRunningQueuedJob());
     const checkJobStatus = async (id: string) => {
       const resp = await girderRest.get<GirderJob & { progress?: {current: number, total: number}}>(`job/${id}`);
-      console.log(resp.data);
       if (resp.data.progress) {
         jobCurrent.value = resp.data.progress.current;
         jobTotal.value = resp.data.progress.total;
