@@ -5,8 +5,8 @@ import urllib.parse
 
 apiURL = "127.0.0.1"  # url of the server
 port = 8010  # set to your local port being used
-rootFolderId = '67d1a24f73e777ac17557717'  # root folderId to recursively look at
-limit = 5  # only want to process X videos
+rootFolderId = '67dc125c4ae830e7742d1eee'  # root folderId to push data to
+limit = 1000  # only want to process X videos
 # Below is a global variable which shouldn't be edited
 totalFolders = 0  # use to maintain a total count of items added
 
@@ -128,8 +128,8 @@ def run_script(ndfile):
     print(f'FolderIds: {folderIds}')
     params = {
         "displayConfig": {
-            "display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag'],
-            "hide": ["ETag", "ETagDuplicated", "Size"],
+            "display": ['PaitentName', 'SampleDate', 'Age', 'Height', 'Weight', 'City', 'State'],
+            "hide": [],
         },
         "ffprobeMetadata": {
             "import": False,
