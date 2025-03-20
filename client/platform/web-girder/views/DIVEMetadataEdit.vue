@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   defineComponent, onMounted, ref, Ref,
+  watch,
 } from 'vue';
 import {
   addDiveMetadataKey,
@@ -10,6 +11,7 @@ import {
   MetadataFilterKeysItem,
   modifyDiveMetadataPermission,
   updateDiveMetadataDisplay,
+  updateDiveMetadataSlicerConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
@@ -41,10 +43,14 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
+    const displayConfig: Ref<FilterDisplayConfig> = ref({
+      display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
+    });
 
     const girderRest = useGirderRest();
     const router = useRouter();
+    const categoryLimit = ref(50);
+    const slicerCLI: Ref<FilterDisplayConfig['slicerCLI']> = ref('Disabled');
 
     const processing = ref(false);
     const deleteDialog = ref(false);
@@ -106,6 +112,8 @@ export default defineComponent({
       }
       if (folder.meta.DIVEMetadata) {
         displayConfig.value = folder.meta.DIVEMetadataFilter;
+        categoryLimit.value = displayConfig.value.categoricalLimit || 50;
+        slicerCLI.value = displayConfig.value.slicerCLI || 'Disabled';
       }
       if (folder.creatorId === girderRest.user._id || girderRest.user.admin) {
         isOwnerAdmin.value = true;
@@ -145,6 +153,10 @@ export default defineComponent({
       }
       updateDiveMetadataDisplay(props.id, item.name, val);
     };
+
+    watch(slicerCLI, () => {
+      updateDiveMetadataSlicerConfig(props.id, slicerCLI.value);
+    });
 
     const toggleUnlock = async (index: number) => {
       const item = formattedKeys.value[index];
@@ -246,6 +258,7 @@ export default defineComponent({
       deleteDialog,
       deleteKey,
       prepDeleteMetadata,
+      slicerCLI,
     };
   },
 });
@@ -253,11 +266,22 @@ export default defineComponent({
 
 <template>
   <v-container v-if="isOwnerAdmin">
-    <v-row dense class="pb-4">
+    <v-row dense class="pb-4" align="center">
       <v-btn color="warning" @click="returnToMetadata()">
         Return to Metadata
       </v-btn>
       <v-spacer />
+      <v-select
+        v-model="slicerCLI"
+        label="Slicer CLI:"
+        variant="outlined"
+        :items="['Disabled', 'Owner', 'All Users']"
+        dense
+        hide-details
+        style="max-width:200px"
+        class="mr-6"
+      />
+
       <v-btn color="success" @click="initializeNewKey()">
         Add Metadata Field
       </v-btn>

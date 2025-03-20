@@ -1,5 +1,7 @@
 import girderRest from 'platform/web-girder/plugins/girder';
+import { JobResponse } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
 import { GirderModelBase } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
+import { XMLBaseValue } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 export interface MetadataFilterItem {
@@ -13,6 +15,7 @@ export interface FilterDisplayConfig {
     display: string[];
     hide: string[];
     categoricalLimit: number;
+    slicerCLI: 'Disabled' | 'Owner' | 'All Users'
 }
 
 export interface MetadataFilterKeysItem {
@@ -146,7 +149,7 @@ function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, updateVal
 
 async function updateDiveMetadataDisplay(folderId: string, key: string, state: 'display' | 'hidden' | 'none') {
   const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
-  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as {display: string[], hide: string[], categoricalLimit: number};
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
   if (DIVEMetadataFilter) {
     const { display } = DIVEMetadataFilter;
     const { hide } = DIVEMetadataFilter;
@@ -166,6 +169,19 @@ async function updateDiveMetadataDisplay(folderId: string, key: string, state: '
   }
 }
 
+async function updateDiveMetadataSlicerConfig(folderId:string, value: 'Disabled' | 'Owner' | 'All Users') {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
+  if (DIVEMetadataFilter) {
+    DIVEMetadataFilter.slicerCLI = value;
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
+async function runSlicerMetadataTask(rootId: string, taskId: string, filters: DIVEMetadataFilter, params: Record<string, XMLBaseValue>) {
+  return girderRest.post<JobResponse>(`dive_metadata/${rootId}/slicer-cli-task`, { taskId, filterParams: { filters, params } }, { params: { taskId, filterParams: { filters, params } } });
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
@@ -177,4 +193,6 @@ export {
   deleteDiveDatasetMetadataKey,
   setDiveDatasetMetadataKey,
   updateDiveMetadataDisplay,
+  updateDiveMetadataSlicerConfig,
+  runSlicerMetadataTask,
 };

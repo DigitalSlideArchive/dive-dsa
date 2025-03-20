@@ -174,7 +174,7 @@ export default defineComponent({
 
 <template>
   <v-container fluid fill-height>
-    <v-row>
+    <v-row align="center">
       <v-spacer />
       <v-icon size="30" @click="dialog = true">
         mdi-help

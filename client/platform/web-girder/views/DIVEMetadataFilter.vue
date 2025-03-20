@@ -9,10 +9,11 @@ import { intersection } from 'lodash';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import DIVEMetadataFilterItemVue from './DIVEMetadataFilterItem.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
+import DIVEMetadataSlicerVue from './DIVEMetadataSlicer.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataFilter',
-  components: { DIVEMetadataFilterItemVue, DIVEMetadataCloneVue },
+  components: { DIVEMetadataFilterItemVue, DIVEMetadataCloneVue, DIVEMetadataSlicerVue },
   props: {
     currentPage: {
       type: Number,
@@ -306,6 +307,7 @@ export default defineComponent({
           </v-icon>
           Edit Filters
         </v-btn>
+        <DIVEMetadataSlicerVue :filters="currentFilter" :metadataRoot="id" />
 
         <v-spacer />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>

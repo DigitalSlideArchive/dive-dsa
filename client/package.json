@@ -41,7 +41,7 @@
     "mousetrap": "^1.6.5",
     "semver": "^7.3.5",
     "vue": "^2.7.15",
-    "vue-girder-slicer-cli-ui": "0.0.9",
+    "vue-girder-slicer-cli-ui": "file:/home/local/KHQ/bryon.lewis/dev/dive-dsa/dive-dsa-slicer/vue-girder-slicer-ui",
     "vue-gtag": "^1.9.1",
     "vue-router": "^3.0.3",
     "vuetify": "^2.3.10",

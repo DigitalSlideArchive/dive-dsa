@@ -36,7 +36,9 @@ export default defineComponent({
     const folderList: Ref<MetadataResultItem[]> = ref([]);
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const loading = ref(true);
-    const displayConfig: Ref<FilterDisplayConfig> = ref({ display: [], hide: [], categoricalLimit: 50 });
+    const displayConfig: Ref<FilterDisplayConfig> = ref({
+      display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
+    });
     const totalPages = ref(0);
     const currentPage = ref(0);
     const count = ref(0);
