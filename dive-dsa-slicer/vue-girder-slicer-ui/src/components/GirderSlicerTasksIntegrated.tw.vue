@@ -32,6 +32,14 @@ export default defineComponent({
     skipValidation: {
       type: Array as PropType<string[]>,
       default: () => [],
+    },
+    disabledParams: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    disabledReason: {
+      type: String,
+      default: 'Param will automatically be added'
     }
   },
   setup() {
@@ -74,6 +82,8 @@ export default defineComponent({
                       :defaults="defaults"
                       :interceptRunTask="interceptRunTask"
                       :skipValidation="skipValidation"
+                      :disabledParams="disabledParams"
+                      :disabledReason="disabledReason"
                       @cancel="cancel()"
                       @run-task="$emit('run-task', $event)"
                       @intercept-run-task="$emit('intercept-run-task', $event)" />

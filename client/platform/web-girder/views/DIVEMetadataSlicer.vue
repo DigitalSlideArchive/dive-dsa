@@ -54,7 +54,7 @@ export default defineComponent({
     const store = useStore();
     const helpDialog = ref(false);
     const mainDialog = ref(false);
-    const skipValidation = ref(['DIVEVideo', 'DIVEDataset', 'DIVEMetadataRoot', 'DIVEMetadata']);
+    const automaticParams = ref(['DIVEVideo', 'DIVEDataset', 'DIVEMetadataRoot', 'DIVEMetadata', 'DIVEDirectory', 'girderApiUrl', 'girderToken']);
     const { prompt } = usePrompt();
     const jobRunning = ref(false);
     const jobProgress = ref(-1);
@@ -159,7 +159,7 @@ export default defineComponent({
       SlicerFilter,
       helpDialog,
       mainDialog,
-      skipValidation,
+      automaticParams,
       jobRunning,
       jobProgress,
       jobCurrent,
@@ -215,14 +215,18 @@ export default defineComponent({
           <v-row>
             <h3>Run Metadata Slicer CLI Task</h3>
             <v-spacer />
-            <v-icon size="30" @click="helpDialog = true"> mdi-help </v-icon>
+            <v-icon size="30" @click="helpDialog = true">
+              mdi-help
+            </v-icon>
           </v-row>
         </v-card-title>
         <v-card-text>
           <girder-slicer-tasks-integrated
             :filter="SlicerFilter"
-            interceptRunTask
-            :skipValidation="skipValidation"
+            intercept-run-task
+            :skip-validation="automaticParams"
+            :disabled-params="automaticParams"
+            disabled-reason="Disabled: the parameter is populated automatically"
             @intercept-run-task="triggerRunTask($event)"
           />
         </v-card-text>
@@ -248,8 +252,7 @@ export default defineComponent({
               target="_blank"
             >
               Sample DIVE Tasks
-            </a
-            >
+            </a>
           </p>
           <p>
             Sample tasks are on the Github Container Registry under the tag:
@@ -291,7 +294,9 @@ export default defineComponent({
         <v-card-actions>
           <v-row class="py-3">
             <v-spacer />
-            <v-btn color="primary" @click="helpDialog = false"> Dimiss </v-btn>
+            <v-btn color="primary" @click="helpDialog = false">
+              Dimiss
+            </v-btn>
             <v-spacer />
           </v-row>
         </v-card-actions>

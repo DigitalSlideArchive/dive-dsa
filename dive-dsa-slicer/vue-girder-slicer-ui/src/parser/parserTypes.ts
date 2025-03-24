@@ -61,6 +61,8 @@ export interface XMLParameters {
   datalist?: boolean;
   shapes?: string | undefined;
   error?: string | undefined; // Used to display errors
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export interface XMLGroups {

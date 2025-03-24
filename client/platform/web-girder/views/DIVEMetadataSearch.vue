@@ -208,6 +208,7 @@ export default defineComponent({
       :filtered="filtered"
       :display-config="displayConfig"
       :owner-admin="isOwnerAdmin"
+      style="position: sticky; top: 0px; z-index: 10"
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
       @filter-data="setFilterData($event)"

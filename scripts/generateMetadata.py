@@ -2,6 +2,8 @@ import click
 import girder_client
 import json
 import urllib.parse
+import os
+import subprocess
 
 apiURL = "127.0.0.1"  # url of the server
 port = 8010  # set to your local port being used
@@ -9,6 +11,13 @@ rootFolderId = '67dc125c4ae830e7742d1eee'  # root folderId to push data to
 limit = 1000  # only want to process X videos
 # Below is a global variable which shouldn't be edited
 totalFolders = 0  # use to maintain a total count of items added
+
+def ensure_sample_video():
+    if not os.path.exists("SampleVideo.mp4"):
+        print("SampleVideo.mp4 not found. Generating test pattern video...")
+        subprocess.run([
+            "ffmpeg", "-f", "lavfi", "-i", "testsrc=size=1920x1080:rate=30", "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv420p", "SampleVideo.mp4"
+        ], check=True)
 
 def login():
     gc = girder_client.GirderClient(apiURL, port=port, apiRoot='girder/api/v1', scheme='http')
@@ -21,7 +30,6 @@ def remove_before_folder(path, folder_name):
         return path[index:]
     else:
         return None
-
 
 def load_ndjson(file_path):
     data = []
@@ -46,17 +54,16 @@ def get_or_create_folder(gc: girder_client.GirderClient, path: str, root: str, e
         splits = modified_path.split('/')
         base_item = ""
         for index, item in enumerate(splits):
-
             if index == len(splits) - 1:
-                # now we upload the video
                 existing = list(gc.listFolder(base_folder_id, name=item))
                 if len(existing) > 0:
                     print(f'Folder {item} already exists')
-                    folderId =existing[0]['_id']
+                    folderId = existing[0]['_id']
                     break
                 new_id = create_folder(gc, base_folder_id, item)
                 folderId = new_id
                 print(existing)
+                ensure_sample_video()
                 gc.uploadFileToFolder(new_id, './SampleVideo.mp4', filename=item)
                 postprocess(gc, new_id)
                 break
@@ -70,32 +77,22 @@ def get_or_create_folder(gc: girder_client.GirderClient, path: str, root: str, e
                 new_id = create_folder(gc, base_folder_id, item)
                 existing[modified_item] = new_id
                 base_folder_id = new_id
-
             base_item = modified_item
     return folderId
 
-
-def generate_structure(data):
-    for item in data:
-        path= item['Key']
-     
-
 def postprocess(gc: girder_client.GirderClient, folderId: str):
     global totalFolders
-    if totalFolders > limit:  # after the limit just stop.
+    if totalFolders > limit:
         return
     folderData = gc.getFolder(folderId)
     gc.addMetadataToFolder(folderId, { 'fps':30, 'annotate': True, 'type': 'video', 'originalFPS':30})
-    meta = folderData.get('meta', {})
-    # We need to mark this folder for post processing
-    gc.post(f'dive_rpc/postprocess/{folderId}',  data={'skipTranscoding': True})
+    gc.post(f'dive_rpc/postprocess/{folderId}', data={'skipTranscoding': True})
     print(f'Running Post Process on Folder: {folderData["name"]}')
     return
 
-
 @click.command(
     name="MetadataCreation",
-    help="Creates a metadat folder structure from and ndJSON file"
+    help="Creates a metadata folder structure from an ndJSON file"
 )
 @click.argument('ndfile')
 def run_script(ndfile):
@@ -110,7 +107,6 @@ def run_script(ndfile):
         gc.createFolder(folderData['_id'], name='rawdata')
 
     data = load_ndjson(ndfile)
-
     total = len(data)
     count = 0
     folderIds = []
@@ -120,10 +116,10 @@ def run_script(ndfile):
         print(f'Completed item: {count} of {total}')
         folderId = get_or_create_folder(gc, replaced, folderData['name'], existing)
         folderIds.append(folderId)
-    # now we place the ndjson file in a info folder
+    
     info_folder = gc.createFolder(rootFolderId, name="info", reuseExisting=True)
     gc.uploadFileToFolder(info_folder["_id"], ndfile)
-
+    
     print(f'Completed processing {total} items')
     print(f'FolderIds: {folderIds}')
     params = {
@@ -142,14 +138,12 @@ def run_script(ndfile):
     }
     params["displayConfig"] = urllib.parse.quote(json.dumps(params["displayConfig"]))
     params["ffprobeMetadata"] = urllib.parse.quote(json.dumps(params["ffprobeMetadata"]))
-
+    
     url = f'/dive_metadata/process_metadata/{rootFolderId}'
     query_string = '&'.join([f'{key}={value}' for key, value in params.items()])
     full_url = f'{url}?{query_string}'
-
     response = gc.post(full_url)
     print(response)
-
 
 if __name__ == "__main__":
     run_script()

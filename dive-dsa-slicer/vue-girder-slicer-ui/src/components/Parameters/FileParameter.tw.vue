@@ -19,7 +19,8 @@ export default defineComponent({
     const currentValue: Ref<string |  null> = ref(null);
     const placeHolder = ref('Choose a file...');
     const batchload = ref(false);
-    const error = computed(() => props.data.error)
+    const error = computed(() => props.data.error);
+    const disabledReason  = computed(() => props.data.disabled && props.data.disabledReason);
     onMounted(() => {
       if (props.data.slicerType === 'file') {
         placeHolder.value = !props.data.multiple ?  'Choose a file...' : 'Choose multiple files...'
@@ -80,6 +81,7 @@ export default defineComponent({
       parentId,
       selectedName,
       acceptBrowser,
+      disabledReason,
     } 
   }
 });
@@ -88,8 +90,12 @@ export default defineComponent({
   <div class="pr-4">
     <label for="parameterInput">{{ data.title }} <span
       v-if="error"
-      class="text-red"
+      class="error-msg"
     > {{ error }}</span></label>
+    <label for="parameterInput">{{ data.title }} <span
+      v-if="disabledReason"
+      class="warning-msg"
+    > {{ disabledReason }}</span></label>
     <div class="relative flex items-stretch w-full">
       <input
         id="parameterInput"
@@ -103,6 +109,7 @@ export default defineComponent({
         <button
           type="button"
           class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded text-base leading-normal no-underline select-btn"
+          :disabled="!!disabledReason"
           @click="showBrowser = true"
         >
           <svg-icon
@@ -114,6 +121,7 @@ export default defineComponent({
         </button>
         <button
           v-if="!batchload"
+          :disabled="!!disabledReason"
           type="button"
           class="flex align-middle items-center text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded text-base leading-normal no-underline select-btn-multi"
           @click="showBrowser = true"

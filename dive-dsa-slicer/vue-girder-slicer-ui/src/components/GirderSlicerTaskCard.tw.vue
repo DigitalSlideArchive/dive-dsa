@@ -34,6 +34,14 @@ export default defineComponent({
     skipValidation: {
       type: Array as PropType<string[]>,
       default: () => [],
+    },
+    disabledParams: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    disabledReason: {
+      type: String,
+      default: 'Param will automatically be added'
     }
   },
   setup(props, { emit }) {
@@ -49,6 +57,7 @@ export default defineComponent({
         const parseParams = parse(response.data);
         // We need to assign default values if they exists
         const updateParams: {panelIndex: number, groupIndex: number, parameterIndex: number, value: XMLParameters}[] = [];
+        const disableParams: {panelIndex: number, groupIndex: number, parameterIndex: number, disabledReason: string}[] = [];
         parseParams.panels.forEach((panel, panelIndex) => {
           panel.groups.forEach((group, groupIndex) => {
             group.parameters.forEach((parameter, parameterIndex) => {
@@ -62,6 +71,15 @@ export default defineComponent({
                   value: paramResult,
                 });
               }
+              if (parseParams && props.disabledParams.includes(parameter.id)) {
+                disableParams.push({
+                  panelIndex,
+                  groupIndex,
+                  parameterIndex,
+                  disabledReason: props.disabledReason,
+                });
+
+              }
             });
           });
         });
@@ -70,6 +88,13 @@ export default defineComponent({
             parseParams.panels[item.panelIndex].groups[item.groupIndex].parameters[item.parameterIndex] = item.value;
           }
         });
+        disableParams.forEach((item) => {
+          if (parseParams) {
+            parseParams.panels[item.panelIndex].groups[item.groupIndex].parameters[item.parameterIndex].disabled = true;
+            parseParams.panels[item.panelIndex].groups[item.groupIndex].parameters[item.parameterIndex].disabledReason = item.disabledReason;
+          }
+        });
+
         result.value = parseParams;
       }
     }

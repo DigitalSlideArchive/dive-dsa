@@ -1094,18 +1094,3 @@ class DIVEMetadata(Resource):
         job = Job().save(job)
         Job().scheduleJob(job)
         return job
-
-        newjob = metadata_filter_slicer_cli_task.apply_async(
-            kwargs=dict(
-                params=dive_metadata_slicer_task_params,
-                girder_client_token=token["_id"],
-                girder_job_title="Slicer CLI Metadata Run",
-                girder_job_type="Slicer CLI Metadata Run",
-            ),
-        )
-        newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = False
-        newjob.job[constants.JOBCONST_CREATOR] = str(user['_id'])
-
-        Job().save(newjob.job)
-
-        return newjob.job

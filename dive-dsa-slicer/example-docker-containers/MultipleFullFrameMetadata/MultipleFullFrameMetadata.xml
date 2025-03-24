@@ -36,7 +36,7 @@
       <name>MetadataValue</name>
       <longflag>Metadata Value</longflag>
       <description><![CDATA[New Key  value to set when the job is complete on the DIVE Metadata]]></description>
-      <label>Metadata Key</label>
+      <label>Metadata Value</label>
       <default>complete</default>
     </string>
   </parameters>

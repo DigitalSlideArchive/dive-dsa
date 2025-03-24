@@ -10,7 +10,8 @@ export default defineComponent({
     }
   },
   setup(props, { emit }) {
-    const error = computed(() => props.data.error)
+    const error = computed(() => props.data.error);
+    const disabledReason  = computed(() => props.data.disabled && props.data.disabledReason);
     const currentValue: Ref<XMLBaseValue> = ref(0);
     onMounted(() => {
         if (props.data.defaultValue && Array.isArray(props.data.defaultValue)) {
@@ -34,6 +35,7 @@ export default defineComponent({
       error,
       currentValue,
       validate,
+      disabledReason,
     }
   }
 });
@@ -42,10 +44,15 @@ export default defineComponent({
   <div>
     <label for="parameterInput">{{ data.title }} <span
       v-if="error"
-      class="text-red"
+      class="error-msg"
     > {{ error }}</span></label>
+    <label for="parameterInput">{{ data.title }} <span
+      v-if="disabledReason"
+      class="warning-msg"
+    > {{ disabledReason }}</span></label>
     <select
       :value="data.value"
+      :disabled="!!disabledReason"
       @change="validate($event)"
     >
       <option

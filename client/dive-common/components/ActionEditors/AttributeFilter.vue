@@ -85,7 +85,7 @@ export default defineComponent({
       }
       attributeFilters.value = { ...attributeFilters.value };
       creatingAttribute.value = false;
-      emit('update', attributeFilters);
+      emit('update', attributeFilters.value);
     };
     const trackAtrList = computed(() => {
       const result: {key: string; item: AttributeMatch}[] = [];
