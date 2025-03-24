@@ -26,8 +26,6 @@ from dive_utils.constants import (
 )
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from . import crud_dataset
-from dive_tasks.dive_metadata_slicer_cli import metadata_filter_slicer_cli_task
-from dive_utils import constants
 from girder.models.token import Token
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl

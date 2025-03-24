@@ -309,7 +309,7 @@ export default defineComponent({
         </v-btn>
 
         <v-spacer />
-        <DIVEMetadataSlicerVue :filters="currentFilter" :metadataRoot="id" class="pr-8" />
+        <DIVEMetadataSlicerVue :filters="currentFilter" :metadata-root="id" class="pr-8" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select
           v-model="sortValue"
