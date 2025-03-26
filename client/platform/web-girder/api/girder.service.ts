@@ -1,4 +1,4 @@
-import type { GirderModel } from '@girder/components/src';
+import { GirderJob, GirderModel } from '@girder/components/src';
 import girderRest from 'platform/web-girder/plugins/girder';
 
 function deleteResources(resources: Array<GirderModel>) {
@@ -20,6 +20,19 @@ function deleteResources(resources: Array<GirderModel>) {
 function getItemsInFolder(folderId: string, limit: number) {
   return girderRest.get<GirderModel[]>('item', {
     params: { folderId, limit },
+  });
+}
+
+function getRecentSlicerJobs(limit: number, offset: number, statuses?: number[]) {
+  return girderRest.get<(GirderJob & { type: string})[]>('job', {
+    params: {
+      limit,
+      offset,
+      statuses: JSON.stringify(statuses),
+      sort: 'created',
+      sortdir: -1,
+      handler: 'jobs._local',
+    },
   });
 }
 
@@ -56,6 +69,7 @@ function setUsePrivateQueue(userId: string, value = false) {
 export {
   deleteResources,
   getItemsInFolder,
+  getRecentSlicerJobs,
   getFolder,
   setUsePrivateQueue,
   getFolderAccess,

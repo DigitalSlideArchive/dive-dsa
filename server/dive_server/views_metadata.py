@@ -26,8 +26,6 @@ from dive_utils.constants import (
 )
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from . import crud_dataset
-from dive_tasks.dive_metadata_slicer_cli import metadata_filter_slicer_cli_task
-from dive_utils import constants
 from girder.models.token import Token
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
@@ -812,7 +810,6 @@ class DIVEMetadata(Resource):
         user = self.getCurrentUser()
         query = {"root": str(rootId["_id"]), "owner": str(user['_id'])}
         found = DIVE_MetadataKeys().findOne(query=query, user=user)
-        print(found)
         if found:
             DIVE_MetadataKeys().deleteKey(rootId, user, key)
             Folder().save(rootId)
@@ -830,6 +827,10 @@ class DIVEMetadata(Resource):
                     item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
                 )
                 DIVE_Metadata().deleteKey(diveDatasetFolder, rootId, user, key)
+        display_items = rootId['meta'].get('DIVEMetadataFilter', {}).get('display', False)
+        if display_items and key in display_items:
+            display_items.remove(key)
+            Folder().save(rootId)
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")
@@ -1091,18 +1092,3 @@ class DIVEMetadata(Resource):
         job = Job().save(job)
         Job().scheduleJob(job)
         return job
-
-        newjob = metadata_filter_slicer_cli_task.apply_async(
-            kwargs=dict(
-                params=dive_metadata_slicer_task_params,
-                girder_client_token=token["_id"],
-                girder_job_title="Slicer CLI Metadata Run",
-                girder_job_type="Slicer CLI Metadata Run",
-            ),
-        )
-        newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = False
-        newjob.job[constants.JOBCONST_CREATOR] = str(user['_id'])
-
-        Job().save(newjob.job)
-
-        return newjob.job

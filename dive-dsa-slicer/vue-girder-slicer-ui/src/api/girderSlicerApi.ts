@@ -29,7 +29,7 @@ export interface SlicerTask {
 
 const fileTypes = ['file', 'directory', 'image', 'item', 'multi', 'new-file'];
 const fileImageItem = ['file', 'image', 'item', 'new-file'];
-const useGirderSlicerApi = (girderRest: RestClient) => {
+const useGirderSlicerApi = (girderRest: RestClient, skipValidation: string[]=[]) => {
     const getSlicerList = async () => {
         return girderRest.get<SlicerImage[]>('slicer_cli_web/cli');
     }
@@ -38,13 +38,14 @@ const useGirderSlicerApi = (girderRest: RestClient) => {
     }
     const validateParams = (xml:XMLSpecification) => {
         // Go through each parameter
+        const validationSkipParams = ['girderapiUrl', 'girderToken'].concat(skipValidation)
         let valid = true;
         xml.panels.forEach((panel) => {
             panel.groups.forEach((group) => {
                 group.parameters.forEach((parameter) => {
                     // Check for a value for each item;
                     // TODO More checks for other types for validation
-                    if (['girderApiUrl', 'girderToken'].includes(parameter.id)) {
+                    if (validationSkipParams.includes(parameter.id)) {
                         return;
                     }
                     if (!fileTypes.includes(parameter.type) && parameter.required && (parameter.value === undefined || parameter.value === null)) {
@@ -59,7 +60,6 @@ const useGirderSlicerApi = (girderRest: RestClient) => {
             });
             });
         });
-        console.log(`Valid: ${valid}`);
         return valid;
     }
     const convertToParams = (xml:XMLSpecification) => {

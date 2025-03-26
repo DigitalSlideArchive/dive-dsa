@@ -217,6 +217,9 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
                 JobStatus.ERROR,
                 JobStatus.CANCELED,
             }:
+                if scheduled >= total_count:
+                    done = True
+                    break
                 dive_dataset_params = dive_dataset_list[scheduled]
                 if not done:
                     # We are running in a girder context, but girder_worker
@@ -233,9 +236,6 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
                         status=JobStatus.RUNNING,
                     )
                     scheduled += 1
-                    if scheduled >= total_count:
-                        done = True
-                        break
                     continue
             time.sleep(0.1)
     except Exception as exc:

@@ -141,6 +141,10 @@
       font-weight: bold;
       color:red;
     }
+    .warning-msg {
+      font-weight: bold;
+      color: darkorange;
+    }
     .gsu-selected-items {
       @apply bg-yellow-200;
     }

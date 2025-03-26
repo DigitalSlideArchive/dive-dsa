@@ -26,6 +26,22 @@ export default defineComponent({
     defaults: {
         type: Function as PropType<(item: XMLParameters) => undefined | null | XMLParameters>,
         default: (_item: XMLParameters) => undefined,
+    },
+    interceptRunTask: {
+      type: Boolean,
+      default: false,
+    },
+    skipValidation: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    disabledParams: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    disabledReason: {
+      type: String,
+      default: 'Param will automatically be added'
     }
   },
   setup(props, { emit }) {
@@ -34,13 +50,14 @@ export default defineComponent({
     const loggedIn = computed(() => girderRest?.token);
     const result: Ref<XMLSpecification | null> = ref(null);
     const jobData: Ref<null | JobResponse> = ref(null)
-    const slicerApi = useGirderSlicerApi(girderRest);
+    const slicerApi = useGirderSlicerApi(girderRest, props.skipValidation);
     const getData = async () => {
       if (props.taskId) {
         const response = await slicerApi.getSlicerXML(props.taskId);
         const parseParams = parse(response.data);
         // We need to assign default values if they exists
         const updateParams: {panelIndex: number, groupIndex: number, parameterIndex: number, value: XMLParameters}[] = [];
+        const disableParams: {panelIndex: number, groupIndex: number, parameterIndex: number, disabledReason: string}[] = [];
         parseParams.panels.forEach((panel, panelIndex) => {
           panel.groups.forEach((group, groupIndex) => {
             group.parameters.forEach((parameter, parameterIndex) => {
@@ -54,6 +71,15 @@ export default defineComponent({
                   value: paramResult,
                 });
               }
+              if (parseParams && props.disabledParams.includes(parameter.id)) {
+                disableParams.push({
+                  panelIndex,
+                  groupIndex,
+                  parameterIndex,
+                  disabledReason: props.disabledReason,
+                });
+
+              }
             });
           });
         });
@@ -62,6 +88,13 @@ export default defineComponent({
             parseParams.panels[item.panelIndex].groups[item.groupIndex].parameters[item.parameterIndex] = item.value;
           }
         });
+        disableParams.forEach((item) => {
+          if (parseParams) {
+            parseParams.panels[item.panelIndex].groups[item.groupIndex].parameters[item.parameterIndex].disabled = true;
+            parseParams.panels[item.panelIndex].groups[item.groupIndex].parameters[item.parameterIndex].disabledReason = item.disabledReason;
+          }
+        });
+
         result.value = parseParams;
       }
     }
@@ -79,11 +112,19 @@ export default defineComponent({
     const runTask = async () => {
       // First we need to validate the task has all parameters required.
       if (result.value && props.taskId) {
-        const resp = await slicerApi.runTask(result.value, props.taskId);
-        if (resp) {
-          console.log(resp);
-          jobData.value = resp;
-          emit('run-task', jobData.value);
+        if (props.interceptRunTask) {
+          const validated = slicerApi.validateParams(result.value)
+          if (validated) {
+            const params = slicerApi.convertToParams(result.value);
+            emit('intercept-run-task', { taskId: props.taskId, params })
+          }
+        } else {
+          const resp = await slicerApi.runTask(result.value, props.taskId);
+          if (resp) {
+            console.log(resp);
+            jobData.value = resp;
+            emit('run-task', jobData.value);
+          }
         }
       }
     }

@@ -18,7 +18,8 @@ export default defineComponent({
             currentValue.value = props.data.defaultValue || props.data.value || '';
         }
     })
-    const error = computed(() => props.data.error)
+    const error = computed(() => props.data.error);
+    const disabledReason  = computed(() => props.data.disabled && props.data.disabledReason);
     const validate = (e: Event) => {
         // Validation Logic for different types
         const update = { ...props.data };
@@ -30,7 +31,8 @@ export default defineComponent({
     return {
       currentValue,
       error,
-      validate
+      validate,
+      disabledReason,
     }
   }
 });
@@ -39,12 +41,17 @@ export default defineComponent({
   <div class="mb-4">
     <label for="parameterInput">{{ data.title }} <span
       v-if="error"
-      class="text-red"
+      class="error-msg"
     > {{ error }}</span></label>
+    <label for="parameterInput">{{ data.title }} <span
+      v-if="disabledReason"
+      class="warning-msg"
+    > {{ disabledReason }}</span></label>
     <input
       id="parameterInput"
       class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300 text-grey-darker border border-grey rounded"
       type="color"
+      :disabled="!!disabledReason"
       :value="currentValue"
       @change="validate($event)"
     >

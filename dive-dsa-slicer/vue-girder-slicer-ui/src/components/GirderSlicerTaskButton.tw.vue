@@ -188,7 +188,7 @@ export default defineComponent({
     <div v-else>
       <button
         type="button"
-        class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal no-underline text-yellow-dark border-yellow bg-white hover:bg-yellow-light hover:text-yellow-darker"
+        class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal no-underline warning-msg-dark border-yellow bg-white hover:bg-yellow-light hover:warning-msg-darker"
         data-toggle=""
         data-placement="top"
         title="Not Logged In"

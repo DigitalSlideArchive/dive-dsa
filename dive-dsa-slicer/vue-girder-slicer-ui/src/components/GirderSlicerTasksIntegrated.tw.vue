@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Ref, defineComponent, ref, PropType } from 'vue';
-import GirderSlicerTaskMenuModalButton from './GlicerSlicerTaskMenuModalButton.tw.vue';
+import GirderSlicerTaskMenuModalButton from './GirderSlicerTaskMenuModalButton.tw.vue';
 import GirderSlicerTaskCard from './GirderSlicerTaskCard.tw.vue';
 import type { XMLParameters } from '../parser/parserTypes';
 import { SlicerImage } from '../api/girderSlicerApi';
@@ -24,6 +24,22 @@ export default defineComponent({
     defaults: {
         type: Function as PropType<(item: XMLParameters) => undefined | null | XMLParameters>,
         default: (_item: XMLParameters) => undefined,
+    },
+    interceptRunTask: {
+      type: Boolean,
+      default: false,
+    },
+    skipValidation: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    disabledParams: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    disabledReason: {
+      type: String,
+      default: 'Param will automatically be added'
     }
   },
   setup() {
@@ -61,7 +77,16 @@ export default defineComponent({
                         :filter="filter"
                         @selected="select($event)"
                     />
-                    <girder-slicer-task-card :task-id="selected" :defaults="defaults" @cancel="cancel()" @run-task="$emit('run-task', $event)" />
+                    <girder-slicer-task-card
+                      :task-id="selected"
+                      :defaults="defaults"
+                      :interceptRunTask="interceptRunTask"
+                      :skipValidation="skipValidation"
+                      :disabledParams="disabledParams"
+                      :disabledReason="disabledReason"
+                      @cancel="cancel()"
+                      @run-task="$emit('run-task', $event)"
+                      @intercept-run-task="$emit('intercept-run-task', $event)" />
                 </div>
             </div>
         </div>

@@ -9,7 +9,8 @@ export default defineComponent({
     }
   },
   setup(props, { emit }) {
-    const error = computed(() => props.data.error)
+    const error = computed(() => props.data.error);
+    const disabledReason  = computed(() => props.data.disabled && props.data.disabledReason);
     const currentValue: Ref<boolean> = ref(false);
     onMounted(() => {
         currentValue.value = !!props.data.value || !!props.data.defaultValue || false;
@@ -25,7 +26,8 @@ export default defineComponent({
     return {
       error,
       currentValue,
-      validate
+      validate,
+      disabledReason,
     }
   },
 });
@@ -35,12 +37,17 @@ export default defineComponent({
     <div class="grid grid-cols-2 gap-4 pl-4">
       <label for="parameterInput">{{ data.title }} <span
         v-if="error"
-        class="text-red"
+        class="error-msg"
       > {{ error }}</span></label>
+      <label for="parameterInput">{{ data.title }} <span
+      v-if="disabledReason"
+      class="warning-msg"
+    > {{ disabledReason }}</span></label>
       <input
         class="absolute mt-1 -ml-6"
         type="checkbox"
         :checked="currentValue"
+        :disabled="!!disabledReason"
         @change="validate($event)"
       >
     </div>
