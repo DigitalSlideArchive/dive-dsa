@@ -26,6 +26,7 @@ export default defineComponent({
       if (girderRest.token) {
         window.localStorage.setItem('girderToken', girderRest.token);
       }
+      store.dispatch('User/loadUser');
       router.push('/');
     }
     girderRest.$on('login', onLogin);

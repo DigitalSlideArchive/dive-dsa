@@ -244,6 +244,10 @@ export default defineComponent({
       }
     };
 
+    const jobCompleted = () => {
+      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+    };
+
     return {
 
       pageList,
@@ -256,6 +260,7 @@ export default defineComponent({
       categoricalLimit,
       changePage,
       updateFilter,
+      jobCompleted,
       clearFilter,
       getDefaultValue,
       getRegExVal,
@@ -309,7 +314,7 @@ export default defineComponent({
         </v-btn>
 
         <v-spacer />
-        <DIVEMetadataSlicerVue :filters="currentFilter" :metadata-root="id" class="pr-8" />
+        <DIVEMetadataSlicerVue :filters="currentFilter" :metadata-root="id" class="pr-8" @job-complete="jobCompleted()" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select
           v-model="sortValue"

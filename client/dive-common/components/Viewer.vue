@@ -665,9 +665,11 @@ export default defineComponent({
         groupStyleManager.populateTypeStyles(meta.customGroupStyling);
         if (configMeta.customTypeStyling) {
           trackFilters.importTypes(Object.keys(configMeta.customTypeStyling), false);
+          trackStyleManager.populateTypeStyles(configMeta.customTypeStyling);
         }
         if (configMeta.customGroupStyling) {
           groupFilters.importTypes(Object.keys(configMeta.customGroupStyling), false);
+          groupStyleManager.populateTypeStyles(configMeta.customGroupStyling);
         }
         if (configMeta.attributes) {
           loadAttributes(configMeta.attributes);

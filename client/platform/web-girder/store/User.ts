@@ -14,6 +14,11 @@ const userModule: Module<UserState, RootState> = {
       state.user = merge(state.user, data);
     },
   },
+  getters: {
+    userLogin(state) {
+      return state.user?.login;
+    },
+  },
   actions: {
     async loadUser({ commit }) {
       const data = await girderRest.fetchUser();

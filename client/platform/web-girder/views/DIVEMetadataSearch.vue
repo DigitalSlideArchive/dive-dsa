@@ -34,6 +34,7 @@ export default defineComponent({
   },
   setup(props) {
     const folderList: Ref<MetadataResultItem[]> = ref([]);
+    const timeString = ref(Date.now());
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const loading = ref(true);
     const displayConfig: Ref<FilterDisplayConfig> = ref({
@@ -58,6 +59,7 @@ export default defineComponent({
       totalPages.value = data.totalPages;
       filtered.value = data.filtered;
       count.value = data.count;
+      timeString.value = Date.now();
     };
     const getData = async () => {
       const { data } = await filterDiveMetadata(props.id, { ...filters.value });
@@ -181,6 +183,7 @@ export default defineComponent({
       locationStore,
       updateFilter,
       folderList,
+      timeString,
       displayConfig,
       getAdvanced,
       filters,
@@ -234,7 +237,7 @@ export default defineComponent({
       </template>
     </DIVEMetadataFilterVue>
     <span v-if="!openClone">
-      <v-card v-for="(item, key) in folderList" :key="key" class="my-2 pa-2">
+      <v-card v-for="(item, key) in folderList" :key="`${key}_${timeString}`" class="my-2 pa-2">
         <v-row class="ma-4">
           <div>{{ item.filename }}</div>
           <div>
@@ -249,7 +252,7 @@ export default defineComponent({
             </v-btn>
           </div>
         </v-row>
-        <v-row v-for="display in displayConfig['display']" :key="display" class="ma-4" align="center">
+        <v-row v-for="display in displayConfig['display']" :key="`${display}_${timeString}`" class="ma-4" align="center">
           <b>{{ display }}:</b>
           <div v-if="unlockedMap[display] !== undefined">
             <DIVEMetadataEditKey
@@ -268,7 +271,7 @@ export default defineComponent({
           <v-expansion-panel class="border">
             <v-expansion-panel-header>Advanced</v-expansion-panel-header>
             <v-expansion-panel-content>
-              <v-row v-for="(data, dataKey) in getAdvanced(item)" :key="dataKey" class="border" dense>
+              <v-row v-for="(data, dataKey) in getAdvanced(item)" :key="`${dataKey}_${timeString}`" class="border" dense>
                 <v-col cols="2" class="border">
                   <b>{{ dataKey }}:</b>
                 </v-col>

@@ -19,8 +19,8 @@ import {
 } from 'platform/web-girder/api/divemetadata.service';
 import {
   cancelJob,
-  getRecentJobs,
 } from 'platform/web-girder/api/admin.service';
+import { getRecentSlicerJobs } from 'platform/web-girder/api/girder.service';
 
 const JobStatus = all();
 const JobStatusMap = {
@@ -49,7 +49,8 @@ export default defineComponent({
     },
   },
   description: 'Metadata Slicer Task Runner',
-  setup(props) {
+  emits: ['job-complete'],
+  setup(props, { emit }) {
     const girderRest = useGirderRest();
     const store = useStore();
     const helpDialog = ref(false);
@@ -64,16 +65,14 @@ export default defineComponent({
     let interval: NodeJS.Timeout | null = null;
 
     const getRunningQueuedJob = async () => {
-      const filterTypes = ['Dive Metadata Slicer CLI Batch'];
       const filterStatus = ['Queued', 'Running', 'Cancelling'];
       const statusNums = filterStatus.map(
         (status) => JobStatusMap[status].value,
       ).filter((item) => item !== undefined);
-      const results = (await getRecentJobs(
+      const results = (await getRecentSlicerJobs(
         0,
         0,
         statusNums,
-        filterTypes,
       )).data;
       const filteredJobs = results.filter((item) => item?.kwargs?.params?.DIVEMetadataRoot === props.metadataRoot);
       if (filteredJobs.length) {
@@ -102,6 +101,7 @@ export default defineComponent({
         jobRunning.value = false;
         jobProgress.value = -1;
         // Check the Revision history and see if the latest revision is > than the stored current one
+        emit('job-complete');
       }
       if (resp.data.status === JobStatus.ERROR.value) {
         if (interval) {
@@ -188,7 +188,7 @@ export default defineComponent({
         >
           mdi-autorenew
         </v-icon>
-        <span>Task Running: {{ jobCurrent }} of {{ jobTotal }}</span>
+        <span v-if="jobTotal > 0">Task Running: {{ jobCurrent + 1 }} of {{ jobTotal }}</span>
         <v-btn
           class="ma-1 ml-2"
           outlined

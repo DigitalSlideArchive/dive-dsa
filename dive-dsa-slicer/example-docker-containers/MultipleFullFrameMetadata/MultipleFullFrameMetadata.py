@@ -115,12 +115,16 @@ def process_metadata(args, gc: girder_client.GirderClient):
     MetadataValue = args.MetadataValue
 
     # First we check the root filter to see if there is a MetadataKey that exists
-    current_filter_values = gc.get(f'/dive_metadata/{DIVEMetadataRoot}/metadata_filter_values')
+    current_filter_values = gc.get(f'/dive_metadata/{DIVEMetadataRoot}/metadata_keys')
     print(f'Current Filter Values: {current_filter_values}')
     print(f'MetadataRoot: {DIVEMetadataRoot} DatasetId: {DIVEDatasetId} MetadataKey: {MetadataKey} MetadataValue: {MetadataValue}')
-    if MetadataKey not in current_filter_values.keys():
+    # This only works for the owners of the metadata search field running
+    # it will add a new key if it doesn't exist.
+    # regular users require that a templated metadataKey be available and the user can edit it
+    if MetadataKey not in current_filter_values['metadataKeys'].keys():
         print('Adding the new key to MetadataRoot')
-        gc.put(f'dive_metadata/{DIVEMetadataRoot}/add_key', {"key": MetadataKey, "value": MetadataValue, "category": "search", "unlocked": True})
+        # Field should be unlocked if the user who is running the task is not the owner.  Only owners can add new data to fields.
+        gc.put(f'dive_metadata/{DIVEMetadataRoot}/add_key', {"key": MetadataKey, "value": MetadataValue, "category": "search", "unlocked": False})
 
         # If we want the new Metadata Item to not be under the Advanced section we should add it to the main Display
         root_data = gc.get(f'folder/{DIVEMetadataRoot}')

@@ -60,7 +60,6 @@ const useGirderSlicerApi = (girderRest: RestClient, skipValidation: string[]=[])
             });
             });
         });
-        console.log(`Valid: ${valid}`);
         return valid;
     }
     const convertToParams = (xml:XMLSpecification) => {
