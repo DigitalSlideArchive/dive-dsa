@@ -13,6 +13,10 @@ The system will automatically populate the file input with a reference to the vi
 
 The system will also populate any folder output with the DIVE Dataset Folder if it has the ID/name **DIVEDirectory**
 
+**girderToken** and **girderApiUrl** are automtically set as well.  This can be uyseful if the system is utilize girder-client for communication with the main container.
+
+The system will alos populate and text input for the field **DIVEMetadata** and **DIVEMetadataRoot** if the system is run in within a DIVEMetadata Context
+
 #### Examples
 
 There are examples located at [**DIVE-DSA-Slicer Repository**](https://github.com/DigitalSlideArchive/dive-dsa/tree/main/dive-dsa-slicer/example-docker-containers).  These are simple examples that show the generation of fullframe tracks.  The more important one is the LongRunning or GirderClient versions.  They show how to automatically push the data back to the system and kick off the post process event to load the new tracks in to the Dataset.
