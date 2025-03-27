@@ -248,6 +248,19 @@ export default defineComponent({
       emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
     };
 
+    const showSlicerCLI = computed(() => {
+      if (props.displayConfig.slicerCLI === 'Disabled') {
+        return false;
+      }
+      if (props.displayConfig.slicerCLI === 'Owner' && props.ownerAdmin) {
+        return true;
+      }
+      if (props.displayConfig.slicerCLI === 'All Users') {
+        return true;
+      }
+      return false;
+    });
+
     return {
 
       pageList,
@@ -269,6 +282,7 @@ export default defineComponent({
       sortDir,
       toggleRegex,
       regEx,
+      showSlicerCLI,
     };
   },
 });
@@ -314,7 +328,7 @@ export default defineComponent({
         </v-btn>
 
         <v-spacer />
-        <DIVEMetadataSlicerVue :filters="currentFilter" :metadata-root="id" class="pr-8" @job-complete="jobCompleted()" />
+        <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="pr-8" @job-complete="jobCompleted()" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select
           v-model="sortValue"
