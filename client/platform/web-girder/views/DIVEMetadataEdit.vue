@@ -290,6 +290,8 @@ export default defineComponent({
       :headers="metadataHeader"
       :items="formattedKeys"
       item-key="name"
+      :items-per-page="-1"
+      hide-default-footer
     >
       <template #item.visibility="{ item, index }">
         <v-icon :color="item.visible ? 'primary' : ''" @click="toggleVisibility(index)">
