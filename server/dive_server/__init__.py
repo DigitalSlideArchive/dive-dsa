@@ -96,10 +96,11 @@ class GirderPlugin(plugin.GirderPlugin):
         )
 
         plugin.getPlugin('worker').load(info)
-        Setting().set(
-            'worker.api_url',
-            os.environ.get('WORKER_API_URL', 'http://girder:8080/api/v1'),
-        )
+        if not Setting().get('worker.api_url'):
+            Setting().set(
+                'worker.api_url',
+                os.environ.get('WORKER_API_URL', 'http://girder:8080/api/v1'),
+            )
 
         broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq')
         if broker_url is None:
