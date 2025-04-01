@@ -414,8 +414,27 @@ class GoToFrameAction(BaseModel):
     type: Literal['GoToFrame']
 
 
+class CreateTrackAction(BaseModel):
+    trackType: Optional[str]
+    geometryType: Literal['Point', 'rectangle', 'Polygon', 'LineString', 'Time']
+    editableType: bool
+    editableTitle: Optional[str]
+    editableText: Optional[str]
+    editableTypeList: Optional[List[str]]
+    selectTrackAfter: bool
+    type: Literal['CreateTrackAction']
+
+
+class CreateFullFrameTrackAction(BaseModel):
+    trackType: Optional[str]
+    geometryType: Literal['rectangle', 'Time']
+    useExisting: bool
+    selectTrackAfter: bool
+    type: Literal['CreateFullFrameTrackAction']
+
+
 class DIVEActions(BaseModel):
-    action: Union[GoToFrameAction, TrackSelectAction]
+    action: Union[GoToFrameAction, TrackSelectAction, CreateTrackAction, CreateFullFrameTrackAction]
 
 
 class ShortCut(BaseModel):

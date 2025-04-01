@@ -18,6 +18,7 @@ export default defineComponent({
     const value: Ref<string | boolean | number| null> = ref(null);
     const valueList: Ref<string[] | undefined> = ref(undefined);
     const lockedValueList = ref(true);
+    const allowNullValueList = ref(false);
 
     /**
      * Placeholder resolver function.  Wrapped in object so that
@@ -88,6 +89,10 @@ export default defineComponent({
     });
 
     watch(show, async (val) => {
+      if (!allowNullValueList.value && valueList.value?.length && valueList.value[0]) {
+      // eslint-disable-next-line prefer-destructuring
+        value.value = valueList.value[0];
+      }
       if (!val) {
         if (valueType.value === undefined) {
           functions.resolve(false);
