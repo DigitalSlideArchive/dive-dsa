@@ -308,6 +308,7 @@ class DIVEMetadata(Resource):
                                     # add in DIVE Keys:
                                     item['DIVE_DatasetId'] = str(datasetFolder['_id'])
                                     item['DIVE_Name'] = datasetFolder['lowerName']
+                                    item['DIVE_Path'] = resource_path
                                     datasetFolder.get('name')
                                     if ffprobeMetadata.get(
                                         'import', False
@@ -467,6 +468,10 @@ class DIVEMetadata(Resource):
             data = {}
             data['DIVE_DatasetId'] = str(item['_id'])
             data['DIVE_Name'] = str(item['lowerName'])
+            resource_path = path_util.getResourcePath(
+                'folder', item, user=user
+            )
+            data['DIVE_Path'] = resource_path
             if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
                 ffmetadata = item.get('meta', {}).get('ffprobe_info', {})
                 ffkeys = ffprobeMetadata.get('keys', [])
