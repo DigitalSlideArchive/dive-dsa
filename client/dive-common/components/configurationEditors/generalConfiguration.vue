@@ -1,19 +1,41 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
+import { RootlessLocationType } from 'platform/web-girder/store/types';
+import { GirderMetadataStatic } from 'platform/web-girder/constants';
+import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { getDiveConfiguration } from 'platform/web-girder/api/dataset.service';
+import { GirderFileManager, GirderModelType } from '@girder/components/src';
+
 import {
-  defineComponent, ref,
+  defineComponent, computed, ref, Ref,
 } from 'vue';
 import { useConfiguration } from 'vue-media-annotator/provides';
 
 export default defineComponent({
   name: 'GeneralConfiguration',
   components: {
+    GirderFileManager,
   },
   props: {},
   setup() {
     const configMan = useConfiguration();
     const generalDialog = ref(false);
+    const transferFolder = ref(false);
+    const girderRest = useGirderRest();
+    const source = ref(null as GirderMetadataStatic | null);
+    const location: Ref<RootlessLocationType> = ref({
+      _modelType: ('user' as GirderModelType),
+      _id: girderRest.user._id,
+    });
+
+    const locationIsFolder = computed(() => (location.value._modelType === 'folder'));
+    const snackbar = ref(false);
+    function setLocation(newLoc: RootlessLocationType) {
+      if (!('meta' in newLoc && newLoc.meta.annotate)) {
+        location.value = newLoc;
+      }
+    }
+
     const baseConfiguration = ref(
       configMan.configuration.value?.general?.baseConfiguration
          || (configMan.hierarchy.value?.length ? configMan.hierarchy.value[0].id : null),
@@ -84,6 +106,14 @@ export default defineComponent({
       }
       transferProgress.value = false;
     };
+
+    const transferFolderConfig = () => {
+      if (originalConfiguration.baseConfiguration) {
+        configMan.transferConfiguration(originalConfiguration.baseConfiguration, location.value._id);
+      }
+      transferFolder.value = false;
+      snackbar.value = true;
+    };
     return {
       generalDialog,
       hierarchy: configMan.hierarchy,
@@ -95,6 +125,14 @@ export default defineComponent({
       saveChanges,
       transferConfig,
       transferProgress,
+      // Transfer Folder
+      transferFolder,
+      setLocation,
+      location,
+      locationIsFolder,
+      source,
+      transferFolderConfig,
+      snackbar,
     };
   },
 });
@@ -176,14 +214,34 @@ export default defineComponent({
               label="Disable Configuration Editing"
             />
           </v-row>
-          <v-btn
-            :disabled="
-              baseConfiguration === 'null' || (hierarchy && hierarchy[0].id === baseConfiguration)"
-            color="warning"
-            @click="transferConfig"
-          >
-            Transfer <v-icon>{{ transferProgress ? 'mdi-spin mdi-sync' : '' }}</v-icon>
-          </v-btn>
+          <v-row>
+            <v-btn
+              :disabled="
+                baseConfiguration === 'null' || (hierarchy && hierarchy[0].id === baseConfiguration)"
+              color="warning"
+              @click="transferConfig"
+            >
+              Transfer <v-icon>{{ transferProgress ? 'mdi-spin mdi-sync' : '' }}</v-icon>
+            </v-btn>
+            <v-spacer />
+            <v-tooltip bottom>
+              <template #activator="{ on: tooltipOn }">
+                <v-btn
+                  class="ma-0"
+                  color="primary"
+                  v-on="tooltipOn"
+                  @click="transferFolder = true"
+                >
+                  <v-icon>
+                    mdi-folder
+                  </v-icon>
+
+                  Transfer
+                </v-btn>
+              </template>
+              <span> Transfer to folder outside hierarchy</span>
+            </v-tooltip>
+          </v-row>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -199,6 +257,74 @@ export default defineComponent({
             @click="saveChanges"
           >
             Save
+          </v-btn>
+        </v-card-actions>
+        <v-snackbar
+          v-model="snackbar"
+          :timeout="2000"
+        >
+          <v-alert type="success">
+            Transfer to Folder complete
+          </v-alert>
+
+          <template #action="{ attrs }">
+            <v-btn
+              color="blue"
+              text
+              v-bind="attrs"
+              @click="snackbar = false"
+            >
+              Close
+            </v-btn>
+          </template>
+        </v-snackbar>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="transferFolder" width="600">
+      <v-card
+        outlined
+        flat
+      >
+        <v-card-title>Transfer Config to Another Folder</v-card-title>
+        <v-card-text>
+          <GirderFileManager
+            new-folder-enabled
+            no-access-control-w
+            :location="location"
+            @update:location="setLocation"
+          >
+            <template #row="{ item }">
+              <span>{{ item.name }}</span>
+              <v-chip
+                v-if="(item.meta && item.meta.annotate)"
+                color="white"
+                x-small
+                outlined
+                class="mx-3"
+              >
+                dataset
+              </v-chip>
+            </template>
+          </GirderFileManager>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn
+            depressed
+            block
+            color="primary"
+            class="mt-4"
+            :disabled="!locationIsFolder"
+            @click="transferFolderConfig"
+          >
+            <span v-if="!locationIsFolder">
+              Choose a destination folder...
+            </span>
+            <span v-else-if="'name' in location">
+              Transfer Configuration To this Folder
+            </span>
+            <span v-else>
+              Something went wrong
+            </span>
           </v-btn>
         </v-card-actions>
       </v-card>
