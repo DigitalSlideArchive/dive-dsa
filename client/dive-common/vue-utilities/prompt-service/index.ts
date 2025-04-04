@@ -14,6 +14,7 @@ export interface PromptParams {
   valueList?: string[];
   confirm?: boolean;
   lockedValueList?: boolean;
+  allowNullValueList?: boolean;
 }
 
 class PromptService {
@@ -36,6 +37,7 @@ class PromptService {
     valueType?: 'text' | 'number' | 'boolean',
     valueList?: string[],
     lockedValueList?: boolean,
+    allowNullValueList?: boolean,
   ): void {
     this.component.title = title;
     this.component.text = text;
@@ -48,6 +50,7 @@ class PromptService {
     this.component.show = true;
     this.component.valueList = valueList;
     this.component.lockedValueList = lockedValueList;
+    this.component.allowNullValueList = allowNullValueList;
   }
 
   show({
@@ -78,6 +81,7 @@ class PromptService {
     confirm = false,
     valueList = undefined,
     lockedValueList = true,
+    allowNullValueList = true,
   }: PromptParams): Promise<boolean | number | string | null> {
     return new Promise<boolean | number | string | null>((resolve) => {
       if (!this.component.show) {
@@ -91,6 +95,7 @@ class PromptService {
           valueType,
           valueList,
           lockedValueList,
+          allowNullValueList,
         );
         return this.component.value;
       }

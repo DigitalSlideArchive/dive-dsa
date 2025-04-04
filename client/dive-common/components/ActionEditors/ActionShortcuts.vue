@@ -49,7 +49,7 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const attributesList = useAttributes();
     const editingShortcut: Ref<null | DIVEActionShortcut> = ref(null);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame'> = ref('TrackSelection');
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction'> = ref('TrackSelection');
     const actionList: Ref<DIVEAction[]> = ref([]);
     const updateActionList = () => {
       actionList.value = editingShortcut.value?.actions || [];
@@ -160,10 +160,9 @@ export default defineComponent({
 
     const saveShortcutDisabled = computed(() => {
       if (editingShortcut.value) {
-        const { key } = editingShortcut.value.shortcut;
         const { description } = editingShortcut.value;
         const actionLength = editingShortcut.value.actions.length;
-        return !(key && description && actionLength);
+        return !(description && actionLength);
       }
       return false;
     });
@@ -216,18 +215,58 @@ export default defineComponent({
         <v-card-title>Action Shortcut Editor</v-card-title>
         <v-card-text>
           <div v-if="!addEditShortcut">
-            <v-row dnese>
+            <v-row dense class="pb-3">
               <v-btn @click="editShortcut()">
                 Add Shortcut
               </v-btn>
             </v-row>
+            <v-row dense style="border-bottom: 1px solid gray;">
+              <v-col>
+                <span>
+                  <v-icon class="mr-2">mdi-keyboard-outline</v-icon><b>Keyboard</b>
+                </span>
+              </v-col>
+              <v-col>
+                <span>
+                  <v-icon class="mr-2">mdi-button-cursor</v-icon><b>Button</b>
+                </span>
+              </v-col>
+              <v-col>
+                <span>
+                  <b>Description</b>
+                </span>
+              </v-col>
+              <v-col>
+                <span>
+                  <b>Actions</b>
+                </span>
+              </v-col>
+              <v-col cols="1">
+                <span>
+                  <b>Edit</b>
+                </span>
+              </v-col>
+            </v-row>
+
             <v-row
               v-for="item, index in shortcutList"
               :key="`shortcut_${item.shortcut.key}_${index}`"
               dense
+              align="center"
+              justify="center"
             >
               <v-col>
-                {{ item.shortcut.key }}{{ item.shortcut.modifiers && item.shortcut.modifiers.length ? `+${item.shortcut.modifiers.join('+')}` : '' }}
+                <span v-if="item.shortcut.key">
+                  <v-icon class="mr-2">mdi-keyboard-outline</v-icon>{{ item.shortcut.key }}{{ item.shortcut.modifiers && item.shortcut.modifiers.length ? `+${item.shortcut.modifiers.join('+')}` : '' }}
+                </span>
+              </v-col>
+              <v-col>
+                <span v-if="item.button">
+                  <v-icon class="mr-2">mdi-button-cursor</v-icon>
+                  <v-icon v-if="item.button.iconPrepend">{{ item.button.iconPrepend }}</v-icon>
+                  <span v-if="item.button.buttonText">{{ item.button.buttonText }}</span>
+                  <v-icon v-if="item.button.iconAppend">{{ item.button.iconAppend }}</v-icon>
+                </span>
               </v-col>
               <v-col>
                 {{ item.description }}
@@ -272,7 +311,7 @@ export default defineComponent({
                 dense
                 style="border: 1px gray solid; margin:2px"
               >
-                <v-col cols="2">
+                <v-col cols="3">
                   {{ item.action.type }}
                 </v-col>
                 <v-col v-if="item.action.type === 'TrackSelection'">
@@ -320,6 +359,33 @@ export default defineComponent({
                     {{ data.name }}: {{ data.opVal }}
                   </v-row>
                 </v-col>
+                <v-col v-if="item.action.type === 'CreateTrackAction'">
+                  <div v-if="item.action.editableType">
+                    <b class="mr-2">Editable Type:</b><v-icon v-if="item.action.editableType" color="success">
+                      mdi-check
+                    </v-icon><v-icon v-else color="error">
+                      mdi-close
+                    </v-icon>
+                  </div>
+                  <div v-if="item.action.editableTypeList?.length">
+                    <b class="mr-2">Types:</b><span>{{ item.action.editableTypeList.join(', ') }}</span>
+                  </div>
+                  <div v-if="item.action.trackType">
+                    <b class="mr-2">Type:</b><span>{{ item.action.trackType }}</span>
+                  </div>
+                  <div v-if="item.action.geometryType">
+                    <b class="mr-2">Geometry:</b><span>{{ item.action.geometryType }}</span>
+                  </div>
+
+                  <div>
+                    <b class="mr-2">Select Track After:</b><v-icon v-if="item.action.selectTrackAfter" color="success">
+                      mdi-check
+                    </v-icon><v-icon v-else color="error">
+                      mdi-close
+                    </v-icon>
+                  </div>
+                </v-col>
+                <v-spacer />
                 <v-col cols="1">
                   <v-icon @click="editAction(index)">
                     mdi-pencil
@@ -380,18 +446,22 @@ export default defineComponent({
           </v-row>
         </v-card-text>
         <v-card-actions>
-          <v-btn
-            x-small
-            @click="generalDialog = false; editingShortcut = null; addEditShortcut = false"
-          >
-            Cancel
-          </v-btn>
-          <v-btn
-            color="primary"
-            @click="save()"
-          >
-            Save
-          </v-btn>
+          <v-row dense>
+            <v-spacer />
+            <v-btn
+              class="mx-2"
+              @click="generalDialog = false; editingShortcut = null; addEditShortcut = false"
+            >
+              Cancel
+            </v-btn>
+            <v-btn
+              class="mx-2"
+              color="primary"
+              @click="save()"
+            >
+              Save
+            </v-btn>
+          </v-row>
         </v-card-actions>
       </v-card>
     </v-dialog>

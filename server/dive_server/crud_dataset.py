@@ -311,6 +311,10 @@ def transfer_config(source: types.GirderModel, dest: types.GirderModel):
     customTypeStyling = source.get('meta', {}).get('customTypeStyling', {})
     confidenceFilters = source.get('meta', {}).get('confidenceFilters', {})
     filters = source.get('meta', {}).get('filters', {})
+    configuration = source.get('meta', {}).get('configuration', {})
+    if configuration:
+        if configuration.get('general', {}).get('baseConfiguration', False):
+            configuration['general']['baseConfiguration'] = str(dest['_id'])
     data = {
         'attributes': attributes,
         'timelines': timelines,
@@ -319,8 +323,9 @@ def transfer_config(source: types.GirderModel, dest: types.GirderModel):
         'customTypeStyling': customTypeStyling,
         'filters': filters,
         'confidenceFilters': confidenceFilters,
+        'configuration': configuration,
     }
-    update_metadata(dest, data, False)
+    return update_metadata(dest, data, False)
 
 
 def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):

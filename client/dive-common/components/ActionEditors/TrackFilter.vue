@@ -181,7 +181,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="ma-2">
+  <div class="ma-2 action-editor">
     <v-card>
       <v-card-title>Track Filter Creation</v-card-title>
       <v-card-text>
@@ -343,7 +343,7 @@ export default defineComponent({
         </v-row>
       </v-card-text>
       <v-card-actions>
-        <v-row>
+        <v-row dense>
           <v-spacer />
           <v-btn
             small
@@ -416,7 +416,7 @@ export default defineComponent({
           </v-row>
         </v-card-text>
         <v-card-actions>
-          <v-row>
+          <v-row dense>
             <v-spacer />
             <v-btn @click="cancelAttr">
               Cancel
@@ -442,6 +442,10 @@ export default defineComponent({
     max-width: 15px;
     min-height: 15px;
     max-height: 15px;
+  }
+  .action-editor {
+    width: 100%;
+    border: 1px solid gray;
   }
 
 </style>

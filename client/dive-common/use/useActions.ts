@@ -1,5 +1,6 @@
 /* eslint-disable max-len */
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import { EditAnnotationTypes } from 'vue-media-annotator/layers';
 import { ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -34,7 +35,7 @@ export interface TrackSelectAction {
     direction?: 'next' | 'previous';
 }
 
-export type ActionTypes = 'GoToFrame' | 'SelectTrack' | 'Wait' | 'Popup';
+export type ActionTypes = 'GoToFrame' | 'SelectTrack' | 'Wait' | 'Popup' | 'CreateTrack' | 'CreateFullFrameTrack';
 
 export interface GoToFrameAction{
     track?: TrackSelectAction; // Go to first frame of track that matches conditions
@@ -42,8 +43,27 @@ export interface GoToFrameAction{
     type: 'GoToFrame';
 }
 
+export interface CreateTrackAction {
+  type: 'CreateTrackAction'; // trackType
+  trackType?: string;
+  geometryType: EditAnnotationTypes;
+  editableType: boolean;
+  editableTypeList?: string[];
+  editableTitle?: string;
+  editableText?: string;
+  selectTrackAfter: boolean;
+}
+
+export interface CreateFullFrameTrackAction {
+  type: 'CreateFullFrameTrackAction';
+  useExisting: boolean;
+  trackType: string;
+  geometryType: 'rectangle' | 'Time';
+  selectTrackAfter: boolean;
+}
+
 export interface DIVEAction {
-  action: GoToFrameAction | TrackSelectAction;
+  action: GoToFrameAction | TrackSelectAction | CreateTrackAction | CreateFullFrameTrackAction;
 }
 
 export interface DIVEActionShortcut {

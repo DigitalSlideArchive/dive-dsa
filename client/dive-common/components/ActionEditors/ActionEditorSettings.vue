@@ -44,7 +44,7 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const attributesList = useAttributes();
     const editingAction: Ref<null | DIVEAction> = ref(null);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame'> = ref('TrackSelection');
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction'> = ref('TrackSelection');
     const editAction = (index?: number) => {
       addEditAction.value = true;
       if (index !== undefined) {
@@ -94,6 +94,27 @@ export default defineComponent({
         editingAction.value = {
           action: {
             type: 'TrackSelection',
+          },
+        };
+      }
+      if (addEditActionType.value === 'CreateTrackAction') {
+        editingAction.value = {
+          action: {
+            type: 'CreateTrackAction',
+            geometryType: 'rectangle',
+            editableType: true,
+            selectTrackAfter: true,
+          },
+        };
+      }
+      if (addEditActionType.value === 'CreateFullFrameTrackAction') {
+        editingAction.value = {
+          action: {
+            type: 'CreateFullFrameTrackAction',
+            trackType: 'unknown',
+            geometryType: 'rectangle',
+            useExisting: true,
+            selectTrackAfter: true,
           },
         };
       }
@@ -172,9 +193,11 @@ export default defineComponent({
               :key="`ActionItem_${index}`"
               dense
               style="border: 1px gray solid; margin:2px"
+              align="center"
+              justify="center"
             >
-              <v-col cols="2">
-                {{ item.action.type }}
+              <v-col cols="3">
+                <span style="font-size: 10px">{{ item.action.type }}</span>
               </v-col>
               <v-col v-if="item.action.type === 'TrackSelection'">
                 <v-row
@@ -190,6 +213,26 @@ export default defineComponent({
                   />
                   {{ trackType }}
                 </v-row>
+              </v-col>
+              <v-col v-if="item.action.type === 'CreateFullFrameTrackAction'">
+                <v-row dense>
+                  <span class="mr-2">{{ item.action.trackType }}:</span>
+                  <div
+                    class="type-color-box"
+                    :style="{
+                      backgroundColor: typeStylingRef.color(item.action.trackType),
+                    }"
+                  />
+                </v-row>
+                <v-row dense>
+                  <span>Geometry: {{ item.action.geometryType }}</span>
+                </v-row>
+              </v-col>
+              <v-col v-if="item.action.type === 'CreateFullFrameTrackAction'">
+                <span class="mr-1"> Use Existing: </span>
+                <v-icon> {{ item.action.useExisting ? 'mdi-checkbox-outline' : 'mdi-checkobx-blank-outline' }}</v-icon>
+                <span class="ml-3 mr-1"> Select Track After: </span>
+                <v-icon> {{ item.action.selectTrackAfter ? 'mdi-checkbox-outline' : 'mdi-checkobx-blank-outline' }}</v-icon>
               </v-col>
               <v-col v-if="item.action.type === 'GoToFrame' && item.action.track">
                 <v-row
@@ -221,6 +264,7 @@ export default defineComponent({
                   {{ data.name }}: {{ data.opVal }}
                 </v-row>
               </v-col>
+              <v-spacer />
               <v-col cols="1">
                 <v-icon @click="editAction(index)">
                   mdi-pencil

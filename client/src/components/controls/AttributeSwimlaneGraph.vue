@@ -60,6 +60,8 @@ export default Vue.extend({
       scrollPos: 0,
       showSymbols: this.displayFrameIndicators,
       symbolGenerator: null,
+      unsetValue: null,
+      endUnsetSection: null,
     };
   },
   computed: {
@@ -174,18 +176,28 @@ export default Vue.extend({
       canvas.width = this.clientWidth + this.margin;
       canvas.height = bars.slice(-1)[0].top + 30;
       const barHeight = 20;
+      this.endUnsetSection = null;
       bars.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
         // If this bar is not selected
         ctx.strokeStyle = bar.color;
         ctx.lineWidth = 2;
         ctx.strokeRect(bar.left, bar.top, barWidth, barHeight);
-        bar.subSections.forEach((subSection) => {
+        bar.subSections.forEach((subSection, index) => {
           const left = this.x(subSection.begin);
           const right = this.x(subSection.end);
           const width = right - left;
           ctx.fillStyle = subSection.color;
           ctx.fillRect(left, bar.top, width, barHeight);
+          if ((subSection.end - subSection.begin) === 1 && index === bar.subSections.length - 1) {
+            const baseColor = subSection.color;
+            ctx.fillStyle = `${baseColor}55`;
+            ctx.fillRect(left, bar.top, barWidth - left, barHeight);
+            this.endUnsetSection = {
+              begin: subSection.begin, end: this.endFrame, value: subSection.value,
+            };
+          }
+
           if (this.showSymbols) {
             // Draw symbols at the midpoint of each subSection
             const path = new Path2D(this.symbolGenerator());
@@ -244,6 +256,10 @@ export default Vue.extend({
         return;
       }
       const subSection = bar.subSections.find((b) => offsetX > this.x(b.begin) && offsetX < this.x(b.end));
+      let swimlaneUnsetValue;
+      if (this.endUnsetSection && offsetX > this.x(this.endUnsetSection.begin) && offsetX < this.x(this.endUnsetSection.end)) {
+        swimlaneUnsetValue = `The last value is ${this.endUnsetSection.value} and there is no ending value.  Another value should be placed to end this section.`;
+      }
       const subDisplay = subSection ? subSection.value : 'None';
       const subDisplayColor = subSection ? subSection.color : 'transparent';
       this.hoverTrack = bar.id;
@@ -254,6 +270,7 @@ export default Vue.extend({
         subColor: subDisplayColor,
         name: bar.name,
         subDisplay,
+        swimlaneUnsetValue,
       };
     },
   },
@@ -299,6 +316,16 @@ export default Vue.extend({
       :style="tooltipComputed.style"
     >
       <v-row
+        v-if="tooltipComputed.swimlaneUnsetValue"
+        dense
+        class="fill-height"
+        align="center"
+        justify="center"
+      >
+        <p>{{ tooltipComputed.swimlaneUnsetValue }}</p>
+      </v-row>
+      <v-row
+        v-else
         dense
         class="fill-height"
         align="center"

@@ -4,17 +4,21 @@ import {
   defineComponent, ref, Ref, PropType,
 } from 'vue';
 import {
-  DIVEAction, TrackSelectAction,
+  CreateTrackAction, DIVEAction, TrackSelectAction, CreateFullFrameTrackAction,
 } from 'dive-common/use/useActions';
 import {
   useAttributes, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 import TrackFilter from './TrackFilter.vue';
+import CreateTrackActionEditor from './CreateTrackActionEditor.vue';
+import CreateFullFrameTrackActionEditor from './CreateFullFrameTrackActionEditor.vue';
 
 export default defineComponent({
   name: 'ActionEditorSettings',
   components: {
     TrackFilter,
+    CreateTrackActionEditor,
+    CreateFullFrameTrackActionEditor,
   },
   props: {
     value: {
@@ -26,13 +30,13 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const attributesList = useAttributes();
     const editingAction: Ref<DIVEAction> = ref(props.value);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame'> = ref(props.value.action.type);
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction'> = ref(props.value.action.type);
 
-    const saveAction = (action: TrackSelectAction, type: DIVEAction['action']['type']) => {
+    const saveAction = (action: TrackSelectAction | CreateTrackAction | CreateFullFrameTrackAction, type: DIVEAction['action']['type']) => {
       let diveAction: DIVEAction = {
         action,
       };
-      if (type === 'GoToFrame' && action) {
+      if (type === 'GoToFrame' && action.type === 'TrackSelection') {
         diveAction = {
           action: {
             track: action,
@@ -59,6 +63,27 @@ export default defineComponent({
         editingAction.value = {
           action: {
             type: 'TrackSelection',
+          },
+        };
+      }
+      if (addEditActionType.value === 'CreateTrackAction') {
+        editingAction.value = {
+          action: {
+            type: 'CreateTrackAction',
+            geometryType: 'rectangle',
+            editableType: true,
+            selectTrackAfter: false,
+          },
+        };
+      }
+      if (addEditActionType.value === 'CreateFullFrameTrackAction') {
+        editingAction.value = {
+          action: {
+            type: 'CreateFullFrameTrackAction',
+            geometryType: 'rectangle',
+            trackType: 'unknown',
+            useExisting: true,
+            selectTrackAfter: true,
           },
         };
       }
@@ -103,10 +128,10 @@ export default defineComponent({
     <v-card-text>
       <div>
         <h2>Create/Edit Action</h2>
-        <v-row>
+        <v-row class="pt-4">
           <v-select
             v-model="addEditActionType"
-            :items="['GoToFrame', 'TrackSelection']"
+            :items="['GoToFrame', 'TrackSelection', 'CreateTrackAction', 'CreateFullFrameTrackAction']"
             label="Action Type"
             @change="changeType"
           />
@@ -124,6 +149,20 @@ export default defineComponent({
             v-if="editingAction !== null && editingAction.action.type === 'GoToFrame' && editingAction.action.track"
             :data="editingAction.action.track"
             @update-trackselection="saveAction($event, addEditActionType)"
+            @cancel="$emit('cancel')"
+          />
+        </v-row>
+        <v-row v-else-if="addEditActionType === 'CreateTrackAction' && editingAction.action.type === 'CreateTrackAction'">
+          <CreateTrackActionEditor
+            :action="editingAction.action"
+            @update:action="saveAction($event, addEditActionType)"
+            @cancel="$emit('cancel')"
+          />
+        </v-row>
+        <v-row v-else-if="addEditActionType === 'CreateFullFrameTrackAction' && editingAction.action.type === 'CreateFullFrameTrackAction'">
+          <CreateFullFrameTrackActionEditor
+            :action="editingAction.action"
+            @update:action="saveAction($event, addEditActionType)"
             @cancel="$emit('cancel')"
           />
         </v-row>

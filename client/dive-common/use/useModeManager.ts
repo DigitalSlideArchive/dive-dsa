@@ -18,7 +18,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
-import { DIVEAction } from 'dive-common/use/useActions';
+import { CreateFullFrameTrackAction, CreateTrackAction, DIVEAction } from 'dive-common/use/useActions';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -72,7 +72,7 @@ export default function useModeManager({
     recipes: Recipe[];
 }) {
   let creating = false;
-  const { prompt } = usePrompt();
+  const { prompt, inputValue } = usePrompt();
   const annotationModes = reactive({
     visible: ['rectangle', 'Polygon', 'LineString', 'text', 'Time'] as VisibleAnnotationTypes[],
     editing: 'rectangle' as EditAnnotationTypes,
@@ -119,6 +119,8 @@ export default function useModeManager({
   const selectNextTrack = (delta = 1) => selectNext(_filteredTracks.value, selectedTrackId.value, delta);
 
   const selectNextGroup = (delta = 1) => selectNext(_filteredGroups.value, editingGroupId.value, delta);
+
+  let afterCreateTrackAction: { selectPreviousTrack?: number } | null = null;
 
   function selectTrack(trackId: AnnotationId | null, edit = false) {
     selectedTrackId.value = trackId;
@@ -312,6 +314,11 @@ export default function useModeManager({
     linkingTrack.value = null;
     multiSelectList.value = [];
     handleGroupEdit(null);
+    if (afterCreateTrackAction && afterCreateTrackAction.selectPreviousTrack !== undefined) {
+      selectTrack(afterCreateTrackAction.selectPreviousTrack, false);
+      afterCreateTrackAction = null;
+      return;
+    }
     handleSelectTrack(null, false);
   }
 
@@ -349,7 +356,12 @@ export default function useModeManager({
     // Default settings which are updated by the TrackSettings component
     let newCreatingValue = false; // by default, disable creating at the end of this function
     if (creating) {
-      if (addedTrack && trackSettings.value.newTrackSettings !== null) {
+      if (addedTrack && afterCreateTrackAction) {
+        if (afterCreateTrackAction.selectPreviousTrack !== undefined) {
+          selectTrack(afterCreateTrackAction.selectPreviousTrack, false);
+        }
+        afterCreateTrackAction = null;
+      } else if (addedTrack && trackSettings.value.newTrackSettings !== null) {
         if (trackSettings.value.newTrackSettings.mode === 'Track'
         && trackSettings.value.newTrackSettings.modeSettings.Track.autoAdvanceFrame
         ) {
@@ -792,7 +804,7 @@ export default function useModeManager({
     return null;
   }
 
-  function processAction(
+  async function processAction(
     actionRoot: DIVEAction,
     shortcut = false,
     data?: {frame?: number; selectedTrack?: number},
@@ -814,8 +826,7 @@ export default function useModeManager({
       } else if (action.action.frame !== undefined) {
         aggregateController.value.seek(action.action.frame);
       }
-    }
-    if (action.action.type === 'TrackSelection') {
+    } else if (action.action.type === 'TrackSelection') {
       if (action.action.startTrack === -1) {
         // eslint-disable-next-line no-param-reassign
         action.action.startTrack = selectedTrackId.value || -1;
@@ -824,6 +835,76 @@ export default function useModeManager({
       const track = cameraStore.getTrackFromAction(action.action, user);
       if (track) {
         selectTrack(track.id, false);
+      }
+    } else if (action.action.type === 'CreateTrackAction') {
+      const createtrackAction = action.action as CreateTrackAction;
+      let trackType = trackSettings.value.newTrackSettings.type;
+      if (createtrackAction.editableType) {
+        const title = createtrackAction.editableTitle || 'Track Type';
+        const text = createtrackAction.editableText || 'Enter the Track Type:';
+        const typeList = createtrackAction.editableTypeList;
+        const result = await inputValue({
+          title,
+          text,
+          positiveButton: 'OK',
+          valueType: 'text',
+          valueList: typeList,
+          lockedValueList: !!typeList?.length,
+          allowNullValueList: false,
+          confirm: true,
+        });
+        trackType = result as string || trackSettings.value.newTrackSettings.type;
+      } else if (createtrackAction.trackType) {
+        trackType = createtrackAction.trackType;
+      }
+
+      const currentlySelectedTrackId = selectedTrackId.value;
+      handleEscapeMode();
+      if (currentlySelectedTrackId !== null) {
+        afterCreateTrackAction = { selectPreviousTrack: currentlySelectedTrackId };
+      }
+
+      const { frame } = aggregateController.value;
+
+      const overrideTrackId = cameraStore.getNewTrackId();
+      const trackStore = cameraStore.camMap.value.get(selectedCamera.value)?.trackStore;
+      if (trackStore) {
+        annotationModes.editing = createtrackAction.geometryType || 'rectangle';
+        const newTrackId = trackStore.add(
+          frame.value,
+          trackType,
+          selectedTrackId.value || undefined,
+          overrideTrackId,
+        ).trackId;
+        selectTrack(newTrackId, true);
+        creating = true;
+      }
+    } else if (action.action.type === 'CreateFullFrameTrackAction') {
+      const createFullFrameTrackAction = action.action as CreateFullFrameTrackAction;
+      const {
+        trackType, geometryType, useExisting, selectTrackAfter,
+      } = createFullFrameTrackAction;
+      const trackStore = cameraStore.camMap.value.get(selectedCamera.value)?.trackStore;
+      if (trackStore) {
+        const trackVals = Array.from(trackStore?.annotationMap.values());
+        const found = trackVals.find((track) => (track.getType()[0] === trackType));
+        if (found && useExisting) {
+        // Track exists we don't need to create it
+          if (selectTrackAfter) {
+            selectTrack(found.id, false);
+          }
+          return;
+        }
+        const newTrackId = addFullFrameTrack(trackType, -1);
+        selectTrack(newTrackId, true);
+        if (geometryType !== 'rectangle') {
+          selectTrack(newTrackId, true);
+          handleSetAnnotationState({ editing: 'Time' });
+          selectTrack(newTrackId, false);
+        }
+        if (!selectTrackAfter) {
+          handleEscapeMode();
+        }
       }
     }
   }

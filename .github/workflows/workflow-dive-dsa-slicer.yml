@@ -25,7 +25,7 @@ jobs:
         name: Build and push web
         uses: docker/build-push-action@v3
         with:
-          context: ./dive-dsa-slicer
+          context: ./dive-dsa-slicer/example-docker-containers
           file: ./dive-dsa-slicer/example-docker-containers/Dockerfile
           tags: ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-slicer-examples:latest
           push: true
