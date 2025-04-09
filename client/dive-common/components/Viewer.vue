@@ -39,6 +39,7 @@ import EditorMenu from 'dive-common/components/EditorMenu.vue';
 import ConfidenceFilter from 'dive-common/components/ConfidenceFilter.vue';
 import UserGuideButton from 'dive-common/components/UserGuideButton.vue';
 import DeleteControls from 'dive-common/components/DeleteControls.vue';
+import MaskEditor from 'dive-common/components/MaskEditor.vue';
 import ControlsContainer from 'dive-common/components/ControlsContainer.vue';
 import Sidebar from 'dive-common/components/Sidebar.vue';
 import { useModeManager, useSave } from 'dive-common/use';
@@ -79,6 +80,7 @@ export default defineComponent({
   components: {
     ControlsContainer,
     DeleteControls,
+    MaskEditor,
     Sidebar,
     LayerManager,
     VideoAnnotator,
@@ -1114,6 +1116,9 @@ export default defineComponent({
               @delete-annotation="handler.removeAnnotation"
               @toggle-time="handler.toggleKeyFrame"
             />
+          </template>
+          <template slot="additional-controls">
+            <MaskEditor v-if="editingMode === 'Mask'" />
           </template>
         </EditorMenu>
         <v-spacer v-else />

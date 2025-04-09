@@ -73,10 +73,35 @@ async function getLabels() {
   return response;
 }
 
+async function uploadMask(
+  folderId: string,
+  trackId: number,
+  frameId: number,
+  blob: Blob,
+) {
+  const params = {
+    folderId,
+    trackId,
+    frameId,
+    size: blob.size,
+  };
+
+  // First request to initialize upload
+  const { data: uploadMetadata } = await girderRest.post('dive_annotation/mask', blob, {
+    params,
+    headers: {
+      'Content-Type': 'application/octet-stream',
+    },
+  });
+
+  return uploadMetadata;
+}
+
 export {
   getLabels,
   loadDetections,
   loadRevisions,
   getLatestRevision,
   saveDetections,
+  uploadMask,
 };

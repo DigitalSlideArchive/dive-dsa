@@ -1,8 +1,8 @@
 <script lang="ts">
-import Vue, { PropType } from 'vue';
+import { defineComponent, computed, PropType } from 'vue';
 import { EditAnnotationTypes } from 'vue-media-annotator/layers/';
 
-export default Vue.extend({
+export default defineComponent({
   name: 'DeleteControls',
 
   props: {
@@ -16,35 +16,40 @@ export default Vue.extend({
     },
   },
 
-  computed: {
-    disabled(): boolean {
-      if (this.selectedFeatureHandle < 0 && this.editingMode === false) {
+  setup(props, { emit }) {
+    const disabled = computed(() => {
+      if (props.selectedFeatureHandle < 0 && props.editingMode === false) {
         return true;
       }
-      if (this.editingMode === 'rectangle') {
+      if (props.editingMode === 'rectangle') {
         return true; // deleting rectangle is unsupported
       }
       return false;
-    },
-  },
+    });
 
-  methods: {
-    deleteSelected() {
-      if (this.disabled) {
+    const deleteSelected = () => {
+      if (disabled.value) {
         throw new Error('Cannot delete while disabled!');
       }
-      if (this.selectedFeatureHandle >= 0) {
-        this.$emit('delete-point');
+      if (props.selectedFeatureHandle >= 0) {
+        emit('delete-point');
       } else {
-        this.$emit('delete-annotation');
+        emit('delete-annotation');
       }
-    },
-    toggleTime() {
-      if (this.disabled) {
+    };
+
+    const toggleTime = () => {
+      if (disabled.value) {
         throw new Error('Cannot endTime while disabled!');
       }
-      this.$emit('toggle-time');
-    },
+      emit('toggle-time');
+    };
+
+    return {
+      disabled,
+      deleteSelected,
+      toggleTime,
+    };
   },
 });
 </script>

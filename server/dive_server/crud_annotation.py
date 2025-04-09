@@ -2,13 +2,16 @@ from typing import Callable, Generator, Iterable, List, Optional, Tuple
 
 from girder.constants import AccessType
 from girder.models.folder import Folder
+from girder.models.user import User
+from girder.models.item import Item
+from girder.models.file import File
 from pydantic import Field
 from pydantic.main import BaseModel
 import pymongo
 from pymongo.cursor import Cursor
 
 from dive_server import crud, crud_dataset
-from dive_utils import constants, fromMeta, models, types
+from dive_utils import constants, fromMeta, models, types, TRUTHY_META_VALUES
 from dive_utils.serializers import viame
 
 DATASET = 'dataset'
@@ -387,3 +390,36 @@ def get_labels(user: types.GirderUserModel, published=False, shared=False):
         {'$sort': {'_id': 1}},
     ]
     return Folder().collection.aggregate(pipeline)
+
+
+def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int):
+    mask_folder = Folder().findOne(
+        {
+            'folderId': folder['_id'],
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
+    if mask_folder is None:
+        mask_folder = Folder().createFolder(folder, 'masks', reuseExisting=True, creator=user)
+        Folder().setMetadata(mask_folder, {
+            constants.MASK_MARKER: True,
+        })
+    track_folder = Folder().createFolder(
+        mask_folder, str(trackId), reuseExisting=True, creator=user
+    )
+    item = Item().findOne(
+        {
+            'folderId': track_folder['_id'],
+            'name': f'{frameId}.png',
+        }
+    )
+    if item is None:
+        item = Item().createItem(
+            f'{frameId}.png',
+            creator=user,
+            folder=track_folder,
+            reuseExisting=True,
+        )
+    for file in Item().childFiles(item):
+        File().remove(file)
+    return item
