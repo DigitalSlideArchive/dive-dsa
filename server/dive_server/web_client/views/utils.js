@@ -1,6 +1,6 @@
 import $ from 'jquery';
 
-import { restRequest } from '@girder/core/rest';
+const { restRequest } = girder.rest;
 
 /* Utility items for HistomicUI views
   In the future more utility classes/functions can be added for export

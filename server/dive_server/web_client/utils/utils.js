@@ -1,6 +1,6 @@
 
-import { restRequest } from '@girder/core/rest';
-import events from '@girder/core/events';
+const { restRequest } = girder.rest
+const events = girder.events;
 
 
 const webrootPath = 'dive#/viewer/'
