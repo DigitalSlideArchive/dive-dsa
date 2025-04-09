@@ -1,5 +1,5 @@
-import { wrap } from '@girder/core/utilities/PluginUtils';
-import HierarchyWidget from '@girder/core/views/widgets/HierarchyWidget';
+const  { wrap } = girder.utilities.PluginUtils;
+const HierarchyWidget = girder.views.widgets.HierarchyWidget;
 
 import { convertToDIVEHandler, webrootPath, metadataRootPath } from '../utils/utils';
 wrap(HierarchyWidget, 'render', function (render) {
