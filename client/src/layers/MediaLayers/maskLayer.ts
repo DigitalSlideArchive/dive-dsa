@@ -25,7 +25,7 @@ export default class MaskLayer {
   }: { annotator: MediaController; typeStyling: Ref<TypeStyling>}) {
     this.annotator = annotator;
     this.typeStyling = typeStyling;
-    this.opacity = 0;
+    this.opacity = 20;
     this.featureLayers = {};
     this.quads = {};
     this.width = 0;
@@ -41,6 +41,7 @@ export default class MaskLayer {
         });
         this.featureLayers[trackId].node().css('filter', `url(#mask-filter-${trackId})`);
         this.quads[trackId] = this.featureLayers[trackId].createFeature('quad');
+        this.featureLayers[trackId].opacity(this.opacity / 100.0);
       }
     });
   }
@@ -67,6 +68,7 @@ export default class MaskLayer {
         });
         this.quads[item.trackId] = this.featureLayers[item.trackId].createFeature('quad');
         this.featureLayers[item.trackId].node().css('filter', `url(#mask-filter-${item.trackId})`);
+        this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
         this.featureLayers[item.trackId].visible(true);
