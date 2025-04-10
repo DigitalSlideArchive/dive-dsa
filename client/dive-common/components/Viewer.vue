@@ -14,6 +14,7 @@ import {
   useLineChart,
   useTimeObserver,
   useEventChart,
+  useMasks,
 } from 'vue-media-annotator/use';
 import {
   Track, Group,
@@ -131,6 +132,9 @@ export default defineComponent({
     const latestRevisionId = ref(0); // Latest Revision from the revision endpoint if the revision prop is 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const overlays: Ref<Readonly<{url: string; filename: string; id: string; metadata?: Record<string, any>}[] | undefined>> = ref(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mediaMasks: Ref<Readonly<{url: string; filename: string; id: string; metadata?: Record<string, any>}[] | undefined>> = ref(undefined);
+
     const {
       loadDetections, loadMetadata, saveMetadata, saveConfiguration, transferConfiguration,
     } = useApi();
@@ -337,6 +341,12 @@ export default defineComponent({
       pendingSaveCount,
       login: store.state.User.user?.login || '',
     });
+
+    const {
+      initializeMaskData,
+      setFrameRate,
+      getMask,
+    } = useMasks(time.frame);
 
     const allSelectedIds = computed(() => {
       const selected = selectedTrackId.value;
@@ -708,8 +718,16 @@ export default defineComponent({
           if (subCameraMeta.overlays) {
             overlays.value = subCameraMeta.overlays;
           }
+          if (subCameraMeta.masks) {
+            mediaMasks.value = subCameraMeta.masks;
+          }
           cameraStore.addCamera(camera);
           addSaveCamera(camera);
+          if (mediaMasks.value?.length) {
+            setFrameRate(meta.fps);
+            initializeMaskData({ masks: mediaMasks.value });
+          }
+
           // eslint-disable-next-line no-await-in-loop
           const { tracks, groups } = await loadDetections(cameraId, props.revision);
           progress.total = tracks.length + groups.length;
@@ -956,6 +974,7 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
+        masks: { getMask },
       },
       globalHandler,
       useAttributeFilters,

@@ -7,6 +7,7 @@ import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
+import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -43,8 +44,8 @@ import {
   useSelectedCamera,
   useConfiguration,
   useAttributes,
+  useMasks,
 } from '../provides';
-
 /** LayerManager is a component intended to be used as a child of an Annotator.
  *  It provides logic for switching which layers are visible, but more importantly
  *  it maps Track objects into their respective layer representations.
@@ -82,6 +83,7 @@ export default defineComponent({
     const configMan = useConfiguration();
     const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+    const { getMask } = useMasks();
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
     const groupStore = cameraStore.camMap.value.get(props.camera)?.groupStore;
@@ -109,6 +111,10 @@ export default defineComponent({
     const flickNumberRef = annotator.flick;
 
     const videoLayerManager = new VideoLayerManager({ annotator, typeStyling: typeStylingRef });
+    const maskLayer = new MaskLayer({
+      annotator,
+      typeStyling: typeStylingRef,
+    });
     const overlayFilters: Ref<{
         videoLayerTransparencyVals: number[][][],
         videoLayerColorTransparencyOn: boolean,
@@ -116,6 +122,16 @@ export default defineComponent({
         colorScaleMatrix: number[],
         id: number;
       }[]> = ref([]);
+    const maskFilters: Ref<Record<number, string>> = ref({});
+
+    const getOrCreateFilter = (trackId: number, hexColor: string) => {
+      const r = parseInt(hexColor.slice(1, 3), 16);
+      const g = parseInt(hexColor.slice(3, 5), 16);
+      const b = parseInt(hexColor.slice(5, 7), 16);
+      const colorString = `rgb(${r}, ${g}, ${b})`;
+      maskFilters.value[trackId] = colorString;
+      return maskFilters.value[trackId];
+    };
     if (props.overlays && props.overlays.length) {
       for (let i = 0; i < props.overlays.length; i += 1) {
         videoLayerManager.addOverlay({
@@ -319,6 +335,24 @@ export default defineComponent({
         globalBounds = mergeBounds(videoLayerManager.getBounds(), globalBounds);
       } else {
         videoLayerManager.disable();
+      }
+
+      if (visibleModes.includes('Mask')) {
+        const maskImages : {trackId: number, image: HTMLImageElement}[] = [];
+        frameData.forEach((track) => {
+          if (track.features?.hasMask) {
+            const image = getMask(track.track.id, frame);
+            if (image) {
+              maskImages.push({
+                trackId: track.track.id,
+                image,
+              });
+              getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
+            }
+          }
+        });
+        console.log(maskImages);
+        maskLayer.setSegmenationImages(maskImages);
       }
 
       pointLayer.changeData(frameData);
@@ -560,6 +594,7 @@ export default defineComponent({
       attributes,
       maxHeight,
       selectedTrackIdRef,
+      maskFilters,
     };
   },
 });
@@ -582,6 +617,29 @@ export default defineComponent({
       height="0"
       style="position: absolute; top: -1px; left: -1px"
     >
+      <defs v-for="(maskFilter, key) in maskFilters" :key="key">
+        <filter :id="`mask-filter-${key}`" color-interpolation-filters="sRGB">
+          <!-- Create a mask of where the color is exactly white -->
+          <feColorMatrix
+            type="matrix"
+            values="
+      1 0 0 0 -1
+      0 1 0 0 -1
+      0 0 1 0 -1
+      0 0 0 1 0"
+            result="maskWhite"
+          />
+
+          <!-- Color solid replacement color -->
+          <feFlood :flood-color="maskFilter" result="flood" />
+
+          <!-- Apply only where white mask exists -->
+          <feComposite in="flood" in2="maskWhite" operator="in" result="colorReplace" />
+
+          <!-- Overlay replaced color on top of original image -->
+          <feComposite in="colorReplace" in2="SourceGraphic" operator="over" />
+        </filter>
+      </defs>
       <defs v-for="overlay in overlayFilters" :key="overlay.id">
         <filter
           v-if="overlay.videoLayerColorTransparencyOn && overlay.videoLayerTransparencyVals.length"
@@ -648,6 +706,7 @@ export default defineComponent({
           />
         </filter>
       </defs>
+
     </svg>
   </div>
 </template>

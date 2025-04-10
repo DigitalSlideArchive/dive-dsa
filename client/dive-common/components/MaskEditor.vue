@@ -1,8 +1,10 @@
+<!-- eslint-disable no-await-in-loop -->
 <script lang="ts">
 import { defineComponent } from 'vue';
 import { uploadMask } from 'platform/web-girder/api/annotation.service';
 import {
   useSelectedTrackId, useTime, useDatasetId,
+  useCameraStore,
 } from 'vue-media-annotator/provides';
 
 export default defineComponent({
@@ -13,13 +15,36 @@ export default defineComponent({
     const { frame } = useTime();
     const selectedTrackId = useSelectedTrackId();
     const datasetIdRef = useDatasetId();
+    const cameraStore = useCameraStore();
+
+    const numberOfFrames = 600; // How many frames to generate
+    const radius = 100; // Radius of circular motion
+
     const createMask = async () => {
-      const blob = await generateStarMaskPng();
-      const result = await uploadMask(datasetIdRef.value, selectedTrackId.value || 0, frame.value, blob);
-      console.log(result);
+      if (selectedTrackId.value === null) {
+        console.error('No track selected');
+        return;
+      }
+      const track = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
+      for (let i = 0; i < numberOfFrames; i += 1) {
+        const angle = (2 * Math.PI * i) / 60;
+        const offsetX = Math.cos(angle) * radius;
+        const offsetY = Math.sin(angle) * radius;
+        if (track) {
+          track.setHasMask(frame.value + i, true);
+        }
+        const blob = await generateStarMaskPng(offsetX, offsetY);
+        const result = await uploadMask(
+          datasetIdRef.value,
+          selectedTrackId.value || 0,
+          frame.value + i, // Save frames at different timestamps
+          blob,
+        );
+        console.log(`Uploaded frame ${i}`, result);
+      }
     };
 
-    async function generateStarMaskPng(): Promise<Blob> {
+    async function generateStarMaskPng(offsetX = 0, offsetY = 0): Promise<Blob> {
       const size = 1024;
       const canvas = document.createElement('canvas');
       canvas.width = size;
@@ -30,14 +55,14 @@ export default defineComponent({
       }
 
       // Fill background black
-      ctx.fillStyle = 'black';
+      ctx.fillStyle = 'transparent';
       ctx.fillRect(0, 0, size, size);
 
       // Draw white star
       ctx.fillStyle = 'white';
       ctx.beginPath();
-      const centerX = size / 2;
-      const centerY = size / 2;
+      const centerX = size / 2 + offsetX;
+      const centerY = size / 2 + offsetY;
       const spikes = 5;
       const outerRadius = size / 4;
       const innerRadius = size / 8;
@@ -65,6 +90,7 @@ export default defineComponent({
         }, 'image/png');
       });
     }
+
     return {
       createMask,
     };
@@ -80,11 +106,8 @@ export default defineComponent({
       small
       @click="createMask"
     >
-      Create Mask
-      <v-icon
-        small
-        class="ml-2"
-      >
+      Create Circular Mask Frames
+      <v-icon small class="ml-2">
         mdi-star
       </v-icon>
     </v-btn>

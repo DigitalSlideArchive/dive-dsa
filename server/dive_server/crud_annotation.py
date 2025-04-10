@@ -407,6 +407,9 @@ def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int):
     track_folder = Folder().createFolder(
         mask_folder, str(trackId), reuseExisting=True, creator=user
     )
+    Folder().setMetadata(track_folder, {
+        constants.MASK_TRACK_MARKER: True,
+    })
     item = Item().findOne(
         {
             'folderId': track_folder['_id'],
@@ -420,6 +423,11 @@ def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int):
             folder=track_folder,
             reuseExisting=True,
         )
+        Item().setMetadata(item, {
+            constants.MASK_TRACK_FRAME_MARKER: True,
+            constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId,
+            constants.MASK_FRAME_VALUE: frameId
+        })
     for file in Item().childFiles(item):
         File().remove(file)
     return item
