@@ -18,6 +18,8 @@ from dive_utils import TRUTHY_META_VALUES, constants, fromMeta, models, types
 def get_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
     return f"/api/v1/dive_dataset/{str(dataset['_id'])}/media/{str(item['_id'])}/download"
 
+def get_item_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
+    return f"/api/v1/item/{str(item['_id'])}/download"
 
 def createSoftClone(
     owner: types.GirderUserModel,
@@ -258,7 +260,7 @@ def get_media(
         )
         overlays = []
         for media in overlayItems:
-            print(media)
+            print()
             overlays.append(
                 models.MediaResource(
                     id=str(media["_id"]),
@@ -268,10 +270,28 @@ def get_media(
                 )
             )
 
+    masks = crud.get_valid_masks(dsFolder, user)
+    print(f'VALID MASKS: {masks}')
+    if len(masks) > 0:
+        # Find a video tagged with an h264 codec left by the transcoder
+        masks = [
+            models.MediaResource(
+                id=str(mask["_id"]),
+                url=get_item_url(dsFolder, mask),
+                filename=mask['name'],
+                metadata={
+                    'trackId': mask.get('meta', {}).get(constants.MASK_FRAME_PARENT_TRACK_MARKER, None),
+                    'frameId': mask.get('meta', {}).get(constants.MASK_FRAME_VALUE, None),
+                },
+            )
+            for mask in masks
+        ]
+
     return models.DatasetSourceMedia(
         imageData=imageData,
         video=videoResource,
         overlays=overlays,
+        masks=masks,
     )
 
 

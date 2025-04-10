@@ -20,6 +20,7 @@ import type {
   TimelineGraph,
 } from './use/AttributeTypes';
 import type { Time } from './use/useTimeObserver';
+import type { UseMaskInterface } from './use/useMasks';
 import type { ImageEnhancements } from './use/useImageEnhancements';
 import TrackFilterControls from './TrackFilterControls';
 import GroupFilterControls from './GroupFilterControls';
@@ -112,6 +113,9 @@ type SelectedTrackIdType = Readonly<Ref<AnnotationId | null>>;
 
 const TimeSymbol = Symbol('time');
 type TimeType = Readonly<Time>;
+
+const MaskSymbol = Symbol('mask');
+type MaskType = Readonly<UseMaskInterface>;
 
 const VisibleModesSymbol = Symbol('visibleModes');
 type VisibleModesType = Readonly<Ref<readonly VisibleAnnotationTypes[]>>;
@@ -284,6 +288,7 @@ export interface State {
   selectedTrackId: SelectedTrackIdType;
   editingGroupId: SelectedTrackIdType;
   time: TimeType;
+  masks: UseMaskInterface;
   trackFilters: TrackFilterControls;
   trackStyleManager: StyleManager;
   visibleModes: VisibleModesType;
@@ -348,6 +353,12 @@ function dummyState(): State {
       frameRate: ref(0),
       originalFps: ref(null),
     },
+    masks: {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      getMask(trackId: number, frameId: number): HTMLImageElement | undefined {
+        return undefined;
+      },
+    },
     trackFilters: trackFilterControls,
     trackStyleManager: new StyleManager({ markChangesPending }),
     visibleModes: ref(['rectangle', 'text'] as VisibleAnnotationTypes[]),
@@ -387,6 +398,7 @@ function provideAnnotator(state: State, handler: Handler, attributesFilters: Att
   provide(SelectedTrackIdSymbol, state.selectedTrackId);
   provide(EditingGroupIdSymbol, state.editingGroupId);
   provide(TimeSymbol, state.time);
+  provide(MaskSymbol, state.masks);
   provide(VisibleModesSymbol, state.visibleModes);
   provide(ReadOnlyModeSymbol, state.readOnlyMode);
   provide(ImageEnhancementsSymbol, state.imageEnhancements);
@@ -498,6 +510,10 @@ function useTime() {
   return use<TimeType>(TimeSymbol);
 }
 
+function useMasks() {
+  return use<MaskType>(MaskSymbol);
+}
+
 function useTrackFilters() {
   return use<TrackFilterControls>(TrackFilterControlsSymbol);
 }
@@ -539,6 +555,7 @@ export {
   useSelectedTrackId,
   useEditingGroupId,
   useTime,
+  useMasks,
   useVisibleModes,
   useReadOnlyMode,
   useImageEnhancements,

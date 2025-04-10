@@ -1,13 +1,19 @@
 import json
 from typing import List, Optional
+import errno
 
 import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, setRawResponse
 from girder.constants import AccessType, TokenScope
-from girder.exceptions import RestException
+from girder.exceptions import RestException, GirderException
 from girder.models.folder import Folder
+from girder.models.item import Item
+from girder.models.file import File
+from girder.models.upload import Upload
+
+from girder.utility import RequestBodyStream
 
 from dive_utils import constants, models, setContentDisposition
 from dive_utils.serializers import dive, viame
@@ -46,6 +52,52 @@ class AnnotationResource(Resource):
         self.route("PUT", ("track",), self.update_tracks)
         self.route("POST", ("rollback",), self.rollback)
         self.route("POST", ("process_json",), self.process_json)
+        self.route("POST", ('mask',), self.update_mask)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Update mask annotations")
+        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+        .param("trackId", "Track ID to update", paramType="query", dataType="string")
+        .param("frameId", "Frame ID to update", paramType="query", dataType="string")
+        .param("size", "Size of the png to upload", paramType="query", dataType="integer", required=False)
+
+    )
+    def update_mask(self, folder, trackId, frameId, size):
+        crud.verify_dataset(folder)
+        user = self.getCurrentUser()
+        mask_item = crud_annotation.get_mask_item(user, folder, trackId, frameId)
+        chunk = None
+        if size > 0 and cherrypy.request.headers.get('Content-Length'):
+            ct = cherrypy.request.body.content_type.value
+            if (ct not in cherrypy.request.body.processors
+                    and ct.split('/', 1)[0] not in cherrypy.request.body.processors):
+                chunk = RequestBodyStream(cherrypy.request.body)
+        if chunk is not None and chunk.getSize() <= 0:
+            chunk = None
+
+        try:
+            # TODO: This can be made more efficient by adding
+            #    save=chunk is None
+            # to the createUpload call parameters.  However, since this is
+            # a breaking change, that should be deferred until a major
+            # version upgrade.
+            upload = Upload().createUpload(
+                user=user, name=mask_item['name'], parentType='item', parent=mask_item, size=size,
+                mimeType='image/png')
+        except OSError as exc:
+            if exc.errno == errno.EACCES:
+                raise GirderException(
+                    'Failed to create upload.', 'girder.api.v1.file.create-upload-failed')
+            raise
+        if upload['size'] > 0:
+            if chunk:
+                return Upload().handleChunk(upload, chunk, filter=True, user=user)
+
+            return upload
+        else:
+            return File().filter(Upload().finalizeUpload(upload), user)
+
 
     @access.user
     @autoDescribeRoute(GetAnnotationParams)

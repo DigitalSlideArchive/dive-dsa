@@ -4,7 +4,7 @@ import { boundToGeojson, RectBounds, reOrdergeoJSON } from '../utils';
 import { FrameDataTrack } from './LayerTypes';
 import BaseLayer, { BaseLayerParams, LayerStyle } from './BaseLayer';
 
-export type EditAnnotationTypes = 'Point' | 'rectangle' | 'Polygon' | 'LineString' | 'Time';
+export type EditAnnotationTypes = 'Point' | 'rectangle' | 'Polygon' | 'LineString' | 'Time' | 'Mask';
 interface EditAnnotationLayerParams {
   type: EditAnnotationTypes;
 }
@@ -23,6 +23,7 @@ const typeMapper = new Map([
   ['Point', 'point'],
   ['rectangle', 'rectangle'],
   ['Time', 'Time'],
+  ['Mask', 'Mask'],
 ]);
 
 const typeIconMapper = new Map([
@@ -31,6 +32,7 @@ const typeIconMapper = new Map([
   ['Point', 'mdi-vector-point'],
   ['rectangle', 'mdi-vector-rectangle'],
   ['Time', 'mdi-timer-outline'],
+  ['Mask', 'mdi-draw'],
 ]);
 /**
  * correct matching of drag handle to cursor direction relies on strict ordering of

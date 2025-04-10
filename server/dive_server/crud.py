@@ -13,7 +13,7 @@ from girder.models.model_base import AccessControlledModel, Model
 import pydantic
 from pydantic.main import BaseModel
 
-from dive_utils import asbool, constants, fromMeta, models, strNumericCompare
+from dive_utils import asbool, constants, fromMeta, models, strNumericCompare, TRUTHY_META_VALUES
 from dive_utils.types import GirderModel, GirderUserModel
 
 
@@ -137,7 +137,6 @@ def valid_images(
         key=functools.cmp_to_key(unwrapItem),
     )
 
-
 def valid_image_names_dict(images: List[GirderModel]):
     """Get a map of image names (without extension) to frame numbers"""
     imageNameMap = {}
@@ -145,3 +144,34 @@ def valid_image_names_dict(images: List[GirderModel]):
         imageName, _ = os.path.splitext(image['name'])
         imageNameMap[imageName] = i
     return imageNameMap
+
+def get_valid_masks(folder: GirderModel, user: GirderUserModel) -> List[GirderModel]:
+    """
+    Get all valid masks in a folder
+    """
+    mask_folder = Folder().findOne(
+        {
+            'parentId': folder['_id'],
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
+    if mask_folder is None:
+        return []
+    masks_tracks = Folder().childFolders(
+        parent=mask_folder,
+        parentType='folder',
+        filters={
+            f'meta.{constants.MASK_TRACK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        },
+        user=user,
+    )
+    output_track_frames = []
+    for mask_track in list(masks_tracks):
+        track_frames = Item().find(
+            {
+                f'meta.{constants.MASK_TRACK_FRAME_MARKER}': {'$in': TRUTHY_META_VALUES},
+            }
+        )
+        if track_frames.count() > 0:
+            output_track_frames += list(track_frames)
+    return output_track_frames

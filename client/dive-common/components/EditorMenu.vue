@@ -66,12 +66,14 @@ export default defineComponent({
         Polygon: 'Click to place vertices. Right click to close.',
         LineString: 'Click to place head/tail points.',
         Time: 'Automatically creating Time',
+        Mask: 'Create a Segmentation Mask',
       },
       Editing: {
         rectangle: 'Drag vertices to resize the rectangle',
         Polygon: 'Drag midpoints to create new vertices. Click vertices to select for deletion.',
         LineString: 'Click endpoints to select for deletion.',
         Time: 'Use the keyframe indicator to modify the time annotation, Delete to return to rectangle annotations',
+        Mask: 'Edit the Segmentation Mask',
       },
     };
 
@@ -108,6 +110,16 @@ export default defineComponent({
         }],
         click: () => emit('set-annotation-state', { editing: 'Time' }),
       },
+      {
+        id: 'Mask',
+        icon: 'mdi-draw',
+        active: props.editingTrack && props.editingMode === 'Mask',
+        mousetrap: [{
+          bind: '4',
+          handler: () => emit('set-annotation-state', { editing: 'Mask' }),
+        }],
+        click: () => emit('set-annotation-state', { editing: 'Mask' }),
+      },
       ];
       // Others should be disabled with a reason
       for (let i = 0; i < buttons.length; i += 1) {
@@ -115,6 +127,10 @@ export default defineComponent({
         if (button.id !== 'Time' && props.editingTrack && props.editingMode === 'Time') {
           button.disabled = true;
           button.disabledReason = 'Time Annotation is Active, delete the Time annotation to enable other modes';
+          button.color = 'error';
+        } else if (button.id !== 'Mask' && props.editingTrack && props.editingMode === 'Mask') {
+          button.disabled = true;
+          button.disabledReason = 'Mask Annotation is Active, delete/save or exit Mask mode to reanble';
           button.color = 'error';
         } else {
           button.disabled = !props.editingMode;
@@ -152,12 +168,12 @@ export default defineComponent({
           click: () => toggleVisible('LineString'),
         },
         {
-          id: 'Time',
-          type: 'Time',
-          active: isVisible('Time'),
-          icon: 'mdi-timer-outline',
-          tooltip: 'Time Annotation Display',
-          click: () => toggleVisible('Time'),
+          id: 'Mask',
+          type: 'Mask',
+          active: isVisible('Mask'),
+          icon: 'mdi-draw',
+          tooltip: 'Mask Annotation Display',
+          click: () => toggleVisible('Mask'),
         },
         {
           id: 'text',
@@ -332,6 +348,7 @@ export default defineComponent({
           <span v-if="button.disabledReason"> {{ button.disabledReason }}</span>
         </v-tooltip></span>
       <slot name="delete-controls" />
+      <slot name="additional-controls" />
       <v-spacer />
       <span class="pb-1">
         <span class="mr-1 px-3 py-1">
