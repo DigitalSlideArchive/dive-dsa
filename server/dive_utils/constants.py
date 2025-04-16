@@ -116,6 +116,7 @@ UserPrivateQueueEnabledMarker = 'user_private_queue_enabled'
 
 
 AddonsListURL = 'https://github.com/VIAME/VIAME/raw/main/cmake/download_viame_addons.csv'
+MASK_RLE_FILE_MARKER = 'RLE_MASK_FILE'
 MASK_MARKER = 'mask'
 MASK_TRACK_MARKER = 'mask_track'
 MASK_TRACK_FRAME_MARKER = 'mask_track_frame'

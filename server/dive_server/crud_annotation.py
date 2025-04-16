@@ -1,14 +1,19 @@
-from typing import Callable, Generator, Iterable, List, Optional, Tuple
-
+from typing import Callable, Generator, Iterable, List, Optional, Tuple, Dict, Optional
+import io
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.user import User
 from girder.models.item import Item
 from girder.models.file import File
+from girder.models.upload import Upload
 from pydantic import Field
 from pydantic.main import BaseModel
 import pymongo
+import json
 from pymongo.cursor import Cursor
+from PIL import Image
+import numpy as np
+from pycocotools import mask as mask_utils
 
 from dive_server import crud, crud_dataset
 from dive_utils import constants, fromMeta, models, types, TRUTHY_META_VALUES
@@ -392,10 +397,10 @@ def get_labels(user: types.GirderUserModel, published=False, shared=False):
     return Folder().collection.aggregate(pipeline)
 
 
-def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int):
+def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int, remove=True) :
     mask_folder = Folder().findOne(
         {
-            'folderId': folder['_id'],
+            'parentId': folder['_id'],
             f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
         }
     )
@@ -428,6 +433,176 @@ def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int):
             constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId,
             constants.MASK_FRAME_VALUE: frameId
         })
-    for file in Item().childFiles(item):
-        File().remove(file)
+    if remove:
+        for file in Item().childFiles(item):
+            File().remove(file)
     return item
+
+
+def get_mask_items(
+    user: User,
+    folder: dict,
+    track_frame_pairs: Optional[List[Tuple[int, int]]] = None,
+) -> Dict[int, List[dict]]:
+    """
+    Returns files associated with existing mask items for given track/frame pairs.
+    If no pairs are provided, returns files for all items with MASK_TRACK_FRAME_MARKER metadata.
+
+    Returns a dict: {track_id: [file1, file2, ...], ...}
+    """
+    result: Dict[int, Dict[int, dict]] = {}
+
+    # Find or identify mask folder
+    mask_folder = Folder().findOne({
+        'parentId': folder['_id'],
+        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+
+    if not mask_folder:
+        return result  # No mask folder, nothing to return
+
+    if track_frame_pairs is None:
+        # Find all items in child folders of mask_folder that have MASK_TRACK_FRAME_MARKER
+        child_folder_ids = [f['_id'] for f in Folder().childFolders(mask_folder, parentType='folder', user=user)]
+        print(f'CHILD FOLDER IDS: {child_folder_ids}')
+        all_items = Item().find({'folderId': {'$in': child_folder_ids}})
+        print(f'ALL ITEMS: {all_items.count()}')
+        for item in all_items:
+            meta = item.get('meta', {})
+            if constants.MASK_TRACK_FRAME_MARKER in meta:
+                track_id = meta.get(constants.MASK_FRAME_PARENT_TRACK_MARKER)
+                frame_id = meta.get(constants.MASK_FRAME_VALUE)
+                if track_id is not None:
+                    files = list(Item().childFiles(item))
+                    if len(files) == 0:
+                        continue
+                    if result.get(track_id) is None:
+                        result[track_id] = {}
+                    if result[track_id].get(frame_id) is None:
+                        result[track_id][frame_id] = files[0]
+    else:
+        # Only find matching items based on provided pairs
+        for track_id, frame_id in track_frame_pairs:
+            track_folder = Folder().findOne({
+                'parentId': mask_folder['_id'],
+                'name': str(track_id)
+            })
+
+            if not track_folder:
+                continue  # Track folder doesn't exist
+
+            item = Item().findOne({
+                'folderId': track_folder['_id'],
+                'name': f'{frame_id}.png',
+            })
+
+            if not item:
+                continue  # Item doesn't exist
+
+            files = list(Item().childFiles(item))
+            if len(files) == 0:
+                continue
+            if result.get(track_id) is None:
+                result[track_id] = {}
+            if result[track_id].get(frame_id) is None:
+                result[track_id][frame_id] = files[0]
+    return result
+
+def update_RLE_masks(
+    user: User,
+    folder: dict,
+    track_frame_pairs: Optional[List[Tuple[int, int]]] = None
+) -> str:
+    """
+    Updates the JSON file (RLE_MASKS.json) in the mask folder with the encoded RLE data.
+    
+    If track_frame_pairs is provided (list of [trackId, frameId] pairs), it updates only the given items.
+    If None, it loads all items in the mask folder that have MASK_TRACK_FRAME_MARKER metadata.
+    
+    Returns a JSON string representation of the updated data.
+    """
+    # Locate the mask folder under the provided folder
+    mask_folder = Folder().findOne({
+        'parentId': folder['_id'],
+        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+    
+    if mask_folder is None:
+        # No mask folder exists; nothing to update.
+        return json.dumps({})
+    
+    # Retrieve the RLE JSON item (if exists) from the mask folder
+    rle_item = Item().findOne({
+        'folderId': mask_folder['_id'],
+        f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+    
+    # Load the current JSON data from the RLE file if available.
+    json_data = {}
+    if rle_item is not None:
+        file_obj = next(Item().childFiles(rle_item), None)
+        if file_obj is not None:
+            file_generator = File().download(file_obj, headers=False)()
+            file_string = b"".join(list(file_generator)).decode()
+            json_data = json.loads(file_string)
+            # Remove the file so that the new version can be uploaded
+            File().remove(file_obj)
+    
+    # Get the image files associated with the track/frame pairs (or all if None)
+    # Here get_mask_items returns a dict in the form: {track_id: {frame_id: file_dict, ...}, ...}
+    files_dict: Dict[int, Dict[int, dict]] = get_mask_items(user, folder, track_frame_pairs)
+    
+    # Process each file
+    for track_id, frame_items in files_dict.items():
+        # Ensure that json_data has the key for this track
+        if str(track_id) not in json_data:
+            json_data[str(track_id)] = {}
+        for frame_id, image_file in frame_items.items():
+            # Download the image file
+            file_obj = image_file  # image_file is a file document from Item.childFiles()
+            file_generator = File().download(file_obj, headers=False)()
+            file_bytes = b"".join(list(file_generator))
+            # Load image using PIL and convert to a binary (black/white) image
+            image = Image.open(io.BytesIO(file_bytes))
+            np_img = np.array(image.convert('1'))
+            # COCO RLE expects Fortran order and uint8 data
+            rle = mask_utils.encode(np.asfortranarray(np_img.astype(np.uint8)))
+            # The counts value needs to be JSON serializable (i.e. a string)
+            rle['counts'] = rle['counts'].decode('utf-8')
+            
+            # Update the JSON structure with the new RLE and original image file name.
+            # Keys in the JSON are stored as strings.
+            json_data[str(track_id)][str(frame_id)] = {
+                'rle': rle,
+                'file_name': image_file.get('name')
+            }
+    
+    # If no RLE item exists, create one.
+    if rle_item is None:
+        rle_item = Item().createItem(
+            'RLE_MASKS.json',
+            creator=user,
+            folder=mask_folder,
+            reuseExisting=True,
+        )
+        Item().setMetadata(rle_item, {
+            constants.MASK_RLE_FILE_MARKER: True,
+        })
+    
+    # Convert updated JSON data to bytes
+    json_bytes = json.dumps(json_data).encode()
+    byteIO = io.BytesIO(json_bytes)
+    
+    # Upload updated JSON file, replacing the previous version.
+    Upload().uploadFromFile(
+        byteIO,
+        len(json_bytes),
+        rle_item['name'],
+        parentType="item",
+        parent=rle_item,
+        user=user,
+        mimeType="application/json",
+    )
+    
+    return json_data
+

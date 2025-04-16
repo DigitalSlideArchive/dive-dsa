@@ -25,7 +25,7 @@ export default class MaskLayer {
   }: { annotator: MediaController; typeStyling: Ref<TypeStyling>}) {
     this.annotator = annotator;
     this.typeStyling = typeStyling;
-    this.opacity = 20;
+    this.opacity = 50;
     this.featureLayers = {};
     this.quads = {};
     this.width = 0;

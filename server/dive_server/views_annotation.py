@@ -53,6 +53,7 @@ class AnnotationResource(Resource):
         self.route("POST", ("rollback",), self.rollback)
         self.route("POST", ("process_json",), self.process_json)
         self.route("POST", ('mask',), self.update_mask)
+        self.route("POST", ('rle_mask',), self.update_rle_mask)
 
     @access.user
     @autoDescribeRoute(
@@ -92,12 +93,35 @@ class AnnotationResource(Resource):
             raise
         if upload['size'] > 0:
             if chunk:
-                return Upload().handleChunk(upload, chunk, filter=True, user=user)
-
+                val = Upload().handleChunk(upload, chunk, filter=True, user=user)
+                return val
             return upload
         else:
-            return File().filter(Upload().finalizeUpload(upload), user)
+            finalized_upload = File().filter(Upload().finalizeUpload(upload), user)
+            crud_annotation.update_RLE_mask(user, folder, trackId, frameId)
+            return finalized_upload
 
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Update RLE mask annotations")
+        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+        .jsonParam(
+            "trackFrameList",
+            "List of track frame pairs to update, None will update all",
+            paramType="query",
+            required=False,
+            default=None,
+            requireArray=True,
+        )
+
+    )
+    def update_rle_mask(self, folder, trackFrameList):
+        crud.verify_dataset(folder)
+        user = self.getCurrentUser()
+        json_data = {}
+        json_data = crud_annotation.update_RLE_masks(user, folder, trackFrameList)
+        return json_data
 
     @access.user
     @autoDescribeRoute(GetAnnotationParams)
