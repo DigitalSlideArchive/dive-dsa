@@ -17,7 +17,7 @@ export default defineComponent({
     const datasetIdRef = useDatasetId();
     const cameraStore = useCameraStore();
 
-    const numberOfFrames = 50; // How many frames to generate
+    const numberOfFrames = 600; // How many frames to generate
     const radius = 100; // Radius of circular motion
 
     const createMask = async () => {

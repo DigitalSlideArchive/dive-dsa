@@ -351,7 +351,6 @@ export default defineComponent({
             }
           }
         });
-        console.log(maskImages);
         maskLayer.setSegmenationImages(maskImages);
       }
 
