@@ -508,6 +508,48 @@ def get_mask_items(
                 result[track_id][frame_id] = files[0]
     return result
 
+def get_mask_json(folder: Folder) -> Dict:
+    """
+    Retrieves the contents of the RLE_MASKS.json file associated with a given folder.
+
+    :param folderId: The ID (or folder dict with `_id`) of the base folder containing the mask folder.
+    :return: A dictionary representing the RLE mask JSON data, or an empty dict if not found.
+    """
+    folderId = folder['_id']
+
+    # Find the mask folder under the given folder
+    mask_folder = Folder().findOne({
+        'parentId': folderId,
+        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+
+    if not mask_folder:
+        return {}
+
+    # Find the RLE_MASKS.json item in the mask folder
+    rle_item = Item().findOne({
+        'folderId': mask_folder['_id'],
+        f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+
+    if not rle_item:
+        return {}
+
+    # Get the file associated with the RLE item
+    file_obj = next(Item().childFiles(rle_item), None)
+    if not file_obj:
+        return {}
+
+    # Download and parse the JSON file
+    file_generator = File().download(file_obj, headers=False)()
+    file_string = b"".join(list(file_generator)).decode()
+    
+    try:
+        return json.loads(file_string)
+    except json.JSONDecodeError:
+        return {}
+
+
 def update_RLE_masks(
     user: User,
     folder: dict,

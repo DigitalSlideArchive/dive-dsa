@@ -346,6 +346,7 @@ export default defineComponent({
       initializeMaskData,
       setFrameRate,
       getMask,
+      getFolderRLEMasks,
     } = useMasks(time.frame);
 
     const allSelectedIds = computed(() => {
@@ -726,6 +727,7 @@ export default defineComponent({
           if (mediaMasks.value?.length) {
             setFrameRate(meta.fps);
             initializeMaskData({ masks: mediaMasks.value });
+            getFolderRLEMasks(cameraId);
           }
 
           // eslint-disable-next-line no-await-in-loop

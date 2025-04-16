@@ -54,6 +54,7 @@ class AnnotationResource(Resource):
         self.route("POST", ("process_json",), self.process_json)
         self.route("POST", ('mask',), self.update_mask)
         self.route("POST", ('rle_mask',), self.update_rle_mask)
+        self.route("GET", ('rle_mask',), self.get_rle_mask)
 
     @access.user
     @autoDescribeRoute(
@@ -100,6 +101,15 @@ class AnnotationResource(Resource):
             finalized_upload = File().filter(Upload().finalizeUpload(upload), user)
             crud_annotation.update_RLE_mask(user, folder, trackId, frameId)
             return finalized_upload
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Get RLE mask annotations")
+        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+    )
+    def get_rle_mask(self, folder):
+        crud.verify_dataset(folder)
+        return crud_annotation.get_mask_json(folder)
 
 
     @access.user

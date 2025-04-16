@@ -27,6 +27,16 @@ export interface Label {
   }>;
 }
 
+export type RLETrackFrameData = Record<string, Record<string, RLEFrameData>>;
+export interface RLEData {
+  counts: string;
+  size: [number, number];
+}
+export interface RLEFrameData {
+  file_name: string;
+  rle: RLEData
+}
+
 async function loadDetections(folderId: string, revision?: number) {
   const params: Record<string, unknown> = { folderId };
   if (revision !== undefined) {
@@ -97,6 +107,22 @@ async function uploadMask(
   return uploadMetadata;
 }
 
+async function updateRLEMasks(folderId: string, trackFrameList?: [number, number][]) {
+  // First request to initialize upload
+  const { data: uploadMetadata } = await girderRest.post('dive_annotation/rle_mask', { folderId, trackFrameList });
+
+  return uploadMetadata;
+}
+
+async function getRLEMask(folderId: string) {
+  const response = await girderRest.get<RLETrackFrameData>('dive_annotation/rle_mask', {
+    params: {
+      folderId,
+    },
+  });
+  return response;
+}
+
 export {
   getLabels,
   loadDetections,
@@ -104,4 +130,7 @@ export {
   getLatestRevision,
   saveDetections,
   uploadMask,
+  updateRLEMasks,
+  getRLEMask,
+
 };
