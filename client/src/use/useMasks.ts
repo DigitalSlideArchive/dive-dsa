@@ -3,6 +3,8 @@
 import { ref, watch, Ref } from 'vue';
 import { getRLEMask, RLETrackFrameData, RLEData } from 'platform/web-girder/api/annotation.service';
 import { decode } from './rle';
+// Dynamically import the worker
+const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
 
 type MaskItem = {
   filename: string;
@@ -18,7 +20,7 @@ export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
 }
 
-const useRLE = true;
+const useRLE = false;
 const ENABLE_TIMING_LOGS = true;
 const timingTotals = {
   decode: 0,
@@ -39,7 +41,7 @@ export default function useMasks(frame: Readonly<Ref<number>>) {
   async function getFolderRLEMasks(folderId: string) {
     rleMasks.value = (await getRLEMask(folderId)).data;
     if (useRLE) {
-      await convertAllRLEMasksToImages();
+      await convertAllRLEMasksToImagesWebWorker();
     }
   }
 
@@ -112,6 +114,41 @@ export default function useMasks(frame: Readonly<Ref<number>>) {
     }
 
     return img;
+  }
+
+  async function convertAllRLEMasksToImagesWebWorker() {
+    const totalStart = performance.now();
+    const rleWorker = RLEWorker();
+
+    return new Promise<void>((resolve, reject) => {
+      rleWorker.onmessage = (event) => {
+        const results = event.data;
+
+        for (const trackId in results) {
+          const frames = results[trackId];
+          for (const frameId in frames) {
+            const key = frameKey(Number(frameId), Number(trackId));
+            const img = new Image();
+            img.src = frames[frameId];
+            cache.set(key, img);
+          }
+        }
+
+        const totalEnd = performance.now();
+        if (ENABLE_TIMING_LOGS) {
+          console.log(`🧾 Worker Total Elapsed: ${(totalEnd - totalStart).toFixed(2)} ms`);
+        }
+
+        resolve();
+      };
+
+      rleWorker.onerror = (error) => {
+        console.error('Worker error:', error);
+        reject(error);
+      };
+
+      rleWorker.postMessage({ rleMasks: rleMasks.value });
+    });
   }
 
   async function convertAllRLEMasksToImages() {
@@ -227,5 +264,7 @@ export default function useMasks(frame: Readonly<Ref<number>>) {
     setFrameRate,
     getMask,
     getFolderRLEMasks,
+    convertAllRLEMasksToImagesWebWorker,
+    convertAllRLEMasksToImages,
   };
 }
