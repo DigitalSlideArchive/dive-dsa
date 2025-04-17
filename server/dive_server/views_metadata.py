@@ -212,6 +212,13 @@ class DIVEMetadata(Resource):
             dataType="integer",
             default=50,
         )
+        .param(
+            "additive",
+            "Additive Metadata, will add imported data to existing metadata",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+        )
     )
     def process_metadata(
         self,
@@ -223,6 +230,7 @@ class DIVEMetadata(Resource):
         displayConfig,
         ffprobeMetadata,
         categoricalLimit,
+        additive
     ):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
@@ -230,7 +238,7 @@ class DIVEMetadata(Resource):
         # Delete existing data if it is there already:
         rootQuery = {"root": str(folder["_id"])}
         found = DIVE_Metadata().findOne(query=rootQuery, user=user)
-        if found:
+        if found and additive is not True:
             DIVE_Metadata().removeWithQuery(rootQuery)
             DIVE_MetadataKeys().removeWithQuery(rootQuery)
             rootFolder = Folder().setMetadata(
