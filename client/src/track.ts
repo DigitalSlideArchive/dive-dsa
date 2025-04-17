@@ -24,6 +24,7 @@ export interface Feature {
   keyframe?: boolean;
   bounds?: RectBounds;
   geometry?: GeoJSON.FeatureCollection<TrackSupportedFeature>;
+  hasMask?: boolean;
   fishLength?: number;
   attributes?: StringKeyObject & { userAttributes?: StringKeyObject };
   head?: [number, number];
@@ -453,6 +454,44 @@ export default class Track extends BaseAnnotation {
     }
     delete this.features[frame];
     this.maybeShrinkBounds(frame);
+    this.notify('feature', feature);
+  }
+
+  setHasMask(frame: number, hasMask: boolean) {
+    const { features } = this.canInterpolate(frame);
+    const [real, lower, upper] = features;
+    if (real && !real.keyframe && hasMask) {
+      this.setFeature({
+        ...real,
+        frame,
+        keyframe: true,
+      });
+    } else if ((lower || upper) && !real?.keyframe) {
+      let interFeature: Feature | null = null;
+      if (upper && frame > upper.frame) {
+        interFeature = upper;
+      } else if (lower && frame < lower.frame) {
+        interFeature = lower;
+      }
+      if (interFeature) {
+        this.setFeature({
+          ...interFeature,
+          frame,
+          keyframe: true,
+        });
+      }
+    } else if (!hasMask) {
+      this.deleteFeature(frame);
+    }
+
+    const feature = this.features[frame];
+    if (feature && feature.keyframe) {
+      if (feature.hasMask && !hasMask) {
+        delete feature.hasMask;
+      } else {
+        feature.hasMask = hasMask;
+      }
+    }
     this.notify('feature', feature);
   }
 

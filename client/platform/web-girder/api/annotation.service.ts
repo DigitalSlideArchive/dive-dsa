@@ -27,6 +27,16 @@ export interface Label {
   }>;
 }
 
+export type RLETrackFrameData = Record<string, Record<string, RLEFrameData>>;
+export interface RLEData {
+  counts: string;
+  size: [number, number];
+}
+export interface RLEFrameData {
+  file_name: string;
+  rle: RLEData
+}
+
 async function loadDetections(folderId: string, revision?: number) {
   const params: Record<string, unknown> = { folderId };
   if (revision !== undefined) {
@@ -73,10 +83,54 @@ async function getLabels() {
   return response;
 }
 
+async function uploadMask(
+  folderId: string,
+  trackId: number,
+  frameId: number,
+  blob: Blob,
+) {
+  const params = {
+    folderId,
+    trackId,
+    frameId,
+    size: blob.size,
+  };
+
+  // First request to initialize upload
+  const { data: uploadMetadata } = await girderRest.post('dive_annotation/mask', blob, {
+    params,
+    headers: {
+      'Content-Type': 'application/octet-stream',
+    },
+  });
+
+  return uploadMetadata;
+}
+
+async function updateRLEMasks(folderId: string, trackFrameList?: [number, number][]) {
+  // First request to initialize upload
+  const { data: uploadMetadata } = await girderRest.post('dive_annotation/rle_mask', { folderId, trackFrameList });
+
+  return uploadMetadata;
+}
+
+async function getRLEMask(folderId: string) {
+  const response = await girderRest.get<RLETrackFrameData>('dive_annotation/rle_mask', {
+    params: {
+      folderId,
+    },
+  });
+  return response;
+}
+
 export {
   getLabels,
   loadDetections,
   loadRevisions,
   getLatestRevision,
   saveDetections,
+  uploadMask,
+  updateRLEMasks,
+  getRLEMask,
+
 };

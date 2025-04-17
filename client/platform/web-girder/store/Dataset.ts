@@ -44,7 +44,6 @@ const datasetModule: Module<DatasetState, RootState> = {
         ...metaStatic.data,
         ...media.data,
         videoUrl: media.data.video?.url,
-        overlays: media.data.overlays,
       };
       // TODO remove when multi is supported in web
       if (dsMeta.type === MultiType) {
