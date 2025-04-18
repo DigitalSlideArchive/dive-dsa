@@ -52,8 +52,9 @@ RUN . ~/.bashrc && \
 
 ENV PATH="/usr/local/node:$PATH"
 
-RUN girder build
-
+WORKDIR /opt/dive/src/dive_server/web_client
+RUN npm install
+RUN npm run build
 # =================
 # == DIST SERVER ==
 # =================

@@ -7,7 +7,7 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.token import Token
 from girder_jobs.models.job import Job, JobStatus
-from girder_worker.girder_plugin.status import CustomJobStatus
+from girder_plugin_worker.status import CustomJobStatus
 from pydantic import BaseModel
 import pymongo
 

@@ -28,7 +28,7 @@ from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from . import crud_dataset
 from girder.models.token import Token
 from girder_jobs.models.job import Job
-from girder_worker.girder_plugin.utils import getWorkerApiUrl
+from girder_plugin_worker.utils import getWorkerApiUrl
 
 
 def python_to_javascript_type(py_type):

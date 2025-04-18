@@ -4,7 +4,7 @@ services:
     volumes:
       - ./server:/opt/dive/src
       - ./docker/server_setup.py:/server_setup.py
-    command: ["--dev"]
+    command: ["--mode", "development"]
 
   girder_worker_default:
     volumes:
