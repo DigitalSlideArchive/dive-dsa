@@ -5,7 +5,7 @@ from girder import events, plugin
 from girder.constants import AccessType
 from girder.models.setting import Setting
 from girder.models.user import User
-from girder.plugin import getPlugin
+from girder.plugin import getPlugin, registerPluginStaticContent
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
 from girder_jobs.models.job import Job
@@ -106,3 +106,11 @@ class GirderPlugin(plugin.GirderPlugin):
         if broker_url is None:
             raise RuntimeError('CELERY_BROKER_URL must be set')
         Setting().set('worker.broker', broker_url)
+
+        registerPluginStaticContent(
+            plugin='dive',
+            css=['/style.css'],
+            js=['/girder-plugin-foo.umd.cjs'],
+            staticDir=Path(__file__).parent / 'web_client' / 'dist',
+            tree=info['serverRoot'],
+        )

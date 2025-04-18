@@ -2,13 +2,14 @@ from datetime import datetime, timedelta
 import os
 
 from bson.objectid import ObjectId
-from girder import logger
+import logging
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.models.user import User
 from girder.settings import SettingKey
 from girder.utility.mail_utils import renderTemplate, sendMail
+logger = logging.getLogger(__name__)
 
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
