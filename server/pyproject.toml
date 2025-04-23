@@ -62,7 +62,7 @@ GPUtil = "^1.4.0"
 requests = "<2.32.0"
 urllib3 = "<1.27"
 poetry-dynamic-versioning = {extras = ["plugin"], version = "^0.21.4"}
-girder-slicer-cli-web = "^1.5.11"
+girder-slicer-cli-web = "^5.0.0a8.dev2"
 girder-plugin-worker = "^5.0.0a6.dev41"
 
 [tool.poetry.group.dev.dependencies]
