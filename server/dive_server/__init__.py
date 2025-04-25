@@ -69,13 +69,6 @@ class GirderPlugin(plugin.GirderPlugin):
             }
         }
         info['serverRoot'].mount(None, '/dive', conf)
-        #info['serverRoot'].mount(info['apiRoot'], '/dive/api')
-        
-
-        # info["serverRoot"], info["serverRoot"].girder = (
-        #     ClientWebroot(),
-        #     info["serverRoot"],
-        # )
 
         diveS3Import = DIVES3Imports()
         events.bind(
