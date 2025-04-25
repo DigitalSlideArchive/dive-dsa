@@ -11,8 +11,8 @@ from girder.utility.model_importer import ModelImporter
 from girder_jobs.models.job import Job
 
 from dive_utils import constants
+from girder import constants as girder_constants
 
-from .client_webroot import ClientWebroot
 from .crud_annotation import GroupItem, RevisionLogItem, TrackItem
 from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new_user_email
 from .views_annotation import AnnotationResource
@@ -27,6 +27,7 @@ __version__ = "1.0.0"
 
 class GirderPlugin(plugin.GirderPlugin):
     DISPLAY_NAME = 'DIVE'
+    CLIENT_SOURCE_PATH = 'web_client'
 
     def load(self, info):
         ModelImporter.registerModel('trackItem', TrackItem, plugin='dive_server')
@@ -54,12 +55,22 @@ class GirderPlugin(plugin.GirderPlugin):
         mail_utils.addTemplateDirectory(str(DIVE_MAIL_TEMPLATES))
 
         # Relocate Girder
-        core_girder = info['serverRoot'].apps['']
-        # girderRoot = info['serverRoot']
-        # info['serverRoot'].girder = girderRoot
-        # info["serverRoot"].dive = ClientWebroot()
-        # info["serverRoot"].api = info["serverRoot"].girder.api
-        # info["serverRoot"].dive.api = info["serverRoot"].girder.api
+        print(girder_constants.STATIC_ROOT_DIR)
+        
+        dive_path = os.path.join("/opt/dive/local/venv/share/girder/static/dive")
+        conf = {
+            '/': {
+                'tools.staticfile.on': True,
+                'tools.staticfile.filename': os.path.join(dive_path, 'index.html')
+            },
+            '/static': {
+                'tools.staticdir.on': True,
+                'tools.staticdir.dir': "/opt/dive/local/venv/share/girder/static/dive",
+            }
+        }
+        info['serverRoot'].mount(None, '/dive', conf)
+        #info['serverRoot'].mount(info['apiRoot'], '/dive/api')
+        
 
         # info["serverRoot"], info["serverRoot"].girder = (
         #     ClientWebroot(),
@@ -95,22 +106,10 @@ class GirderPlugin(plugin.GirderPlugin):
             send_new_user_email,
         )
 
-        plugin.getPlugin('worker').load(info)
-        if not Setting().get('worker.api_url'):
-            Setting().set(
-                'worker.api_url',
-                os.environ.get('WORKER_API_URL', 'http://girder:8080/api/v1'),
-            )
-
-        broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq')
-        if broker_url is None:
-            raise RuntimeError('CELERY_BROKER_URL must be set')
-        #Setting().set('worker.broker', broker_url)
-
-        # registerPluginStaticContent(
-        #     plugin='dive',
-        #     css=['/style.css'],
-        #     js=['/girder-plugin-dive.umd.cjs'],
-        #     staticDir=Path(__file__).parent / 'web_client' / 'dist',
-        #     tree=info['serverRoot'],
-        # )
+        registerPluginStaticContent(
+            plugin='dive',
+            css=['/style.css'],
+            js=['/girder-plugin-dive.umd.cjs'],
+            staticDir=Path(__file__).parent / 'web_client' / 'dist',
+            tree=info['serverRoot'],
+        )
