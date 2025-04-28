@@ -54,10 +54,8 @@ class GirderPlugin(plugin.GirderPlugin):
         DIVE_MAIL_TEMPLATES = Path(os.path.realpath(__file__)).parent / 'mail_templates'
         mail_utils.addTemplateDirectory(str(DIVE_MAIL_TEMPLATES))
 
-        # Relocate Girder
-        print(girder_constants.STATIC_ROOT_DIR)
         
-        dive_path = os.path.join("/opt/dive/local/venv/share/girder/static/dive")
+        dive_path = os.path.join("/opt/dive/src/dive_server/dive_client")
         conf = {
             '/': {
                 'tools.staticfile.on': True,
@@ -65,7 +63,7 @@ class GirderPlugin(plugin.GirderPlugin):
             },
             '/static': {
                 'tools.staticdir.on': True,
-                'tools.staticdir.dir': "/opt/dive/local/venv/share/girder/static/dive",
+                'tools.staticdir.dir': "/opt/dive/src/dive_server/dive_client",
             }
         }
         info['serverRoot'].mount(None, '/dive', conf)

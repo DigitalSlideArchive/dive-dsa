@@ -2,74 +2,86 @@
 # == CLIENT BUILD STAGE ==
 # ========================
 FROM node:20 as client-builder
+
 WORKDIR /app
 
 # Install dependencies
 COPY client/package.json client/yarn.lock /app/
 RUN yarn install --frozen-lockfile --network-timeout 300000
-# Build
+
+# Copy client source and git
 COPY .git/ /app/.git/
 COPY client/ /app/
+
+# Build client
 RUN yarn build:web
 
 # ========================
 # == SERVER BUILD STAGE ==
 # ========================
-# Note: server-builder stage will be the same in both dockerfiles
+FROM node:20 as server-node
+
+WORKDIR /opt/dive/src/dive_server/web_client
+
+# Install dependencies and build the girder client
+COPY server/dive_server/web_client/package.json server/dive_server/web_client/package-lock.json ./
+RUN npm install
+COPY server/dive_server/web_client/ ./
+RUN npm run build
+
+# ========================
+# == PYTHON SERVER BUILD ==
+# ========================
 FROM python:3.11-buster as server-builder
 
 WORKDIR /opt/dive/src
 
-# https://cryptography.io/en/latest/installation/#debian-ubuntu
-RUN apt-get update
-RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm
-# Recommended poetry install https://python-poetry.org/docs/master/#installation
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential libssl-dev libffi-dev python3-dev cargo
+
+# Install Poetry
 RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.7.0 POETRY_HOME=/opt/dive/poetry python -
 ENV PATH="/opt/dive/poetry/bin:$PATH"
-# Create a virtual environment for the installation
+
+# Setup Python virtual environment
 RUN python -m venv /opt/dive/local/venv
-# Poetry needs this set to recognize it as ane existing environment
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
 
-# Copy only the lock and project files to optimize cache
+# Copy project files
 COPY server/pyproject.toml /opt/dive/src/
 COPY .git/ /opt/dive/src/.git/
 RUN poetry env use system
 RUN poetry config virtualenvs.create false
-# Install dependencies only
 RUN poetry install --no-root
-# Build girder client, including plugins like worker/jobs
-# Copy full source code and install
+
+# Copy server source
 COPY server/ /opt/dive/src/
 RUN poetry install --only main
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
-RUN . ~/.bashrc && \
-    nvm install 14 && \
-    nvm alias default 14 && \
-    nvm use default && \
-    ln -s $(dirname `which npm`) /usr/local/node
 
-ENV PATH="/usr/local/node:$PATH"
+# Copy girder client (from node build stage)
+COPY --from=server-node /opt/dive/src/dive_server/web_client/dist /opt/dive/clients/girder
 
-WORKDIR /opt/dive/src/dive_server/web_client
-RUN npm install
-RUN npm run build
 # =================
-# == DIST SERVER ==
+# == FINAL SERVER ==
 # =================
 FROM python:3.11-slim-buster as server
 
-# Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
 
-# Copy site packages and executables
+# Copy Python venv and server code
 COPY --from=server-builder /opt/dive/local/venv /opt/dive/local/venv
-# Copy the source code of the editable module
 COPY --from=server-builder /opt/dive/src /opt/dive/src
-# Copy the client code into the static source location
-COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/dive/
+
+# Copy built girder client
+COPY --from=server-builder /opt/dive/clients/girder /opt/dive/clients/girder
+
+# Copy DIVE VUE client
+COPY --from=client-builder /app/dist/ /opt/dive/clients/dive
+COPY --from=client-builder /app/dist/ /opt/dive/src/dive_server/dive_client
+
 # Install startup scripts
 COPY docker/entrypoint_server.sh docker/server_setup.py /
 
