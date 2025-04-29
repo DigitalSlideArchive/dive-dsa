@@ -8,6 +8,7 @@ import { useStore } from 'platform/web-girder/store/types';
 import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
 import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
+import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -115,6 +116,7 @@ export default defineComponent({
       annotator,
       typeStyling: typeStylingRef,
     });
+    const maskEditorLayer = new MaskEditorLayer({ annotator, typeStyling: typeStylingRef });
     const overlayFilters: Ref<{
         videoLayerTransparencyVals: number[][][],
         videoLayerColorTransparencyOn: boolean,
@@ -392,17 +394,31 @@ export default defineComponent({
           };
           editingTracks.push(trackFrame);
         }
-        if (editingTracks.length) {
+        if (editingTracks.length && editingTrack !== 'Mask') {
           if (editingTrack) {
             editAnnotationLayer.setType(editingTrack);
             editAnnotationLayer.setKey(selectedKey);
             editAnnotationLayer.changeData(editingTracks);
+          }
+        } else if (editingTracks.length && editingTrack === 'Mask') {
+          editAnnotationLayer.disable();
+          maskLayer.disable();
+          const track = editingTracks[0];
+          if (track.features?.hasMask) {
+            const image = getMask(track.track.id, frame);
+            if (image) {
+              maskEditorLayer.setEditingImage({ trackId: track.track.id, image });
+              setTimeout(() => {
+                maskEditorLayer.drawPoint(10, 10);
+              }, 1000);
+            }
           }
         } else {
           editAnnotationLayer.disable();
         }
       } else {
         editAnnotationLayer.disable();
+        maskEditorLayer.disable();
       }
       annotator.setExpandedBounds(globalBounds);
     }
@@ -601,6 +617,7 @@ export default defineComponent({
 
 <template>
   <div>
+    <canvas id="maskEditingCanvas" style="display:none;" />
     <div
       v-if="includesAttributeKey"
       style="position: absolute; top: 0px; right: 0px"
