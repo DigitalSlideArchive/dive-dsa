@@ -2,20 +2,47 @@
     "name": "@girder/dive_server",
     "version": "0.0.0",
     "description": "Video and Image Sequence Annotations",
-    "peerDependencies": {
-        "@girder/core": "*"
-    },
-    "girderPlugin": {
-        "name": "dive_server",
-        "main": "./main.js",
-        "webpack": "webpack.helper",
-        "dependencies": [
-            "large_image"
-        ]
+    "ignorePatterns": [
+        "dist/**"
+    ],
+    "type": "module",
+    "main": "./index.js",
+    "root": true,
+    "globals": {
+        "girder": "readonly"
     },
     "dependencies": {
-        "dive-dsa": "^1.10.25",
-        "webpack": "^2.7.0",
-        "copy-webpack-plugin": "^4.5.2"
+        "@girder/core": "^5.0.0-beta.0",
+        "yaml": "^2.1.1"
+    },
+    "devDependencies": {
+        "@girder/eslint-config": "^3.0.2",
+        "@girder/pug-lint-config": "^3.0.2",
+        "eslint": "^6.5.1",
+        "eslint-config-semistandard": "^15.0.0",
+        "eslint-config-standard": "^14.1.0",
+        "eslint-plugin-backbone": "^2.1.1",
+        "eslint-plugin-import": "^2.18.2",
+        "eslint-plugin-node": "^10.0.0",
+        "eslint-plugin-promise": "^4.2.1",
+        "eslint-plugin-standard": "^4.0.1",
+        "pug": "^3.0.3",
+        "pug-lint": "^2.6.0",
+        "stylint": "^2.0.0",
+        "stylus": "^0.63.0",
+        "vite": "^5.3.1"
+        },
+    "pugLintConfig": {
+        "extends": "@girder/pug-lint-config",
+        "excludeFiles": [
+            "**/node_modules/"
+        ]
+    },
+    "scripts": {
+        "build": "vite build",
+        "watch": "vite build --watch",
+        "lint": "eslint --cache . && eslint --no-eslintrc -c ./package.json --cache ../../test_girder/web_client_specs && pug-lint . && stylus-supremacy format --compare ./**/*.styl --options package.json",
+        "format": "eslint --cache --fix . && eslint --no-eslintrc -c ./package.json --cache --fix ../../test_girder/web_client_specs && stylus-supremacy format ./**/*.styl --replace --options package.json",
+        "test": "playwright test"
     }
 }

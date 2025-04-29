@@ -12,14 +12,14 @@ from girder.models.token import Token
 from girder.models.user import User
 
 from girder_jobs.models.job import Job
-from slicer_cli_web.models import CLIItem
+from girder_slicer_cli_web.models import CLIItem
 
 
 from dive_utils.types import (
     DIVEMetadataSlicerCLITaskParams,
     DiveDatasetList,
 )
-from slicer_cli_web.rest_slicer_cli import (
+from girder_slicer_cli_web.rest_slicer_cli import (
     get_cli_parameters,
     as_model,
     is_on_girder,
@@ -40,7 +40,7 @@ def cliSubHandler(cliItem, params, user, token, datalist=None):
     :param datalist: if not None, an object with keys that override
         parameters.  No outputs are used.
     """
-    from slicer_cli_web.girder_worker_plugin.direct_docker_run import run
+    from girder_slicer_cli_web.girder_worker_plugin.direct_docker_run import run
 
     cliTitle = f'DIVE Metadata Task: {cliItem.name}'
     original_params = copy.deepcopy(params)

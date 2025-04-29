@@ -1,0 +1,59 @@
+name: Build and Publish Python Package
+
+on:
+  push:
+    tags:
+      - 'v*'  # Only run on version tags like v0.1.0, v1.2.3, etc.
+
+permissions:
+  id-token: write  # <-- ADD THIS FOR OIDC
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js (for web clients)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Python build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Build web clients
+      run: |
+        cd server/dive_server/web_client
+        npm install
+        npm run build
+        cd ../../../../
+
+        cd client
+        yarn install
+        yarn build:web
+        rm -rf ../server/dive_server/dive_client/*
+        cp -r dist/* ../server/dive_server/dive_client/
+        cd ..
+
+    - name: Build Python package
+      working-directory: server
+      run: |
+        python -m build
+
+    - name: Publish to PyPI using OIDC
+      working-directory: server
+      env:
+        TWINE_USERNAME: __token__
+      run: |
+        twine upload dist/*

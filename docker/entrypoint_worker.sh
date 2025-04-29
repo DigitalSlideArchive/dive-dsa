@@ -5,7 +5,7 @@
 # WORKER_WATCHING_QUEUES: The comma separated list of queues to take tasks from. If not supplied, the celery default of 'celery' is used.
 
 QUEUE_ARGUMENT=
-CONCURRENCY_ARGUMENT=
+CONCURRENCY_ARGUMENT=()
 
 if [[ -z "$DSA_USER" ]]; then
   echo "Set the DSA_USER before starting (e.g, DSA_USER=\$$(id -u):\$$(id -g) <up command>"
@@ -28,14 +28,21 @@ chmod 777 /var/run/docker.sock 2>/dev/null || true
 chmod 777 ${TMPDIR:-/tmp} || true
 
 if [ -n "$WORKER_WATCHING_QUEUES" ]; then
-    QUEUE_ARGUMENT="--queues $WORKER_WATCHING_QUEUES"
+    QUEUE_ARGUMENT="-Q '$WORKER_WATCHING_QUEUES'"
 fi
 
 if [ -n "$WORKER_CONCURRENCY" ]; then
     CONCURRENCY_ARGUMENT="--concurrency $WORKER_CONCURRENCY"
 fi
 
-su $(id -nu ${DSA_USER%%:*}) -c "GW_DIRECT_PATHS=true python -m dive_tasks -l info --without-gossip --without-mingle $QUEUE_ARGUMENT $CONCURRENCY_ARGUMENT -Ofair --prefetch-multiplier=1"
+su $(id -nu ${DSA_USER%%:*}) -c "GW_DIRECT_PATHS=true python -m dive_tasks \
+  -l info \
+  --without-gossip \
+  --without-mingle \
+  $QUEUE_ARGUMENT \
+  ${CONCURRENCY_ARGUMENT[@]} \
+  -Ofair \
+  --prefetch-multiplier=1"
 
 # su $(id -nu ${DSA_USER%%:*}) -c "GW_DIRECT_PATHS=true python -m girder_worker $CONCURRENCY_ARGUMENT -Ofair --prefetch-multiplier=1"
 # exec python \

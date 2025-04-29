@@ -9,7 +9,6 @@ from datetime import timedelta
 
 from ctk_cli import CLIArgumentParser  # noqa I004
 # imported for side effects
-from slicer_cli_web import ctk_cli_adjustment  # noqa
 
 
 logging.basicConfig(level=logging.CRITICAL)
