@@ -20,7 +20,7 @@ import type {
   TimelineGraph,
 } from './use/AttributeTypes';
 import type { Time } from './use/useTimeObserver';
-import type { UseMaskInterface } from './use/useMasks';
+import type { MaskEditingTools, UseMaskInterface } from './use/useMasks';
 import type { ImageEnhancements } from './use/useImageEnhancements';
 import TrackFilterControls from './TrackFilterControls';
 import GroupFilterControls from './GroupFilterControls';
@@ -357,6 +357,19 @@ function dummyState(): State {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       getMask(trackId: number, frameId: number): HTMLImageElement | undefined {
         return undefined;
+      },
+      editorOptions: {
+        toolEnabled: ref('pointer'),
+        brushSize: ref(5),
+        opacity: ref(0.75),
+      },
+      editorFunctions: {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number }) => {
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        addUpdateMaskFrame: (trackId: number, blob: Blob) => {
+        },
       },
     },
     trackFilters: trackFilterControls,

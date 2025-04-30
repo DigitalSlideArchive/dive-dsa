@@ -5,7 +5,9 @@ import { uploadMask } from 'platform/web-girder/api/annotation.service';
 import {
   useSelectedTrackId, useTime, useDatasetId,
   useCameraStore,
+  useMasks,
 } from 'vue-media-annotator/provides';
+import { MaskEditingTools } from 'vue-media-annotator/use/useMasks';
 
 export default defineComponent({
   name: 'MaskEditor',
@@ -16,6 +18,7 @@ export default defineComponent({
     const selectedTrackId = useSelectedTrackId();
     const datasetIdRef = useDatasetId();
     const cameraStore = useCameraStore();
+    const { editorFunctions, editorOptions } = useMasks();
 
     const numberOfFrames = 600; // How many frames to generate
     const radius = 100; // Radius of circular motion
@@ -91,25 +94,92 @@ export default defineComponent({
       });
     }
 
+    const setEditingMode = (value: MaskEditingTools) => {
+      editorFunctions.setEditorOptions({ toolEnabled: value });
+    };
+
     return {
       createMask,
+      toolEnabled: editorOptions.toolEnabled,
+      brushSize: editorOptions.brushSize,
+      opacity: editorOptions.opacity,
+      setEditingMode,
     };
   },
 });
 </script>
 
 <template>
-  <span class="mx-1">
-    <v-btn
-      color="success"
-      depressed
-      small
-      @click="createMask"
-    >
-      Create Circular Mask Frames
-      <v-icon small class="ml-2">
-        mdi-star
-      </v-icon>
-    </v-btn>
-  </span>
+  <v-row
+    class="pa-0 ma-0 grow"
+    no-gutters
+  >
+    <span class="mx-1">
+      <v-btn
+        color="success"
+        depressed
+        small
+        @click="createMask"
+      >
+        Create Circular Mask Frames
+        <v-icon small class="ml-2">
+          mdi-star
+        </v-icon>
+      </v-btn>
+    </span>
+    <span>
+      <v-tooltip bottom>
+        <template #activator="{ on }">
+          <div v-on="on">
+            <v-btn
+              :color="toolEnabled === 'pointer' ? 'primary' : ''"
+              :outlined="toolEnabled !== 'pointer'"
+              class="mx-1"
+              small
+              @click="setEditingMode('pointer')"
+            >
+              <v-icon>mdi-cursor-default-outline</v-icon>
+            </v-btn>
+          </div>
+        </template>
+        <span>Pointer Mode for panning/ zoom and dragging</span>
+      </v-tooltip>
+    </span>
+    <span>
+      <v-tooltip bottom>
+        <template #activator="{ on }">
+          <div v-on="on">
+            <v-btn
+              :color="toolEnabled === 'brush' ? 'primary' : ''"
+              :outlined="toolEnabled !== 'brush'"
+              class="mx-1"
+              small
+              @click="setEditingMode('brush')"
+            >
+              <v-icon>mdi-brush-outline</v-icon>
+            </v-btn>
+          </div>
+        </template>
+        <span>Brush Mode for panning/ zoom and dragging</span>
+      </v-tooltip>
+    </span>
+    <span>
+      <v-tooltip bottom>
+        <template #activator="{ on }">
+          <div v-on="on">
+            <v-btn
+              :color="toolEnabled === 'eraser' ? 'primary' : ''"
+              :outlined="toolEnabled !== 'eraser'"
+              class="mx-1"
+              small
+              @click="setEditingMode('eraser')"
+            >
+              <v-icon>mdi-eraser</v-icon>
+            </v-btn>
+          </div>
+        </template>
+        <span>Eraser for removing data from the image</span>
+      </v-tooltip>
+    </span>
+  </v-row>
 </template>

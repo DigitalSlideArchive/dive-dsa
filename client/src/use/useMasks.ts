@@ -1,8 +1,11 @@
 /* eslint-disable guard-for-in */
 /* eslint-disable no-restricted-syntax */
 import { ref, watch, Ref } from 'vue';
-import { getRLEMask, RLETrackFrameData, RLEData } from 'platform/web-girder/api/annotation.service';
+import {
+  getRLEMask, RLETrackFrameData, RLEData, uploadMask,
+} from 'platform/web-girder/api/annotation.service';
 import { decode } from './rle';
+
 // Dynamically import the worker
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
 
@@ -18,6 +21,16 @@ type MaskItem = {
 
 export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
+  editorOptions: {
+    toolEnabled: Ref<MaskEditingTools>,
+    brushSize: Ref<number>,
+    opacity: Ref<number>
+  },
+  editorFunctions: {
+    setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number }) => void;
+    addUpdateMaskFrame: (trackId: number, blob: Blob) => void;
+  },
+
 }
 
 const useRLE = false;
@@ -31,12 +44,33 @@ const timingTotals = {
   total: 0,
 };
 
-export default function useMasks(frame: Readonly<Ref<number>>) {
+export type MaskEditingTools = 'pointer' | 'brush' | 'eraser';
+
+export default function useMasks(frame: Readonly<Ref<number>>, datasetId: Readonly<Ref<string>>) {
   const frameRate = ref(30);
   const masks = ref<MaskItem[]>([]);
   const cache = new Map<string, HTMLImageElement>();
   const inFlightRequests = new Map<string, { image: HTMLImageElement, controller: AbortController }>();
   const rleMasks: Ref<RLETrackFrameData> = ref({});
+  const toolEnabled: Ref<MaskEditingTools> = ref('pointer');
+  const brushSize = ref(5); // Brush size for Painting/Editing
+  const opacity = ref(0.75);
+
+  function setEditorOptions(data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number }) {
+    if (data.toolEnabled !== undefined) {
+      toolEnabled.value = data.toolEnabled;
+    }
+    if (data.brushSize !== undefined) {
+      brushSize.value = data.brushSize;
+    }
+    if (data.opactiy !== undefined) {
+      opacity.value = data.opactiy;
+    }
+  }
+
+  async function addUpdateMaskFrame(trackId: number, blob: Blob) {
+    await uploadMask(datasetId.value, trackId, frame.value, blob);
+  }
 
   async function getFolderRLEMasks(folderId: string) {
     rleMasks.value = (await getRLEMask(folderId)).data;
@@ -266,5 +300,14 @@ export default function useMasks(frame: Readonly<Ref<number>>) {
     getFolderRLEMasks,
     convertAllRLEMasksToImagesWebWorker,
     convertAllRLEMasksToImages,
+    editorOptions: {
+      toolEnabled,
+      brushSize,
+      opacity,
+    },
+    editorFunctions: {
+      setEditorOptions,
+      addUpdateMaskFrame,
+    },
   };
 }

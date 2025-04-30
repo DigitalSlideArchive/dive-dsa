@@ -347,7 +347,9 @@ export default defineComponent({
       setFrameRate,
       getMask,
       getFolderRLEMasks,
-    } = useMasks(time.frame);
+      editorFunctions,
+      editorOptions,
+    } = useMasks(time.frame, datasetId);
 
     const allSelectedIds = computed(() => {
       const selected = selectedTrackId.value;
@@ -976,7 +978,7 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
-        masks: { getMask },
+        masks: { getMask, editorFunctions, editorOptions },
       },
       globalHandler,
       useAttributeFilters,

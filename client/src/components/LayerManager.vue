@@ -84,7 +84,7 @@ export default defineComponent({
     const configMan = useConfiguration();
     const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-    const { getMask } = useMasks();
+    const { getMask, editorOptions } = useMasks();
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
     const groupStore = cameraStore.camMap.value.get(props.camera)?.groupStore;
@@ -116,7 +116,7 @@ export default defineComponent({
       annotator,
       typeStyling: typeStylingRef,
     });
-    const maskEditorLayer = new MaskEditorLayer({ annotator, typeStyling: typeStylingRef });
+    const maskEditorLayer = new MaskEditorLayer({ annotator, typeStyling: typeStylingRef, editorOptions });
     const overlayFilters: Ref<{
         videoLayerTransparencyVals: number[][][],
         videoLayerColorTransparencyOn: boolean,
@@ -403,6 +403,7 @@ export default defineComponent({
         } else if (editingTracks.length && editingTrack === 'Mask') {
           editAnnotationLayer.disable();
           maskLayer.disable();
+          rectAnnotationLayer.setDisableClicking(true);
           const track = editingTracks[0];
           if (track.features?.hasMask) {
             const image = getMask(track.track.id, frame);
@@ -415,10 +416,12 @@ export default defineComponent({
           }
         } else {
           editAnnotationLayer.disable();
+          rectAnnotationLayer.setDisableClicking(false);
         }
       } else {
         editAnnotationLayer.disable();
         maskEditorLayer.disable();
+        rectAnnotationLayer.setDisableClicking(false);
       }
       annotator.setExpandedBounds(globalBounds);
     }

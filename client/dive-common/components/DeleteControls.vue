@@ -21,7 +21,7 @@ export default defineComponent({
       if (props.selectedFeatureHandle < 0 && props.editingMode === false) {
         return true;
       }
-      if (props.editingMode === 'rectangle') {
+      if (props.editingMode === 'rectangle' || props.editingMode === 'Mask') {
         return true; // deleting rectangle is unsupported
       }
       return false;
