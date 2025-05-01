@@ -155,6 +155,7 @@ def get_valid_masks(folder: GirderModel, user: GirderUserModel) -> List[GirderMo
             f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
         }
     )
+    print(f'MASKFOLDERID: {mask_folder["_id"]}')
     if mask_folder is None:
         return []
     masks_tracks = Folder().childFolders(
@@ -169,6 +170,7 @@ def get_valid_masks(folder: GirderModel, user: GirderUserModel) -> List[GirderMo
     for mask_track in list(masks_tracks):
         track_frames = Item().find(
             {
+                f'folderId': mask_track['_id'],
                 f'meta.{constants.MASK_TRACK_FRAME_MARKER}': {'$in': TRUTHY_META_VALUES},
             }
         )

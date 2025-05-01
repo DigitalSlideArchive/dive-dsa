@@ -342,15 +342,6 @@ export default defineComponent({
       login: store.state.User.user?.login || '',
     });
 
-    const {
-      initializeMaskData,
-      setFrameRate,
-      getMask,
-      getFolderRLEMasks,
-      editorFunctions,
-      editorOptions,
-    } = useMasks(time.frame, datasetId);
-
     const allSelectedIds = computed(() => {
       const selected = selectedTrackId.value;
       if (selected !== null) {
@@ -925,6 +916,15 @@ export default defineComponent({
       unlinkCameraTrack,
       setConfigurationId,
     };
+
+    const {
+      initializeMaskData,
+      setFrameRate,
+      getMask,
+      getFolderRLEMasks,
+      editorFunctions,
+      editorOptions,
+    } = useMasks(time.frame, time.flick, datasetId, globalHandler);
 
     const useAttributeFilters = {
       attributeFilters,

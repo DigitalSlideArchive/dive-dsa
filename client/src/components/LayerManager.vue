@@ -84,7 +84,7 @@ export default defineComponent({
     const configMan = useConfiguration();
     const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-    const { getMask, editorOptions } = useMasks();
+    const { getMask, editorOptions, editorFunctions } = useMasks();
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
     const groupStore = cameraStore.camMap.value.get(props.camera)?.groupStore;
@@ -116,7 +116,9 @@ export default defineComponent({
       annotator,
       typeStyling: typeStylingRef,
     });
-    const maskEditorLayer = new MaskEditorLayer({ annotator, typeStyling: typeStylingRef, editorOptions });
+    const maskEditorLayer = new MaskEditorLayer({
+      annotator, typeStyling: typeStylingRef, editorOptions, editorFunctions,
+    });
     const overlayFilters: Ref<{
         videoLayerTransparencyVals: number[][][],
         videoLayerColorTransparencyOn: boolean,
@@ -405,15 +407,8 @@ export default defineComponent({
           maskLayer.disable();
           rectAnnotationLayer.setDisableClicking(true);
           const track = editingTracks[0];
-          if (track.features?.hasMask) {
-            const image = getMask(track.track.id, frame);
-            if (image) {
-              maskEditorLayer.setEditingImage({ trackId: track.track.id, image });
-              setTimeout(() => {
-                maskEditorLayer.drawPoint(10, 10);
-              }, 1000);
-            }
-          }
+          const image = getMask(track.track.id, frame);
+          maskEditorLayer.setEditingImage({ trackId: track.track.id, image });
         } else {
           editAnnotationLayer.disable();
           rectAnnotationLayer.setDisableClicking(false);

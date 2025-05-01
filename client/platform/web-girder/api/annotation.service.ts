@@ -88,12 +88,14 @@ async function uploadMask(
   trackId: number,
   frameId: number,
   blob: Blob,
+  RLEUpdate = false,
 ) {
   const params = {
     folderId,
     trackId,
     frameId,
     size: blob.size,
+    RLEUpdate,
   };
 
   // First request to initialize upload

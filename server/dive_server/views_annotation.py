@@ -63,9 +63,10 @@ class AnnotationResource(Resource):
         .param("trackId", "Track ID to update", paramType="query", dataType="string")
         .param("frameId", "Frame ID to update", paramType="query", dataType="string")
         .param("size", "Size of the png to upload", paramType="query", dataType="integer", required=False)
+        .param("RLEUpdate", "Update the RLEMask", paramType="query", dataType="boolean", default=False)
 
     )
-    def update_mask(self, folder, trackId, frameId, size):
+    def update_mask(self, folder, trackId, frameId, size, RLEUpdate):
         crud.verify_dataset(folder)
         user = self.getCurrentUser()
         mask_item = crud_annotation.get_mask_item(user, folder, trackId, frameId)
@@ -95,11 +96,12 @@ class AnnotationResource(Resource):
         if upload['size'] > 0:
             if chunk:
                 val = Upload().handleChunk(upload, chunk, filter=True, user=user)
+                crud_annotation.update_RLE_masks(user, folder, [[trackId, frameId]])
                 return val
             return upload
         else:
             finalized_upload = File().filter(Upload().finalizeUpload(upload), user)
-            crud_annotation.update_RLE_mask(user, folder, trackId, frameId)
+            crud_annotation.update_RLE_masks(user, folder, [[trackId, frameId]])
             return finalized_upload
 
     @access.user

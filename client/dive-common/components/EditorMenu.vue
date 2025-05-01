@@ -138,7 +138,10 @@ export default defineComponent({
           button.color = button.active ? editingHeader.value.color : '';
         }
       }
-      return buttons;
+      if (props.editingTrack && props.editingMode !== 'Mask') {
+        return buttons;
+      }
+      return [];
     });
 
     const viewButtons = computed((): ButtonData[] => {

@@ -325,6 +325,7 @@ export function useMediaController() {
         interactorOpts.actions[8],
         interactorOpts.actions[9],
       ];
+      console.log(interactorOpts);
       // Set > 2pi to disable rotation
       interactorOpts.zoomrotateMinimumRotation = 7;
       interactorOpts.zoomAnimation = {

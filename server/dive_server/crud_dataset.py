@@ -271,7 +271,7 @@ def get_media(
             )
 
     masks = crud.get_valid_masks(dsFolder, user)
-    print(f'VALID MASKS: {masks}')
+    print(f'FolderId: {dsFolder["_id"]}')
     if len(masks) > 0:
         # Find a video tagged with an h264 codec left by the transcoder
         masks = [

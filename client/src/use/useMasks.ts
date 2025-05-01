@@ -4,6 +4,8 @@ import { ref, watch, Ref } from 'vue';
 import {
   getRLEMask, RLETrackFrameData, RLEData, uploadMask,
 } from 'platform/web-girder/api/annotation.service';
+import { RectBounds } from 'vue-media-annotator/utils';
+import { Handler } from 'vue-media-annotator/provides';
 import { decode } from './rle';
 
 // Dynamically import the worker
@@ -19,16 +21,18 @@ type MaskItem = {
   url: string;
 };
 
+export type MaskTriggerActions = null | 'save' | 'delete';
 export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
   editorOptions: {
     toolEnabled: Ref<MaskEditingTools>,
     brushSize: Ref<number>,
-    opacity: Ref<number>
+    opacity: Ref<number>,
+    triggerAction: Ref<null | 'save' | 'delete'>, // Used to communicate with the MaskEditorLayer
   },
   editorFunctions: {
-    setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number }) => void;
-    addUpdateMaskFrame: (trackId: number, blob: Blob) => void;
+    setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
+    addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => void;
   },
 
 }
@@ -44,19 +48,75 @@ const timingTotals = {
   total: 0,
 };
 
+export async function getMaskBlobAndBoundsFromImage(
+  image: HTMLImageElement,
+): Promise<{ blob: Blob; bounds: RectBounds | null }> {
+  // Draw image to a canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { blob: new Blob(), bounds: null };
+
+  ctx.drawImage(image, 0, 0);
+
+  // Convert to Blob
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+  if (!blob) return { blob: new Blob(), bounds: null };
+
+  // Decode the blob into an ImageBitmap
+  const bitmap = await createImageBitmap(blob);
+  const offscreenCanvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const offscreenCtx = offscreenCanvas.getContext('2d');
+  if (!offscreenCtx) return { blob, bounds: null };
+
+  offscreenCtx.drawImage(bitmap, 0, 0);
+  const imageData = offscreenCtx.getImageData(0, 0, bitmap.width, bitmap.height);
+  const { data } = imageData;
+
+  let minX = bitmap.width; let minY = bitmap.height; let maxX = 0; let
+    maxY = 0;
+  let hasMask = false;
+
+  for (let y = 0; y < bitmap.height; y += 1) {
+    for (let x = 0; x < bitmap.width; x += 1) {
+      const index = (y * bitmap.width + x) * 4;
+      const alpha = data[index + 3];
+
+      if (alpha > 0) {
+        hasMask = true;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  const bounds: RectBounds | null = hasMask ? [minX, minY, maxX, maxY] : null;
+  return { blob, bounds };
+}
+
 export type MaskEditingTools = 'pointer' | 'brush' | 'eraser';
 
-export default function useMasks(frame: Readonly<Ref<number>>, datasetId: Readonly<Ref<string>>) {
+export default function useMasks(
+  frame: Readonly<Ref<number>>,
+  flick: Readonly<Ref<number>>,
+  datasetId: Readonly<Ref<string>>,
+  handler: Handler,
+) {
   const frameRate = ref(30);
   const masks = ref<MaskItem[]>([]);
   const cache = new Map<string, HTMLImageElement>();
   const inFlightRequests = new Map<string, { image: HTMLImageElement, controller: AbortController }>();
   const rleMasks: Ref<RLETrackFrameData> = ref({});
   const toolEnabled: Ref<MaskEditingTools> = ref('pointer');
-  const brushSize = ref(5); // Brush size for Painting/Editing
-  const opacity = ref(0.75);
+  const brushSize = ref(20); // Brush size for Painting/Editing
+  const triggerAction: Ref<MaskTriggerActions> = ref(null);
+  const opacity = ref(50);
 
-  function setEditorOptions(data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number }) {
+  function setEditorOptions(data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions }) {
     if (data.toolEnabled !== undefined) {
       toolEnabled.value = data.toolEnabled;
     }
@@ -66,9 +126,17 @@ export default function useMasks(frame: Readonly<Ref<number>>, datasetId: Readon
     if (data.opactiy !== undefined) {
       opacity.value = data.opactiy;
     }
+    if (data.triggerAction !== undefined) {
+      triggerAction.value = data.triggerAction;
+    }
   }
 
-  async function addUpdateMaskFrame(trackId: number, blob: Blob) {
+  async function addUpdateMaskFrame(trackId: number, image: HTMLImageElement) {
+    const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
+    if (bounds) {
+      handler.updateRectBounds(frame.value, flick.value, bounds);
+    }
+    cache.set(frameKey(frame.value, trackId), image);
     await uploadMask(datasetId.value, trackId, frame.value, blob);
   }
 
@@ -304,6 +372,7 @@ export default function useMasks(frame: Readonly<Ref<number>>, datasetId: Readon
       toolEnabled,
       brushSize,
       opacity,
+      triggerAction,
     },
     editorFunctions: {
       setEditorOptions,
