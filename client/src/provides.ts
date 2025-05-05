@@ -164,6 +164,7 @@ export interface Handler {
     flickNum: number,
     bounds: RectBounds,
     forceInterpolate?: boolean,
+    maskVal?: undefined | boolean,
   ): void;
   /* update geojson for track */
   updateGeoJSON(
@@ -371,6 +372,8 @@ function dummyState(): State {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         addUpdateMaskFrame: (trackId: number, image: HTMLImageElement) => {
         },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        deleteMaskFrame: (trackId: number) => {},
       },
     },
     trackFilters: trackFilterControls,

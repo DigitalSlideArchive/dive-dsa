@@ -53,6 +53,7 @@ class AnnotationResource(Resource):
         self.route("POST", ("rollback",), self.rollback)
         self.route("POST", ("process_json",), self.process_json)
         self.route("POST", ('mask',), self.update_mask)
+        self.route("DE:ETE", ('mask',), self.delete_mask)
         self.route("POST", ('rle_mask',), self.update_rle_mask)
         self.route("GET", ('rle_mask',), self.get_rle_mask)
 
@@ -103,6 +104,36 @@ class AnnotationResource(Resource):
             finalized_upload = File().filter(Upload().finalizeUpload(upload), user)
             crud_annotation.update_RLE_masks(user, folder, [[trackId, frameId]])
             return finalized_upload
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Delete mask annotations")
+        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+        .param("trackId", "Track ID to delete", paramType="query", dataType="string")
+        .param("frameId", "Frame ID to delete (-1 to delete entire track)", paramType="query", dataType="string")
+    )
+    def delete_mask(self, folder, trackId, frameId):
+        crud.verify_dataset(folder)
+        user = self.getCurrentUser()
+
+        try:
+            track_id = int(trackId)
+            frame_id = int(frameId)
+        except ValueError:
+            raise RestException("trackId and frameId must be integers.", code=400)
+
+        result = crud_annotation.delete_masks(user, folder, [(track_id, frame_id)])
+
+        # Determine status
+        if not result["deletedTracks"] and not result["deletedFrames"]:
+            raise RestException("No matching masks found to delete.", code=404)
+
+        return {
+            "status": "success",
+            "message": f"Masks updated for trackId={track_id}, frameId={frame_id}",
+            "deleted": result
+        }
+
 
     @access.user
     @autoDescribeRoute(

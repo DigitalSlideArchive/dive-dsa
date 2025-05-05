@@ -1,4 +1,4 @@
-from typing import Callable, Generator, Iterable, List, Optional, Tuple, Dict, Optional
+from typing import Callable, Generator, Iterable, List, Optional, Tuple, Dict
 import io
 from girder.constants import AccessType
 from girder.models.folder import Folder
@@ -18,6 +18,7 @@ from pycocotools import mask as mask_utils
 from dive_server import crud, crud_dataset
 from dive_utils import constants, fromMeta, models, types, TRUTHY_META_VALUES
 from dive_utils.serializers import viame
+from girder.exceptions import RestException
 
 DATASET = 'dataset'
 REVISION_DELETED = 'rev_deleted'
@@ -557,10 +558,10 @@ def update_RLE_masks(
 ) -> str:
     """
     Updates the JSON file (RLE_MASKS.json) in the mask folder with the encoded RLE data.
-    
+
     If track_frame_pairs is provided (list of [trackId, frameId] pairs), it updates only the given items.
     If None, it loads all items in the mask folder that have MASK_TRACK_FRAME_MARKER metadata.
-    
+
     Returns a JSON string representation of the updated data.
     """
     # Locate the mask folder under the provided folder
@@ -568,17 +569,17 @@ def update_RLE_masks(
         'parentId': folder['_id'],
         f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
     })
-    
+
     if mask_folder is None:
         # No mask folder exists; nothing to update.
         return json.dumps({})
-    
+
     # Retrieve the RLE JSON item (if exists) from the mask folder
     rle_item = Item().findOne({
         'folderId': mask_folder['_id'],
         f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
     })
-    
+
     # Load the current JSON data from the RLE file if available.
     json_data = {}
     if rle_item is not None:
@@ -589,11 +590,11 @@ def update_RLE_masks(
             json_data = json.loads(file_string)
             # Remove the file so that the new version can be uploaded
             File().remove(file_obj)
-    
+
     # Get the image files associated with the track/frame pairs (or all if None)
     # Here get_mask_items returns a dict in the form: {track_id: {frame_id: file_dict, ...}, ...}
     files_dict: Dict[int, Dict[int, dict]] = get_mask_items(user, folder, track_frame_pairs)
-    
+
     # Process each file
     for track_id, frame_items in files_dict.items():
         # Ensure that json_data has the key for this track
@@ -611,14 +612,14 @@ def update_RLE_masks(
             rle = mask_utils.encode(np.asfortranarray(np_img.astype(np.uint8)))
             # The counts value needs to be JSON serializable (i.e. a string)
             rle['counts'] = rle['counts'].decode('utf-8')
-            
+
             # Update the JSON structure with the new RLE and original image file name.
             # Keys in the JSON are stored as strings.
             json_data[str(track_id)][str(frame_id)] = {
                 'rle': rle,
                 'file_name': image_file.get('name')
             }
-    
+
     # If no RLE item exists, create one.
     if rle_item is None:
         rle_item = Item().createItem(
@@ -630,11 +631,11 @@ def update_RLE_masks(
         Item().setMetadata(rle_item, {
             constants.MASK_RLE_FILE_MARKER: True,
         })
-    
+
     # Convert updated JSON data to bytes
     json_bytes = json.dumps(json_data).encode()
     byteIO = io.BytesIO(json_bytes)
-    
+  
     # Upload updated JSON file, replacing the previous version.
     Upload().uploadFromFile(
         byteIO,
@@ -645,6 +646,111 @@ def update_RLE_masks(
         user=user,
         mimeType="application/json",
     )
-    
+
     return json_data
 
+
+def delete_masks(
+    user: User,
+    folder: Folder,
+    track_frame_pairs: Optional[List[Tuple[int, int]]] = None  # -1 frame means entire track
+) -> Dict:
+    """
+    Deletes specified mask items or track folders, and updates RLE_MASKS.json.
+    
+    Returns a summary:
+        {
+            "deletedTracks": [int],
+            "deletedFrames": [(trackId, frameId)],
+            "missingTracks": [int],
+            "missingFrames": [(trackId, frameId)]
+        }
+    """
+    result = {
+        "deletedTracks": [],
+        "deletedFrames": [],
+        "missingTracks": [],
+        "missingFrames": [],
+    }
+
+    # Locate the mask folder
+    mask_folder = Folder().findOne({
+        'parentId': folder['_id'],
+        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+    if not mask_folder:
+        raise RestException("Mask folder not found in dataset.", code=404)
+
+    if not track_frame_pairs:
+        raise RestException("No track/frame pairs provided for deletion.", code=400)
+
+    rle_json = get_mask_json(folder)
+
+    for track_id, frame_id in track_frame_pairs:
+        track_str = str(track_id)
+        track_folder = Folder().findOne({
+            'parentId': mask_folder['_id'],
+            'name': track_str
+        })
+
+        if not track_folder:
+            result["missingTracks"].append(track_id)
+            continue
+
+        if frame_id == -1:
+            # Delete the entire track
+            Folder().remove(track_folder)
+            result["deletedTracks"].append(track_id)
+            if track_str in rle_json:
+                del rle_json[track_str]
+        else:
+            item = Item().findOne({
+                'folderId': track_folder['_id'],
+                'name': f'{frame_id}.png'
+            })
+
+            if item:
+                Item().remove(item)
+                result["deletedFrames"].append((track_id, frame_id))
+            else:
+                result["missingFrames"].append((track_id, frame_id))
+
+            # Remove from RLE JSON
+            if track_str in rle_json and str(frame_id) in rle_json[track_str]:
+                del rle_json[track_str][str(frame_id)]
+                if not rle_json[track_str]:
+                    del rle_json[track_str]
+
+    # Update RLE_MASKS.json
+    rle_item = Item().findOne({
+        'folderId': mask_folder['_id'],
+        f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+    })
+
+    if rle_item:
+        old_file = next(Item().childFiles(rle_item), None)
+        if old_file:
+            File().remove(old_file)
+    else:
+        rle_item = Item().createItem(
+            'RLE_MASKS.json',
+            creator=user,
+            folder=mask_folder,
+            reuseExisting=True,
+        )
+        Item().setMetadata(rle_item, {constants.MASK_RLE_FILE_MARKER: True})
+
+    json_bytes = json.dumps(rle_json).encode()
+    byteIO = io.BytesIO(json_bytes)
+
+    Upload().uploadFromFile(
+        byteIO,
+        len(json_bytes),
+        rle_item['name'],
+        parentType="item",
+        parent=rle_item,
+        user=user,
+        mimeType="application/json",
+    )
+
+    return result

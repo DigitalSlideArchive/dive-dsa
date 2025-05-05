@@ -94,7 +94,7 @@ export default defineComponent({
             </v-btn>
           </div>
         </template>
-        <span>Brush Mode for panning/ zoom and dragging</span>
+        <span>Brush Mode for painting the mask</span>
       </v-tooltip>
     </span>
     <span>

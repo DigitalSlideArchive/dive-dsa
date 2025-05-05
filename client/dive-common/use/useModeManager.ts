@@ -380,7 +380,7 @@ export default function useModeManager({
     creating = newCreatingValue;
   }
 
-  function handleUpdateRectBounds(frameNum: number, flickNum: number, bounds: RectBounds, forceInterpolate = false) {
+  function handleUpdateRectBounds(frameNum: number, flickNum: number, bounds: RectBounds, forceInterpolate = false, maskValue: undefined | boolean = undefined) {
     if (selectedTrackId.value !== null) {
       const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
       if (track) {
@@ -394,6 +394,9 @@ export default function useModeManager({
           interpolate: _shouldInterpolate(interpolate) || forceInterpolate,
         });
         newTrackSettingsAfterLogic(track);
+        if (maskValue !== undefined) {
+          track.setHasMask(frameNum, maskValue);
+        }
       }
     }
   }
@@ -552,6 +555,12 @@ export default function useModeManager({
         if (track.meta?.time && annotationModes.editing === 'Time') {
           track.setTimeMode(false);
           handleSetAnnotationState({ editing: 'rectangle' });
+        }
+        if (annotationModes.editing === 'Mask') {
+          const [feature] = track.getFeature(frame.value);
+          if (feature?.hasMask) {
+            track.setHasMask(frame.value, false);
+          }
         }
         recipes.forEach((r) => {
           if (r.active.value) {

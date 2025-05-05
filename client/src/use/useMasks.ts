@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-syntax */
 import { ref, watch, Ref } from 'vue';
 import {
-  getRLEMask, RLETrackFrameData, RLEData, uploadMask,
+  getRLEMask, RLETrackFrameData, RLEData, uploadMask, deleteMask,
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
@@ -33,6 +33,7 @@ export interface UseMaskInterface {
   editorFunctions: {
     setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => void;
+    deleteMaskFrame: (trackId: number) => void;
   },
 
 }
@@ -134,10 +135,18 @@ export default function useMasks(
   async function addUpdateMaskFrame(trackId: number, image: HTMLImageElement) {
     const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
     if (bounds) {
-      handler.updateRectBounds(frame.value, flick.value, bounds);
+      handler.updateRectBounds(frame.value, flick.value, bounds, false, true);
     }
-    cache.set(frameKey(frame.value, trackId), image);
     await uploadMask(datasetId.value, trackId, frame.value, blob);
+    cache.set(frameKey(frame.value, trackId), image);
+  }
+
+  async function deleteMaskFrame(trackId: number) {
+    cache.delete(frameKey(frame.value, trackId));
+    const result = await deleteMask(datasetId.value, trackId, frame.value);
+    if (result) {
+      handler.removeAnnotation();
+    }
   }
 
   async function getFolderRLEMasks(folderId: string) {
@@ -377,6 +386,7 @@ export default function useMasks(
     editorFunctions: {
       setEditorOptions,
       addUpdateMaskFrame,
+      deleteMaskFrame,
     },
   };
 }

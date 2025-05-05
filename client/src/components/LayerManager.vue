@@ -356,6 +356,8 @@ export default defineComponent({
           }
         });
         maskLayer.setSegmenationImages(maskImages);
+      } else {
+        maskLayer.disable();
       }
 
       pointLayer.changeData(frameData);

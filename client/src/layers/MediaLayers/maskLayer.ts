@@ -58,8 +58,8 @@ export default class MaskLayer {
   }
 
   setSegmenationImages(data: {trackId: number, image: HTMLImageElement}[]) {
-    this.disable();
     const [width, height] = this.annotator.frameSize.value;
+    this.disable();
     data.forEach((item) => {
       if (!this.featureLayers[item.trackId]) {
         this.featureLayers[item.trackId] = this.annotator.geoViewerRef.value.createLayer('feature', {
@@ -71,15 +71,16 @@ export default class MaskLayer {
         this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
-        this.featureLayers[item.trackId].visible(true);
+        // Interesting hack to clear the data
+        this.quads[item.trackId]._cleanup();
         this.quads[item.trackId].data([
           {
             ul: { x: 0, y: 0 },
             lr: { x: width, y: height },
             image: item.image,
           },
-        ])
-          .draw();
+        ]).draw();
+        this.featureLayers[item.trackId].visible(true);
       }
     });
   }

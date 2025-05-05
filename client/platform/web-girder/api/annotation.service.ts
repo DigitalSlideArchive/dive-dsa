@@ -125,6 +125,26 @@ async function getRLEMask(folderId: string) {
   return response;
 }
 
+export interface DeleteMaskResponse {
+  status: string;
+  message: string;
+  deleted: {
+    deletedTracks: number[];
+    deletedFrames: [number, number][];
+  };
+}
+
+async function deleteMask(folderId: string, trackId: number, frameId: number) {
+  const { data } = await girderRest.delete<DeleteMaskResponse>('dive_annotation/mask', {
+    params: {
+      folderId,
+      trackId,
+      frameId,
+    },
+  });
+  return data;
+}
+
 export {
   getLabels,
   loadDetections,
@@ -134,5 +154,6 @@ export {
   uploadMask,
   updateRLEMasks,
   getRLEMask,
+  deleteMask,
 
 };
