@@ -2,14 +2,14 @@
 /* eslint-disable no-restricted-syntax */
 import { ref, watch, Ref } from 'vue';
 import {
-  getRLEMask, RLETrackFrameData, RLEData, uploadMask, deleteMask,
+  getRLEMask, RLETrackFrameData, uploadMask, deleteMask,
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
-import { decode } from './rle';
 
 // Dynamically import the worker
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
+const rleWorker = RLEWorker();
 
 type MaskItem = {
   filename: string;
@@ -39,17 +39,9 @@ export interface UseMaskInterface {
 
 }
 
-const useRLE = false;
+const useRLE = true;
 const ENABLE_TIMING_LOGS = true;
-const timingTotals = {
-  decode: 0,
-  canvasSetup: 0,
-  populate: 0,
-  render: 0,
-  load: 0,
-  total: 0,
-};
-
+let lastTime = 0;
 export async function getMaskBlobAndBoundsFromImage(
   image: HTMLImageElement,
 ): Promise<{ blob: Blob; bounds: RectBounds | null }> {
@@ -169,152 +161,30 @@ export default function useMasks(
 
   async function getFolderRLEMasks(folderId: string) {
     rleMasks.value = (await getRLEMask(folderId)).data;
-    if (useRLE) {
-      await convertAllRLEMasksToImagesWebWorker();
-    }
   }
 
   function initializeMaskData(maskData: { masks: Readonly<MaskItem[]> }) {
     masks.value = [...maskData.masks];
-    if (!useRLE) {
-      preloadWindow(frame.value);
-    }
   }
 
-  async function rleToImageElement(rle: RLEData, key?: string): Promise<HTMLImageElement> {
-    const totalStart = performance.now();
-
-    const decodeStart = performance.now();
-    const binaryMask = decode([rle]);
-    const decodeEnd = performance.now();
-
-    const canvasStart = performance.now();
-    const canvas = document.createElement('canvas');
-    [canvas.width, canvas.height] = rle.size;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Failed to get canvas context');
-
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
-    const canvasEnd = performance.now();
-
-    const populateStart = performance.now();
-    for (let i = 0; i < binaryMask.data.length; i += 1) {
-      const value = binaryMask.data[i] ? 255 : 0;
-      imageData.data[i * 4 + 0] = value;
-      imageData.data[i * 4 + 1] = value;
-      imageData.data[i * 4 + 2] = value;
-      imageData.data[i * 4 + 3] = value;
-    }
-    const populateEnd = performance.now();
-
-    const renderStart = performance.now();
-    ctx.putImageData(imageData, 0, 0);
-    const dataUrl = canvas.toDataURL();
-    const renderEnd = performance.now();
-
-    const loadStart = performance.now();
+  rleWorker.onmessage = (event) => {
     const img = new Image();
-    img.src = dataUrl;
-
-    await new Promise((resolve, reject) => {
-      img.onload = () => resolve(null);
-      img.onerror = reject;
-    });
-    const loadEnd = performance.now();
-
-    const totalEnd = performance.now();
-
-    // Accumulate timings
-    timingTotals.decode += decodeEnd - decodeStart;
-    timingTotals.canvasSetup += canvasEnd - canvasStart;
-    timingTotals.populate += populateEnd - populateStart;
-    timingTotals.render += renderEnd - renderStart;
-    timingTotals.load += loadEnd - loadStart;
-    timingTotals.total += totalEnd - totalStart;
-
-    if (ENABLE_TIMING_LOGS && key) {
-      console.log(`⏱ [${key}] RLE decode: ${(decodeEnd - decodeStart).toFixed(2)} ms`);
-      console.log(`⏱ [${key}] Canvas setup: ${(canvasEnd - canvasStart).toFixed(2)} ms`);
-      console.log(`⏱ [${key}] Populate image data: ${(populateEnd - populateStart).toFixed(2)} ms`);
-      console.log(`⏱ [${key}] Render & toDataURL: ${(renderEnd - renderStart).toFixed(2)} ms`);
-      console.log(`⏱ [${key}] Image load: ${(loadEnd - loadStart).toFixed(2)} ms`);
-      console.log(`✅ [${key}] Total: ${(totalEnd - totalStart).toFixed(2)} ms`);
-    }
-
-    return img;
-  }
-
-  async function convertAllRLEMasksToImagesWebWorker() {
-    const totalStart = performance.now();
-    const rleWorker = RLEWorker();
-
-    return new Promise<void>((resolve, reject) => {
-      rleWorker.onmessage = (event) => {
-        const results = event.data;
-
-        for (const trackId in results) {
-          const frames = results[trackId];
-          for (const frameId in frames) {
-            const key = frameKey(Number(frameId), Number(trackId));
-            const img = new Image();
-            img.src = frames[frameId];
-            cache.set(key, img);
-          }
-        }
-
-        const totalEnd = performance.now();
-        if (ENABLE_TIMING_LOGS) {
-          console.log(`🧾 Worker Total Elapsed: ${(totalEnd - totalStart).toFixed(2)} ms`);
-        }
-
-        resolve();
-      };
-
-      rleWorker.onerror = (error) => {
-        console.error('Worker error:', error);
-        reject(error);
-      };
-
-      rleWorker.postMessage({ rleMasks: rleMasks.value });
-    });
-  }
-
-  async function convertAllRLEMasksToImages() {
-    const totalStart = performance.now();
-    const promises: Promise<void | Map<string, HTMLImageElement>>[] = [];
-
-    for (const trackId in rleMasks.value) {
-      const frames = rleMasks.value[trackId];
-      for (const frameId in frames) {
-        const rleWrapper = frames[frameId];
-        const key = frameKey(Number(frameId), Number(trackId));
-
-        if (!cache.has(key)) {
-          const promise = rleToImageElement(rleWrapper.rle, key)
-            .then((img) => cache.set(key, img))
-            .catch((err) => {
-              console.error(`❌ Failed to convert RLE to image for key ${key}`, err);
-            });
-          promises.push(promise);
-        }
-      }
-    }
-
-    await Promise.all(promises);
-    const totalEnd = performance.now();
-
+    const { trackId, frameId, objectURL } = event.data;
     if (ENABLE_TIMING_LOGS) {
-      console.log('\n🧾 RLE Mask Timing Summary (All Images):');
-      console.log(`   - RLE Decode: ${timingTotals.decode.toFixed(2)} ms`);
-      console.log(`   - Canvas Setup: ${timingTotals.canvasSetup.toFixed(2)} ms`);
-      console.log(`   - Populate ImageData: ${timingTotals.populate.toFixed(2)} ms`);
-      console.log(`   - Render + toDataURL: ${timingTotals.render.toFixed(2)} ms`);
-      console.log(`   - Image Load: ${timingTotals.load.toFixed(2)} ms`);
-      console.log(`   - Total (Sum): ${timingTotals.total.toFixed(2)} ms`);
-      console.log(`   - Wrapper Total (Elapsed): ${(totalEnd - totalStart).toFixed(2)} ms\n`);
+      const end = performance.now();
+      console.log(`🧾 Worker End: ${end}`);
+      console.log(`🧾 Worker Time: ${end - lastTime}ms`);
+      lastTime = end;
     }
-  }
+    img.src = objectURL;
+    const key = frameKey(frameId, trackId);
+    cache.set(key, img);
+    //inFlightWorker.delete(key);
+  };
+
+  rleWorker.onerror = (error) => {
+    console.error('Worker error:', error);
+  };
 
   function setFrameRate(newRate: number) {
     frameRate.value = newRate;
@@ -341,39 +211,63 @@ export default function useMasks(
     });
   }
 
+  function preloadImage(mask: MaskItem, key: string) {
+    const img = new Image();
+    const controller = new AbortController();
+
+    img.onload = () => {
+      cache.set(key, img);
+      inFlightRequests.delete(key);
+    };
+    img.onerror = () => {
+      inFlightRequests.delete(key);
+    };
+
+    controller.signal.addEventListener('abort', () => {
+      img.src = '';
+    });
+
+    inFlightRequests.set(key, { image: img, controller });
+    img.src = mask.url;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function preloadWindow(currentFrame: number) {
     const { minFrame, maxFrame } = getFrameWindow(currentFrame);
 
     clearOutOfWindow(minFrame, maxFrame);
-    masks.value.forEach((mask) => {
-      if (!mask.metadata || mask.metadata.frameId === undefined || mask.metadata.trackId === undefined) {
-        console.warn(`Mask ${mask.filename} does not have metadata`);
-        return;
-      }
-      const frameId = Number(mask.metadata?.frameId);
-      const { trackId } = mask.metadata;
-      const key = frameKey(mask.metadata.frameId, trackId);
-      if (frameId >= minFrame && frameId <= maxFrame && !cache.has(key) && !inFlightRequests.has(key)) {
-        const img = new Image();
-        const controller = new AbortController();
-
-        img.onload = () => {
-          cache.set(key, img);
-          inFlightRequests.delete(key);
-        };
-        img.onerror = () => {
-          inFlightRequests.delete(key);
-        };
-
-        controller.signal.addEventListener('abort', () => {
-          img.src = '';
+    if (!useRLE) {
+      masks.value.forEach((mask) => {
+        if (!mask.metadata || mask.metadata.frameId === undefined || mask.metadata.trackId === undefined) {
+          console.warn(`Mask ${mask.filename} does not have metadata`);
+          return;
+        }
+        const frameId = Number(mask.metadata?.frameId);
+        const { trackId } = mask.metadata;
+        const key = frameKey(mask.metadata.frameId, trackId);
+        if (frameId >= minFrame && frameId <= maxFrame && !cache.has(key) && !inFlightRequests.has(key)) {
+          preloadImage(mask, key);
+        }
+      });
+    } else {
+      const maskList: RLETrackFrameData = {};
+      Object.keys(rleMasks.value).forEach((trackIdstr) => {
+        Object.keys(rleMasks.value[trackIdstr]).forEach((frameIdstr) => {
+          const trackId = Number(trackIdstr);
+          const frameId = Number(frameIdstr);
+          const key = frameKey(Number(frameId), Number(trackId));
+          if (frameId >= minFrame && frameId <= maxFrame && !cache.has(key)) {
+            maskList[trackId] = maskList[trackId] || {};
+            maskList[trackId][frameId] = rleMasks.value[trackId][frameId];
+          }
         });
-
-        inFlightRequests.set(key, { image: img, controller });
-        img.src = mask.url;
+      });
+      if (ENABLE_TIMING_LOGS) {
+        lastTime = performance.now();
+        console.log(`🧾 Worker Start: ${lastTime}`);
       }
-    });
+      rleWorker.postMessage({ rleMasks: maskList });
+    }
   }
 
   function getMask(trackId: number, frameId: number): HTMLImageElement | undefined {
@@ -382,9 +276,7 @@ export default function useMasks(
 
   watch(frame, (newFrame) => {
     if (typeof newFrame === 'number') {
-      if (!useRLE) {
-        preloadWindow(newFrame);
-      }
+      preloadWindow(newFrame);
     }
   }, { immediate: true });
 
@@ -393,8 +285,6 @@ export default function useMasks(
     setFrameRate,
     getMask,
     getFolderRLEMasks,
-    convertAllRLEMasksToImagesWebWorker,
-    convertAllRLEMasksToImages,
     editorOptions: {
       toolEnabled,
       brushSize,

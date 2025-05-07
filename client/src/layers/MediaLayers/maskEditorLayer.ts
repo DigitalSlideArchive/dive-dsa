@@ -100,6 +100,7 @@ export default class MaskEditorLayer {
     } else {
       this.iconCtx = null;
     }
+    this.iconLayer.visible(false);
     this.mouseDown = false;
     this.editorOptionsRef = editorOptions;
     this.editorFunctionsRef = editorFunctions;
