@@ -307,7 +307,7 @@ export default defineComponent({
 
       if (visibleModes.includes('rectangle')) {
         //We modify rects opacity/thickness if polygons are visible or not
-        rectAnnotationLayer.setDrawingOther(visibleModes.includes('Polygon'));
+        rectAnnotationLayer.setDrawingOther(visibleModes.includes('Polygon') || visibleModes.includes('Mask'));
         rectAnnotationLayer.changeData(frameData);
       } else {
         rectAnnotationLayer.disable();
@@ -343,6 +343,7 @@ export default defineComponent({
 
       if (visibleModes.includes('Mask')) {
         const maskImages : {trackId: number, image: HTMLImageElement}[] = [];
+
         frameData.forEach((track) => {
           if (track.features?.hasMask) {
             const image = getMask(track.track.id, frame);
@@ -351,11 +352,15 @@ export default defineComponent({
                 trackId: track.track.id,
                 image,
               });
-              getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
             }
+            getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
           }
         });
-        maskLayer.setSegmenationImages(maskImages);
+        if (maskImages.length) {
+          maskLayer.setSegmenationImages(maskImages);
+        } else {
+          maskLayer.disable();
+        }
       } else {
         maskLayer.disable();
       }
@@ -404,21 +409,26 @@ export default defineComponent({
             editAnnotationLayer.setKey(selectedKey);
             editAnnotationLayer.changeData(editingTracks);
           }
+          maskEditorLayer.disable();
         } else if (editingTracks.length && editingTrack === 'Mask') {
-          editAnnotationLayer.disable();
           maskLayer.disable();
+          editAnnotationLayer.disable();
           rectAnnotationLayer.setDisableClicking(true);
           const track = editingTracks[0];
           const image = getMask(track.track.id, frame);
-          maskEditorLayer.setEditingImage({ trackId: track.track.id, image });
+          maskEditorLayer.setEditingImage({ trackId: track.track.id, frameId: frame, image });
+          getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
         } else {
           editAnnotationLayer.disable();
+          maskEditorLayer.disable();
           rectAnnotationLayer.setDisableClicking(false);
         }
       } else {
         editAnnotationLayer.disable();
-        maskEditorLayer.disable();
         rectAnnotationLayer.setDisableClicking(false);
+        if (maskEditorLayer.checkEnabled()) {
+          maskEditorLayer.disable();
+        }
       }
       annotator.setExpandedBounds(globalBounds);
     }
@@ -498,6 +508,11 @@ export default defineComponent({
         selectedKeyRef.value,
         props.colorBy,
       );
+    });
+
+    watch(editorOptions.opacity, () => {
+      maskLayer.setOpacity(editorOptions.opacity.value);
+      maskEditorLayer.setOpacity(editorOptions.opacity.value);
     });
 
     const Clicked = (trackId: number, editing: boolean) => {

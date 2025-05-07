@@ -46,6 +46,17 @@ export default class MaskLayer {
     });
   }
 
+  setOpacity(opacity: number) {
+    this.opacity = opacity;
+    Object.keys(this.featureLayers).forEach((key) => {
+      const trackId = parseInt(key, 10);
+      const layer = this.featureLayers[trackId];
+      if (layer) {
+        layer.opacity(this.opacity / 100.0);
+      }
+    });
+  }
+
   disableTracks(trackIds: number[]) {
     trackIds.forEach((trackId) => {
       const layer = this.featureLayers[trackId];
@@ -71,7 +82,7 @@ export default class MaskLayer {
         this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
-        // Interesting hack to clear the data
+        // HACK to update the texture
         this.quads[item.trackId]._cleanup();
         this.quads[item.trackId].data([
           {

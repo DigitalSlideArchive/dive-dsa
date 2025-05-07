@@ -12,6 +12,7 @@ interface RectGeoJSData{
   styleType: [string, number] | null;
   polygon: GeoJSON.Polygon;
   hasPoly: boolean;
+  hasMask: boolean;
 }
 
 export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
@@ -106,6 +107,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       if (track.features && track.features.bounds && !track.track.meta?.time) {
         const polygon = boundToGeojson(track.features.bounds);
         let hasPoly = false;
+        const hasMask = !!track.features.hasMask;
         if (track.features.geometry?.features) {
           const filtered = track.features.geometry.features.filter((feature) => feature.geometry && feature.geometry.type === 'Polygon');
           hasPoly = filtered.length > 0;
@@ -117,6 +119,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
           styleType: track.styleType,
           polygon,
           hasPoly,
+          hasMask,
         };
         arr.push(annotation);
       }
@@ -171,7 +174,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       },
       strokeOpacity: (_point, _index, data) => {
         // Reduce the rectangle opacity if a polygon is also drawn
-        if (this.drawingOther && data.hasPoly) {
+        if (this.drawingOther && (data.hasPoly || data.hasMask)) {
           return this.stateStyling.disabled.opacity;
         }
         if (data.selected) {
@@ -194,7 +197,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       },
       strokeWidth: (_point, _index, data) => {
         //Reduce rectangle line thickness if polygon is also drawn
-        if (this.drawingOther && data.hasPoly) {
+        if (this.drawingOther && (data.hasPoly || data.hasMask)) {
           return this.stateStyling.disabled.strokeWidth;
         }
         if (data.selected) {

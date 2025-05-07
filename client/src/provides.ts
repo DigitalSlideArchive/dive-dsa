@@ -362,18 +362,24 @@ function dummyState(): State {
       editorOptions: {
         toolEnabled: ref('pointer'),
         brushSize: ref(5),
+        maxBrushSize: ref(50),
         opacity: ref(0.75),
         triggerAction: ref(null),
       },
       editorFunctions: {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions }) => {
+        setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions }) => {
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        addUpdateMaskFrame: (trackId: number, image: HTMLImageElement) => {
-        },
+        addUpdateMaskFrame: (trackId: number, image: HTMLImageElement) => new Promise<void>((resolve) => {
+          // Add your implementation logic here
+          resolve();
+        }),
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        deleteMaskFrame: (trackId: number) => {},
+        deleteMaskFrame: (trackId: number) => new Promise<void>((resolve) => {
+          // Add your implementation logic here
+          resolve();
+        }),
       },
     },
     trackFilters: trackFilterControls,

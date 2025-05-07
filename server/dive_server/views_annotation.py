@@ -1,18 +1,16 @@
+import errno
 import json
 from typing import List, Optional
-import errno
 
 import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, setRawResponse
 from girder.constants import AccessType, TokenScope
-from girder.exceptions import RestException, GirderException
-from girder.models.folder import Folder
-from girder.models.item import Item
+from girder.exceptions import GirderException, RestException
 from girder.models.file import File
+from girder.models.folder import Folder
 from girder.models.upload import Upload
-
 from girder.utility import RequestBodyStream
 
 from dive_utils import constants, models, setContentDisposition
@@ -53,7 +51,7 @@ class AnnotationResource(Resource):
         self.route("POST", ("rollback",), self.rollback)
         self.route("POST", ("process_json",), self.process_json)
         self.route("POST", ('mask',), self.update_mask)
-        self.route("DE:ETE", ('mask',), self.delete_mask)
+        self.route("DELETE", ('mask',), self.delete_mask)
         self.route("POST", ('rle_mask',), self.update_rle_mask)
         self.route("GET", ('rle_mask',), self.get_rle_mask)
 
@@ -63,9 +61,16 @@ class AnnotationResource(Resource):
         .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
         .param("trackId", "Track ID to update", paramType="query", dataType="string")
         .param("frameId", "Frame ID to update", paramType="query", dataType="string")
-        .param("size", "Size of the png to upload", paramType="query", dataType="integer", required=False)
-        .param("RLEUpdate", "Update the RLEMask", paramType="query", dataType="boolean", default=False)
-
+        .param(
+            "size",
+            "Size of the png to upload",
+            paramType="query",
+            dataType="integer",
+            required=False,
+        )
+        .param(
+            "RLEUpdate", "Update the RLEMask", paramType="query", dataType="boolean", default=False
+        )
     )
     def update_mask(self, folder, trackId, frameId, size, RLEUpdate):
         crud.verify_dataset(folder)
@@ -74,8 +79,10 @@ class AnnotationResource(Resource):
         chunk = None
         if size > 0 and cherrypy.request.headers.get('Content-Length'):
             ct = cherrypy.request.body.content_type.value
-            if (ct not in cherrypy.request.body.processors
-                    and ct.split('/', 1)[0] not in cherrypy.request.body.processors):
+            if (
+                ct not in cherrypy.request.body.processors
+                and ct.split('/', 1)[0] not in cherrypy.request.body.processors
+            ):
                 chunk = RequestBodyStream(cherrypy.request.body)
         if chunk is not None and chunk.getSize() <= 0:
             chunk = None
@@ -87,12 +94,18 @@ class AnnotationResource(Resource):
             # a breaking change, that should be deferred until a major
             # version upgrade.
             upload = Upload().createUpload(
-                user=user, name=mask_item['name'], parentType='item', parent=mask_item, size=size,
-                mimeType='image/png')
+                user=user,
+                name=mask_item['name'],
+                parentType='item',
+                parent=mask_item,
+                size=size,
+                mimeType='image/png',
+            )
         except OSError as exc:
             if exc.errno == errno.EACCES:
                 raise GirderException(
-                    'Failed to create upload.', 'girder.api.v1.file.create-upload-failed')
+                    'Failed to create upload.', 'girder.api.v1.file.create-upload-failed'
+                )
             raise
         if upload['size'] > 0:
             if chunk:
@@ -110,7 +123,12 @@ class AnnotationResource(Resource):
         Description("Delete mask annotations")
         .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
         .param("trackId", "Track ID to delete", paramType="query", dataType="string")
-        .param("frameId", "Frame ID to delete (-1 to delete entire track)", paramType="query", dataType="string")
+        .param(
+            "frameId",
+            "Frame ID to delete (-1 to delete entire track)",
+            paramType="query",
+            dataType="string",
+        )
     )
     def delete_mask(self, folder, trackId, frameId):
         crud.verify_dataset(folder)
@@ -131,19 +149,18 @@ class AnnotationResource(Resource):
         return {
             "status": "success",
             "message": f"Masks updated for trackId={track_id}, frameId={frame_id}",
-            "deleted": result
+            "deleted": result,
         }
-
 
     @access.user
     @autoDescribeRoute(
-        Description("Get RLE mask annotations")
-        .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
+        Description("Get RLE mask annotations").modelParam(
+            "folderId", **DatasetModelParam, level=AccessType.WRITE
+        )
     )
     def get_rle_mask(self, folder):
         crud.verify_dataset(folder)
         return crud_annotation.get_mask_json(folder)
-
 
     @access.user
     @autoDescribeRoute(
@@ -157,7 +174,6 @@ class AnnotationResource(Resource):
             default=None,
             requireArray=True,
         )
-
     )
     def update_rle_mask(self, folder, trackFrameList):
         crud.verify_dataset(folder)

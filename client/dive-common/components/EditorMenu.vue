@@ -7,6 +7,7 @@ import { Mousetrap, OverlayPreferences } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
+import { useMasks } from 'vue-media-annotator/provides';
 
 interface ButtonData {
   id: string;
@@ -60,6 +61,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const toolTipForce = ref(false);
     let toolTimeTimeout: number | undefined;
+    const { editorOptions, editorFunctions } = useMasks();
     const modeToolTips = {
       Creating: {
         rectangle: 'Drag to draw rectangle. Press ESC to exit.',
@@ -275,6 +277,14 @@ export default defineComponent({
       return { text: 'Not editing', icon: 'mdi-pencil-off-outline', color: '' };
     });
 
+    const updateMaskOpacity = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const value = Number.parseFloat(target.value);
+      editorFunctions.setEditorOptions({ opactiy: value });
+    };
+
+    const maskOpacity = computed(() => editorOptions.opacity.value);
+
     return {
       toolTipForce,
       editButtons,
@@ -286,6 +296,8 @@ export default defineComponent({
       mousetrap,
       editingHeader,
       modeToolTips,
+      updateMaskOpacity,
+      maskOpacity,
     };
   },
 });
@@ -371,7 +383,46 @@ export default defineComponent({
               && (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
           >
             <template #activator="{ on }">
+              <v-menu
+                v-if="button.id === 'Mask'"
+                open-on-hover
+                bottom
+                offset-y
+                :close-on-content-click="false"
+              >
+                <template #activator="{ on, attrs }">
+                  <v-btn
+                    v-if="getUISetting('Masks')"
+                    v-bind="attrs"
+                    :color="isVisible('Mask') ? 'grey darken-2' : ''"
+                    class="mx-1 mode-button"
+                    small
+                    v-on="on"
+                    @click="button.click"
+                  >
+                    <v-icon>{{ button.icon }}</v-icon>
+                  </v-btn>
+                </template>
+                <v-card
+                  class="pa-4 flex-column d-flex"
+                  outlined
+                >
+                  <label for="frames-before">Opacity: {{ maskOpacity }}</label>
+                  <input
+                    id="frames-before"
+                    type="range"
+                    name="frames-before"
+                    class="tail-slider-width"
+                    label
+                    min="0"
+                    max="100"
+                    :value="maskOpacity"
+                    @input="updateMaskOpacity($event)"
+                  >
+                </v-card>
+              </v-menu>
               <v-btn
+                v-else
                 :color="button.active ? 'grey darken-2' : ''"
                 class="mx-1 mode-button"
                 small

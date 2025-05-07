@@ -1,24 +1,25 @@
-from typing import Callable, Generator, Iterable, List, Optional, Tuple, Dict
 import io
+import json
+from typing import Callable, Dict, Generator, Iterable, List, Optional, Tuple
+
+from PIL import Image
 from girder.constants import AccessType
-from girder.models.folder import Folder
-from girder.models.user import User
-from girder.models.item import Item
+from girder.exceptions import RestException
 from girder.models.file import File
+from girder.models.folder import Folder
+from girder.models.item import Item
 from girder.models.upload import Upload
+from girder.models.user import User
+import numpy as np
+from pycocotools import mask as mask_utils
 from pydantic import Field
 from pydantic.main import BaseModel
 import pymongo
-import json
 from pymongo.cursor import Cursor
-from PIL import Image
-import numpy as np
-from pycocotools import mask as mask_utils
 
 from dive_server import crud, crud_dataset
-from dive_utils import constants, fromMeta, models, types, TRUTHY_META_VALUES
+from dive_utils import TRUTHY_META_VALUES, constants, fromMeta, models, types
 from dive_utils.serializers import viame
-from girder.exceptions import RestException
 
 DATASET = 'dataset'
 REVISION_DELETED = 'rev_deleted'
@@ -262,6 +263,9 @@ def save_annotations(
         return additions, deletions
 
     track_additions, track_deletions = update_collection(TrackItem(), upsert_tracks, delete_tracks)
+    delete_mask_list = [[i, -1] for i in delete_tracks]
+    if len(delete_mask_list) > 0:
+        delete_masks(user, dsFolder, delete_mask_list)
     group_additions, group_deletions = update_collection(GroupItem(), upsert_groups, delete_groups)
     additions = track_additions + group_additions
     deletions = track_deletions + group_deletions
@@ -398,7 +402,7 @@ def get_labels(user: types.GirderUserModel, published=False, shared=False):
     return Folder().collection.aggregate(pipeline)
 
 
-def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int, remove=True) :
+def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int, remove=True):
     mask_folder = Folder().findOne(
         {
             'parentId': folder['_id'],
@@ -407,15 +411,21 @@ def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int, remove
     )
     if mask_folder is None:
         mask_folder = Folder().createFolder(folder, 'masks', reuseExisting=True, creator=user)
-        Folder().setMetadata(mask_folder, {
-            constants.MASK_MARKER: True,
-        })
+        Folder().setMetadata(
+            mask_folder,
+            {
+                constants.MASK_MARKER: True,
+            },
+        )
     track_folder = Folder().createFolder(
         mask_folder, str(trackId), reuseExisting=True, creator=user
     )
-    Folder().setMetadata(track_folder, {
-        constants.MASK_TRACK_MARKER: True,
-    })
+    Folder().setMetadata(
+        track_folder,
+        {
+            constants.MASK_TRACK_MARKER: True,
+        },
+    )
     item = Item().findOne(
         {
             'folderId': track_folder['_id'],
@@ -429,11 +439,14 @@ def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int, remove
             folder=track_folder,
             reuseExisting=True,
         )
-        Item().setMetadata(item, {
-            constants.MASK_TRACK_FRAME_MARKER: True,
-            constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId,
-            constants.MASK_FRAME_VALUE: frameId
-        })
+        Item().setMetadata(
+            item,
+            {
+                constants.MASK_TRACK_FRAME_MARKER: True,
+                constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId,
+                constants.MASK_FRAME_VALUE: frameId,
+            },
+        )
     if remove:
         for file in Item().childFiles(item):
             File().remove(file)
@@ -454,17 +467,21 @@ def get_mask_items(
     result: Dict[int, Dict[int, dict]] = {}
 
     # Find or identify mask folder
-    mask_folder = Folder().findOne({
-        'parentId': folder['_id'],
-        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    mask_folder = Folder().findOne(
+        {
+            'parentId': folder['_id'],
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
 
     if not mask_folder:
         return result  # No mask folder, nothing to return
 
     if track_frame_pairs is None:
         # Find all items in child folders of mask_folder that have MASK_TRACK_FRAME_MARKER
-        child_folder_ids = [f['_id'] for f in Folder().childFolders(mask_folder, parentType='folder', user=user)]
+        child_folder_ids = [
+            f['_id'] for f in Folder().childFolders(mask_folder, parentType='folder', user=user)
+        ]
         print(f'CHILD FOLDER IDS: {child_folder_ids}')
         all_items = Item().find({'folderId': {'$in': child_folder_ids}})
         print(f'ALL ITEMS: {all_items.count()}')
@@ -484,18 +501,17 @@ def get_mask_items(
     else:
         # Only find matching items based on provided pairs
         for track_id, frame_id in track_frame_pairs:
-            track_folder = Folder().findOne({
-                'parentId': mask_folder['_id'],
-                'name': str(track_id)
-            })
+            track_folder = Folder().findOne({'parentId': mask_folder['_id'], 'name': str(track_id)})
 
             if not track_folder:
                 continue  # Track folder doesn't exist
 
-            item = Item().findOne({
-                'folderId': track_folder['_id'],
-                'name': f'{frame_id}.png',
-            })
+            item = Item().findOne(
+                {
+                    'folderId': track_folder['_id'],
+                    'name': f'{frame_id}.png',
+                }
+            )
 
             if not item:
                 continue  # Item doesn't exist
@@ -509,6 +525,7 @@ def get_mask_items(
                 result[track_id][frame_id] = files[0]
     return result
 
+
 def get_mask_json(folder: Folder) -> Dict:
     """
     Retrieves the contents of the RLE_MASKS.json file associated with a given folder.
@@ -519,19 +536,23 @@ def get_mask_json(folder: Folder) -> Dict:
     folderId = folder['_id']
 
     # Find the mask folder under the given folder
-    mask_folder = Folder().findOne({
-        'parentId': folderId,
-        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    mask_folder = Folder().findOne(
+        {
+            'parentId': folderId,
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
 
     if not mask_folder:
         return {}
 
     # Find the RLE_MASKS.json item in the mask folder
-    rle_item = Item().findOne({
-        'folderId': mask_folder['_id'],
-        f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    rle_item = Item().findOne(
+        {
+            'folderId': mask_folder['_id'],
+            f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
 
     if not rle_item:
         return {}
@@ -544,7 +565,7 @@ def get_mask_json(folder: Folder) -> Dict:
     # Download and parse the JSON file
     file_generator = File().download(file_obj, headers=False)()
     file_string = b"".join(list(file_generator)).decode()
-    
+
     try:
         return json.loads(file_string)
     except json.JSONDecodeError:
@@ -552,9 +573,7 @@ def get_mask_json(folder: Folder) -> Dict:
 
 
 def update_RLE_masks(
-    user: User,
-    folder: dict,
-    track_frame_pairs: Optional[List[Tuple[int, int]]] = None
+    user: User, folder: dict, track_frame_pairs: Optional[List[Tuple[int, int]]] = None
 ) -> str:
     """
     Updates the JSON file (RLE_MASKS.json) in the mask folder with the encoded RLE data.
@@ -565,20 +584,24 @@ def update_RLE_masks(
     Returns a JSON string representation of the updated data.
     """
     # Locate the mask folder under the provided folder
-    mask_folder = Folder().findOne({
-        'parentId': folder['_id'],
-        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    mask_folder = Folder().findOne(
+        {
+            'parentId': folder['_id'],
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
 
     if mask_folder is None:
         # No mask folder exists; nothing to update.
         return json.dumps({})
 
     # Retrieve the RLE JSON item (if exists) from the mask folder
-    rle_item = Item().findOne({
-        'folderId': mask_folder['_id'],
-        f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    rle_item = Item().findOne(
+        {
+            'folderId': mask_folder['_id'],
+            f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
 
     # Load the current JSON data from the RLE file if available.
     json_data = {}
@@ -617,7 +640,7 @@ def update_RLE_masks(
             # Keys in the JSON are stored as strings.
             json_data[str(track_id)][str(frame_id)] = {
                 'rle': rle,
-                'file_name': image_file.get('name')
+                'file_name': image_file.get('name'),
             }
 
     # If no RLE item exists, create one.
@@ -628,14 +651,17 @@ def update_RLE_masks(
             folder=mask_folder,
             reuseExisting=True,
         )
-        Item().setMetadata(rle_item, {
-            constants.MASK_RLE_FILE_MARKER: True,
-        })
+        Item().setMetadata(
+            rle_item,
+            {
+                constants.MASK_RLE_FILE_MARKER: True,
+            },
+        )
 
     # Convert updated JSON data to bytes
     json_bytes = json.dumps(json_data).encode()
     byteIO = io.BytesIO(json_bytes)
-  
+
     # Upload updated JSON file, replacing the previous version.
     Upload().uploadFromFile(
         byteIO,
@@ -653,11 +679,11 @@ def update_RLE_masks(
 def delete_masks(
     user: User,
     folder: Folder,
-    track_frame_pairs: Optional[List[Tuple[int, int]]] = None  # -1 frame means entire track
+    track_frame_pairs: Optional[List[Tuple[int, int]]] = None,  # -1 frame means entire track
 ) -> Dict:
     """
     Deletes specified mask items or track folders, and updates RLE_MASKS.json.
-    
+
     Returns a summary:
         {
             "deletedTracks": [int],
@@ -674,10 +700,12 @@ def delete_masks(
     }
 
     # Locate the mask folder
-    mask_folder = Folder().findOne({
-        'parentId': folder['_id'],
-        f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    mask_folder = Folder().findOne(
+        {
+            'parentId': folder['_id'],
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
     if not mask_folder:
         raise RestException("Mask folder not found in dataset.", code=404)
 
@@ -688,10 +716,7 @@ def delete_masks(
 
     for track_id, frame_id in track_frame_pairs:
         track_str = str(track_id)
-        track_folder = Folder().findOne({
-            'parentId': mask_folder['_id'],
-            'name': track_str
-        })
+        track_folder = Folder().findOne({'parentId': mask_folder['_id'], 'name': track_str})
 
         if not track_folder:
             result["missingTracks"].append(track_id)
@@ -704,10 +729,7 @@ def delete_masks(
             if track_str in rle_json:
                 del rle_json[track_str]
         else:
-            item = Item().findOne({
-                'folderId': track_folder['_id'],
-                'name': f'{frame_id}.png'
-            })
+            item = Item().findOne({'folderId': track_folder['_id'], 'name': f'{frame_id}.png'})
 
             if item:
                 Item().remove(item)
@@ -722,10 +744,12 @@ def delete_masks(
                     del rle_json[track_str]
 
     # Update RLE_MASKS.json
-    rle_item = Item().findOne({
-        'folderId': mask_folder['_id'],
-        f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
-    })
+    rle_item = Item().findOne(
+        {
+            'folderId': mask_folder['_id'],
+            f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
 
     if rle_item:
         old_file = next(Item().childFiles(rle_item), None)

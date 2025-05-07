@@ -1141,7 +1141,10 @@ export default defineComponent({
             />
           </template>
           <template slot="additional-controls">
-            <MaskEditor v-if="editingMode === 'Mask'" />
+            <MaskEditor
+              v-if="editingMode === 'Mask'"
+              @set-annotation-state="handler.setAnnotationState"
+            />
           </template>
         </EditorMenu>
         <v-spacer v-else />

@@ -480,11 +480,9 @@ export default class Track extends BaseAnnotation {
           keyframe: true,
         });
       }
-    } else if (!hasMask) {
-      this.deleteFeature(frame);
     }
 
-    const feature = this.features[frame];
+    const [feature] = this.getFeature(frame);
     if (feature && feature.keyframe) {
       if (feature.hasMask && !hasMask) {
         delete feature.hasMask;

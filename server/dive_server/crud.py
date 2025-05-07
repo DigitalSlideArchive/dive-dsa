@@ -13,7 +13,7 @@ from girder.models.model_base import AccessControlledModel, Model
 import pydantic
 from pydantic.main import BaseModel
 
-from dive_utils import asbool, constants, fromMeta, models, strNumericCompare, TRUTHY_META_VALUES
+from dive_utils import TRUTHY_META_VALUES, asbool, constants, fromMeta, models, strNumericCompare
 from dive_utils.types import GirderModel, GirderUserModel
 
 
@@ -137,6 +137,7 @@ def valid_images(
         key=functools.cmp_to_key(unwrapItem),
     )
 
+
 def valid_image_names_dict(images: List[GirderModel]):
     """Get a map of image names (without extension) to frame numbers"""
     imageNameMap = {}
@@ -144,6 +145,7 @@ def valid_image_names_dict(images: List[GirderModel]):
         imageName, _ = os.path.splitext(image['name'])
         imageNameMap[imageName] = i
     return imageNameMap
+
 
 def get_valid_masks(folder: GirderModel, user: GirderUserModel) -> List[GirderModel]:
     """
@@ -170,7 +172,7 @@ def get_valid_masks(folder: GirderModel, user: GirderUserModel) -> List[GirderMo
     for mask_track in list(masks_tracks):
         track_frames = Item().find(
             {
-                f'folderId': mask_track['_id'],
+                'folderId': mask_track['_id'],
                 f'meta.{constants.MASK_TRACK_FRAME_MARKER}': {'$in': TRUTHY_META_VALUES},
             }
         )

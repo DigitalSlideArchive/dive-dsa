@@ -27,13 +27,14 @@ export interface UseMaskInterface {
   editorOptions: {
     toolEnabled: Ref<MaskEditingTools>,
     brushSize: Ref<number>,
+    maxBrushSize: Ref<number>,
     opacity: Ref<number>,
     triggerAction: Ref<null | 'save' | 'delete'>, // Used to communicate with the MaskEditorLayer
   },
   editorFunctions: {
-    setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
-    addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => void;
-    deleteMaskFrame: (trackId: number) => void;
+    setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
+    addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
+    deleteMaskFrame: (trackId: number) => Promise<void>;
   },
 
 }
@@ -112,17 +113,28 @@ export default function useMasks(
   const cache = new Map<string, HTMLImageElement>();
   const inFlightRequests = new Map<string, { image: HTMLImageElement, controller: AbortController }>();
   const rleMasks: Ref<RLETrackFrameData> = ref({});
-  const toolEnabled: Ref<MaskEditingTools> = ref('pointer');
+  const toolEnabled: Ref<MaskEditingTools> = ref('brush');
   const brushSize = ref(20); // Brush size for Painting/Editing
   const triggerAction: Ref<MaskTriggerActions> = ref(null);
   const opacity = ref(50);
+  const maxBrushSize = ref(50);
 
-  function setEditorOptions(data: { toolEnabled?: MaskEditingTools, brushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions }) {
+  function setEditorOptions(data:
+    {
+      toolEnabled?: MaskEditingTools,
+      brushSize?: number,
+      opactiy?: number,
+      triggerAction?: MaskTriggerActions,
+      maxBrushSize?: number,
+     }) {
     if (data.toolEnabled !== undefined) {
       toolEnabled.value = data.toolEnabled;
     }
     if (data.brushSize !== undefined) {
       brushSize.value = data.brushSize;
+    }
+    if (data.maxBrushSize !== undefined) {
+      maxBrushSize.value = data.maxBrushSize;
     }
     if (data.opactiy !== undefined) {
       opacity.value = data.opactiy;
@@ -139,14 +151,20 @@ export default function useMasks(
     }
     await uploadMask(datasetId.value, trackId, frame.value, blob);
     cache.set(frameKey(frame.value, trackId), image);
+    handler.save();
   }
 
   async function deleteMaskFrame(trackId: number) {
     cache.delete(frameKey(frame.value, trackId));
     const result = await deleteMask(datasetId.value, trackId, frame.value);
+    const foundMaskIndex = masks.value.findIndex((item) => item.metadata?.frameId === frame.value && item.metadata.trackId === trackId);
+    if (foundMaskIndex !== -1) {
+      masks.value.splice(foundMaskIndex, 1);
+    }
     if (result) {
       handler.removeAnnotation();
     }
+    handler.save();
   }
 
   async function getFolderRLEMasks(folderId: string) {
@@ -329,7 +347,7 @@ export default function useMasks(
 
     clearOutOfWindow(minFrame, maxFrame);
     masks.value.forEach((mask) => {
-      if (!mask.metadata || !mask.metadata.frameId || !mask.metadata.trackId) {
+      if (!mask.metadata || mask.metadata.frameId === undefined || mask.metadata.trackId === undefined) {
         console.warn(`Mask ${mask.filename} does not have metadata`);
         return;
       }
@@ -382,6 +400,7 @@ export default function useMasks(
       brushSize,
       opacity,
       triggerAction,
+      maxBrushSize,
     },
     editorFunctions: {
       setEditorOptions,

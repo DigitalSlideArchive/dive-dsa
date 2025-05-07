@@ -20,15 +20,22 @@ export default class MaskEditorLayer {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   quad:any;
 
+  canvas: HTMLCanvasElement | null;
+
+  ctx: CanvasRenderingContext2D | null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  iconLayer: any;
+
+  iconCanvas: HTMLCanvasElement | null;
+
+  iconCtx: CanvasRenderingContext2D | null;
+
   width: number;
 
   height: number;
 
   editingImage: HTMLImageElement | null;
-
-  canvas: HTMLCanvasElement | null;
-
-  ctx: CanvasRenderingContext2D | null;
 
   mouseDown: boolean;
 
@@ -46,6 +53,14 @@ export default class MaskEditorLayer {
 
   trackId: number | null;
 
+  frameId: number | null;
+
+  enabled: boolean;
+
+  editorOptionsRef: UseMaskInterface['editorOptions'];
+
+  editorFunctionsRef: UseMaskInterface['editorFunctions'];
+
   constructor({
     annotator,
     typeStyling,
@@ -59,9 +74,16 @@ export default class MaskEditorLayer {
     this.width = 0;
     this.height = 0;
     this.editingImage = null;
+    this.enabled = false;
     this.trackId = null;
+    this.frameId = null;
     this.featureLayer = this.annotator.geoViewerRef.value.createLayer('feature', {
       features: ['quad.image'],
+      renderer: 'canvas',
+      autoshareRenderer: false,
+    });
+    this.iconLayer = this.annotator.geoViewerRef.value.createLayer('feature', {
+      features: [],
       renderer: 'canvas',
       autoshareRenderer: false,
     });
@@ -72,7 +94,15 @@ export default class MaskEditorLayer {
     } else {
       this.ctx = null;
     }
+    [this.iconCanvas] = this.iconLayer.canvas();
+    if (this.iconCanvas) {
+      this.iconCtx = this.iconCanvas.getContext('2d');
+    } else {
+      this.iconCtx = null;
+    }
     this.mouseDown = false;
+    this.editorOptionsRef = editorOptions;
+    this.editorFunctionsRef = editorFunctions;
     this.interactorOptions = this.annotator.geoViewerRef.value.interactor().options();
     this.noActionOptions = cloneDeep(this.interactorOptions);
     this.noActionOptions.actions = [this.interactorOptions.actions[2], this.interactorOptions.actions[3]];
@@ -85,10 +115,21 @@ export default class MaskEditorLayer {
         this.mouseDown = false;
         this.updateCanvas();
       }
+      this.drawBrushIcon(x, y);
       if (e.buttons.left) {
         if (x > 0 && x < this.width && y > 0 && y < this.height) {
           this.mouseDown = true;
           this.drawPoint(x, y);
+        }
+      }
+    });
+
+    this.featureLayer.geoOn(geo.event.mouseclick, (e: GeoEvent) => {
+      const { x, y } = e.geo;
+      if (e.buttons.left) {
+        if (x > 0 && x < this.width && y > 0 && y < this.height) {
+          this.drawPoint(x, y);
+          this.updateCanvas();
         }
       }
     });
@@ -112,9 +153,11 @@ export default class MaskEditorLayer {
       this.featureLayer.opacity(editorOptions.opacity.value / 100.0);
     });
 
-    watch(editorOptions.triggerAction, () => {
+    watch(editorOptions.triggerAction, async () => {
       if (editorOptions.triggerAction.value === 'save' && this.trackId !== null && this.editingImage) {
-        editorFunctions.addUpdateMaskFrame(this.trackId, this.editingImage);
+        const copyImage = new Image(this.editingImage.width, this.editingImage.height);
+        copyImage.src = this.editingImage.src;
+        await editorFunctions.addUpdateMaskFrame(this.trackId, copyImage);
         editorFunctions.setEditorOptions({ triggerAction: null });
       }
     });
@@ -128,6 +171,7 @@ export default class MaskEditorLayer {
       tempCanvas.height = this.height;
       const tempCtx = tempCanvas.getContext('2d');
       if (tempCtx) {
+        tempCtx.clearRect(0, 0, this.width, this.height);
         tempCtx.drawImage(this.editingImage, 0, 0);
         // Next if we are zoomed in we need  to calculate the current bounds of the area
         const currentUpperLeft = this.annotator.geoViewerRef.value.displayToGcs({ x: 0, y: 0 });
@@ -193,29 +237,66 @@ export default class MaskEditorLayer {
     }
   }
 
-  setEditingImage(data: { trackId: number, image: HTMLImageElement | undefined}) {
+  setEditingImage(data: { trackId: number, frameId: number, image: HTMLImageElement | undefined}) {
+    if (this.enabled && this.frameId === data.frameId && this.trackId === data.trackId) {
+      return;
+    }
     const [width, height] = this.annotator.frameSize.value;
+    const maxBrushSize = Math.floor(Math.min(width, height) / 4.0);
+    const brushSize = this.brushSize.value > maxBrushSize ? maxBrushSize : this.brushSize.value;
+    this.brushSize.value = brushSize;
+    this.editorFunctionsRef.setEditorOptions({ maxBrushSize, brushSize });
     this.trackId = data.trackId;
+    this.frameId = data.frameId;
     this.width = width;
     this.height = height;
     this.upperLeftCorner = this.quad.featureGcsToDisplay({ x: 0, y: 0 });
     this.lowerRightCorner = this.quad.featureGcsToDisplay({ x: this.width, y: this.height });
+    this.setCanvas();
     if (data.image) {
-      this.editingImage = data.image;
+      this.editingImage = new Image(data.image.width, data.image.height);
+      this.editingImage.src = data.image.src;
+      this.quad.data([
+        {
+          ul: { x: 0, y: 0 },
+          lr: { x: width, y: height },
+          image: this.editingImage,
+        },
+      ])
+        .draw();
     } else {
       this.editingImage = new Image(this.width, this.height);
+      this.quad.data([]).draw();
     }
-    this.quad.data([
-      {
-        ul: { x: 0, y: 0 },
-        lr: { x: width, y: height },
-        image: this.editingImage,
-      },
-    ])
-      .draw();
     this.featureLayer.visible(true);
-    this.setCanvas();
+    this.iconLayer.visible(true);
     this.featureLayer.node().css('filter', `url(#mask-filter-${data.trackId})`);
+    this.enabled = true;
+    if (this.editorOptionsRef.toolEnabled.value === 'pointer') {
+      this.annotator.geoViewerRef.value.interactor().options(this.interactorOptions);
+      this.updateCanvas();
+    } else {
+      this.annotator.geoViewerRef.value.interactor().options(this.noActionOptions);
+      if (this.editorOptionsRef.toolEnabled.value === 'brush') {
+        this.color = 'white';
+      } else if (this.editorOptionsRef.toolEnabled.value === 'eraser') {
+        this.color = 'transparent';
+      }
+    }
+  }
+
+  drawBrushIcon(x: number, y: number) {
+    if (this.iconCanvas && this.iconCtx) {
+      const updated = this.quad.featureGcsToDisplay({ x, y });
+      this.iconCtx.clearRect(0, 0, this.iconCanvas.width, this.iconCanvas.height);
+      const brushGcsSize = this.quad.featureGcsToDisplay({ x: x + this.brushSize.value, y: y + this.brushSize.value });
+      const updateBrushSize = brushGcsSize.x - updated.x;
+      this.iconCtx.beginPath();
+      this.iconCtx.arc(updated.x, updated.y, updateBrushSize, 0, Math.PI * 2);
+      this.iconCtx.strokeStyle = 'white';
+      this.iconCtx.lineWidth = 1; // Optional: set line width if needed
+      this.iconCtx.stroke(); // <-- actually draw the arc
+    }
   }
 
   drawPoint(x: number, y:number) {
@@ -240,10 +321,28 @@ export default class MaskEditorLayer {
     }
   }
 
+  setOpacity(opacity: number) {
+    this.opacity = opacity;
+    if (this.featureLayer) {
+      this.featureLayer.opacity(this.opacity / 100.0);
+    }
+  }
+
+  setBrushSize(brushSize: number) {
+    this.brushSize.value = brushSize;
+  }
+
+  checkEnabled() {
+    return this.enabled;
+  }
+
   disable() {
     this.featureLayer.visible(false);
+    this.iconLayer.visible(false);
     this.annotator.geoViewerRef.value.interactor().options(this.interactorOptions);
     this.editingImage = null;
     this.trackId = null;
+    this.frameId = null;
+    this.enabled = false;
   }
 }
