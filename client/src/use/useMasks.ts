@@ -262,11 +262,13 @@ export default function useMasks(
           }
         });
       });
-      if (ENABLE_TIMING_LOGS) {
-        lastTime = performance.now();
-        console.log(`🧾 Worker Start: ${lastTime}`);
+      if (Object.keys(maskList).length > 0) {
+        if (ENABLE_TIMING_LOGS) {
+          lastTime = performance.now();
+          console.log(`🧾 Worker Start: ${lastTime}`);
+        }
+        rleWorker.postMessage({ rleMasks: maskList });
       }
-      rleWorker.postMessage({ rleMasks: maskList });
     }
   }
 
