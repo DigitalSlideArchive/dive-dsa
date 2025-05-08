@@ -57,6 +57,7 @@ export interface DatasetSourceMedia {
   imageData: MediaResource[];
   video?: MediaResource;
   overlays?: MediaResource[];
+  masks?: MediaResource[];
 }
 
 export interface DatasetTaskDefaults {

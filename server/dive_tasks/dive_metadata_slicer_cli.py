@@ -1,31 +1,27 @@
 import copy
-from typing import Dict, List, Union
-
-from girder_worker.task import Task
-from girder_worker.utils import JobStatus
-
-import cherrypy
 import threading
 import time
+from typing import Dict, List, Union
 
+import cherrypy
 from girder.models.token import Token
 from girder.models.user import User
-
 from girder_jobs.models.job import Job
+from girder_worker.task import Task
+from girder_worker.utils import JobStatus
 from slicer_cli_web.models import CLIItem
-
+from slicer_cli_web.rest_slicer_cli import (
+    FOLDER_SUFFIX,
+    as_model,
+    get_cli_parameters,
+    is_on_girder,
+    prepare_task,
+    stringifyParam,
+)
 
 from dive_utils.types import (
-    DIVEMetadataSlicerCLITaskParams,
     DiveDatasetList,
-)
-from slicer_cli_web.rest_slicer_cli import (
-    get_cli_parameters,
-    as_model,
-    is_on_girder,
-    stringifyParam,
-    FOLDER_SUFFIX,
-    prepare_task,
+    DIVEMetadataSlicerCLITaskParams,
 )
 
 

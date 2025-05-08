@@ -12,6 +12,7 @@ interface RectGeoJSData{
   styleType: [string, number] | null;
   polygon: GeoJSON.Polygon;
   hasPoly: boolean;
+  hasMask: boolean;
 }
 
 export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
@@ -19,12 +20,19 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
 
   hoverOn: boolean; //to turn over annnotations on
 
+  disableClicking: boolean;
+
   constructor(params: BaseLayerParams) {
     super(params);
     this.drawingOther = false;
     this.hoverOn = false;
     //Only initialize once, prevents recreating Layer each edit
     this.initialize();
+    this.disableClicking = false;
+  }
+
+  setDisableClicking(value: boolean) {
+    this.disableClicking = value;
   }
 
   initialize() {
@@ -38,11 +46,11 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
          * Handle clicking on individual annotations, if DrawingOther is true we use the
          * Rectangle type if only the polygon is visible we use the polygon bounds
          * */
-        if (e.mouse.buttonsDown.left) {
+        if (e.mouse.buttonsDown.left && !this.disableClicking) {
           if (!e.data.editing || (e.data.editing && !e.data.selected)) {
             this.bus.$emit('annotation-clicked', e.data.trackId, false);
           }
-        } else if (e.mouse.buttonsDown.right) {
+        } else if (e.mouse.buttonsDown.right && !this.disableClicking) {
           if (!e.data.editing || (e.data.editing && !e.data.selected)) {
             this.bus.$emit('annotation-right-clicked', e.data.trackId, true);
           }
@@ -54,7 +62,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
     );
     this.featureLayer.geoOn(geo.event.mouseclick, (e: GeoEvent) => {
       // If we aren't clicking on an annotation we can deselect the current track
-      if (this.featureLayer.pointSearch(e.geo).found.length === 0) {
+      if (this.featureLayer.pointSearch(e.geo).found.length === 0 && !this.disableClicking) {
         this.bus.$emit('annotation-clicked', null, false);
       }
     });
@@ -99,6 +107,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       if (track.features && track.features.bounds && !track.track.meta?.time) {
         const polygon = boundToGeojson(track.features.bounds);
         let hasPoly = false;
+        const hasMask = !!track.features.hasMask;
         if (track.features.geometry?.features) {
           const filtered = track.features.geometry.features.filter((feature) => feature.geometry && feature.geometry.type === 'Polygon');
           hasPoly = filtered.length > 0;
@@ -110,6 +119,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
           styleType: track.styleType,
           polygon,
           hasPoly,
+          hasMask,
         };
         arr.push(annotation);
       }
@@ -164,7 +174,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       },
       strokeOpacity: (_point, _index, data) => {
         // Reduce the rectangle opacity if a polygon is also drawn
-        if (this.drawingOther && data.hasPoly) {
+        if (this.drawingOther && (data.hasPoly || data.hasMask)) {
           return this.stateStyling.disabled.opacity;
         }
         if (data.selected) {
@@ -187,7 +197,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       },
       strokeWidth: (_point, _index, data) => {
         //Reduce rectangle line thickness if polygon is also drawn
-        if (this.drawingOther && data.hasPoly) {
+        if (this.drawingOther && (data.hasPoly || data.hasMask)) {
           return this.stateStyling.disabled.strokeWidth;
         }
         if (data.selected) {

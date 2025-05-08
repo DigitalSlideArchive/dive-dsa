@@ -1,34 +1,36 @@
 import json
-import re
 import math
+import re
+
 import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, getApiUrl
 from girder.constants import AccessType
+from girder.exceptions import RestException
+from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.file import File
-from girder.exceptions import RestException
-from girder.utility import path as path_util
-from dive_utils.types import DIVEMetadataSlicerCLITaskParams, DiveDatasetList
-import pymongo
 from girder.models.setting import Setting
-
-from dive_utils import TRUTHY_META_VALUES, FALSY_META_VALUES
-from dive_utils.constants import (
-    jsonRegex,
-    ndjsonRegex,
-    DIVEMetadataMarker,
-    DIVEMetadataFilter,
-    DIVEMetadataClonedFilter,
-    DIVEMetadataClonedFilterBase,
-)
-from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
-from . import crud_dataset
 from girder.models.token import Token
+from girder.utility import path as path_util
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
+import pymongo
+
+from dive_utils import FALSY_META_VALUES, TRUTHY_META_VALUES
+from dive_utils.constants import (
+    DIVEMetadataClonedFilter,
+    DIVEMetadataClonedFilterBase,
+    DIVEMetadataFilter,
+    DIVEMetadataMarker,
+    jsonRegex,
+    ndjsonRegex,
+)
+from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
+from dive_utils.types import DiveDatasetList, DIVEMetadataSlicerCLITaskParams
+
+from . import crud_dataset
 
 
 def python_to_javascript_type(py_type):
@@ -230,7 +232,7 @@ class DIVEMetadata(Resource):
         displayConfig,
         ffprobeMetadata,
         categoricalLimit,
-        additive
+        additive,
     ):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
@@ -476,9 +478,7 @@ class DIVEMetadata(Resource):
             data = {}
             data['DIVE_DatasetId'] = str(item['_id'])
             data['DIVE_Name'] = str(item['lowerName'])
-            resource_path = path_util.getResourcePath(
-                'folder', item, user=user
-            )
+            resource_path = path_util.getResourcePath('folder', item, user=user)
             data['DIVE_Path'] = resource_path
             if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
                 ffmetadata = item.get('meta', {}).get('ffprobe_info', {})

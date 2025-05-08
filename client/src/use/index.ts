@@ -4,6 +4,7 @@ import useLineChart from './useLineChart';
 import useTimeObserver from './useTimeObserver';
 import useImageEnhancements from './useImageEnhancements';
 import useVirtualScrollTo from './useVirtualScrollTo';
+import useMasks from './useMasks';
 
 export {
   useAttributes,
@@ -12,4 +13,5 @@ export {
   useLineChart,
   useTimeObserver,
   useVirtualScrollTo,
+  useMasks,
 };

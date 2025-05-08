@@ -18,9 +18,9 @@ from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new
 from .views_annotation import AnnotationResource
 from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
+from .views_metadata import DIVEMetadata
 from .views_override import countJobs, use_private_queue
 from .views_rpc import RpcResource
-from .views_metadata import DIVEMetadata
 
 __version__ = "1.0.0"
 

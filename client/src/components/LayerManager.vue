@@ -7,6 +7,8 @@ import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
+import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
+import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -43,8 +45,8 @@ import {
   useSelectedCamera,
   useConfiguration,
   useAttributes,
+  useMasks,
 } from '../provides';
-
 /** LayerManager is a component intended to be used as a child of an Annotator.
  *  It provides logic for switching which layers are visible, but more importantly
  *  it maps Track objects into their respective layer representations.
@@ -82,6 +84,7 @@ export default defineComponent({
     const configMan = useConfiguration();
     const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+    const { getMask, editorOptions, editorFunctions } = useMasks();
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
     const groupStore = cameraStore.camMap.value.get(props.camera)?.groupStore;
@@ -109,6 +112,13 @@ export default defineComponent({
     const flickNumberRef = annotator.flick;
 
     const videoLayerManager = new VideoLayerManager({ annotator, typeStyling: typeStylingRef });
+    const maskLayer = new MaskLayer({
+      annotator,
+      typeStyling: typeStylingRef,
+    });
+    const maskEditorLayer = new MaskEditorLayer({
+      annotator, typeStyling: typeStylingRef, editorOptions, editorFunctions,
+    });
     const overlayFilters: Ref<{
         videoLayerTransparencyVals: number[][][],
         videoLayerColorTransparencyOn: boolean,
@@ -116,6 +126,16 @@ export default defineComponent({
         colorScaleMatrix: number[],
         id: number;
       }[]> = ref([]);
+    const maskFilters: Ref<Record<number, string>> = ref({});
+
+    const getOrCreateFilter = (trackId: number, hexColor: string) => {
+      const r = parseInt(hexColor.slice(1, 3), 16);
+      const g = parseInt(hexColor.slice(3, 5), 16);
+      const b = parseInt(hexColor.slice(5, 7), 16);
+      const colorString = `rgb(${r}, ${g}, ${b})`;
+      maskFilters.value[trackId] = colorString;
+      return maskFilters.value[trackId];
+    };
     if (props.overlays && props.overlays.length) {
       for (let i = 0; i < props.overlays.length; i += 1) {
         videoLayerManager.addOverlay({
@@ -287,7 +307,7 @@ export default defineComponent({
 
       if (visibleModes.includes('rectangle')) {
         //We modify rects opacity/thickness if polygons are visible or not
-        rectAnnotationLayer.setDrawingOther(visibleModes.includes('Polygon'));
+        rectAnnotationLayer.setDrawingOther(visibleModes.includes('Polygon') || visibleModes.includes('Mask'));
         rectAnnotationLayer.changeData(frameData);
       } else {
         rectAnnotationLayer.disable();
@@ -319,6 +339,30 @@ export default defineComponent({
         globalBounds = mergeBounds(videoLayerManager.getBounds(), globalBounds);
       } else {
         videoLayerManager.disable();
+      }
+
+      if (visibleModes.includes('Mask')) {
+        const maskImages : {trackId: number, image: HTMLImageElement}[] = [];
+
+        frameData.forEach((track) => {
+          if (track.features?.hasMask) {
+            const image = getMask(track.track.id, frame);
+            if (image) {
+              maskImages.push({
+                trackId: track.track.id,
+                image,
+              });
+            }
+            getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
+          }
+        });
+        if (maskImages.length) {
+          maskLayer.setSegmenationImages(maskImages);
+        } else {
+          maskLayer.disable();
+        }
+      } else {
+        maskLayer.disable();
       }
 
       pointLayer.changeData(frameData);
@@ -359,17 +403,32 @@ export default defineComponent({
           };
           editingTracks.push(trackFrame);
         }
-        if (editingTracks.length) {
+        if (editingTracks.length && editingTrack !== 'Mask') {
           if (editingTrack) {
             editAnnotationLayer.setType(editingTrack);
             editAnnotationLayer.setKey(selectedKey);
             editAnnotationLayer.changeData(editingTracks);
           }
+          maskEditorLayer.disable();
+        } else if (editingTracks.length && editingTrack === 'Mask') {
+          maskLayer.disable();
+          editAnnotationLayer.disable();
+          rectAnnotationLayer.setDisableClicking(true);
+          const track = editingTracks[0];
+          const image = getMask(track.track.id, frame);
+          maskEditorLayer.setEditingImage({ trackId: track.track.id, frameId: frame, image });
+          getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
         } else {
           editAnnotationLayer.disable();
+          maskEditorLayer.disable();
+          rectAnnotationLayer.setDisableClicking(false);
         }
       } else {
         editAnnotationLayer.disable();
+        rectAnnotationLayer.setDisableClicking(false);
+        if (maskEditorLayer.checkEnabled()) {
+          maskEditorLayer.disable();
+        }
       }
       annotator.setExpandedBounds(globalBounds);
     }
@@ -449,6 +508,26 @@ export default defineComponent({
         selectedKeyRef.value,
         props.colorBy,
       );
+    });
+
+    watch(editorOptions.opacity, () => {
+      maskLayer.setOpacity(editorOptions.opacity.value);
+      maskEditorLayer.setOpacity(editorOptions.opacity.value);
+    });
+
+    watch(editorOptions.loadingFrame, () => {
+      if (!editorOptions.loadingFrame.value) {
+        updateLayers(
+          frameNumberRef.value,
+          editingModeRef.value,
+          selectedTrackIdRef.value,
+          multiSeletListRef.value,
+          enabledTracksRef.value,
+          visibleModesRef.value,
+          selectedKeyRef.value,
+          props.colorBy,
+        );
+      }
     });
 
     const Clicked = (trackId: number, editing: boolean) => {
@@ -560,6 +639,7 @@ export default defineComponent({
       attributes,
       maxHeight,
       selectedTrackIdRef,
+      maskFilters,
     };
   },
 });
@@ -567,6 +647,7 @@ export default defineComponent({
 
 <template>
   <div>
+    <canvas id="maskEditingCanvas" style="display:none;" />
     <div
       v-if="includesAttributeKey"
       style="position: absolute; top: 0px; right: 0px"
@@ -582,6 +663,29 @@ export default defineComponent({
       height="0"
       style="position: absolute; top: -1px; left: -1px"
     >
+      <defs v-for="(maskFilter, key) in maskFilters" :key="key">
+        <filter :id="`mask-filter-${key}`" color-interpolation-filters="sRGB">
+          <!-- Create a mask of where the color is exactly white -->
+          <feColorMatrix
+            type="matrix"
+            values="
+      1 0 0 0 -1
+      0 1 0 0 -1
+      0 0 1 0 -1
+      0 0 0 1 0"
+            result="maskWhite"
+          />
+
+          <!-- Color solid replacement color -->
+          <feFlood :flood-color="maskFilter" result="flood" />
+
+          <!-- Apply only where white mask exists -->
+          <feComposite in="flood" in2="maskWhite" operator="in" result="colorReplace" />
+
+          <!-- Overlay replaced color on top of original image -->
+          <feComposite in="colorReplace" in2="SourceGraphic" operator="over" />
+        </filter>
+      </defs>
       <defs v-for="overlay in overlayFilters" :key="overlay.id">
         <filter
           v-if="overlay.videoLayerColorTransparencyOn && overlay.videoLayerTransparencyVals.length"
@@ -648,6 +752,7 @@ export default defineComponent({
           />
         </filter>
       </defs>
+
     </svg>
   </div>
 </template>
