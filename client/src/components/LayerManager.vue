@@ -515,6 +515,21 @@ export default defineComponent({
       maskEditorLayer.setOpacity(editorOptions.opacity.value);
     });
 
+    watch(editorOptions.loadingFrame, () => {
+      if (!editorOptions.loadingFrame.value) {
+        updateLayers(
+          frameNumberRef.value,
+          editingModeRef.value,
+          selectedTrackIdRef.value,
+          multiSeletListRef.value,
+          enabledTracksRef.value,
+          visibleModesRef.value,
+          selectedKeyRef.value,
+          props.colorBy,
+        );
+      }
+    });
+
     const Clicked = (trackId: number, editing: boolean) => {
       // If the camera isn't selected yet we ignore the click
       if (selectedCamera.value !== props.camera) {

@@ -284,6 +284,7 @@ export default defineComponent({
     };
 
     const maskOpacity = computed(() => editorOptions.opacity.value);
+    const loadingFrame = computed(() => editorOptions.loadingFrame.value);
 
     return {
       toolTipForce,
@@ -298,6 +299,7 @@ export default defineComponent({
       modeToolTips,
       updateMaskOpacity,
       maskOpacity,
+      loadingFrame,
     };
   },
 });
@@ -383,44 +385,56 @@ export default defineComponent({
               && (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
           >
             <template #activator="{ on }">
-              <v-menu
+              <v-badge
                 v-if="button.id === 'Mask'"
-                open-on-hover
+                overlap
                 bottom
-                offset-y
-                :close-on-content-click="false"
+                :color="loadingFrame ? 'primary' : undefined"
+                :content="!loadingFrame ? '' : undefined"
+                :icon="loadingFrame ? 'mdi-spin mdi-sync' : undefined"
+                :value="loadingFrame ? true : false"
+                offset-x="25"
+                offset-y="18"
               >
-                <template #activator="{ on, attrs }">
-                  <v-btn
-                    v-if="getUISetting('Masks')"
-                    v-bind="attrs"
-                    :color="isVisible('Mask') ? 'grey darken-2' : ''"
-                    class="mx-1 mode-button"
-                    small
-                    v-on="on"
-                    @click="button.click"
-                  >
-                    <v-icon>{{ button.icon }}</v-icon>
-                  </v-btn>
-                </template>
-                <v-card
-                  class="pa-4 flex-column d-flex"
-                  outlined
+
+                <v-menu
+                  open-on-hover
+                  bottom
+                  offset-y
+                  :close-on-content-click="false"
                 >
-                  <label for="frames-before">Opacity: {{ maskOpacity }}</label>
-                  <input
-                    id="frames-before"
-                    type="range"
-                    name="frames-before"
-                    class="tail-slider-width"
-                    label
-                    min="0"
-                    max="100"
-                    :value="maskOpacity"
-                    @input="updateMaskOpacity($event)"
+                  <template #activator="{ on, attrs }">
+                    <v-btn
+                      v-if="getUISetting('Masks')"
+                      v-bind="attrs"
+                      :color="isVisible('Mask') ? 'grey darken-2' : ''"
+                      class="mx-1 mode-button"
+                      small
+                      v-on="on"
+                      @click="button.click"
+                    >
+                      <v-icon>{{ button.icon }}</v-icon>
+                    </v-btn>
+                  </template>
+                  <v-card
+                    class="pa-4 flex-column d-flex"
+                    outlined
                   >
-                </v-card>
-              </v-menu>
+                    <label for="frames-before">Opacity: {{ maskOpacity }}</label>
+                    <input
+                      id="frames-before"
+                      type="range"
+                      name="frames-before"
+                      class="tail-slider-width"
+                      label
+                      min="0"
+                      max="100"
+                      :value="maskOpacity"
+                      @input="updateMaskOpacity($event)"
+                    >
+                  </v-card>
+                </v-menu>
+              </v-badge>
               <v-btn
                 v-else
                 :color="button.active ? 'grey darken-2' : ''"

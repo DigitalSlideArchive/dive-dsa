@@ -365,6 +365,7 @@ function dummyState(): State {
         maxBrushSize: ref(50),
         opacity: ref(0.75),
         triggerAction: ref(null),
+        loadingFrame: ref(false),
       },
       editorFunctions: {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -720,9 +720,8 @@ export default defineComponent({
           if (mediaMasks.value?.length) {
             setFrameRate(meta.fps);
             initializeMaskData({ masks: mediaMasks.value });
-            getFolderRLEMasks(cameraId);
           }
-
+          getFolderRLEMasks(cameraId);
           // eslint-disable-next-line no-await-in-loop
           const { tracks, groups } = await loadDetections(cameraId, props.revision);
           progress.total = tracks.length + groups.length;

@@ -83,7 +83,7 @@ export default class MaskLayer {
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
         // HACK to update the texture
-        this.quads[item.trackId]._cleanup();
+        //this.quads[item.trackId]._cleanup();
         this.quads[item.trackId].data([
           {
             ul: { x: 0, y: 0 },
