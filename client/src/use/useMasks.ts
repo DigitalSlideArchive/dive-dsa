@@ -1,6 +1,8 @@
 /* eslint-disable guard-for-in */
 /* eslint-disable no-restricted-syntax */
-import { ref, watch, Ref } from 'vue';
+import {
+  ref, watch, Ref, computed,
+} from 'vue';
 import {
   getRLEMask, RLETrackFrameData, uploadMask, deleteMask,
   RLEFrameData,
@@ -29,6 +31,7 @@ export interface UseMaskInterface {
     toolEnabled: Ref<MaskEditingTools>,
     brushSize: Ref<number>,
     maxBrushSize: Ref<number>,
+    hasMasks: Ref<boolean>,
     opacity: Ref<number>,
     triggerAction: Ref<null | 'save' | 'delete'>, // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>,
@@ -384,12 +387,20 @@ export default function useMasks(
     }
   });
 
+  const hasMasks = computed(() => {
+    if (useRLE) {
+      return Object.keys(rleMasks.value).length > 0;
+    }
+    return masks.value.length > 0;
+  });
+
   return {
     initializeMaskData,
     setFrameRate,
     getMask,
     getFolderRLEMasks,
     editorOptions: {
+      hasMasks,
       toolEnabled,
       brushSize,
       opacity,

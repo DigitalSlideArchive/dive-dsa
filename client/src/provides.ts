@@ -360,6 +360,7 @@ function dummyState(): State {
         return undefined;
       },
       editorOptions: {
+        hasMasks: ref(false),
         toolEnabled: ref('pointer'),
         brushSize: ref(5),
         maxBrushSize: ref(50),

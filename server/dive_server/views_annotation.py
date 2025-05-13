@@ -11,9 +11,10 @@ from girder.exceptions import GirderException, RestException
 from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.upload import Upload
-from girder.utility import RequestBodyStream
+from girder.utility import RequestBodyStream, ziputil
+from girder.utility.model_importer import ModelImporter
 
-from dive_utils import constants, models, setContentDisposition
+from dive_utils import constants, models, setContentDisposition, setResponseHeader
 from dive_utils.serializers import dive, viame
 
 from . import crud, crud_annotation
@@ -232,7 +233,7 @@ class AnnotationResource(Resource):
             paramType='query',
             dataType='string',
             default='viame_csv',
-            enum=['viame_csv', 'dive_json'],
+            enum=['viame_csv', 'dive_json', 'masks'],
             required=False,
         )
         .jsonParam(
@@ -269,6 +270,26 @@ class AnnotationResource(Resource):
             setRawResponse()
             annotations = crud_annotation.get_annotations(folder, revision=revisionId)
             return json.dumps(annotations).encode('utf-8')
+        elif format == 'masks':
+            mask_folder = crud_annotation.get_mask_folder(folder)
+            if mask_folder is None:
+                raise RestException("No mask folder found in this dataset.")
+            else:
+                user = self.getCurrentUser()
+                mask_folder_id = str(mask_folder['_id'])
+
+                def stream():
+                    zip = ziputil.ZipGenerator()
+                    doc = Folder().load(id=mask_folder_id, user=user, level=AccessType.READ)
+                    for (path, file) in Folder().fileList(doc=doc, user=user, includeMetadata=False, subpath=True):
+                        try:
+                            yield from zip.addFile(file, path)
+                        except Exception as e:
+                            # Optional: yield a log file or silently skip
+                            raise RestException(f'Error adding file {path}: {e}')
+                    yield zip.footer()
+                setContentDisposition('masks.zip', mime='application/zip')
+                return stream
         else:
             raise RestException(f'Format {format} is not a valid option.')
 

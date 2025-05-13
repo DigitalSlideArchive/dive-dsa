@@ -253,22 +253,20 @@ export default class MaskEditorLayer {
     this.height = height;
     this.upperLeftCorner = this.quad.featureGcsToDisplay({ x: 0, y: 0 });
     this.lowerRightCorner = this.quad.featureGcsToDisplay({ x: this.width, y: this.height });
+    this.editingImage = new Image(data.image?.width || this.width, data.image?.height || this.height);
     this.setCanvas();
     if (data.image) {
-      this.editingImage = new Image(data.image.width, data.image.height);
       this.editingImage.src = data.image.src;
-      this.quad.data([
-        {
-          ul: { x: 0, y: 0 },
-          lr: { x: width, y: height },
-          image: this.editingImage,
-        },
-      ])
-        .draw();
-    } else {
-      this.editingImage = new Image(this.width, this.height);
-      this.quad.data([]).draw();
     }
+    this.quad.data([
+      {
+        ul: { x: 0, y: 0 },
+        lr: { x: width, y: height },
+        image: this.editingImage,
+      },
+    ])
+      .draw();
+
     this.featureLayer.visible(true);
     this.iconLayer.visible(true);
     this.featureLayer.node().css('filter', `url(#mask-filter-${data.trackId})`);

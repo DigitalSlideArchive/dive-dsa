@@ -402,6 +402,16 @@ def get_labels(user: types.GirderUserModel, published=False, shared=False):
     return Folder().collection.aggregate(pipeline)
 
 
+def get_mask_folder(folder: Folder) -> Folder | None:
+    mask_folder = Folder().findOne(
+        {
+            'parentId': folder['_id'],
+            f'meta.{constants.MASK_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
+    return mask_folder
+
+
 def get_mask_item(user: User, folder: Folder, trackId: int, frameId: int, remove=True):
     mask_folder = Folder().findOne(
         {
