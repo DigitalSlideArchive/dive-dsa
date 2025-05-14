@@ -2,15 +2,19 @@ from contextlib import suppress
 import json
 import os
 from pathlib import Path
+import shutil
 import tempfile
 from typing import Dict, List
 import zipfile
 
 from GPUtil import getGPUs
+from PIL import Image
 from girder_client import GirderClient
 from girder_worker.app import app
 from girder_worker.task import Task
 from girder_worker.utils import JobManager, JobStatus
+import numpy as np
+from pycocotools import mask as mask_utils
 
 from dive_tasks import utils
 from dive_tasks.frame_alignment import check_and_fix_frame_alignment
@@ -307,13 +311,7 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
 
 @app.task(bind=True, acks_late=True, ignore_result=True)
-def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login: str):
-    """
-    Discovery logic:
-    * Find all folders that have at least one child file (potential datasets)
-    * Exclude folders which are sub-folders of previously discovered folders
-      because datasets cannot be nested in other datasets
-    """
+def extract_zip(self: Task, input_folder: str, itemId: str, user_id: str, user_login: str):
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
@@ -328,6 +326,7 @@ def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login
         manager.write(f'Fetching input from {itemId} to {file_name}...\n')
         gc.downloadItem(itemId, _working_directory, item["name"])
         discovered_folders = {}
+
         with zipfile.ZipFile(file_name, 'r') as zipObj:
             listOfFileNames = zipObj.namelist()
             sum_file_size = sum([data.file_size for data in zipObj.filelist])
@@ -335,8 +334,8 @@ def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login
             ratio = sum_file_size / sum_compress_size
             if ratio > 600:
                 manager.write(
-                    f"Compression ratio is exceedingly high at {ratio}\n\
-                    Please contact an admin at viame-web@kitware.com if this is a valid zip file"
+                    f"Compression ratio is exceedingly high at {ratio}\n"
+                    "Please contact an admin at viame-web@kitware.com if this is a valid zip file"
                 )
                 raise Exception("High Compression Ratio for Zip File")
 
@@ -351,18 +350,30 @@ def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login
                 if folderName not in discovered_folders:
                     discovered_folders[folderName] = 'unstructured'
                 if constants.metaRegex.search(os.path.basename(fileName)):
-                    # sub folder has a meta.json so it is an exported dataset
                     discovered_folders[folderName] = 'dataset'
                 if fileName.endswith('.zip'):
                     raise Exception("Nested Zip Files are invalid")
                 manager.write(f"Extracting: {fileName}\n")
                 zipObj.extract(fileName, f'{_working_directory}')
 
-        # remove the zip file so it isn't uploaded back to the folder
         os.remove(file_name)
-        # Create source folder and move zip file there
+        masks_path = _working_directory_path / 'masks'
+        if masks_path.exists():
+            manager.write("Processing special 'masks' folder...\n")
+            process_masks_folder(
+                gc,
+                manager,
+                input_folder,
+                _working_directory_path / folderName,
+                'masks',
+            )
+            manager.write("Removing Zip File\n")
+            gc.delete(f"item/{item['_id']}")
+            shutil.rmtree(masks_path)
+            return
+
         created_folder = gc.createFolder(
-            folderId,
+            input_folder,
             constants.SourceFolderName,
             reuseExisting=True,
         )
@@ -370,17 +381,18 @@ def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login
             "PUT",
             f"/item/{str(item['_id'])}?folderId={str(created_folder['_id'])}",
         )
-        # Only make subfolders if more than 1 discovered folder exists
+
         make_subfolders = (
             len(discovered_folders) - list(discovered_folders.values()).count('ignored')
         ) > 1
+
         for folderName, folderType in discovered_folders.items():
             subFolderName = folderName if make_subfolders else ''
             if folderType == 'unstructured':
                 utils.upload_zipped_flat_media_files(
                     gc,
                     manager,
-                    folderId,
+                    input_folder,
                     _working_directory_path / folderName,
                     subFolderName,
                 )
@@ -388,7 +400,7 @@ def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login
                 utils.upload_exported_zipped_dataset(
                     gc,
                     manager,
-                    folderId,
+                    input_folder,
                     _working_directory_path / folderName,
                     subFolderName,
                 )
@@ -398,6 +410,87 @@ def extract_zip(self: Task, folderId: str, itemId: str, user_id: str, user_login
         if make_subfolders:
             gc.sendRestRequest(
                 "DELETE",
-                f"folder/{folderId}/metadata",
+                f"folder/{input_folder}/metadata",
                 json=[constants.TypeMarker, constants.FPSMarker, constants.DatasetMarker],
             )
+
+
+def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name='masks'):
+    """
+    Upload mask images and RLE_MASKS.json file (if available or generate an empty one).
+    """
+    masks_folder = gc.createFolder(folderId, subfolder_name, reuseExisting=True)
+    gc.addMetadataToFolder(masks_folder['_id'], {'mask': True})
+    # Create subfolder in Girder for masks
+    rle_path = masks_path / 'RLE_MASKS.json'
+    has_rle_mask = rle_path.exists()
+    if has_rle_mask:
+        manager.write("Found RLE_MASKS.json, uploading...\n")
+        rle_item = gc.uploadFileToFolder(masks_folder['_id'], str(rle_path))
+        gc.addMetadataToItem(
+            rle_item['itemId'],
+            {
+                'description': 'Nested JSON with COCO RLE for all tracks and frames',
+                'RLE_MASK_FILE': True,
+            },
+        )
+
+    # Upload all image files
+    rle_masks_json = None
+    if not has_rle_mask:
+        rle_masks_json = {}
+
+    for track_dir in masks_path.iterdir():
+        if not track_dir.is_dir():
+            continue
+        track_id = track_dir.name
+        if not has_rle_mask:
+            rle_masks_json[str(track_id)] = {}
+        track_folder = gc.createFolder(masks_folder['_id'], track_id, reuseExisting=True)
+        gc.addMetadataToFolder(track_folder['_id'], {'mask_track': True})
+
+        for image_path in track_dir.glob("*.png"):
+            frame_number = image_path.stem
+            manager.write(f"Uploading mask: track {track_id}, frame {frame_number}\n")
+
+            item = gc.uploadFileToFolder(track_folder["_id"], str(image_path))
+            gc.addMetadataToItem(
+                item['itemId'],
+                {
+                    'mask_frame_parent_track': track_id,
+                    'mask_frame_value': frame_number,
+                    'mask_track_frame': True,
+                },
+            )
+            if not has_rle_mask:
+                rle_masks_json[str(track_id)][str(frame_number)] = {
+                    'file_name': str(image_path),
+                    'rle': {},
+                }
+                # Create RLE for the image
+                image = Image.open(image_path)
+                np_img = np.array(image.convert('1'))
+                # COCO RLE expects Fortran order and uint8 data
+                rle = mask_utils.encode(np.asfortranarray(np_img.astype(np.uint8)))
+                # The counts value needs to be JSON serializable (i.e. a string)
+                rle['counts'] = rle['counts'].decode('utf-8')
+
+                rle_masks_json[str(track_id)][str(frame_number)]['rle'] = {
+                    "size": list(image.size),
+                    "counts": rle['counts'],
+                }
+
+    # Handle RLE_MASKS.json
+    if rle_masks_json is not None:
+        # Create empty RLE file
+        with open(rle_path, 'w') as fp:
+            json.dump({}, fp)
+        manager.write("Created empty RLE_MASKS.json\n")
+        rle_item = gc.uploadFileToFolder(masks_folder['_id'], str(rle_path))
+        gc.addMetadataToItem(
+            rle_item['itemId'],
+            {
+                'description': 'Nested JSON with COCO RLE for all tracks and frames',
+                'RLE_MASK_FILE': True,
+            },
+        )

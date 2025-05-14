@@ -113,6 +113,7 @@ def generate_tracks(upload):
 
         track_data = {'tracks': {}, 'groups': {}, 'version': 2}
         mask_data = {}
+        rle_masks_json = {}
 
         for config in CONFIG:
             track_id = config['track_number']
@@ -137,6 +138,7 @@ def generate_tracks(upload):
                 'features': []
             }
             mask_data[str(track_id)] = {}
+            rle_masks_json[str(track_id)] = {}
 
             for frame_id, bounds in enumerate(motion):
                 mask = create_mask(mask_type, bounds, IMAGE_SIZE)
@@ -163,18 +165,21 @@ def generate_tracks(upload):
                     }
                 }
 
+                rle_masks_json[str(track_id)][str(frame_id)] = {
+                    'rle': {
+                        'size': [IMAGE_SIZE[1], IMAGE_SIZE[0]],  # width, height
+                        'counts': rle['counts']
+                    }
+                }
+
                 if OUTPUT_MASKS:
                     output_dir = os.path.join('outputMasks', f'{track_id}')
                     os.makedirs(output_dir, exist_ok=True)
 
-                    # Create an RGBA image: transparent background (alpha=0), mask area (alpha=255)
                     alpha_channel = (mask > 0).astype(np.uint8) * 255
-                    # Set RGB to white (255,255,255) where mask is present, otherwise 0 (transparent)
                     rgba = np.zeros((mask.shape[0], mask.shape[1], 4), dtype=np.uint8)
-                    rgba[..., 0] = 255  # R
-                    rgba[..., 1] = 255  # G
-                    rgba[..., 2] = 255  # B
-                    rgba[..., 3] = alpha_channel  # A
+                    rgba[..., 0:3] = 255
+                    rgba[..., 3] = alpha_channel
 
                     img = Image.fromarray(rgba, mode='RGBA')
                     img_path = os.path.join(output_dir, f'{frame_id}.png')
@@ -188,7 +193,10 @@ def generate_tracks(upload):
         with open('RLEMask.json', 'w') as f:
             json.dump(mask_data, f, indent=2)
 
-        print('Generated trackJSON.json, RLEMask.json', end='')
+        with open('RLE_MASKS.json', 'w') as f:
+            json.dump(rle_masks_json, f, indent=2)
+
+        print('Generated trackJSON.json, RLEMask.json, RLE_MASKS.json', end='')
         if OUTPUT_MASKS:
             print(', and PNG masks in outputMasks/')
         else:
@@ -202,7 +210,6 @@ def upload_to_girder():
     gc = girder_client.GirderClient(API_URL, port=PORT, apiRoot='girder/api/v1', scheme='http')
     gc.authenticate(interactive=True)
 
-    # Create or reuse 'masks' folder
     masks_folder = gc.createFolder(DATASET_ID, name='masks', reuseExisting=True)
     gc.addMetadataToFolder(masks_folder['_id'], {'mask': True})
     print(f'Created or reused folder: masks ({masks_folder["_id"]})')
@@ -230,6 +237,15 @@ def upload_to_girder():
                 'mask_track_frame': True
             })
             print(f'Uploaded {fname} to track {track_id} with metadata.')
+
+    # Upload RLE_MASKS.json to base masks folder
+    if os.path.exists('RLE_MASKS.json'):
+        rle_item = gc.uploadFileToFolder(masks_folder['_id'], 'RLE_MASKS.json')
+        gc.addMetadataToItem(rle_item['itemId'], {
+            'description': 'Nested JSON with COCO RLE for all tracks and frames',
+            'RLE_MASK_FILE': True
+        })
+        print('Uploaded RLE_MASKS.json to masks folder.')
 
 
 if __name__ == '__main__':

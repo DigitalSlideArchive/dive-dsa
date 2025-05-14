@@ -58,6 +58,9 @@ export default defineComponent({
       revisionId.value = useRevisionId().value;
       const { editorOptions } = useMasks();
       hasMasks.value = editorOptions.hasMasks.value;
+      watch(editorOptions.hasMasks, (val) => {
+        hasMasks.value = val;
+      });
     }
     async function doExport({ forceSave = false, url }: { url?: string; forceSave?: boolean }) {
       if (pendingSaveCount.value > 0 && forceSave) {
