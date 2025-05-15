@@ -12,6 +12,7 @@ DIVE Desktop and Web support a number of annotation and configuration formats.  
 * VIAME CSV
 * KPF (KWIVER Packet Format)
 * COCO and KWCOCO (web only)
+* MASK Zip Files (web only)
 
 ## DIVE Annotation JSON
 
@@ -59,6 +60,7 @@ interface Feature {
   flick?: Readonly<number>;
   interpolate?: boolean;
   keyframe?: boolean;
+  hasMask?: boolean;
   bounds?: [number, number, number, number]; // [x1, y1, x2, y2] as (left, top), (bottom, right)
   geometry?: GeoJSON.FeatureCollection<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString | GeoJSON.Point>;
   fishLength?: number;
@@ -173,3 +175,91 @@ Only supported on web.
 
 * Read the [COCO Specification](https://cocodataset.org/#format-data)
 * Read the [KWCOCO Specification](https://kwcoco.readthedocs.io/en/release/getting_started.html)
+
+
+## DIVE Segmentation Masks Format
+
+DIVE supports the use of per-frame PNG masks and optional COCO-style RLE masks, bundled in a ZIP file. This format is intended for semantic or instance segmentation overlays tied to specific tracks and frames.
+
+### ZIP File Requirements
+
+The ZIP file should contain a top-level `masks/` folder. Each subfolder inside `masks/` corresponds to a **track ID** and contains PNG files named by **frame number** (both as integers without leading zeros).
+
+This structure ensures DIVE can properly associate each mask image with the correct track and frame.
+
+### Folder Structure Example
+
+```
+masks/
+├── RLE_MASKS.json        # Optional. JSON file containing RLE-encoded masks
+├── 1/                    # Track ID (no leading zeros)
+│   ├── 1.png             # Frame number (no leading zeros)
+│   ├── 2.png
+│   └── ...
+├── 2/
+│   ├── 5.png
+│   └── ...
+```
+
+All track and frame keys should be strings representing integers with no leading zeros.
+
+### Girder Metadata Structure
+
+When processed in Girder (via the DIVE import tool or programmatically):
+
+- The top-level `masks/` folder is created and tagged with metadata:
+
+```json
+{
+  "mask": true
+}
+```
+
+- Each subfolder (e.g., `1/`, `2/`) representing a track is tagged with metadata:
+
+```json
+{
+  "mask_track": true
+}
+```
+
+- Each PNG image file will be uploaded under its corresponding track folder and automatically associated with the appropriate track ID and frame number.
+- A Girder Item located ./masks/4/150.png would have the following metadata associated with it
+
+```json
+{
+  "mask_frame_parent_track": 4,
+  "mask_frame_value": 150,
+  "mask_track_frame": true,
+}
+
+### TrackJSON Mask Support
+
+Within the TrackJSON any frame that has a mask should have the value `hasMask` set to 'true'
+
+
+### RLE_MASKS.json Format (Optional - Future support to convert to this mode)
+
+The `RLE_MASKS.json` file contains RLE-compressed masks that mirror the PNG mask folder structure. It must be a dictionary with track IDs as keys and frame-indexed masks as values. Example:
+
+```json
+{
+  "1": {
+    "1": {
+      "size": [720, 1280],
+      "counts": "eW0b00..."
+    },
+    "2": {
+      "size": [720, 1280],
+      "counts": "kVcP10..."
+    }
+  },
+  "2": {
+    "5": {
+      "size": [720, 1280],
+      "counts": "YVfQ22..."
+    }
+  }
+}
+```
+

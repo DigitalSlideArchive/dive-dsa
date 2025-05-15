@@ -1,7 +1,7 @@
 <!-- eslint-disable no-await-in-loop -->
 <script lang="ts">
 import {
-  defineComponent, onMounted, ref, watch,
+  defineComponent, onMounted, onUnmounted, ref, watch,
 } from 'vue';
 import {
   useCameraStore,
@@ -21,6 +21,46 @@ export default defineComponent({
     const cameraStore = useCameraStore();
     const { frame } = useTime();
     const existingMask = ref(false);
+
+    const paintMouseShortcuts = [
+      {
+        bind: '[',
+        handler: () => {
+          if (editorOptions.brushSize.value > 1) {
+            editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value - 1 });
+          }
+        },
+      },
+      {
+        bind: ']',
+        handler: () => {
+          if (editorOptions.brushSize.value < editorOptions.maxBrushSize.value) {
+            editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value + 1 });
+          }
+        },
+      },
+    ];
+
+    const handleMouseScroll = (event: WheelEvent) => {
+      if (!event.ctrlKey || event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      if (event.deltaY < 0) {
+        if (editorOptions.brushSize.value < editorOptions.maxBrushSize.value) {
+          editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value + 1 });
+        }
+      } else if (editorOptions.brushSize.value > 1) {
+        editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value - 1 });
+      }
+    };
+
+    onMounted(() => {
+      window.addEventListener('wheel', handleMouseScroll, { passive: false });
+    });
+    onUnmounted(() => {
+      window.removeEventListener('wheel', handleMouseScroll);
+    });
 
     const checkHasMask = () => {
       if (selectedTrack.value !== null) {
@@ -93,6 +133,7 @@ export default defineComponent({
       exitMaskEditing,
       existingMask,
       deleteMask,
+      paintMouseShortcuts,
     };
   },
 });
@@ -180,7 +221,10 @@ export default defineComponent({
     </span>
     <v-tooltip v-if="['eraser', 'brush'].includes(toolEnabled)" bottom>
       <template #activator="{ on }">
-        <span v-on="on">
+        <span
+          v-mousetrap="paintMouseShortcuts"
+          v-on="on"
+        >
           <v-slider
             :value="brushSize"
             step="1"

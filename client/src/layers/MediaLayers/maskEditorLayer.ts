@@ -61,6 +61,8 @@ export default class MaskEditorLayer {
 
   editorFunctionsRef: UseMaskInterface['editorFunctions'];
 
+  mousePos: [number, number] | null;
+
   constructor({
     annotator,
     typeStyling,
@@ -77,6 +79,7 @@ export default class MaskEditorLayer {
     this.enabled = false;
     this.trackId = null;
     this.frameId = null;
+    this.mousePos = null;
     this.featureLayer = this.annotator.geoViewerRef.value.createLayer('feature', {
       features: ['quad.image'],
       renderer: 'canvas',
@@ -117,6 +120,7 @@ export default class MaskEditorLayer {
         this.updateCanvas();
       }
       this.drawBrushIcon(x, y);
+      this.mousePos = [x, y];
       if (e.buttons.left) {
         if (x > 0 && x < this.width && y > 0 && y < this.height) {
           this.mouseDown = true;
@@ -124,7 +128,12 @@ export default class MaskEditorLayer {
         }
       }
     });
-
+    watch(editorOptions.brushSize, (newBrushSize) => {
+      if (this.iconCtx && this.mousePos) {
+        const [x, y] = this.mousePos;
+        this.drawBrushIcon(x, y);
+      }
+    });
     this.featureLayer.geoOn(geo.event.mouseclick, (e: GeoEvent) => {
       const { x, y } = e.geo;
       if (e.buttons.left) {
