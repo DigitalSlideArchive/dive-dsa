@@ -177,7 +177,7 @@ export default defineComponent({
           type: 'Mask',
           active: isVisible('Mask'),
           icon: 'mdi-draw',
-          tooltip: 'Mask Annotation Display',
+          tooltip: 'Segementation Masks',
           click: () => toggleVisible('Mask'),
         },
         {
@@ -420,6 +420,7 @@ export default defineComponent({
                     class="pa-4 flex-column d-flex"
                     outlined
                   >
+                    <v-card-text>Segementation Masks</v-card-text>
                     <label for="frames-before">Opacity: {{ maskOpacity }}</label>
                     <input
                       id="frames-before"

@@ -22,25 +22,6 @@ export default defineComponent({
     const { frame } = useTime();
     const existingMask = ref(false);
 
-    const paintMouseShortcuts = [
-      {
-        bind: '[',
-        handler: () => {
-          if (editorOptions.brushSize.value > 1) {
-            editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value - 1 });
-          }
-        },
-      },
-      {
-        bind: ']',
-        handler: () => {
-          if (editorOptions.brushSize.value < editorOptions.maxBrushSize.value) {
-            editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value + 1 });
-          }
-        },
-      },
-    ];
-
     const handleMouseScroll = (event: WheelEvent) => {
       if (!event.ctrlKey || event.metaKey) {
         return;
@@ -133,7 +114,6 @@ export default defineComponent({
       exitMaskEditing,
       existingMask,
       deleteMask,
-      paintMouseShortcuts,
     };
   },
 });
@@ -222,7 +202,6 @@ export default defineComponent({
     <v-tooltip v-if="['eraser', 'brush'].includes(toolEnabled)" bottom>
       <template #activator="{ on }">
         <span
-          v-mousetrap="paintMouseShortcuts"
           v-on="on"
         >
           <v-slider
@@ -238,7 +217,10 @@ export default defineComponent({
           />
         </span>
       </template>
-      <span>Brush Size Adjustment</span>
+      <div align="center">
+        <div>Brush Size Adjustment</div>
+        <div>(Mouse Scroll: Ctrl + Scroll)</div>
+      </div>
     </v-tooltip>
     <v-tooltip bottom>
       <template #activator="{ on }">
