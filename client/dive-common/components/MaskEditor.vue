@@ -36,6 +36,25 @@ export default defineComponent({
       }
     };
 
+    const mouseTrapBrushSize = ref([
+      {
+        bind: '-',
+        handler: () => {
+          if (editorOptions.brushSize.value > 1) {
+            editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value - 1 });
+          }
+        },
+      },
+      {
+        bind: '=',
+        handler: () => {
+          if (editorOptions.brushSize.value < editorOptions.maxBrushSize.value) {
+            editorFunctions.setEditorOptions({ brushSize: editorOptions.brushSize.value + 1 });
+          }
+        },
+      },
+    ]);
+
     onMounted(() => {
       window.addEventListener('wheel', handleMouseScroll, { passive: false });
     });
@@ -114,6 +133,7 @@ export default defineComponent({
       exitMaskEditing,
       existingMask,
       deleteMask,
+      mouseTrapBrushSize,
     };
   },
 });
@@ -202,6 +222,7 @@ export default defineComponent({
     <v-tooltip v-if="['eraser', 'brush'].includes(toolEnabled)" bottom>
       <template #activator="{ on }">
         <span
+          v-mousetrap="mouseTrapBrushSize"
           v-on="on"
         >
           <v-slider
@@ -219,7 +240,16 @@ export default defineComponent({
       </template>
       <div align="center">
         <div>Brush Size Adjustment</div>
-        <div>(Mouse Scroll: Ctrl + Scroll)</div>
+        <div>
+          <v-icon class="ml-2">
+            mdi-mouse
+          </v-icon> (Mouse Scroll: Ctrl + Scroll)
+        </div>
+        <div>
+          <v-icon class="ml-2">
+            mdi-keyboard
+          </v-icon> (Keyboard: '-/=' to decrease and increase size)
+        </div>
       </div>
     </v-tooltip>
     <v-tooltip bottom>

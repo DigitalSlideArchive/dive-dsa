@@ -231,7 +231,6 @@ export default class MaskEditorLayer {
           const dHeight = Math.round(intersectLR.y - intersectUL.y);
 
           tempCtx.clearRect(dx, dy, dWidth, dHeight);
-          console.log('drawImage', sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
           tempCtx.drawImage(this.canvas, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
         }
         this.editingImage.src = tempCanvas.toDataURL();
