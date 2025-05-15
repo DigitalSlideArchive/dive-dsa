@@ -165,6 +165,7 @@ export default class MaskEditorLayer {
 
     watch(editorOptions.triggerAction, async () => {
       if (editorOptions.triggerAction.value === 'save' && this.trackId !== null && this.editingImage) {
+        this.annotator.resetZoom();
         const copyImage = new Image(this.editingImage.width, this.editingImage.height);
         copyImage.src = this.editingImage.src;
         await editorFunctions.addUpdateMaskFrame(this.trackId, copyImage);
@@ -195,20 +196,20 @@ export default class MaskEditorLayer {
           x: Math.max(imageUL.x, currentUpperLeft.x),
           y: Math.max(imageUL.y, currentUpperLeft.y),
         };
-        if (intersectUL.x < 0) {
+        if (intersectUL.x <= 0) {
           intersectUL.x = 0;
         }
-        if (intersectUL.y < 0) {
+        if (intersectUL.y <= 0) {
           intersectUL.y = 0;
         }
         const intersectLR = {
           x: Math.min(imageLR.x, currentLowerRight.x),
           y: Math.min(imageLR.y, currentLowerRight.y),
         };
-        if (intersectLR.x > this.width) {
+        if (intersectLR.x >= this.width) {
           intersectLR.x = this.width;
         }
-        if (intersectLR.y > this.height) {
+        if (intersectLR.y >= this.height) {
           intersectLR.y = this.height;
         }
         // If no overlap, skip drawing
@@ -219,16 +220,18 @@ export default class MaskEditorLayer {
           const dstUL = map.gcsToDisplay(intersectUL);
           const dstLR = map.gcsToDisplay(intersectLR);
 
-          const sx = srcUL.x;
-          const sy = srcUL.y;
-          const sWidth = srcLR.x - srcUL.x;
-          const sHeight = srcLR.y - srcUL.y;
+          const sx = Math.round(srcUL.x);
+          const sy = Math.round(srcUL.y);
+          const sWidth = Math.round(srcLR.x - srcUL.x);
+          const sHeight = Math.round(srcLR.y - srcUL.y);
 
-          const dx = intersectUL.x;
-          const dy = intersectUL.y;
-          const dWidth = intersectLR.x - intersectUL.x;
-          const dHeight = intersectLR.y - intersectUL.y;
+          const dx = Math.round(intersectUL.x);
+          const dy = Math.round(intersectUL.y);
+          const dWidth = Math.round(intersectLR.x - intersectUL.x);
+          const dHeight = Math.round(intersectLR.y - intersectUL.y);
+
           tempCtx.clearRect(dx, dy, dWidth, dHeight);
+          console.log('drawImage', sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
           tempCtx.drawImage(this.canvas, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
         }
         this.editingImage.src = tempCanvas.toDataURL();
