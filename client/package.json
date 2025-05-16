@@ -1,6 +1,6 @@
 {
   "name": "dive-dsa",
-  "version": "1.10.27",
+  "version": "1.11.0",
   "author": {
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
@@ -121,6 +121,7 @@
     "vue-jest": "^3.0.7",
     "vue-template-compiler": "^2.7.0",
     "vuetify-loader": "^1.7.3",
+    "worker-loader": "^3.0.8",
     "xml-js": "^1.6.11",
     "yargs": "^16.1.0"
   },

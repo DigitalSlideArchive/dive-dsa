@@ -63,9 +63,15 @@ export default defineComponent({
             );
           }
 
+          let reloadAfter = true;
+          if (path.endsWith('.zip')) {
+            reloadAfter = false;
+          }
+          if (importFile && reloadAfter) {
+            await reloadAnnotations();
+          }
           if (importFile) {
             processing.value = false;
-            await reloadAnnotations();
           }
         }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,6 +151,7 @@ export default defineComponent({
             <li> DIVE Annotation JSON </li>
             <li> DIVE Configuation JSON</li>
             <li> KWCOCO JSON files </li>
+            <li> Masks Zip File </li>
           </ul>
           <a
             href="https://kitware.github.io/dive/DataFormats/"

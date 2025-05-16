@@ -14,6 +14,7 @@ import {
   useLineChart,
   useTimeObserver,
   useEventChart,
+  useMasks,
 } from 'vue-media-annotator/use';
 import {
   Track, Group,
@@ -39,6 +40,7 @@ import EditorMenu from 'dive-common/components/EditorMenu.vue';
 import ConfidenceFilter from 'dive-common/components/ConfidenceFilter.vue';
 import UserGuideButton from 'dive-common/components/UserGuideButton.vue';
 import DeleteControls from 'dive-common/components/DeleteControls.vue';
+import MaskEditor from 'dive-common/components/MaskEditor.vue';
 import ControlsContainer from 'dive-common/components/ControlsContainer.vue';
 import Sidebar from 'dive-common/components/Sidebar.vue';
 import { useModeManager, useSave } from 'dive-common/use';
@@ -79,6 +81,7 @@ export default defineComponent({
   components: {
     ControlsContainer,
     DeleteControls,
+    MaskEditor,
     Sidebar,
     LayerManager,
     VideoAnnotator,
@@ -129,6 +132,9 @@ export default defineComponent({
     const latestRevisionId = ref(0); // Latest Revision from the revision endpoint if the revision prop is 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const overlays: Ref<Readonly<{url: string; filename: string; id: string; metadata?: Record<string, any>}[] | undefined>> = ref(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mediaMasks: Ref<Readonly<{url: string; filename: string; id: string; metadata?: Record<string, any>}[] | undefined>> = ref(undefined);
+
     const {
       loadDetections, loadMetadata, saveMetadata, saveConfiguration, transferConfiguration,
     } = useApi();
@@ -706,8 +712,16 @@ export default defineComponent({
           if (subCameraMeta.overlays) {
             overlays.value = subCameraMeta.overlays;
           }
+          if (subCameraMeta.masks) {
+            mediaMasks.value = subCameraMeta.masks;
+          }
           cameraStore.addCamera(camera);
           addSaveCamera(camera);
+          if (mediaMasks.value?.length) {
+            setFrameRate(meta.fps);
+            initializeMaskData({ masks: mediaMasks.value });
+          }
+          getFolderRLEMasks(cameraId);
           // eslint-disable-next-line no-await-in-loop
           const { tracks, groups } = await loadDetections(cameraId, props.revision);
           progress.total = tracks.length + groups.length;
@@ -902,6 +916,15 @@ export default defineComponent({
       setConfigurationId,
     };
 
+    const {
+      initializeMaskData,
+      setFrameRate,
+      getMask,
+      getFolderRLEMasks,
+      editorFunctions,
+      editorOptions,
+    } = useMasks(time.frame, time.flick, datasetId, globalHandler);
+
     const useAttributeFilters = {
       attributeFilters,
       addAttributeFilter,
@@ -954,6 +977,7 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
+        masks: { getMask, editorFunctions, editorOptions },
       },
       globalHandler,
       useAttributeFilters,
@@ -1113,6 +1137,12 @@ export default defineComponent({
               @delete-point="handler.removePoint"
               @delete-annotation="handler.removeAnnotation"
               @toggle-time="handler.toggleKeyFrame"
+            />
+          </template>
+          <template slot="additional-controls">
+            <MaskEditor
+              v-if="editingMode === 'Mask'"
+              @set-annotation-state="handler.setAnnotationState"
             />
           </template>
         </EditorMenu>

@@ -81,7 +81,9 @@ class DIVE_Metadata(Model):
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
         print(f'MetdataKeysOwner: {metadataKeys["owner"]} Owner: {str(owner["_id"])}')
-        if (key not in metadataKeys['unlocked'] and metadataKeys['owner'] != str(owner['_id'])) and force is False:
+        if (
+            key not in metadataKeys['unlocked'] and metadataKeys['owner'] != str(owner['_id'])
+        ) and force is False:
             raise Exception(f'Key {key} is not unlocked for this metadata and cannot be modified')
         if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
             existing['metadata'][key] = float(value)

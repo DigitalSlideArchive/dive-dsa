@@ -132,3 +132,36 @@ Every track is required to have a bounding box, but a polygon region may be adde
 ### Polygon Demo
 
 ![Polygon Demo](videos/CreationModes/PolygonAnnotation.gif)
+
+
+## Segmentation Masks
+
+![Polygon Demo](videos/CreationModes/SegmentationAnnotation.gif)
+
+
+
+Sgementation masks are a newer feature that allows painting with a brush an overlay and using that has an annotation.
+The masks can be used as a precursor to running a slicer-cli container with Object Tracking and Segmentation like Segment Anything (SAM2)
+
+### Creating a Mask
+
+- **Right click** an annotation to enter edit mode or create a new Track
+- In the [Edit bar](UI-Navigation-Editing-Bar.md), click ==:material-draw:== or press ++4++ to enter Segementation edit/create mode.
+- You will start off in the paintbrush mode.  Clicking will place down an annotation at the current point.
+- Navigation can be done using ++middle-click++ to pan and ++scroll-wheel++ to zoom in and out
+- Alternatively using the '-' and '=' key to decrease or increase the brush size
+- At anytime you can click on the pointer or use ++1++ to return back to the standard mouse controls
+- Once you are done drawing your segmentation mask click on the ==:material-content-save:== button.  This will save the mask and save the track annotations at the same time.
+- The ==:material-delete:== button can be used to remove a mask
+
+
+### Importing/Exporting Segmentation Masks
+
+Masks are saved both in a JSON COCO Run Length Encoded file and as RAW .png files in Girder.
+**Export** - Export can be done from the main Annotation interface.  A Zip file will be exported based on the folder structure specified in [Data Formats](DataFormats.md)
+**Import** - The only importing supported currently for segmentation masks is a zip file with the same structure as [Data Formats](DataFormats.md)
+
+### Mask Information
+
+More Mask Information about the storage and file types can be found under [Data Formats](DataFormats.md)
+

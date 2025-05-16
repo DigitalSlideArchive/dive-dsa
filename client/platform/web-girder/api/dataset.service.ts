@@ -57,6 +57,7 @@ export interface DatasetSourceMedia {
   imageData: MediaResource[];
   video?: MediaResource;
   overlays?: MediaResource[];
+  masks?: MediaResource[];
 }
 
 export interface DatasetTaskDefaults {
@@ -131,7 +132,11 @@ async function importAnnotationFile(parentId: string, path: string, file?: HTMLF
       headers: { 'Content-Type': 'application/octet-stream' },
     });
     if (uploadResponse.status === 200) {
-      const final = await postProcess(parentId, true, false, additive, additivePrepend);
+      let skipJobs = false;
+      if (path.endsWith('.json') || path.endsWith('.csv')) {
+        skipJobs = true;
+      }
+      const final = await postProcess(parentId, skipJobs, false, additive, additivePrepend);
       return final.status === 200;
     }
   }

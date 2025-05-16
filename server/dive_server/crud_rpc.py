@@ -238,12 +238,9 @@ def postprocess(
         if len(zipItems) > 1:
             raise RestException('There are multiple zip files in the folder.')
         for item in zipItems:
-            total_items = len(list((Folder().childItems(dsFolder))))
-            if total_items > 1:
-                raise RestException('There are multiple files besides a zip, cannot continue')
             newjob = tasks.extract_zip.apply_async(
                 kwargs=dict(
-                    folderId=str(item["folderId"]),
+                    input_folder=str(item["folderId"]),
                     itemId=str(item["_id"]),
                     user_id=str(user["_id"]),
                     user_login=str(user["login"]),

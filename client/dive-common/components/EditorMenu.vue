@@ -7,6 +7,7 @@ import { Mousetrap, OverlayPreferences } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
+import { useMasks } from 'vue-media-annotator/provides';
 
 interface ButtonData {
   id: string;
@@ -60,18 +61,21 @@ export default defineComponent({
   setup(props, { emit }) {
     const toolTipForce = ref(false);
     let toolTimeTimeout: number | undefined;
+    const { editorOptions, editorFunctions } = useMasks();
     const modeToolTips = {
       Creating: {
         rectangle: 'Drag to draw rectangle. Press ESC to exit.',
         Polygon: 'Click to place vertices. Right click to close.',
         LineString: 'Click to place head/tail points.',
         Time: 'Automatically creating Time',
+        Mask: 'Create a Segmentation Mask',
       },
       Editing: {
         rectangle: 'Drag vertices to resize the rectangle',
         Polygon: 'Drag midpoints to create new vertices. Click vertices to select for deletion.',
         LineString: 'Click endpoints to select for deletion.',
         Time: 'Use the keyframe indicator to modify the time annotation, Delete to return to rectangle annotations',
+        Mask: 'Edit the Segmentation Mask',
       },
     };
 
@@ -108,6 +112,16 @@ export default defineComponent({
         }],
         click: () => emit('set-annotation-state', { editing: 'Time' }),
       },
+      {
+        id: 'Mask',
+        icon: 'mdi-draw',
+        active: props.editingTrack && props.editingMode === 'Mask',
+        mousetrap: [{
+          bind: '4',
+          handler: () => emit('set-annotation-state', { editing: 'Mask' }),
+        }],
+        click: () => emit('set-annotation-state', { editing: 'Mask' }),
+      },
       ];
       // Others should be disabled with a reason
       for (let i = 0; i < buttons.length; i += 1) {
@@ -116,13 +130,20 @@ export default defineComponent({
           button.disabled = true;
           button.disabledReason = 'Time Annotation is Active, delete the Time annotation to enable other modes';
           button.color = 'error';
+        } else if (button.id !== 'Mask' && props.editingTrack && props.editingMode === 'Mask') {
+          button.disabled = true;
+          button.disabledReason = 'Mask Annotation is Active, delete/save or exit Mask mode to reanble';
+          button.color = 'error';
         } else {
           button.disabled = !props.editingMode;
           button.disabledReason = undefined;
           button.color = button.active ? editingHeader.value.color : '';
         }
       }
-      return buttons;
+      if (props.editingTrack && props.editingMode !== 'Mask') {
+        return buttons;
+      }
+      return [];
     });
 
     const viewButtons = computed((): ButtonData[] => {
@@ -152,12 +173,12 @@ export default defineComponent({
           click: () => toggleVisible('LineString'),
         },
         {
-          id: 'Time',
-          type: 'Time',
-          active: isVisible('Time'),
-          icon: 'mdi-timer-outline',
-          tooltip: 'Time Annotation Display',
-          click: () => toggleVisible('Time'),
+          id: 'Mask',
+          type: 'Mask',
+          active: isVisible('Mask'),
+          icon: 'mdi-draw',
+          tooltip: 'Segementation Masks',
+          click: () => toggleVisible('Mask'),
         },
         {
           id: 'text',
@@ -256,6 +277,15 @@ export default defineComponent({
       return { text: 'Not editing', icon: 'mdi-pencil-off-outline', color: '' };
     });
 
+    const updateMaskOpacity = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const value = Number.parseFloat(target.value);
+      editorFunctions.setEditorOptions({ opactiy: value });
+    };
+
+    const maskOpacity = computed(() => editorOptions.opacity.value);
+    const loadingFrame = computed(() => editorOptions.loadingFrame.value);
+
     return {
       toolTipForce,
       editButtons,
@@ -267,6 +297,9 @@ export default defineComponent({
       mousetrap,
       editingHeader,
       modeToolTips,
+      updateMaskOpacity,
+      maskOpacity,
+      loadingFrame,
     };
   },
 });
@@ -332,6 +365,7 @@ export default defineComponent({
           <span v-if="button.disabledReason"> {{ button.disabledReason }}</span>
         </v-tooltip></span>
       <slot name="delete-controls" />
+      <slot name="additional-controls" />
       <v-spacer />
       <span class="pb-1">
         <span class="mr-1 px-3 py-1">
@@ -351,7 +385,59 @@ export default defineComponent({
               && (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
           >
             <template #activator="{ on }">
+              <v-badge
+                v-if="button.id === 'Mask'"
+                overlap
+                bottom
+                :color="loadingFrame ? 'primary' : undefined"
+                :content="!loadingFrame ? '' : undefined"
+                :icon="loadingFrame ? 'mdi-spin mdi-sync' : undefined"
+                :value="loadingFrame ? true : false"
+                offset-x="25"
+                offset-y="18"
+              >
+
+                <v-menu
+                  open-on-hover
+                  bottom
+                  offset-y
+                  :close-on-content-click="false"
+                >
+                  <template #activator="{ on, attrs }">
+                    <v-btn
+                      v-if="getUISetting('Masks')"
+                      v-bind="attrs"
+                      :color="isVisible('Mask') ? 'grey darken-2' : ''"
+                      class="mx-1 mode-button"
+                      small
+                      v-on="on"
+                      @click="button.click"
+                    >
+                      <v-icon>{{ button.icon }}</v-icon>
+                    </v-btn>
+                  </template>
+                  <v-card
+                    class="pa-4 flex-column d-flex"
+                    outlined
+                  >
+                    <v-card-text>Segementation Masks</v-card-text>
+                    <label for="frames-before">Opacity: {{ maskOpacity }}</label>
+                    <input
+                      id="frames-before"
+                      type="range"
+                      name="frames-before"
+                      class="tail-slider-width"
+                      label
+                      min="0"
+                      max="100"
+                      :value="maskOpacity"
+                      @input="updateMaskOpacity($event)"
+                    >
+                  </v-card>
+                </v-menu>
+              </v-badge>
               <v-btn
+                v-else
                 :color="button.active ? 'grey darken-2' : ''"
                 class="mx-1 mode-button"
                 small

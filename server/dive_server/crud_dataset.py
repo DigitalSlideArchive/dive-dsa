@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import cherrypy
 from girder.constants import AccessType
 from girder.exceptions import RestException
+from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.file import File
 from girder.utility import ziputil
 from pydantic.main import BaseModel
 
@@ -17,6 +17,10 @@ from dive_utils import TRUTHY_META_VALUES, constants, fromMeta, models, types
 
 def get_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
     return f"/api/v1/dive_dataset/{str(dataset['_id'])}/media/{str(item['_id'])}/download"
+
+
+def get_item_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
+    return f"/api/v1/item/{str(item['_id'])}/download"
 
 
 def createSoftClone(
@@ -258,7 +262,7 @@ def get_media(
         )
         overlays = []
         for media in overlayItems:
-            print(media)
+            print()
             overlays.append(
                 models.MediaResource(
                     id=str(media["_id"]),
@@ -268,10 +272,36 @@ def get_media(
                 )
             )
 
+    masks = crud.get_valid_masks(dsFolder, user)
+    print(f'FolderId: {dsFolder["_id"]}')
+    if len(masks) > 0:
+        # Find a video tagged with an h264 codec left by the transcoder
+        masks = [
+            models.MediaResource(
+                id=str(mask["_id"]),
+                url=get_item_url(dsFolder, mask),
+                filename=mask['name'],
+                metadata={
+                    'trackId': (
+                        int(mask['meta'][constants.MASK_FRAME_PARENT_TRACK_MARKER])
+                        if constants.MASK_FRAME_PARENT_TRACK_MARKER in mask.get('meta', {})
+                        else None
+                    ),
+                    'frameId': (
+                        int(mask['meta'][constants.MASK_FRAME_VALUE])
+                        if constants.MASK_FRAME_VALUE in mask.get('meta', {})
+                        else None
+                    ),
+                },
+            )
+            for mask in masks
+        ]
+
     return models.DatasetSourceMedia(
         imageData=imageData,
         video=videoResource,
         overlays=overlays,
+        masks=masks,
     )
 
 

@@ -1,9 +1,16 @@
 <script lang="ts">
 import {
-  computed, defineComponent, ref, shallowRef, toRef, watch, PropType, Ref,
+  computed,
+  defineComponent,
+  ref,
+  shallowRef,
+  toRef,
+  watch,
+  PropType,
+  Ref,
 } from 'vue';
 import {
-  usePendingSaveCount, useHandler, useTrackFilters, useRevisionId,
+  usePendingSaveCount, useHandler, useTrackFilters, useRevisionId, useMasks,
 } from 'vue-media-annotator/provides';
 import AutosavePrompt from 'dive-common/components/AutosavePrompt.vue';
 import { useRequest } from 'dive-common/use';
@@ -43,11 +50,17 @@ export default defineComponent({
     const pendingSaveCount = ref(0);
     const checkedTypes = ref([] as readonly string[]);
     const revisionId = ref(null as null | number);
+    const hasMasks = ref(false);
     if (props.blockOnUnsaved) {
       save = useHandler().save;
       pendingSaveCount.value = usePendingSaveCount().value;
       checkedTypes.value = useTrackFilters().checkedTypes.value;
       revisionId.value = useRevisionId().value;
+      const { editorOptions } = useMasks();
+      hasMasks.value = editorOptions.hasMasks.value;
+      watch(editorOptions.hasMasks, (val) => {
+        hasMasks.value = val;
+      });
     }
     async function doExport({ forceSave = false, url }: { url?: string; forceSave?: boolean }) {
       if (pendingSaveCount.value > 0 && forceSave) {
@@ -133,6 +146,15 @@ export default defineComponent({
               format: 'dive_json',
             },
           }),
+          exportMasksUrl: getUri({
+            url: 'dive_annotation/export',
+            params: {
+              ...params,
+              folderId: singleDataSetId.value,
+              revisionId: revisionId.value,
+              format: 'masks',
+            },
+          }),
           exportConfigurationUrl: getUri({
             url: `dive_dataset/${singleDataSetId.value}/export_configuration`,
           }),
@@ -167,6 +189,7 @@ export default defineComponent({
       savePrompt,
       singleDataSetId,
       doExport,
+      hasMasks,
     };
   },
 });
@@ -298,7 +321,7 @@ export default defineComponent({
                   depressed
                   block
                   :disabled="!exportUrls.exportDetectionsUrl"
-                  @click="doExport({ url: exportUrls && exportUrls.exportDetectionsUrl })"
+                  @click="doExport({ url: exportUrls && exportUrls.exportDetectionsUrlTrackJSON })"
                 >
                   <span
                     v-if="exportUrls.exportDetectionsUrl"
@@ -320,14 +343,26 @@ export default defineComponent({
               <v-card outlined>
                 <v-list dense>
                   <v-list-item
-                    style="align-items':'center"
+                    style="align-items:center"
                     @click="doExport({
                       url: exportUrls
-                        && exportUrls.exportDetectionsUrlTrackJSON,
+                        && exportUrls.exportDetectionsUrl,
                     })"
                   >
                     <v-list-item-content>
-                      <v-list-item-title>TrackJSON</v-list-item-title>
+                      <v-list-item-title>ViameCSV</v-list-item-title>
+                    </v-list-item-content>
+                  </v-list-item>
+                  <v-list-item
+                    v-if="hasMasks"
+                    style="align-items:center"
+                    @click="doExport({
+                      url: exportUrls
+                        && exportUrls.exportMasksUrl,
+                    })"
+                  >
+                    <v-list-item-content>
+                      <v-list-item-title>Masks</v-list-item-title>
                     </v-list-item-content>
                   </v-list-item>
                 </v-list>

@@ -45,6 +45,16 @@ module.exports = {
   productionSourceMap: true,
   publicPath: staticPath,
   chainWebpack,
+  configureWebpack: {
+    module: {
+      rules: [
+        {
+          test: /\.worker\.js$/,
+          use: { loader: 'worker-loader' },
+        },
+      ],
+    },
+  },
   pluginOptions: {
   },
 };
