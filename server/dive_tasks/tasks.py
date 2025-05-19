@@ -342,6 +342,10 @@ def extract_zip(self: Task, input_folder: str, itemId: str, user_id: str, user_l
             for fileName in listOfFileNames:
                 folderName = os.path.dirname(fileName)
                 parentName = os.path.dirname(folderName)
+                if 'masks' in file_name:
+                    manager.write(f"Extracting: {fileName}\n")
+                    zipObj.extract(fileName, f'{_working_directory}')
+                    continue
                 if parentName in discovered_folders and folderName != '':
                     discovered_folders[folderName] = 'ignored'
                     continue
@@ -364,7 +368,7 @@ def extract_zip(self: Task, input_folder: str, itemId: str, user_id: str, user_l
                 gc,
                 manager,
                 input_folder,
-                _working_directory_path / folderName,
+                masks_path,
                 'masks',
             )
             manager.write("Removing Zip File\n")
@@ -439,8 +443,9 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
     rle_masks_json = None
     if not has_rle_mask:
         rle_masks_json = {}
-
+    manager.write(f"Processing mask tracks...{masks_path}\n")
     for track_dir in masks_path.iterdir():
+        manager.write(f"Processing track: {track_dir.name}\n")
         if not track_dir.is_dir():
             continue
         track_id = track_dir.name
