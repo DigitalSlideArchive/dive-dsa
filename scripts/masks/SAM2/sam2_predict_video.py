@@ -26,8 +26,8 @@ logging.basicConfig(
 @click.command()
 @click.argument('video_path', type=click.Path(exists=True))
 @click.option('--start-frame', type=int, default=0)
-@click.option('--num-frames', type=int, default=500)
-@click.option('--output-dir', type=click.Path(), default='./output_masks')
+@click.option('--num-frames', type=int, default=100)
+@click.option('--output-dir', type=click.Path(), default='./masks')
 @click.option('--frame-dir', type=click.Path(), default='./frames')
 @click.option('--upload', is_flag=True, help='Upload generated masks to Girder.')
 def segment_video(video_path, start_frame, num_frames, output_dir, frame_dir, upload):
@@ -56,7 +56,7 @@ def segment_video(video_path, start_frame, num_frames, output_dir, frame_dir, up
 
     logging.info(f"Extracting frames from {video_path}...")
     subprocess.run([
-        "ffmpeg", "-i", str(video_path), "-q:v", "2", "-start_number", "0",
+        "ffmpeg", "-i", str(video_path), "-q:v", "2", "-start_number", str(start_frame),
         str(frame_dir / "%05d.jpg")
     ], check=True)
     logging.info("Frame extraction complete.")
@@ -97,10 +97,10 @@ def segment_video(video_path, start_frame, num_frames, output_dir, frame_dir, up
     with open(output_dir / "RLE_MASKS.json", "w") as f:
         json.dump(rle_masks, f, indent=2)
 
-    with open(output_dir / "trackJSON.json", "w") as f:
+    with open(output_dir / "TrackJSON.json", "w") as f:
         json.dump(track_data, f, indent=2)
 
-    logging.info(f"Saved RLE_MASKS.json and trackJSON.json to: {output_dir}")
+    logging.info(f"Saved RLE_MASKS.json and TrackJSON.json to: {output_dir}")
 
     if upload:
         upload_to_girder(output_dir)
@@ -149,7 +149,7 @@ def save_and_record_mask(mask, output_dir, obj_id, frame_idx, rle_masks, track_d
             'attributes': {},
             'hasMask': True,
             'interpolate': False,
-        }
+        } 
 
     # Calculate bounding box
     y_indices, x_indices = np.where(mask_bin > 0)

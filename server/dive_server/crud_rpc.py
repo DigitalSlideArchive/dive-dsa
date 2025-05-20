@@ -201,6 +201,7 @@ def postprocess(
     skipTranscoding=False,
     additive=False,
     additivePrepend='',
+    logic='replace',
 ) -> types.GirderModel:
     """
     Post-processing to be run after media/annotation import
@@ -244,6 +245,7 @@ def postprocess(
                     itemId=str(item["_id"]),
                     user_id=str(user["_id"]),
                     user_login=str(user["login"]),
+                    logic=logic,
                     girder_job_title=f"Extracting {item['_id']} to folder {str(dsFolder['_id'])}",
                     girder_client_token=str(token["_id"]),
                     girder_job_type="private" if job_is_private else "convert",
