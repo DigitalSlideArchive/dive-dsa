@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>DIVE</category>
+  <title>SAM2 Demo</title>
+  <description>Using a DIVE Dataset and Track/Frame number it creates segmentation masks and ingests them in the system</description>
+  <version>0.1.0</version>
+  <documentation-url></documentation-url>
+  <license>Apache 2.0</license>
+  <contributor>Bryon Lewis</contributor>
+  <acknowledgements>This work is part of the DIVE project.</acknowledgements>
+    <parameters >
+    <label>Variables</label>
+    <description>Variables</description>
+    <integer>
+      <name>TrackingFrames</name>
+      <longflag>TrackingFrames</longflag>
+      <description><![CDATA[Number of Frames to Track for]]></description>
+      <label>TrackingFrames</label>
+      <default>100</default>
+    </integer>
+    <integer>
+      <name>TrackId</name>
+      <longflag>TrackId</longflag>
+      <description><![CDATA[Selected TrackId to run segmentation on]]></description>
+      <label>TrackId</label>
+      <default>0</default>
+    </integer>
+    <integer>
+      <name>StartFrame</name>
+      <longflag>StartFrame</longflag>
+      <description><![CDATA[Frame to begin tracking at]]></description>
+      <label>StartFrame</label>
+      <default>0</default>
+    </integer>
+  </parameters>
+  <parameters advanced="true">
+    <label>Model Parameters</label>
+    <description>Parameters for the Model Inputs, can be left blank if you want to use default</description>
+    <string>
+      <name>SAM2ModelFolder</name>
+      <longflag>SAM2ModelFolder</longflag>
+      <description><![CDATA[Girder Model Folder that contains the checkpoint and configuration files]]></description>
+      <label>SAM2ModelFolder</label>
+      <channel>input</channel>
+    </string>
+  </parameters>
+  <parameters advanced="true">
+    <label>Automatic Paramemters</label>
+    <description>Input/output parameters</description>
+    <directory>
+      <name>DIVEDirectory</name>
+      <longflag>DIVEDirectory</longflag>
+      <description><![CDATA[An input DIVE Directory. If no default is specified, the current directory is used,]]></description>
+      <label>Input DIVE directory</label>
+      <channel>input</channel>
+    </directory>
+    <string>
+      <name>DIVEMetadata</name>
+      <longflag>DIVEMetadata</longflag>
+      <description><![CDATA[The DIVE Metadata Id for the Dataset]]></description>
+      <label>DIVE Metadata Id</label>
+      <channel>input</channel>
+    </string>
+    <string>
+      <name>DIVEMetadataRoot</name>
+      <longflag>DIVEMetadataRoot</longflag>
+      <description><![CDATA[The DIVE Metadata Root for the Dataset]]></description>
+      <label>DIVE Metadata Root</label>
+      <channel>input</channel>
+    </string>
+  </parameters>
+  <parameters advanced="true">
+    <label>Girder API URL and Token</label>
+    <description>A Girder API URL and token for Girder client, automatically populated in DIVE</description>
+    <string>
+      <name>girderApiUrl</name>
+      <longflag>api-url</longflag>
+      <label>Girder API URL</label>
+      <description>A Girder API URL (e.g., https://girder.example.com:443/api/v1)</description>
+      <default></default>
+    </string>
+    <string>
+      <name>girderToken</name>
+      <longflag>girder-token</longflag>
+      <label>Girder Token</label>
+      <description>A Girder token</description>
+      <default></default>
+    </string>
+  </parameters>
+</executable>

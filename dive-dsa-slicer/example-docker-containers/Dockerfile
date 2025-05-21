@@ -24,6 +24,15 @@ RUN apt-get update && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_l.yaml \
+    https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_l.yaml
+
+# Download the model checkpoint
+RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_large.pt \
+    https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+
+
+
 RUN pip install --no-cache-dir --upgrade pip setuptools && \
     # Install bokeh to help debug dask \
     pip install --no-cache-dir 'bokeh>=0.12.14,<3' && \
@@ -32,6 +41,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools && \
     # Install some other dependencies here to save time in the histomicstk \
     # install step \
     pip install --no-cache-dir opencv-python-headless && \
+    # SAM Dependenceis
+    pip install --no-cache-dir sam2 pycocotools torch pillow && \
     # clean up \
     rm -rf /root/.cache/pip/*
 
