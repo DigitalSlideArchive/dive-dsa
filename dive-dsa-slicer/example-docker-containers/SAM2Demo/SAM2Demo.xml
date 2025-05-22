@@ -36,13 +36,6 @@
   <parameters advanced="true">
     <label>Model Parameters</label>
     <description>Parameters for the Model Inputs, can be left blank if you want to use default</description>
-    <string>
-      <name>SAM2ModelFolder</name>
-      <longflag>SAM2ModelFolder</longflag>
-      <description><![CDATA[Girder Model Folder that contains the checkpoint and configuration files]]></description>
-      <label>SAM2ModelFolder</label>
-      <channel>input</channel>
-    </string>
   </parameters>
   <parameters advanced="true">
     <label>Automatic Paramemters</label>
@@ -54,24 +47,17 @@
       <label>Input DIVE directory</label>
       <channel>input</channel>
     </directory>
-    <string>
-      <name>DIVEMetadata</name>
-      <longflag>DIVEMetadata</longflag>
-      <description><![CDATA[The DIVE Metadata Id for the Dataset]]></description>
-      <label>DIVE Metadata Id</label>
+    <file>
+      <name>DIVEVideo</name>
+      <label>Input Video</label>
+      <description>Input video</description>
       <channel>input</channel>
-    </string>
-    <string>
-      <name>DIVEMetadataRoot</name>
-      <longflag>DIVEMetadataRoot</longflag>
-      <description><![CDATA[The DIVE Metadata Root for the Dataset]]></description>
-      <label>DIVE Metadata Root</label>
-      <channel>input</channel>
-    </string>
+      <index>0</index>
+    </file>
   </parameters>
   <parameters advanced="true">
-    <label>Girder API URL and Token</label>
-    <description>A Girder API URL and token for Girder client, automatically populated in DIVE</description>
+    <label>Girder API URL and Key</label>
+    <description>A Girder API URL and token for Girder client</description>
     <string>
       <name>girderApiUrl</name>
       <longflag>api-url</longflag>

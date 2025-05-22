@@ -24,6 +24,15 @@ RUN apt-get update && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+RUN mkdir -p /opt/SAM2/models
+
+RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_t.yaml \
+    https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_t.yaml
+
+RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_tiny.pt \
+    https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt
+
+    
 RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_l.yaml \
     https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_l.yaml
 

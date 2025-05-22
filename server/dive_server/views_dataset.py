@@ -490,7 +490,7 @@ class DatasetResource(Resource):
         }
         return json.dumps(returnVal, indent=4)
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(
         Description("Get dataset source media").modelParam(
             "id", level=AccessType.READ, **DatasetModelParam
@@ -499,7 +499,7 @@ class DatasetResource(Resource):
     def get_media(self, folder):
         return crud_dataset.get_media(folder, self.getCurrentUser()).dict(exclude_none=True)
 
-    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @access.public(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(
         Description("Get Task defaults for video and output directories").modelParam(
             "id",
@@ -510,7 +510,7 @@ class DatasetResource(Resource):
     def get_task_defaults(self, folder):
         return crud_dataset.get_task_defaults(folder, self.getCurrentUser()).dict(exclude_none=True)
 
-    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @access.public(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(
         Description("Get a Recursive list of all DIVE Datasets within a parent folder")
         .modelParam(

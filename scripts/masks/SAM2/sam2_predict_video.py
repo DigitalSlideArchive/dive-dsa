@@ -61,7 +61,7 @@ def segment_video(video_path, start_frame, num_frames, output_dir, frame_dir, up
     ], check=True)
     logging.info("Frame extraction complete.")
 
-    predictor = SAM2VideoPredictor.from_pretrained("facebook/sam2-hiera-large").to(device)
+    predictor = SAM2VideoPredictor.from_pretrained("facebook/sam2-hiera-tiny").to(device)
 
     with torch.inference_mode(), torch.autocast(str(device), dtype=torch.bfloat16):
         if device.type == "cuda" and torch.cuda.get_device_properties(0).major >= 8:
@@ -143,7 +143,7 @@ def save_and_record_mask(mask, output_dir, obj_id, frame_idx, rle_masks, track_d
             'id': str(obj_id),
             'begin': frame_idx,
             'end': frame_idx,
-            'confidencePairs': [['SAM2', 1.0]],
+            'confidencePairs': [['SAM2', 1.0], ["class2", 0.5]],
             'features': [],
             'group': None,
             'attributes': {},
