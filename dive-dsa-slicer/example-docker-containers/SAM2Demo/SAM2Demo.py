@@ -107,7 +107,7 @@ def run_inference(
             frame_idx, object_ids, masks = predictor.add_new_mask(state, 0, ann_obj_id, torch_mask)
         else:
             frame_idx, object_ids, masks = predictor.add_new_points_or_box(
-                state, frame_idx=startFrame, box=bbox, obj_id=ann_obj_id
+                state, frame_idx=0, box=bbox, obj_id=ann_obj_id
             )
         output_dir = working_directory / 'output/masks'
         for obj_id, mask in zip(object_ids, masks):
@@ -431,10 +431,7 @@ def process_masks_folder(
                     track_map[str(track['id'])] = track
             for trackId in json_data['tracks']:
                 # Check if the track already exists in the new JSON
-                if trackId not in track_map.keys():
-                    # If not, add it to the new JSON
-                    json_data['tracks'][trackId] = track_map[trackId]
-                else:
+                if trackId in track_map.keys():
                     # If it does exist, check for merges or conversions
                     # we want to merge any new changes
                     old_features = track_map[trackId]['features']

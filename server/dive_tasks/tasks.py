@@ -561,10 +561,7 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
                     track_map[str(track['id'])] = track
             for trackId in json_data['tracks']:
                 # Check if the track already exists in the new JSON
-                if trackId not in track_map.keys():
-                    # If not, add it to the new JSON
-                    json_data['tracks'][trackId] = track_map[trackId]
-                else:
+                if trackId in track_map.keys():
                     # If it does exist, check for merges or conversions
                     # we want to merge any new changes
                     old_features = track_map[trackId]['features']
@@ -572,7 +569,6 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
                     merged_features = merge_features(old_features, new_features)
                     begin = min(track_map[trackId]['begin'], json_data['tracks'][trackId]['begin'])
                     end = max(track_map[trackId]['end'], json_data['tracks'][trackId]['end'])
-
 
                     # Update the track with the new begin and end
                     json_data['tracks'][trackId]['begin'] = begin

@@ -307,7 +307,7 @@ export default defineComponent({
 
       if (visibleModes.includes('rectangle')) {
         //We modify rects opacity/thickness if polygons are visible or not
-        rectAnnotationLayer.setDrawingOther(visibleModes.includes('Polygon') || visibleModes.includes('Mask'));
+        rectAnnotationLayer.setDrawingOther(visibleModes);
         rectAnnotationLayer.changeData(frameData);
       } else {
         rectAnnotationLayer.disable();

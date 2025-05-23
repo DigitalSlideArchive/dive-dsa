@@ -26,7 +26,7 @@ logging.basicConfig(
 @click.command()
 @click.argument('video_path', type=click.Path(exists=True))
 @click.option('--start-frame', type=int, default=0)
-@click.option('--num-frames', type=int, default=100)
+@click.option('--num-frames', type=int, default=500)
 @click.option('--output-dir', type=click.Path(), default='./masks')
 @click.option('--frame-dir', type=click.Path(), default='./frames')
 @click.option('--upload', is_flag=True, help='Upload generated masks to Girder.')
