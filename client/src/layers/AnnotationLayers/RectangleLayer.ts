@@ -4,6 +4,7 @@ import geo, { GeoEvent } from 'geojs';
 import { boundToGeojson } from '../../utils';
 import BaseLayer, { LayerStyle, BaseLayerParams } from '../BaseLayer';
 import { FrameDataTrack } from '../LayerTypes';
+import { VisibleAnnotationTypes } from '..';
 
 interface RectGeoJSData{
   trackId: number;
@@ -16,7 +17,7 @@ interface RectGeoJSData{
 }
 
 export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
-  drawingOther: boolean; //drawing another type of annotation at the same time?
+  drawingOther: VisibleAnnotationTypes[]; //drawing another type of annotation at the same time?
 
   hoverOn: boolean; //to turn over annnotations on
 
@@ -24,7 +25,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
 
   constructor(params: BaseLayerParams) {
     super(params);
-    this.drawingOther = false;
+    this.drawingOther = [];
     this.hoverOn = false;
     //Only initialize once, prevents recreating Layer each edit
     this.initialize();
@@ -97,8 +98,8 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
    * and also handle selection clicking between different types
    * @param val - determines if we are drawing other types of annotations
    */
-  setDrawingOther(val: boolean) {
-    this.drawingOther = val;
+  setDrawingOther(val: readonly VisibleAnnotationTypes[]) {
+    this.drawingOther = [...val];
   }
 
   formatData(frameData: FrameDataTrack[]) {
@@ -174,7 +175,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       },
       strokeOpacity: (_point, _index, data) => {
         // Reduce the rectangle opacity if a polygon is also drawn
-        if (this.drawingOther && (data.hasPoly || data.hasMask)) {
+        if ((this.drawingOther.includes('Mask') && data.hasMask) || (this.drawingOther.includes('Polygon') && data.hasPoly)) {
           return this.stateStyling.disabled.opacity;
         }
         if (data.selected) {
@@ -197,7 +198,7 @@ export default class RectangleLayer extends BaseLayer<RectGeoJSData> {
       },
       strokeWidth: (_point, _index, data) => {
         //Reduce rectangle line thickness if polygon is also drawn
-        if (this.drawingOther && (data.hasPoly || data.hasMask)) {
+        if ((this.drawingOther.includes('Mask') && data.hasMask) || (this.drawingOther.includes('Polygon') && data.hasPoly)) {
           return this.stateStyling.disabled.strokeWidth;
         }
         if (data.selected) {

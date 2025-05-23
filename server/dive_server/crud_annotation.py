@@ -717,7 +717,7 @@ def delete_masks(
         }
     )
     if not mask_folder:
-        raise RestException("Mask folder not found in dataset.", code=404)
+        return
 
     if not track_frame_pairs:
         raise RestException("No track/frame pairs provided for deletion.", code=400)

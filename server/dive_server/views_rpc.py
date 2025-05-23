@@ -73,10 +73,22 @@ class RpcResource(Resource):
             default='',
             required=False,
         )
+        .param(
+            "logic",
+            "Logic to use when combining annotations using Zip files (specifically masks.zip).   \
+            'replace' will replace existing annotations with new ones.  \
+            'merge' will combine existing and new annotations.  \
+            'additive' will add new annotations to existing ones.",
+            paramType="formData",
+            dataType="string",
+            default='merge',
+            required=False,
+        )
+
     )
-    def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend):
+    def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend, logic):
         return crud_rpc.postprocess(
-            self.getCurrentUser(), folder, skipJobs, skipTranscoding, additive, additivePrepend
+            self.getCurrentUser(), folder, skipJobs, skipTranscoding, additive, additivePrepend, logic
         )
 
     @access.user
