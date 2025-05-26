@@ -11,7 +11,7 @@ import girderRest from './plugins/girder';
 import App from './App.vue';
 import router from './router';
 import store from './store';
-import 'vue-girder-slicer-cli-ui/dist/style.css';
+import 'vue-girder-slicer-cli-ui/dist/vue-girder-slicer-cli-ui.css';
 
 Vue.config.productionTip = false;
 Vue.use(vMousetrap);
