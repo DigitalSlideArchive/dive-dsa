@@ -1,6 +1,6 @@
 {
   "name": "dive-dsa",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "author": {
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
@@ -41,7 +41,7 @@
     "mousetrap": "^1.6.5",
     "semver": "^7.3.5",
     "vue": "^2.7.15",
-    "vue-girder-slicer-cli-ui": "0.1.1",
+    "vue-girder-slicer-cli-ui": "^0.1.1",
     "vue-gtag": "^1.9.1",
     "vue-router": "^3.0.3",
     "vuetify": "^2.3.10",

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>DIVE</category>
+  <title>SAM2 Demo</title>
+  <description>Using a DIVE Dataset and Track/Frame number it creates segmentation masks and ingests them in the system</description>
+  <version>0.1.0</version>
+  <documentation-url></documentation-url>
+  <license>Apache 2.0</license>
+  <contributor>Bryon Lewis</contributor>
+  <acknowledgements>This work is part of the DIVE project.</acknowledgements>
+    <parameters >
+    <label>Variables</label>
+    <description>Variables</description>
+    <string-enumeration>
+      <name>SAMModel</name>
+      <longflag>SAMModel</longflag>
+      <description><![CDATA[An enumeration of strings]]></description>
+      <label>SAM2 Model</label>
+      <element>Small</element>
+      <element>Base</element>
+      <element>Large</element>
+      <element>Tiny</element>
+      <default>Tiny</default>
+    </string-enumeration>
+    <integer>
+      <name>TrackingFrames</name>
+      <longflag>TrackingFrames</longflag>
+      <description><![CDATA[Number of Frames to Track for]]></description>
+      <label>TrackingFrames</label>
+      <default>100</default>
+    </integer>
+    <string>
+      <name>DIVETrackType</name>
+      <longflag>DIVETrackType</longflag>
+      <label>Track Type</label>
+      <description><![CDATA[Track Type for full frame tracks]]></description>
+      <default>unknown</default>
+    </string>
+    <integer>
+      <name>DIVETrackId</name>
+      <longflag>DIVETrackId</longflag>
+      <description><![CDATA[Selected TrackId to run segmentation on]]></description>
+      <label>Track Id</label>
+      <default>0</default>
+    </integer>
+    <integer>
+      <name>DIVEFrameId</name>
+      <longflag>DIVEFrameId</longflag>
+      <description><![CDATA[Frame to begin tracking at]]></description>
+      <label>Frame Id</label>
+      <default>0</default>
+    </integer>
+  </parameters>
+  <parameters advanced="true">
+    <label>Model Parameters</label>
+    <description>Parameters for the Model Inputs, can be left blank if you want to use default</description>
+  </parameters>
+  <parameters advanced="true">
+    <label>Automatic Paramemters</label>
+    <description>Input/output parameters</description>
+    <directory>
+      <name>DIVEDirectory</name>
+      <longflag>DIVEDirectory</longflag>
+      <description><![CDATA[An input DIVE Directory. If no default is specified, the current directory is used,]]></description>
+      <label>Input DIVE directory</label>
+      <channel>input</channel>
+    </directory>
+    <file>
+      <name>DIVEVideo</name>
+      <label>Input Video</label>
+      <description>Input video</description>
+      <channel>input</channel>
+      <index>0</index>
+    </file>
+  </parameters>
+  <parameters advanced="true">
+    <label>Girder API URL and Key</label>
+    <description>A Girder API URL and token for Girder client</description>
+    <string>
+      <name>girderApiUrl</name>
+      <longflag>api-url</longflag>
+      <label>Girder API URL</label>
+      <description>A Girder API URL (e.g., https://girder.example.com:443/api/v1)</description>
+      <default></default>
+    </string>
+    <string>
+      <name>girderToken</name>
+      <longflag>girder-token</longflag>
+      <label>Girder Token</label>
+      <description>A Girder token</description>
+      <default></default>
+    </string>
+  </parameters>
+</executable>

@@ -19,7 +19,7 @@ export default defineComponent({
         } else {
             currentValue.value = props.data.defaultValue || props.data.value || '';
         }
-    })
+    });
     const validate = (e: Event) => {
         // Validation Logic for different types
         const update = { ...props.data };
@@ -30,9 +30,19 @@ export default defineComponent({
         update.value = value;
         currentValue.value = value;
         emit('change', update);
-    }
+    };
+    const values = computed(() => {
+      if (props.data.values && Array.isArray(props.data.values)) {
+        if (props.data.value && typeof (props.data.value) === 'string' && !props.data.values.includes(props.data.value) ) {
+          props.data.values.unshift(props.data.value);
+        }
+        return props.data.values;
+      }
+      return [];
+    });
     return {
       error,
+      values,
       currentValue,
       validate,
       disabledReason,
@@ -54,9 +64,10 @@ export default defineComponent({
       :value="data.value"
       :disabled="!!disabledReason"
       @change="validate($event)"
+      class="gsu-selection w-full py-1 px-2 mb-1 text-base leading-normal"
     >
       <option
-        v-for="item in data.values"
+        v-for="item in values"
         :key="`${data.title}_${item}`"
         :value="item"
       >

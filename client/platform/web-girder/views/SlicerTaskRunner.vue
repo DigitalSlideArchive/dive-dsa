@@ -5,7 +5,10 @@ import { XMLParameters } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes'
 import { cloneDeep } from 'lodash';
 import { getTaskDefaults } from 'platform/web-girder/api/dataset.service';
 import {
+  useCameraStore,
   useDatasetId, useHandler, useLatestRevisionId,
+  useSelectedTrackId,
+  useTime,
 } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
@@ -34,6 +37,9 @@ export default defineComponent({
 
   setup() {
     const datasetId = useDatasetId();
+    const selectedTrackId = useSelectedTrackId();
+    const { frame } = useTime();
+    const cameraStore = useCameraStore();
     const girderRest = useGirderRest();
     const latestRevisionId = useLatestRevisionId();
     const handler = useHandler();
@@ -98,7 +104,25 @@ export default defineComponent({
           };
           return item;
         }
+        if (param.id === 'DIVETrackId' && selectedTrackId.value !== null) {
+          item.defaultValue = selectedTrackId.value;
+          return item;
+        }
+        if (param.id === 'DIVEFrameId') {
+          item.defaultValue = frame.value;
+          item.value = frame.value;
+          return item;
+        }
+        if (param.id === 'DIVETrackType' && selectedTrackId.value !== null) {
+          const track = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
+          if (track) {
+            [item.defaultValue] = track.getType();
+            [item.value] = track.getType();
+            return item;
+          }
+        }
       }
+
       return null;
     };
 

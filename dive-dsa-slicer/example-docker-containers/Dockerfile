@@ -24,14 +24,25 @@ RUN apt-get update && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+RUN mkdir -p /opt/SAM2/models
+
+COPY ./download_ckpts.sh /opt/SAM2/models/download_ckpts.sh
+# Download the checkpoints
+# and make sure the script is executable \
+# and run it to download the checkpoints \
+# and then remove the script to reduce image size \
+RUN chmod u+x /opt/SAM2/models/download_ckpts.sh 
+RUN /opt/SAM2/models/download_ckpts.sh
+RUN rm /opt/SAM2/models/download_ckpts.sh
+
 RUN pip install --no-cache-dir --upgrade pip setuptools && \
     # Install bokeh to help debug dask \
     pip install --no-cache-dir 'bokeh>=0.12.14,<3' && \
-    # Install girder-client \
-    pip install --no-cache-dir girder-client && \
     # Install some other dependencies here to save time in the histomicstk \
     # install step \
     pip install --no-cache-dir opencv-python-headless && \
+    # SAM Dependenceis
+    pip install --no-cache-dir sam2 pycocotools torch pillow && \
     # clean up \
     rm -rf /root/.cache/pip/*
 

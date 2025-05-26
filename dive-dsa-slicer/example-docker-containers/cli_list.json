@@ -16,5 +16,8 @@
   },
   "MultipleFullFrameMetadata": {
     "type": "python"
+  },
+  "SAM2Demo": {
+    "type": "python"
   }
 }

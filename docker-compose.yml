@@ -3,6 +3,11 @@
 # Use YAML anchors for the common config between both workers
 x-worker: &base-worker
   ipc: host
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - capabilities: [gpu]
   platform: 'linux/amd64'
   build:
     context: .

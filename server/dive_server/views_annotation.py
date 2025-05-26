@@ -182,21 +182,21 @@ class AnnotationResource(Resource):
         json_data = crud_annotation.update_RLE_masks(user, folder, trackFrameList)
         return json_data
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(GetAnnotationParams)
     def get_tracks(self, limit: int, offset: int, sort, folder, revision):
         return crud_annotation.TrackItem().list(
             folder, limit=limit, offset=offset, sort=sort, revision=revision
         )
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(GetAnnotationParams)
     def get_groups(self, limit: int, offset: int, sort, folder, revision):
         return crud_annotation.GroupItem().list(
             folder, limit=limit, offset=offset, sort=sort, revision=revision
         )
 
-    @access.user
+    @access.user(scope=TokenScope.DATA_READ)
     @autoDescribeRoute(
         Description("Get dataset annotation revision log")
         .pagingParams("revision", defaultLimit=20)
