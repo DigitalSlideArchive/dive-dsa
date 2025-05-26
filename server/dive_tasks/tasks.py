@@ -311,7 +311,14 @@ def convert_images(self: Task, folderId, user_id: str, user_login: str):
 
 
 @app.task(bind=True, acks_late=True, ignore_result=True)
-def extract_zip(self: Task, input_folder: str, itemId: str, user_id: str, user_login: str, logic: Literal['replace', 'additive', 'merge'] = 'replace'):
+def extract_zip(
+    self: Task,
+    input_folder: str,
+    itemId: str,
+    user_id: str,
+    user_login: str,
+    logic: Literal['replace', 'additive', 'merge'] = 'replace',
+):
     context: dict = {}
     gc: GirderClient = self.girder_client
     manager: JobManager = patch_manager(self.job_manager)
@@ -366,14 +373,7 @@ def extract_zip(self: Task, input_folder: str, itemId: str, user_id: str, user_l
             manager.write("Processing special 'masks' folder...\n")
             manager.write("Removing Zip File\n")
             gc.delete(f"item/{item['_id']}")
-            process_masks_folder(
-                gc,
-                manager,
-                input_folder,
-                masks_path,
-                'masks',
-                logic
-            )
+            process_masks_folder(gc, manager, input_folder, masks_path, 'masks', logic)
             shutil.rmtree(masks_path)
             return
 
@@ -420,7 +420,14 @@ def extract_zip(self: Task, input_folder: str, itemId: str, user_id: str, user_l
             )
 
 
-def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name='masks', logic: Literal['replace', 'additive', 'merge'] = 'replace'):
+def process_masks_folder(
+    gc,
+    manager,
+    folderId,
+    masks_path: Path,
+    subfolder_name='masks',
+    logic: Literal['replace', 'additive', 'merge'] = 'replace',
+):
     """
     Upload mask images and RLE_MASKS.json file (if available or generate an empty one).
     """
@@ -453,7 +460,7 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
                 'RLE_MASK_FILE': True,
             },
         )
-        
+
     # Upload all image files
     rle_masks_json = None
     if not has_rle_mask:
@@ -484,10 +491,15 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
                 # Check if the image already exists
                 existing_items = list(gc.listItem(track_folder['_id'], name=image_path.name))
                 if len(existing_items) > 0:
-                    if existing_items[0]['meta'].get('mask_track_frame', False) and \
-                            existing_items[0]['meta'].get('mask_frame_parent_track', False) == track_id and \
-                            existing_items[0]['meta'].get('mask_frame_value', False) == frame_number:
-                        manager.write(f"Image {image_path.name} already exists, Deleting Existing Item\n")
+                    if (
+                        existing_items[0]['meta'].get('mask_track_frame', False)
+                        and existing_items[0]['meta'].get('mask_frame_parent_track', False)
+                        == track_id
+                        and existing_items[0]['meta'].get('mask_frame_value', False) == frame_number
+                    ):
+                        manager.write(
+                            f"Image {image_path.name} already exists, Deleting Existing Item\n"
+                        )
                         # Delete the existing image
                         gc.delete(f"item/{existing_items[0]['_id']}")
             item = gc.uploadFileToFolder(track_folder["_id"], str(image_path))
@@ -552,7 +564,9 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
             with open(track_json_path, 'r') as f:
                 json_data = json.load(f)
             # Get the existing Tracks in the system
-            existing_tracks = gc.sendRestRequest('GET', f'/dive_annotation/track', {'folderId': folderId})
+            existing_tracks = gc.sendRestRequest(
+                'GET', f'/dive_annotation/track', {'folderId': folderId}
+            )
             track_map = {}
             for track in existing_tracks:
                 # Check if the track already exists in the new JSON
@@ -573,7 +587,7 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
                     # Update the track with the new begin and end
                     json_data['tracks'][trackId]['begin'] = begin
                     json_data['tracks'][trackId]['end'] = end
-                                                   
+
                     # Update the track with the merged features
                     json_data['tracks'][trackId]['features'] = merged_features
 
@@ -591,6 +605,7 @@ def process_masks_folder(gc, manager, folderId, masks_path: Path, subfolder_name
             result = gc.post(f'dive_rpc/postprocess/{folderId}', data={"skipJobs": True})
             manager.write(f"Postprocess result: {result}\n")
 
+
 def merge_features(features1, features2):
     # Index features1 by 'frame'
     merged_dict = {}
@@ -601,4 +616,3 @@ def merge_features(features1, features2):
         merged_dict[f['frame']] = f
     # Convert back to list
     return list(merged_dict.values())
-

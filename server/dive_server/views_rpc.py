@@ -84,11 +84,16 @@ class RpcResource(Resource):
             default='merge',
             required=False,
         )
-
     )
     def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend, logic):
         return crud_rpc.postprocess(
-            self.getCurrentUser(), folder, skipJobs, skipTranscoding, additive, additivePrepend, logic
+            self.getCurrentUser(),
+            folder,
+            skipJobs,
+            skipTranscoding,
+            additive,
+            additivePrepend,
+            logic,
         )
 
     @access.user
