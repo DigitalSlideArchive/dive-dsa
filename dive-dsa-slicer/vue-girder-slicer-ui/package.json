@@ -4,7 +4,7 @@
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
   },
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "files": [
     "dist",
@@ -18,9 +18,9 @@
       "import": "./dist/vue-girder-slicer-cli-ui.js",
       "require": "./dist/vue-girder-slicer-cli-ui.umd.cjs"
     },
-    "./dist/style.css": {
-      "import": "./dist/style.css",
-      "require": "./dist/style.css"
+    "./dist/vue-girder-slicer-cli-ui.css": {
+      "import": "./dist/vue-girder-slicer-cli-ui.css",
+      "require": "./dist/vue-girder-slicer-cli-ui.css"
     },
     "./dist/tailwind.css": {
       "import": "./dist/tailwind.css",
