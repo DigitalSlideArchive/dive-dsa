@@ -565,7 +565,7 @@ def process_masks_folder(
                 json_data = json.load(f)
             # Get the existing Tracks in the system
             existing_tracks = gc.sendRestRequest(
-                'GET', f'/dive_annotation/track', {'folderId': folderId}
+                'GET', '/dive_annotation/track', {'folderId': folderId}
             )
             track_map = {}
             for track in existing_tracks:

@@ -18,7 +18,7 @@ function chainWebpack(config) {
   // It will ignore the additional node_modules that are loaded.
   config.resolve.alias.set('vue$', path.resolve(__dirname, './node_modules/vue/dist/vue.runtime.esm.js'));
   // Add to the package.json
-  // "@bryonlewis/vue-girder-slicer-cli-ui": "file:/home/local/KHQ/bryon.lewis/dev/dive-dsa-slicer/vue-girder-slicer-ui",
+  // "vue-girder-slicer-cli-ui": "file:/home/local/KHQ/bryon.lewis/dev/dive-dsa/dive-dsa-slicer/vue-girder-slicer-ui",
 
   config.externals({
     /**

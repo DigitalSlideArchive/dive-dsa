@@ -152,6 +152,7 @@
       color: var(--bs-body-color);
     }
     .gsu-selection {
+      @apply bg-backgroundColor border-borderColor border-2 border-solid;
     }
     .text-left {
       text-align: left;

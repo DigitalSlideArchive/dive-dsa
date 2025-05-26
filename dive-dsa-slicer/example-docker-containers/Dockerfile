@@ -26,27 +26,18 @@ RUN apt-get update && \
 
 RUN mkdir -p /opt/SAM2/models
 
-RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_t.yaml \
-    https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_t.yaml
-
-RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_tiny.pt \
-    https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt
-
-    
-RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_l.yaml \
-    https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_l.yaml
-
-# Download the model checkpoint
-RUN curl -L -o /opt/SAM2/models/sam2.1_hiera_large.pt \
-    https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
-
-
+COPY ./download_ckpts.sh /opt/SAM2/models/download_ckpts.sh
+# Download the checkpoints
+# and make sure the script is executable \
+# and run it to download the checkpoints \
+# and then remove the script to reduce image size \
+RUN chmod u+x /opt/SAM2/models/download_ckpts.sh 
+RUN /opt/SAM2/models/download_ckpts.sh
+RUN rm /opt/SAM2/models/download_ckpts.sh
 
 RUN pip install --no-cache-dir --upgrade pip setuptools && \
     # Install bokeh to help debug dask \
     pip install --no-cache-dir 'bokeh>=0.12.14,<3' && \
-    # Install girder-client \
-    pip install --no-cache-dir girder-client && \
     # Install some other dependencies here to save time in the histomicstk \
     # install step \
     pip install --no-cache-dir opencv-python-headless && \

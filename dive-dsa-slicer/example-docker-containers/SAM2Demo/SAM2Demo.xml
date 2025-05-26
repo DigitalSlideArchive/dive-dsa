@@ -11,6 +11,17 @@
     <parameters >
     <label>Variables</label>
     <description>Variables</description>
+    <string-enumeration>
+      <name>SAMModel</name>
+      <longflag>SAMModel</longflag>
+      <description><![CDATA[An enumeration of strings]]></description>
+      <label>SAM2 Model</label>
+      <element>Small</element>
+      <element>Base</element>
+      <element>Large</element>
+      <element>Tiny</element>
+      <default>Tiny</default>
+    </string-enumeration>
     <integer>
       <name>TrackingFrames</name>
       <longflag>TrackingFrames</longflag>
@@ -18,18 +29,25 @@
       <label>TrackingFrames</label>
       <default>100</default>
     </integer>
+    <string>
+      <name>DIVETrackType</name>
+      <longflag>DIVETrackType</longflag>
+      <label>Track Type</label>
+      <description><![CDATA[Track Type for full frame tracks]]></description>
+      <default>unknown</default>
+    </string>
     <integer>
-      <name>TrackId</name>
-      <longflag>TrackId</longflag>
+      <name>DIVETrackId</name>
+      <longflag>DIVETrackId</longflag>
       <description><![CDATA[Selected TrackId to run segmentation on]]></description>
-      <label>TrackId</label>
+      <label>Track Id</label>
       <default>0</default>
     </integer>
     <integer>
-      <name>StartFrame</name>
-      <longflag>StartFrame</longflag>
+      <name>DIVEFrameId</name>
+      <longflag>DIVEFrameId</longflag>
       <description><![CDATA[Frame to begin tracking at]]></description>
-      <label>StartFrame</label>
+      <label>Frame Id</label>
       <default>0</default>
     </integer>
   </parameters>

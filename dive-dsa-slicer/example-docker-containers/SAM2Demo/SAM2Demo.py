@@ -27,16 +27,25 @@ logging.basicConfig(level=logging.CRITICAL)
 
 
 def process_input_args(args, gc: girder_client.GirderClient) -> None:
+    """
+    Main entry point for running SAM2-based video mask prediction.
+
+    Args:
+        args: Parsed CLI arguments.
+        gc: Authenticated Girder client.
+    """
     DIVEDatasetId = args.DIVEDirectory.split('/')[-2]
     DIVEVideo = args.DIVEVideo
-    startFrame = args.StartFrame
-    trackId = args.TrackId
+    startFrame = args.DIVEFrameId
+    trackId = args.DIVETrackId
+    trackType = args.DIVETrackType
     trackingFrames = args.TrackingFrames
+    SAMModel: Literal['Tiny', 'Small', 'Base', 'Large'] = args.SAMModel
 
     with tempfile.TemporaryDirectory() as working_directory:
         working_dir_path = Path(working_directory)
         # get either default container model files or a girderFolder with model files
-        sam2_config, sam2_checkpoint = get_model_files(gc, args, working_dir_path)
+        sam2_config, sam2_checkpoint = get_model_files(gc, args, working_dir_path, SAMModel)
         # extract the frames between startFrame and startFrame+trackingFrames into a frame_dir
         frame_dir = extract_frames(DIVEVideo, startFrame, trackingFrames, working_dir_path)
         # get the bbbox from existing trackJSON and the mask image file if it exists
@@ -50,6 +59,7 @@ def process_input_args(args, gc: girder_client.GirderClient) -> None:
             trackId,
             startFrame,
             trackingFrames,
+            trackType,
             bbox,
             mask_location,
             working_dir_path,
@@ -72,10 +82,18 @@ def run_inference(
     trackId: str,
     startFrame: int,
     trackingFrames: int,
+    track_type: str,
     bbox: Optional[list],
     mask_location: Optional[Path],
     working_directory: Path
 ) -> Path:
+    """
+    Runs SAM2 inference on a video segment using either a bbox or mask as input.
+
+    Returns:
+        Path to directory containing output masks and track data.
+    """
+
     device = (
         torch.device("cuda") if torch.cuda.is_available()
         else torch.device("mps") if torch.backends.mps.is_available()
@@ -111,15 +129,15 @@ def run_inference(
             )
         output_dir = working_directory / 'output/masks'
         for obj_id, mask in zip(object_ids, masks):
-            save_and_record_mask(mask, output_dir, trackId, frame_idx+startFrame, rle_masks, track_data)
+            save_and_record_mask(mask, output_dir, trackId, frame_idx+startFrame, track_type, rle_masks, track_data)
 
         for count, (frame_idx, object_ids, masks) in enumerate(
             predictor.propagate_in_video(state, 0, trackingFrames)
         ):
-            if frame_idx < startFrame or frame_idx >= trackingFrames:
+            if frame_idx >= trackingFrames:
                 continue
             for obj_id, mask in zip(object_ids, masks):
-                save_and_record_mask(mask, output_dir, trackId, frame_idx+startFrame, rle_masks, track_data)
+                save_and_record_mask(mask, output_dir, trackId, frame_idx+startFrame, track_type, rle_masks, track_data)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / "RLE_MASKS.json", "w") as f:
@@ -137,6 +155,12 @@ def get_mask_or_bbox(
     start_frame: int,
     working_directory: Path
 ) -> Tuple[Optional[list], Optional[Path]]:
+    """
+    Fetch existing mask or bounding box for the specified track/frame.
+
+    Returns:
+        Tuple of bbox (list or None), mask file path (Path or None), and full track map.
+    """
     existing_tracks = gc.get('dive_annotation/track', {'folderId': dataset_id})
     track_map = {str(track['id']): track for track in existing_tracks}
     track = track_map.get(str(track_id))
@@ -167,8 +191,11 @@ def get_mask_or_bbox(
     return bbox, mask_location, track_map
 
 
-def save_and_record_mask(mask: torch.Tensor, output_dir: Path, obj_id: str, frame_idx: int,
+def save_and_record_mask(mask: torch.Tensor, output_dir: Path, obj_id: str, frame_idx: int, track_type: str,
                          rle_masks: dict, track_data: dict) -> None:
+    """
+    Saves mask as PNG and records metadata for RLE encoding and track annotation.
+    """
     obj_dir = output_dir / str(obj_id)
     obj_dir.mkdir(parents=True, exist_ok=True)
     path = obj_dir / f"{frame_idx}.png"
@@ -195,7 +222,7 @@ def save_and_record_mask(mask: torch.Tensor, output_dir: Path, obj_id: str, fram
         'id': str(obj_id),
         'begin': frame_idx,
         'end': frame_idx,
-        'confidencePairs': [['SAM2', 1.0]],
+        'confidencePairs': [[track_type, 1.0]],
         'features': [],
         'group': None,
         'attributes': {},
@@ -226,6 +253,12 @@ def extract_frames(
     tracking_frames: int,
     working_directory: Path
 ) -> Path:
+    """
+    Extracts a subset of frames from a video using ffmpeg.
+
+    Returns:
+        Path to directory containing extracted JPEG frames.
+    """
     frame_dir = working_directory / 'frames'
     frame_dir.mkdir(parents=True, exist_ok=True)
 
@@ -247,12 +280,21 @@ def extract_frames(
     return frame_dir
 
 def load_png_mask_as_tensor(filename: Union[str, Path]) -> torch.Tensor:
+    """
+    Converts an RGBA PNG mask file into a binary PyTorch tensor.
+
+    Returns:
+        Tensor with shape matching image size, containing binary mask.
+    """
     img = Image.open(filename).convert("RGBA")
     alpha = np.array(img)[:, :, 3]
     binary_mask = (alpha > 0).astype(np.uint8)
     return torch.from_numpy(binary_mask)
 
 def list_directory_contents(path: Path):
+    """
+    Prints the contents of a given directory.
+    """
     try:
         contents = list(path.iterdir())
         print(f"Contents of {path}: {[p.name for p in contents]}\n")
@@ -260,9 +302,26 @@ def list_directory_contents(path: Path):
         print(f"Could not list contents of {path}: {e}\n")
 
 
-def get_model_files(gc: girder_client.GirderClient, args, working_directory: Path) -> Tuple[Path, Path]:
+SAMModelMapping = {
+    'Tiny': {'config': 'sam2.1_hiera_t.yaml', 'checkpoint': 'sam2.1_hiera_tiny.pt'},
+    'Small': {'config': 'sam2.1_hiera_s.yaml', 'checkpoint': 'sam2.1_hiera_small.pt'},
+    'Base': {'config': 'sam2.1_hiera_b.yaml', 'checkpoint': 'sam2.1_hiera_base.pt'},
+    'Large': {'config': 'sam2.1_hiera_l.yaml', 'checkpoint': 'sam2.1_hiera_large.pt'}
+}
+
+def get_model_files(gc: girder_client.GirderClient, args, working_directory: Path, SAMModel: Literal['Tiny', 'Small', 'Base', 'Large']) -> Tuple[Path, Path]:
+    """
+    Retrieves SAM2 model config and checkpoint paths from either default location or Girder folder.
+
+    Returns:
+        Tuple containing config and checkpoint paths.
+    """
     default_config = "sam2.1_hiera_t.yaml"
     default_checkpoint = "sam2.1_hiera_tiny.pt"
+
+    if SAMModel in SAMModelMapping:
+        default_config = SAMModelMapping[SAMModel]['config']
+        default_checkpoint = SAMModelMapping[SAMModel]['checkpoint']
 
     # Log existence of default files
     if not Path(f'/opt/SAM2/models/{default_config}').exists():
