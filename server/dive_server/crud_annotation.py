@@ -717,7 +717,7 @@ def delete_masks(
         }
     )
     if not mask_folder:
-        return
+        return   # mask folder doesn't exist so this can be skipped
 
     if not track_frame_pairs:
         raise RestException("No track/frame pairs provided for deletion.", code=400)
