@@ -11003,10 +11003,10 @@ vue-eslint-parser@^9.0.1, vue-eslint-parser@^9.0.3, vue-eslint-parser@^9.3.1, vu
     lodash "^4.17.21"
     semver "^7.3.6"
 
-vue-girder-slicer-cli-ui@^0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/vue-girder-slicer-cli-ui/-/vue-girder-slicer-cli-ui-0.1.2.tgz#d841a414441c6227876d4f693c861119e43ca4d4"
-  integrity sha512-wsT6NtYaYthJYtIRxSPNxkvaOGcorr8+d2dFVCMtLkbH7s2eiwCdiJWeTNG/dBrLVBoUAM7WjmX/pO9/UIcQww==
+vue-girder-slicer-cli-ui@^0.1.3:
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/vue-girder-slicer-cli-ui/-/vue-girder-slicer-cli-ui-0.1.3.tgz#1b09edddea9926e7b54062f1c46dc8e13d41bf8c"
+  integrity sha512-/iePzyDgFF2tNZfzjKdaO++lYjtgEMfOJSupwP5HuX/l52iFA2npref7SK1V7x9sbBjUYP2/vna2YqxQc/nwQw==
   dependencies:
     "@jamescoyle/vue-icon" "^0.1.2"
     "@mdi/js" "^7.2.96"
