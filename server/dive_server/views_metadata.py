@@ -1,11 +1,13 @@
 import json
 import math
 import re
+import io
+import csv
 
 import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource, getApiUrl
+from girder.api.rest import Resource, getApiUrl, setRawResponse
 from girder.constants import AccessType
 from girder.exceptions import RestException
 from girder.models.file import File
@@ -16,6 +18,9 @@ from girder.models.token import Token
 from girder.utility import path as path_util
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
+from girder.api.rest import setResponseHeader
+from dive_utils import setContentDisposition
+
 import pymongo
 
 from dive_utils import FALSY_META_VALUES, TRUTHY_META_VALUES
@@ -147,6 +152,8 @@ class DIVEMetadata(Resource):
             ),
             self.run_slicer_cli_task,
         )
+        self.route("POST", (":id", "export"), self.export_metadata)
+
 
     @access.user
     @autoDescribeRoute(
@@ -1105,3 +1112,64 @@ class DIVEMetadata(Resource):
         job = Job().save(job)
         Job().scheduleJob(job)
         return job
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Export filtered DIVE metadata as JSON or CSV")
+        .modelParam(
+            "id",
+            description="Base root Folder to filter on",
+            model=Folder,
+            level=AccessType.READ,
+        )
+        .jsonParam(
+            "filters",
+            "JSON Settings for the filtering",
+            required=False,
+        )
+        .param(
+            "format",
+            description="Export format: 'json' or 'csv'",
+            required=True,
+            enum=["json", "csv"],
+        )
+    )
+    def export_metadata(self, folder, filters, format):
+        if folder['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
+
+        user = self.getCurrentUser()
+        query = self.get_filter_query(folder, user, filters)
+        metadata_items = list(DIVE_Metadata().find(query, user=user))
+
+        filename = f"metadata_export.{format}"
+        if not metadata_items:
+            raise RestException('No metadata items to export.')
+
+        if format == 'csv':
+            output = io.StringIO(newline='')
+            # Infer CSV headers from all keys used across items
+            headers = sorted({key for item in metadata_items for key in item.get('metadata', {}).keys()})
+            
+            writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
+            writer.writeheader()
+            for item in metadata_items:
+                row = {key: item.get('metadata', {}).get(key, '') for key in headers}
+                writer.writerow(row)
+
+            csv_output = output.getvalue()
+            output.close()
+
+            setRawResponse()
+            setContentDisposition(filename, mime='text/csv')
+            setResponseHeader('Content-Type', 'text/csv')
+            return csv_output.encode('utf-8')
+
+        else:  # JSON
+            export_data = [item['metadata'] for item in metadata_items]
+            setContentDisposition(filename, mime='application/json')
+            setRawResponse()
+
+            setResponseHeader('Content-Type', 'application/json')
+            return json.dumps(export_data).encode('utf-8')
+

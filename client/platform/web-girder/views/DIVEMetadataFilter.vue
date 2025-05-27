@@ -10,10 +10,13 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import DIVEMetadataFilterItemVue from './DIVEMetadataFilterItem.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataSlicerVue from './DIVEMetadataSlicer.vue';
+import DIVEMetadataExportVue from './DIVEMetadataExport.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataFilter',
-  components: { DIVEMetadataFilterItemVue, DIVEMetadataCloneVue, DIVEMetadataSlicerVue },
+  components: {
+    DIVEMetadataFilterItemVue, DIVEMetadataCloneVue, DIVEMetadataSlicerVue, DIVEMetadataExportVue,
+  },
   props: {
     currentPage: {
       type: Number,
@@ -328,7 +331,8 @@ export default defineComponent({
         </v-btn>
 
         <v-spacer />
-        <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="pr-8" @job-complete="jobCompleted()" />
+        <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="pr-2" @job-complete="jobCompleted()" />
+        <DIVEMetadataExportVue :metadata-root="id" :filters="currentFilter" class="pr-4" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select
           v-model="sortValue"
