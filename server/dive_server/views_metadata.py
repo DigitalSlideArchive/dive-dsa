@@ -1,13 +1,13 @@
+import csv
+import io
 import json
 import math
 import re
-import io
-import csv
 
 import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource, getApiUrl, setRawResponse
+from girder.api.rest import Resource, getApiUrl, setRawResponse, setResponseHeader
 from girder.constants import AccessType
 from girder.exceptions import RestException
 from girder.models.file import File
@@ -18,12 +18,9 @@ from girder.models.token import Token
 from girder.utility import path as path_util
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
-from girder.api.rest import setResponseHeader
-from dive_utils import setContentDisposition
-
 import pymongo
 
-from dive_utils import FALSY_META_VALUES, TRUTHY_META_VALUES
+from dive_utils import FALSY_META_VALUES, TRUTHY_META_VALUES, setContentDisposition
 from dive_utils.constants import (
     DIVEMetadataClonedFilter,
     DIVEMetadataClonedFilterBase,
@@ -153,7 +150,6 @@ class DIVEMetadata(Resource):
             self.run_slicer_cli_task,
         )
         self.route("POST", (":id", "export"), self.export_metadata)
-
 
     @access.user
     @autoDescribeRoute(
@@ -1149,8 +1145,10 @@ class DIVEMetadata(Resource):
         if format == 'csv':
             output = io.StringIO(newline='')
             # Infer CSV headers from all keys used across items
-            headers = sorted({key for item in metadata_items for key in item.get('metadata', {}).keys()})
-            
+            headers = sorted(
+                {key for item in metadata_items for key in item.get('metadata', {}).keys()}
+            )
+
             writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
             writer.writeheader()
             for item in metadata_items:
@@ -1172,4 +1170,3 @@ class DIVEMetadata(Resource):
 
             setResponseHeader('Content-Type', 'application/json')
             return json.dumps(export_data).encode('utf-8')
-

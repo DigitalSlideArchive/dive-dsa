@@ -183,8 +183,8 @@ async function runSlicerMetadataTask(rootId: string, taskId: string, filters: DI
 }
 
 async function exportDiveMetadata(folderId: string, filters: DIVEMetadataFilter, format: 'csv' | 'json') {
-  const response = await girderRest.post(`dive_metadata/${folderId}/export`, filters, {
-    params: { format },
+  const response = await girderRest.post(`dive_metadata/${folderId}/export`, null, {
+    params: { format, filters },
     responseType: 'blob',
   });
 
