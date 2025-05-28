@@ -1,278 +1,345 @@
-<!-- eslint-disable max-len -->
-<script>
-import Vue from 'vue';
-import { throttle, debounce } from 'lodash';
+<!-- eslint-disable @typescript-eslint/no-unused-vars -->
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
+<script lang="ts">
+import {
+  defineComponent, ref, computed, onMounted, watch, PropType,
+  Ref,
+  nextTick,
+} from 'vue';
+import { throttle } from 'lodash';
 import * as d3 from 'd3';
+import { useTime } from 'vue-media-annotator/provides';
+import { SwimlaneAttribute, SwimlaneData } from 'vue-media-annotator/use/AttributeTypes';
+import { injectAggregateController } from '../annotators/useMediaController';
 
-function intersect(range1, range2) {
+function intersect(range1: number[], range2: number[]): number[] | null {
   const min = range1[0] < range2[0] ? range1 : range2;
   const max = min === range1 ? range2 : range1;
   if (min[1] < max[0]) {
     return null;
   }
-  return [max[0], min[1] < max[1] ? min[1] : max[1]];
+  return [max[0], Math.min(min[1], max[1])];
 }
 
-export default Vue.extend({
+export default defineComponent({
   name: 'AttributeSwimlaneGraph',
   props: {
-    startFrame: {
-      type: Number,
-      required: true,
-    },
-    endFrame: {
-      type: Number,
-      required: true,
-    },
-    maxFrame: {
-      type: Number,
-      required: true,
-    },
-    clientWidth: {
-      type: Number,
-      required: true,
-    },
-    clientHeight: {
-      type: Number,
-      required: true,
-    },
-    margin: {
-      type: Number,
-      default: 0,
-    },
-    data: {
-      type: Object,
-      required: true,
-    },
-    displayFrameIndicators: {
-      type: Boolean,
-      default: false,
-    },
+    startFrame: { type: Number, required: true },
+    endFrame: { type: Number, required: true },
+    maxFrame: { type: Number, required: true },
+    clientWidth: { type: Number, required: true },
+    clientHeight: { type: Number, required: true },
+    margin: { type: Number, default: 0 },
+    data: { type: Object as PropType<Record<string, SwimlaneAttribute>>, required: true },
+    displayFrameIndicators: { type: Boolean, default: false },
   },
-  data() {
-    return {
-      chartTop: 0,
-      x: null,
-      tooltip: null,
-      startFrame_: this.startFrame,
-      endFrame_: this.endFrame,
-      hoverTrack: null,
-      scrollPos: 0,
-      showSymbols: this.displayFrameIndicators,
-      symbolGenerator: null,
-      unsetValue: null,
-      endUnsetSection: null,
-    };
-  },
-  computed: {
-    tooltipComputed() {
-      if (this.tooltip !== null) {
+  emits: ['scroll-swimlane', 'select-track'],
+  setup(props, { emit }) {
+    const chartTop = ref(0);
+    const x = ref<any>(null);
+    const tooltip: Ref<null | {
+      left: number;
+      top: number;
+      contentColor: string;
+      subColor: string;
+      name: string;
+      subDisplay: string | number | boolean | undefined,
+    }> = ref(null);
+    const hoverTrack = ref<string | null>(null);
+    const scrollPos = ref(0);
+    const mediaController = injectAggregateController().value;
+    const { frame } = useTime();
+    const showSymbols = ref(props.displayFrameIndicators);
+    const symbolGenerator = ref<any>(null);
+    const canvas = ref<HTMLCanvasElement | null>(null);
+    const chart = ref<HTMLDivElement | null>(null);
+    const hoveredZone = ref<number | null>(null);
+
+    const startFrame_ = ref(props.startFrame);
+    const endFrame_ = ref(props.endFrame);
+
+    const tooltipComputed = computed(() => {
+      if (tooltip.value !== null) {
         return {
           style: {
-            left: `${this.tooltip.left + 15}px`,
-            top: `${this.tooltip.top + 0}px`,
+            left: `${tooltip.value.left + 15}px`,
+            bottom: `${tooltip.value.top}px`,
+            'z-index': 9999,
           },
-          ...this.tooltip,
+          ...tooltip.value,
         };
       }
       return null;
-    },
-    barData() {
-      const bars = [];
-      Object.keys(this.data).forEach((key) => {
-        const bar = this.data[key];
-        const list = bar.data;
-        bars.push({
-          name: bar.name,
-          startPosition: bar.start,
-          color: bar.color,
-          endPosition: bar.end,
-          subSections: list,
-        });
-      });
-      return bars;
-    },
-    bars() {
-      if (!this.x) {
-        return [];
-      }
-      const { startFrame_ } = this;
-      const { endFrame_ } = this;
-      const { x } = this;
-      const bars = [];
-      this.barData
-        .filter((barData) => intersect(
-          [startFrame_, endFrame_],
-          [barData.startPoisiton, barData.endPosition],
-        ))
-        .forEach((barData, i) => {
-          const frameWidth = (x(this.startFrame_ + 1) - x(this.startFrame_)) * 0.6;
-          bars.push({
-            left: x(barData.startPosition),
-            right: x(barData.endPosition),
-            name: barData.name,
+    });
+
+    const barData = computed(() => Object.entries(props.data).map(([_key, bar]) => ({
+      name: bar.name,
+      startPosition: bar.start,
+      endPosition: bar.end,
+      color: bar.color,
+      subSections: bar.data,
+    })));
+
+    const bars = computed(() => {
+      if (!x.value) return [];
+
+      const barsList: {
+        left: number;
+        right: number;
+        name: string;
+        minWidth: number;
+        top: number;
+        color: string;
+        length: number;
+        id: string;
+        subSections: SwimlaneData[]}[] = [];
+      barData.value
+        .filter((bar) => intersect([startFrame_.value, endFrame_.value], [bar.startPosition, bar.endPosition]))
+        .forEach((bar, i) => {
+          const frameWidth = (x.value(startFrame_.value + 1) - x.value(startFrame_.value)) * 0.6;
+          barsList.push({
+            left: x.value(bar.startPosition),
+            right: x.value(bar.endPosition),
+            name: bar.name,
             minWidth: frameWidth,
             top: i * 30 + 3,
-            color: barData.color,
-            length: barData.endPosition - barData.startPosition,
-            subSections: barData.subSections,
+            color: bar.color,
+            length: bar.endPosition - bar.startPosition,
+            subSections: bar.subSections,
+            id: bar.name,
           });
         });
-      return bars;
-    },
-  },
-  watch: {
-    startFrame() {
-      this.update();
-    },
-    endFrame() {
-      this.update();
-    },
-    clientWidth() {
-      this.initialize();
-      this.update();
-    },
-    data() {
-      this.update();
-    },
-  },
-  created() {
-    this.update = throttle(this.update, 20);
-    this.detectBarHovering = debounce(this.detectBarHovering, 20);
-    this.tooltipTimeoutHandle = null;
-  },
-  mounted() {
-    this.initialize();
-    this.update();
-    if (this.$refs.chart) {
-      this.chartTop = this.$refs.chart.offsetTop;
-    }
-  },
-  methods: {
-    recordScroll(ev) {
-      this.recordScroll = ev.target.scrollTop;
-      this.$emit('scroll-swimlane', this.recordScroll);
-    },
-    initialize() {
-      const width = this.clientWidth;
-      const x = d3
+      return barsList;
+    });
+
+    const initialize = () => {
+      x.value = d3
         .scaleLinear()
-        .domain([this.startFrame_, this.endFrame_])
-        .range([this.margin, width]);
-      this.x = x;
-      this.symbolGenerator = d3.symbol().type(d3.symbolDiamond).size(50);
-    },
-    update() {
-      this.startFrame_ = this.startFrame;
-      this.endFrame_ = this.endFrame;
-      this.x.domain([this.startFrame_, this.endFrame_]);
-      const { canvas } = this.$refs;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const { bars } = this;
-      if (!bars.length) {
-        return;
+        .domain([startFrame_.value, endFrame_.value])
+        .range([props.margin, props.clientWidth]);
+
+      symbolGenerator.value = d3.symbol().type(d3.symbolDiamond);
+    };
+
+    const iconFrames = computed(() => {
+      const barFrames: number[] = [];
+      const barList = bars.value;
+      if (!barList.length) {
+        return barFrames;
       }
-      canvas.width = this.clientWidth + this.margin;
-      canvas.height = bars.slice(-1)[0].top + 30;
+      barList.forEach((bar) => {
+        bar.subSections.forEach((sub) => {
+          barFrames.push(sub.begin);
+        });
+      });
+      return barFrames;
+    });
+
+    const interactiveZones = computed(() => {
+      const frames = [...iconFrames.value].sort((a, b) => a - b);
+      const zones = [];
+      const baseWidth = Math.round((props.endFrame - props.startFrame) * 0.03); // Number of frames to extend on each side
+
+      for (let i = 0; i < frames.length; i += 1) {
+        const current = frames[i];
+        const prev = frames[i - 1] ?? -Infinity;
+        const next = frames[i + 1] ?? Infinity;
+
+        // Calculate distance to neighboring frames
+        const distPrev = current - prev;
+        const distNext = next - current;
+
+        // Adjust width to prevent overlap
+        const leftWidth = Math.min(baseWidth, Math.floor(distPrev / 2));
+        const rightWidth = Math.min(baseWidth, Math.floor(distNext / 2));
+
+        zones.push({
+          frame: current,
+          start: current - leftWidth,
+          end: current + rightWidth,
+        });
+      }
+
+      return zones;
+    });
+
+    const baseUpdate = () => {
+      startFrame_.value = props.startFrame;
+      endFrame_.value = props.endFrame;
+      x.value?.domain([startFrame_.value, endFrame_.value]);
+
+      const canvasEl = canvas.value;
+      if (!canvasEl) return;
+
+      const ctx = canvasEl.getContext('2d');
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+      const barList = bars.value;
+      if (!barList.length) return;
+
+      canvasEl.width = props.clientWidth + props.margin;
+      canvasEl.height = barList.slice(-1)[0].top + 30;
+
       const barHeight = 20;
-      this.endUnsetSection = null;
-      bars.forEach((bar) => {
+      barList.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
-        // If this bar is not selected
         ctx.strokeStyle = bar.color;
         ctx.lineWidth = 2;
         ctx.strokeRect(bar.left, bar.top, barWidth, barHeight);
-        bar.subSections.forEach((subSection, index) => {
-          const left = this.x(subSection.begin);
-          const right = this.x(subSection.end);
-          const width = right - left;
-          ctx.fillStyle = subSection.color;
-          ctx.fillRect(left, bar.top, width, barHeight);
-          if ((subSection.end - subSection.begin) === 1 && index === bar.subSections.length - 1) {
-            const baseColor = subSection.color;
-            ctx.fillStyle = `${baseColor}55`;
-            ctx.fillRect(left, bar.top, barWidth - left, barHeight);
-            this.endUnsetSection = {
-              begin: subSection.begin, end: this.endFrame, value: subSection.value,
-            };
-          }
 
-          if (this.showSymbols) {
-            // Draw symbols at the midpoint of each subSection
-            const path = new Path2D(this.symbolGenerator());
+        bar.subSections.forEach((sub) => {
+          const left = x.value(sub.begin);
+          const right = x.value(sub.end);
+          const width = right - left;
+          ctx.fillStyle = sub.color || 'white';
+          ctx.fillRect(left, bar.top, width, barHeight);
+
+          if (showSymbols.value) {
+            let fillColor = sub.begin === frame.value ? 'cyan' : 'white';
+            let symbolSize = sub.begin === frame.value ? 100 : 50;
+            let thickness = sub.begin === frame.value ? 2 : 1;
+            if (hoveredZone.value !== null && sub.begin === hoveredZone.value && frame.value !== sub.begin) {
+              fillColor = 'yellow';
+              symbolSize = 100;
+              thickness = 2;
+            }
+            const path = new Path2D(symbolGenerator.value.size(symbolSize)());
             ctx.save();
             ctx.translate(left, bar.top + barHeight / 2);
-            ctx.fillStyle = 'white';
+            ctx.fillStyle = fillColor;
             ctx.fill(path);
-            // Outline the symbol
-            ctx.strokeStyle = 'black'; // Set the outline color
-            ctx.lineWidth = 1; // Set the outline width
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = thickness;
             ctx.stroke(path);
-
             ctx.restore();
           }
         });
       });
-    },
-    scrollToElement(selectedBar) {
-      const eventChart = this.$refs.canvas.parentNode;
-      const { offsetHeight } = eventChart;
-      const { scrollTop } = eventChart;
-      const { top } = selectedBar;
-      if (top > offsetHeight + scrollTop || top < scrollTop) {
-        eventChart.scrollTop = top - offsetHeight / 2.0;
-      } else if (scrollTop > top) {
-        eventChart.scrollTop = 0.0;
+    };
+
+    const update = throttle(baseUpdate, 20);
+
+    watch(frame, (oldVal, newVal) => {
+      if (iconFrames.value.includes(oldVal) !== iconFrames.value.includes(newVal)) {
+        update();
       }
-    },
-    mousemove(e) {
-      this.tooltip = null;
-      this.detectBarHovering(e);
-    },
-    mousedown() {
-      if (this.hoverTrack !== null) {
-        this.$emit('select-track', this.hoverTrack);
-      }
-    },
-    mouseout() {
-      this.detectBarHovering.cancel();
-      this.hoverTrack = null;
-    },
-    detectBarHovering(e) {
+    });
+
+    const detectBarHovering = throttle((e: MouseEvent) => {
       const { offsetX, offsetY } = e;
       const remainder = offsetY % 30;
-      if (remainder > 20) {
-        return;
-      }
+      if (remainder > 20) return false;
+
       const top = offsetY - (offsetY % 30) + 3;
-      const bar = this.bars
+      const bar = bars.value
         .filter((b) => b.top === top)
         .reverse()
-        .find((b) => b.left < offsetX
-        && (b.right > offsetX || b.left + b.minWidth > offsetX));
+        .find((b) => b.left < offsetX && (b.right > offsetX || b.left + b.minWidth > offsetX));
       if (!bar) {
-        this.hoverTrack = null;
-        return;
+        hoverTrack.value = null;
+        return false;
       }
-      const subSection = bar.subSections.find((b) => offsetX > this.x(b.begin) && offsetX < this.x(b.end));
-      let swimlaneUnsetValue;
-      if (this.endUnsetSection && offsetX > this.x(this.endUnsetSection.begin) && offsetX < this.x(this.endUnsetSection.end)) {
-        swimlaneUnsetValue = `The last value is ${this.endUnsetSection.value} and there is no ending value.  Another value should be placed to end this section.`;
-      }
-      const subDisplay = subSection ? subSection.value : 'None';
-      const subDisplayColor = subSection ? subSection.color : 'transparent';
-      this.hoverTrack = bar.id;
-      this.tooltip = {
+      const sub = bar.subSections.find((s) => offsetX > x.value(s.begin) && offsetX < x.value(s.end));
+      tooltip.value = {
         left: offsetX,
         top: offsetY,
         contentColor: bar.color,
-        subColor: subDisplayColor,
+        subColor: sub?.color || 'transparent',
         name: bar.name,
-        subDisplay,
-        swimlaneUnsetValue,
+        subDisplay: sub?.value || 'None',
       };
-    },
+      hoverTrack.value = bar.id;
+      return true;
+    }, 200);
+
+    const scrollToElement = (selectedBar: any) => {
+      const chartEl = canvas.value?.parentNode as HTMLElement;
+      if (!chartEl) return;
+      const { offsetHeight, scrollTop } = chartEl;
+      const { top } = selectedBar;
+      if (top > offsetHeight + scrollTop || top < scrollTop) {
+        chartEl.scrollTop = top - offsetHeight / 2.0;
+      } else if (scrollTop > top) {
+        chartEl.scrollTop = 0.0;
+      }
+    };
+
+    const recordScroll = (ev: Event) => {
+      const { scrollTop } = (ev.target as HTMLElement);
+      scrollPos.value = scrollTop;
+      emit('scroll-swimlane', scrollTop);
+    };
+
+    const mousemove = (e: MouseEvent) => {
+      tooltip.value = null;
+      const hovering = detectBarHovering(e);
+      const { offsetX } = e;
+      const frameAtCursor = x.value.invert(offsetX);
+
+      hoveredZone.value = null;
+      // eslint-disable-next-line no-restricted-syntax
+      for (const zone of interactiveZones.value) {
+        if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
+          hoveredZone.value = zone.frame;
+          break;
+        }
+      }
+    };
+
+    watch(hoveredZone, (oldVal, newVal) => {
+      if (oldVal !== newVal) {
+        update();
+      }
+    });
+
+    const mousedown = (e: MouseEvent) => {
+      if (hoverTrack.value !== null) {
+        emit('select-track', hoverTrack.value);
+      }
+      if (hoveredZone.value !== null) {
+        e.preventDefault();
+        e.stopPropagation();
+        mediaController.seek(hoveredZone.value);
+        // Trigger highlighting after clicking
+        nextTick(() => baseUpdate());
+      }
+    };
+
+    const mouseout = () => {
+      detectBarHovering.cancel();
+      hoverTrack.value = null;
+    };
+
+    onMounted(() => {
+      initialize();
+      update();
+      if (chart.value) {
+        chartTop.value = chart.value.offsetTop;
+      }
+    });
+
+    watch(() => props.startFrame, update);
+    watch(() => props.endFrame, update);
+    watch(() => props.clientWidth, () => {
+      initialize();
+      update();
+    });
+    watch(() => props.data, update);
+
+    return {
+      chartTop,
+      canvas,
+      chart,
+      tooltipComputed,
+      mousemove,
+      mouseout,
+      mousedown,
+      recordScroll,
+      showSymbols,
+      update,
+    };
   },
 });
 </script>
@@ -280,15 +347,13 @@ export default Vue.extend({
 <template>
   <div style="position: relative;">
     <div
+      ref="chart"
       class="event-chart"
       :style="`height: ${clientHeight - 10}px;`"
       @mousewheel.prevent
       @scroll="recordScroll"
     >
-      <v-tooltip
-        open-delay="100"
-        top
-      >
+      <v-tooltip open-delay="100" top>
         <template #activator="{ on }">
           <div
             class="yaxisclick"
@@ -297,59 +362,28 @@ export default Vue.extend({
             @click="showSymbols = !showSymbols; update()"
           />
         </template>
-        <span
-          class="ma-0 pa-1"
-        >
-          Click to toggle Symbols for set Values
-        </span>
+        <span class="ma-0 pa-1">Click to toggle Symbols for set Values</span>
       </v-tooltip>
-      <canvas
-        ref="canvas"
-        @mousemove="mousemove"
-        @mouseout="mouseout"
-        @mousedown="mousedown"
-      />
+      <canvas ref="canvas" @mousemove="mousemove" @mouseout="mouseout" @mousedown="mousedown" />
     </div>
-    <div
-      v-if="tooltipComputed"
+    <v-card
+      v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)"
       class="tooltip"
       :style="tooltipComputed.style"
+      outlined
     >
-      <v-row
-        v-if="tooltipComputed.swimlaneUnsetValue"
-        dense
-        class="fill-height"
-        align="center"
-        justify="center"
-      >
-        <p>{{ tooltipComputed.swimlaneUnsetValue }}</p>
+      <v-row dense class="fill-height" align="center" justify="center">
+        <v-col><span>{{ tooltipComputed.name }}</span></v-col>
+        <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.contentColor }" />
+        <v-col><span>:</span></v-col>
+        <v-col><span>{{ tooltipComputed.subDisplay }}</span></v-col>
+        <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.subColor }" />
       </v-row>
-      <v-row
-        v-else
-        dense
-        class="fill-height"
-        align="center"
-        justify="center"
-      >
-        <v-col>
-          <span> {{ tooltipComputed.name }}</span>
-        </v-col>
-        <span
-          class="type-color-box"
-          :style="{ backgroundColor: tooltipComputed.contentColor }"
-        />
-        <v-col>
-          <span>:</span>
-        </v-col>
-        <v-col>
-          <span> {{ tooltipComputed.subDisplay }}</span>
-        </v-col>
-        <span
-          class="type-color-box"
-          :style="{ backgroundColor: tooltipComputed.subColor }"
-        />
-      </v-row>
-    </div>
+    </v-card>
+    <v-card v-else-if="tooltipComputed" class="tooltip" :style="tooltipComputed.style" outlined>
+      <v-card-title>{{ tooltipComputed.name }}</v-card-title>
+      <v-card-text>{{ tooltipComputed.subDisplay }}</v-card-text>
+    </v-card>
   </div>
 </template>
 
@@ -362,15 +396,16 @@ export default Vue.extend({
   overflow-x: hidden;
 
 }
+
 .tooltip {
-    position: absolute;
-    background: black;
-    border: 1px solid white;
-    padding: 0px 5px;
-    font-size: 20px;
-    font-weight: bold;
-    z-index: 9999;
-  }
+  position: absolute;
+  background: black;
+  border: 1px solid white;
+  padding: 0px 5px;
+  font-size: 20px;
+  font-weight: bold;
+  z-index: 9999;
+}
 
 .type-color-box {
   margin-right: 5px;
@@ -380,18 +415,19 @@ export default Vue.extend({
   min-height: 10px;
   max-height: 10px;
 }
+
 .yaxisclick {
   width: 20px;
   position: absolute;
   left: 0px;
   bottom: 0px;
   background-color: transparent;
+
   &:hover {
     cursor: pointer;
     border: lightgreen solid 1px;
-    background-color: rgba(144,238,144,0.20);
+    background-color: rgba(144, 238, 144, 0.20);
 
   }
 }
-
 </style>
