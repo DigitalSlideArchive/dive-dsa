@@ -133,7 +133,7 @@ export default defineComponent({
       const g = parseInt(hexColor.slice(3, 5), 16);
       const b = parseInt(hexColor.slice(5, 7), 16);
       const colorString = `rgb(${r}, ${g}, ${b})`;
-      maskFilters.value[trackId] = colorString;
+      maskFilters.value = { ...maskFilters.value, [trackId]: colorString };
       return maskFilters.value[trackId];
     };
     if (props.overlays && props.overlays.length) {
@@ -259,6 +259,9 @@ export default defineComponent({
       }
       currentFrameIds.forEach(
         (trackId: AnnotationId) => {
+          if (trackStore?.annotationIds.value.length === 0) {
+            return; // No annotations so just skip the updating
+          }
           const track = trackStore?.get(trackId);
           if (track === undefined) {
             // Track may be located in another Camera
@@ -663,7 +666,7 @@ export default defineComponent({
       height="0"
       style="position: absolute; top: -1px; left: -1px"
     >
-      <defs v-for="(maskFilter, key) in maskFilters" :key="key">
+      <defs v-for="(maskFilter, key) in maskFilters" :key="`mask-filter-key-${key}`">
         <filter :id="`mask-filter-${key}`" color-interpolation-filters="sRGB">
           <!-- Create a mask of where the color is exactly white -->
           <feColorMatrix

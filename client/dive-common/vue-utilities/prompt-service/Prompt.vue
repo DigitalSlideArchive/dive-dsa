@@ -122,8 +122,8 @@ export default defineComponent({
       functions,
       value,
       valueType,
-      valueList,
       lockedValueList,
+      valueList,
       clickPositive,
       clickNegative,
       select,
@@ -173,6 +173,13 @@ export default defineComponent({
             outlined
             autofocus
           />
+          <v-textarea
+            v-else-if="valueType === 'text' && (!valueList || !lockedValueList) && value ? value?.toString().length > 50 : false"
+            ref="input"
+            v-model="value"
+            autofocus
+          />
+
           <v-text-field
             v-else-if="valueType === 'text' && (!valueList || !lockedValueList)"
             ref="input"

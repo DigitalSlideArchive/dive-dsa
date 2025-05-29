@@ -313,7 +313,7 @@ export default {
   .work-area {
     flex: 1;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 
     .hand {
       position: absolute;

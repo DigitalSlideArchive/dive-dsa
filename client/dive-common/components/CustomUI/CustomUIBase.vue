@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
-  defineComponent, computed,
+  defineComponent, computed, ref,
+  Ref,
 } from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
@@ -14,6 +15,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import { DIVEAction } from 'dive-common/use/useActions';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import context from 'dive-common/store/context';
 
 interface AttributeDisplayButton {
     name: string;
@@ -70,11 +72,12 @@ export default defineComponent({
     const cameraStore = useCameraStore();
     const selectedTrackIdRef = useSelectedTrackId();
     const systemHandler = useHandler();
+    const panelExpanded: Ref<Record<string, number | undefined>> = ref({});
 
     const title = computed(() => configMan.configuration.value?.customUI?.title || 'Custom Actions');
     const information = computed(() => configMan.configuration.value?.customUI?.information || []);
     const updatedWidth = computed(() => configMan.configuration.value?.customUI?.width || props.width);
-
+    context.nudgeWidth(updatedWidth.value);
     function getAttributeUser({ name, belongs }: { name: string; belongs: 'track' | 'detection' }) {
       const attribute = attributes.value.find((attr) => attr.name === name && attr.belongs === belongs);
       if (attribute?.user) {
@@ -125,6 +128,7 @@ export default defineComponent({
       }
       if (shortcut.type === 'dialog') {
         handler = async () => {
+          const value = getAttributeValue(attribute.name, attribute.belongs, !!attribute.user) as string | number | boolean | undefined;
           const val = await inputValue({
             title: `Set ${attribute.name} Value`,
             text: attribute.values ? 'Press Spacebar to choose a selection, then Enter to select' : 'Set the Attribute Value below',
@@ -134,6 +138,7 @@ export default defineComponent({
             valueType: attribute.datatype,
             valueList: attribute.values,
             lockedValueList: !!attribute.lockedValues,
+            value,
           });
           if (val !== null) {
             updateAttribute({
@@ -160,11 +165,11 @@ export default defineComponent({
                 prependIcon: shortcut.button.iconPrepend,
                 appendIcon: shortcut.button.iconAppend,
                 buttonToolTip: shortcut.button.buttonToolTip,
-                action: createShortcutHandler(shortcut, attribute),
                 displayValue: shortcut.button.displayValue,
                 attrName: attribute.name,
                 type: attribute.belongs,
                 userAttribute: !!attribute.user,
+                action: createShortcutHandler(shortcut, attribute),
               });
             }
           });
@@ -213,6 +218,7 @@ export default defineComponent({
       }
       return null;
     });
+
     const selectedAttributes = computed(() => {
       if (selectedTrack.value && selectedTrack.value.revision.value) {
         const t = selectedTrack.value;
@@ -223,7 +229,8 @@ export default defineComponent({
       }
       return { trackAttributes: {}, detectionAttributes: {} };
     });
-    const getAttributeValue = (key: string, type: Attribute['belongs'], userAttr: boolean) => {
+
+    const getAttributeValue = (key: string, type: Attribute['belongs'], userAttr: boolean) : string | number | boolean | unknown => {
       const attributes = type === 'detection' ? selectedAttributes.value.detectionAttributes : selectedAttributes.value.trackAttributes;
       if (userAttr && attributes?.userAttributes) {
         const user = store.state.User.user?.login;
@@ -236,6 +243,28 @@ export default defineComponent({
       return '';
     };
 
+    const buttonValueMap = computed(() => {
+      const buttonMapping: Record<string, {attribute: string, button: string; value: string | boolean | number | unknown; length: number }> = {};
+      attributeButtons.value.forEach((attribute) => attribute.buttons.forEach((button) => {
+        if (button.displayValue) {
+          const val = getAttributeValue(button.attrName, button.type, button.userAttribute);
+          buttonMapping[button.attrName] = {
+            attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+          };
+        }
+      }));
+      return buttonMapping;
+    });
+
+    const expandPanel = (buttonName: string) => {
+      if (panelExpanded.value[buttonName] !== undefined) {
+        panelExpanded.value[buttonName] = undefined;
+      } else {
+        panelExpanded.value[buttonName] = 0;
+      }
+      panelExpanded.value = { ...panelExpanded.value };
+    };
+
     return {
       attributes,
       title,
@@ -245,6 +274,9 @@ export default defineComponent({
       actionButtons,
       selectedTrackIdRef,
       getAttributeValue,
+      buttonValueMap,
+      panelExpanded,
+      expandPanel,
 
     };
   },
@@ -330,9 +362,21 @@ export default defineComponent({
                 </template>
                 <span>{{ button.buttonToolTip }}</span>
               </v-tooltip>
-              <span v-if="button.displayValue">
-                {{ getAttributeValue(button.attrName, button.type, button.userAttribute) }}
+            </v-col>
+          </v-row>
+          <v-row v-if="buttonValueMap[attribute.name]">
+            <v-col cols="12">
+              <span v-if="buttonValueMap[attribute.name].length < 50">
+                {{ buttonValueMap[attribute.name].value }}
               </span>
+              <v-expansion-panels v-else :value="panelExpanded[attribute.name]">
+                <v-expansion-panel class="border" @change="expandPanel(attribute.name)">
+                  <v-expansion-panel-header>{{ attribute.name }} Value</v-expansion-panel-header>
+                  <v-expansion-panel-content>
+                    {{ buttonValueMap[attribute.name].value }}
+                  </v-expansion-panel-content>
+                </v-expansion-panel>
+              </v-expansion-panels>
             </v-col>
           </v-row>
         </v-row>
