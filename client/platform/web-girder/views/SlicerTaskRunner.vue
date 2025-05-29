@@ -106,6 +106,7 @@ export default defineComponent({
         }
         if (param.id === 'DIVETrackId' && selectedTrackId.value !== null) {
           item.defaultValue = selectedTrackId.value;
+          item.value = selectedTrackId.value;
           return item;
         }
         if (param.id === 'DIVEFrameId') {
