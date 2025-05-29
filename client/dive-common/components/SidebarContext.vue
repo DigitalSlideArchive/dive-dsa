@@ -1,5 +1,7 @@
 <script lang="ts">
-import { computed, defineComponent } from 'vue';
+import {
+  computed, defineComponent, ref, watch,
+} from 'vue';
 import context from 'dive-common/store/context';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
@@ -11,7 +13,7 @@ export default defineComponent({
       default: 300,
     },
   },
-  setup() {
+  setup(props) {
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
 
@@ -19,7 +21,13 @@ export default defineComponent({
       text: entry.description,
       value,
     })));
-    return { context, options, getUISetting };
+    const updatedWidth = ref(context.state.width || props.width);
+    watch(() => context.state.width, () => {
+      updatedWidth.value = context.state.width || props.width;
+    });
+    return {
+      context, options, getUISetting, updatedWidth,
+    };
   },
 });
 </script>
@@ -28,7 +36,7 @@ export default defineComponent({
   <div>
     <v-card
       v-if="context.state.active !== null"
-      :width="context.state.width || width"
+      :width="updatedWidth"
       tile
       outlined
       class="d-flex flex-column sidebar"

@@ -865,10 +865,12 @@ export default defineComponent({
     loadData();
     const reloadAnnotations = async () => {
       progress.loaded = false;
-      mediaControllerClear();
-      cameraStore.clearAll();
-      discardChanges();
-      await loadData();
+      nextTick(async () => {
+        mediaControllerClear();
+        cameraStore.clearAll();
+        discardChanges();
+        await loadData();
+      });
     };
     const uiNotification = useUINotifications({
       prompt, handler, aggregateController, reloadAnnotations, datasetId,

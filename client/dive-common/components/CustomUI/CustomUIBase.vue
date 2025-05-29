@@ -15,6 +15,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import { DIVEAction } from 'dive-common/use/useActions';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import context from 'dive-common/store/context';
 
 interface AttributeDisplayButton {
     name: string;
@@ -76,7 +77,7 @@ export default defineComponent({
     const title = computed(() => configMan.configuration.value?.customUI?.title || 'Custom Actions');
     const information = computed(() => configMan.configuration.value?.customUI?.information || []);
     const updatedWidth = computed(() => configMan.configuration.value?.customUI?.width || props.width);
-
+    context.nudgeWidth(updatedWidth.value);
     function getAttributeUser({ name, belongs }: { name: string; belongs: 'track' | 'detection' }) {
       const attribute = attributes.value.find((attr) => attr.name === name && attr.belongs === belongs);
       if (attribute?.user) {
@@ -128,7 +129,6 @@ export default defineComponent({
       if (shortcut.type === 'dialog') {
         handler = async () => {
           const value = getAttributeValue(attribute.name, attribute.belongs, !!attribute.user) as string | number | boolean | undefined;
-          console.log(`Input Value: ${value}`);
           const val = await inputValue({
             title: `Set ${attribute.name} Value`,
             text: attribute.values ? 'Press Spacebar to choose a selection, then Enter to select' : 'Set the Attribute Value below',
@@ -257,7 +257,6 @@ export default defineComponent({
     });
 
     const expandPanel = (buttonName: string) => {
-      console.log(`Expand Panel: ${buttonName}`);
       if (panelExpanded.value[buttonName] !== undefined) {
         panelExpanded.value[buttonName] = undefined;
       } else {
@@ -365,7 +364,7 @@ export default defineComponent({
               </v-tooltip>
             </v-col>
           </v-row>
-          <v-row v-if="buttonValueMap[attribute.name]" class="pa-2">
+          <v-row v-if="buttonValueMap[attribute.name]">
             <v-col cols="12">
               <span v-if="buttonValueMap[attribute.name].length < 50">
                 {{ buttonValueMap[attribute.name].value }}

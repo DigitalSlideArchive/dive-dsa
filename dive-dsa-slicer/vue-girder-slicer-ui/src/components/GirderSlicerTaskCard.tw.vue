@@ -121,7 +121,6 @@ export default defineComponent({
         } else {
           const resp = await slicerApi.runTask(result.value, props.taskId);
           if (resp) {
-            console.log(resp);
             jobData.value = resp;
             emit('run-task', jobData.value);
           }

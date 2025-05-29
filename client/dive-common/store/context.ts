@@ -26,6 +26,7 @@ const state: ContextState = reactive({
   last: 'TypeThreshold',
   active: null,
   subCategory: null,
+  width: 300,
 });
 
 const componentMap: Record<string, ComponentMapItem> = {
@@ -141,6 +142,11 @@ function openClose(active: string, action: boolean, subCategory?: string) {
   window.dispatchEvent(new Event('resize'));
 }
 
+function nudgeWidth(width: number) {
+  state.width = width;
+  window.dispatchEvent(new Event('resize'));
+}
+
 export default {
   toggle,
   openClose,
@@ -148,6 +154,7 @@ export default {
   unregister,
   getComponents,
   resetActive,
+  nudgeWidth,
   componentMap,
   state,
 };

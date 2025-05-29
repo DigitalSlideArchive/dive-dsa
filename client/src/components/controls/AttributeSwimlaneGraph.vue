@@ -279,11 +279,13 @@ export default defineComponent({
       const frameAtCursor = x.value.invert(offsetX);
 
       hoveredZone.value = null;
-      // eslint-disable-next-line no-restricted-syntax
-      for (const zone of interactiveZones.value) {
-        if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
-          hoveredZone.value = zone.frame;
-          break;
+      if (showSymbols.value) {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const zone of interactiveZones.value) {
+          if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
+            hoveredZone.value = zone.frame;
+            break;
+          }
         }
       }
     };
@@ -298,7 +300,7 @@ export default defineComponent({
       if (hoverTrack.value !== null) {
         emit('select-track', hoverTrack.value);
       }
-      if (hoveredZone.value !== null) {
+      if (showSymbols.value && hoveredZone.value !== null) {
         e.preventDefault();
         e.stopPropagation();
         mediaController.seek(hoveredZone.value);
@@ -367,7 +369,7 @@ export default defineComponent({
       <canvas ref="canvas" @mousemove="mousemove" @mouseout="mouseout" @mousedown="mousedown" />
     </div>
     <v-card
-      v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)"
+      v-if="tooltipComputed && (typeof (tooltipComputed.subDisplay) === 'string' && tooltipComputed.subDisplay.length ? tooltipComputed.subDisplay.length < 50 : true)"
       class="tooltip"
       :style="tooltipComputed.style"
       outlined

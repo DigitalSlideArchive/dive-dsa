@@ -17,9 +17,9 @@ export default defineComponent({
     const currentValue: Ref<XMLBaseValue> = ref(0);
     onMounted(() => {
         if (props.data.defaultValue && Array.isArray(props.data.defaultValue)) {
-            currentValue.value = props.data.defaultValue.join(',') || props.data.value || '';
+            currentValue.value = props.data.defaultValue.join(',') ?? props.data.value ?? '';
         } else {
-            currentValue.value = props.data.defaultValue || props.data.value || '';
+            currentValue.value = props.data.defaultValue ?? props.data.value ?? '';
         }
     })
     const validate = (e: Event) => {
