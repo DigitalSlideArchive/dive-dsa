@@ -7,10 +7,13 @@ from girder.constants import AccessType, TokenScope
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.notification import Notification
+from girder.models.setting import Setting
+from girder.models.token import Token
+from girder_jobs.models.job import Job
 
 from dive_utils import asbool, fromMeta
-from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker
-
+from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker, SAM2_CONFIG
+from dive_tasks.sam_tasks import run_sam2_inference
 from . import crud_rpc
 
 
@@ -24,6 +27,7 @@ class RpcResource(Resource):
         self.route("POST", ("convert_dive", ":id"), self.convert_dive)
         self.route("POST", ("batch_postprocess", ":id"), self.batch_postprocess)
         self.route("POST", ("ui_notification", ":id"), self.ui_notification)
+        self.route("POST", ("sam2_mask_track",), self.sam2_mask_track)
 
     @access.user(scope=TokenScope.DATA_WRITE)
     @autoDescribeRoute(
@@ -229,3 +233,70 @@ class RpcResource(Resource):
             expires=datetime.now() + timedelta(seconds=300),
         )
         return 'Notification Sent'
+
+
+    @access.user
+    @autoDescribeRoute(
+        Description("SAM2 Mask TRacking")
+        .param(
+            "datasetId",
+            "datsetId to run mask tracking on",
+            paramType="formData",
+            dataType="string",
+            required=True,
+        )
+        .param(
+            "trackId",
+            "Seed TrackId for tracking",
+            paramType="formData",
+            dataType="int",
+            default=0,
+            required=True,
+        )
+        .param(
+            "frameId",
+            "Start frame for mask generation",
+            paramType="formData",
+            dataType="int",
+            default=0,
+            required=True,
+        )
+        .param(
+            "frameCount",
+            "The number of frames to generate masks for",
+            paramType="formData",
+            dataType="int",
+            default=100,
+            required=True,
+        )
+        .param(
+            'SAMModel',
+            "SAM Model to use for generation",
+            paramType='formData',
+            dataType='string',
+            default='Tiny',
+            enum=list((Setting().get(SAM2_CONFIG) or {}).keys()),
+            required=False,
+        )
+
+
+    )
+    def sam2_mask_track(self, datasetId, trackId, frameId, frameCount, SAMModel):
+        token = Token().createToken(user=self.getCurrentUser(), days=1)
+        newjob = run_sam2_inference.apply_async(
+            kwargs=dict(
+                datasetId=datasetId,
+                trackId=trackId,
+                frameId=frameId,
+                frameLength=frameCount,
+                SAMModel=SAMModel,
+                girder_client_token=str(token["_id"]),
+                girder_job_title=(f"Running SAM2 Mask Tracking"),
+                girder_job_type="celery",
+
+            ),
+        )
+        Job().save(newjob.job)
+        return newjob.job
+
+
