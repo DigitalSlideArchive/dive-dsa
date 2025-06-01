@@ -275,7 +275,6 @@ class RpcResource(Resource):
             paramType='formData',
             dataType='string',
             default='Tiny',
-            enum=list((Setting().get(SAM2_CONFIG) or {}).keys()),
             required=False,
         )
 
