@@ -128,7 +128,7 @@ def run_sam2_inference(
         sam2_config, sam2_checkpoint = get_model_files(gc, SAMModel)
         # extract the frames between startFrame and startFrame+trackingFrames into a frame_dir
         manager.write(f'Extracting {frameLength} frames from the Dataset Video\n')
-        frame_dir = extract_frames(gc, datasetId, frameId, frameLength, working_dir_path)
+        frame_dir = extract_frames(gc, manager, datasetId, frameId, frameLength, working_dir_path)
         # get the bbbox from existing trackJSON and the mask image file if it exists
         manager.write(f'Retrieving bbox or mask for the source trackId: {trackId} and frameId: {frameId}\n')
         bbox, mask_location, existing_tracks, track_type = get_mask_or_bbox(gc, datasetId, trackId, frameId, working_dir_path)
@@ -136,6 +136,7 @@ def run_sam2_inference(
         # running inference with the models and the bbox/masks and returing a structured output directory
 
         output_dir = run_inference(
+            self,
             gc,
             manager,
             sam2_config,
@@ -143,6 +144,7 @@ def run_sam2_inference(
             frame_dir,
             trackId,
             frameId,
+            frameLength,
             track_type,
             bbox,
             mask_location,
@@ -239,6 +241,7 @@ def get_mask_or_bbox(
 
 def extract_frames(
     gc: GirderClient,
+    manager: JobManager,
     dataset_id: str,
     start_frame: int,
     tracking_frames: int,
@@ -256,13 +259,14 @@ def extract_frames(
     if video is None:
         raise ValueError('Video file does not exists for this dataset so SAM can not be run')
     video_item_id = video.get('id', None)
+    video_item = gc.getItem(video_item_id)
     if video is None:
         raise ValueError('Video file Id doe not exists for this dataset so SAM can not be run')
-    video_path = working_directory / 'video.mp4'
-    gc.downloadItem(video_item_id, working_directory, 'video.mp4')
+    gc.downloadItem(video_item_id, working_directory)
+    video_name = video_item.get('name')
+    video_file_path = working_directory / video_name
     frame_dir = working_directory / 'frames'
     frame_dir.mkdir(parents=True, exist_ok=True)
-
     # Generate filter string to extract only the required frames
     end_frame = start_frame + tracking_frames - 1
     select_filter = f"select='between(n\\,{start_frame}\\,{end_frame})',setpts=N/FRAME_RATE/TB"
@@ -270,7 +274,7 @@ def extract_frames(
     # ffmpeg uses 0-based frame indexing by default
     subprocess.run([
         "ffmpeg",
-        "-i", str(video_path),
+        "-i", str(video_file_path),
         "-vf", select_filter,
         "-vsync", "0",
         "-q:v", "2",
@@ -538,6 +542,7 @@ def merge_features(features1, features2):
 
 
 def run_inference(
+    task,
     gc: GirderClient,
     manager: JobManager,
     sam2_config: str,
@@ -570,12 +575,13 @@ def run_inference(
     # Target directory you want to link to
     GlobalHydra.instance().clear()
 
-    os.chdir("/tmp/SAM2")
 
-    initialize(config_path='models')
+    # SAM2 initialization needs to be a relative path
+    initialize(config_path='../../../../tmp/SAM2/models')
     manager.write('Initialized Hydro Config\n')
-
-    predictor = build_sam2_video_predictor(sam2_config, sam2_checkpoint, device=device)
+    # The config needs to be relative to the initialized configuration path
+    updated_sam2_config = str(sam2_config).replace('/tmp/SAM2/models/', './')
+    predictor = build_sam2_video_predictor(updated_sam2_config, sam2_checkpoint, device=device)
     manager.write('Predictor Built\n')
     with torch.inference_mode(), torch.autocast(str(device), dtype=torch.bfloat16):
         state = predictor.init_state(str(frame_dir))
@@ -596,6 +602,10 @@ def run_inference(
         for count, (frame_idx, object_ids, masks) in enumerate(
             predictor.propagate_in_video(state, 0, trackingFrames)
         ):
+            if utils.check_canceled(task, {}):
+                manager.updateStatus(JobStatus.CANCELED)
+                return
+
             if frame_idx >= trackingFrames:
                 continue
             for obj_id, mask in zip(object_ids, masks):
