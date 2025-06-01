@@ -2,6 +2,7 @@ import re
 
 SETTINGS_CONST_JOBS_CONFIGS = 'jobs_configs'
 BRAND_DATA_CONFIG = 'brand_data_config'
+SAM2_CONFIG = 'sam2_config'
 INSTALLED_ADDONS_CONFIGS = 'installed_addons'
 
 ImageSequenceType = "image-sequence"
@@ -122,3 +123,24 @@ MASK_TRACK_MARKER = 'mask_track'
 MASK_TRACK_FRAME_MARKER = 'mask_track_frame'
 MASK_FRAME_PARENT_TRACK_MARKER = 'mask_frame_parent_track'
 MASK_FRAME_VALUE = 'mask_frame_value'
+
+
+SAM2_MODEL_PATH = '/tmp/SAM2/models'
+DEFAULT_SAM2_FILES = {
+    "Tiny": {
+        "config": "https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_t.yaml",
+        "checkpoint": "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt"
+    },
+    "Small": {
+        "config": "https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_s.yaml",
+        "checkpoint": "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt"
+    },
+    "Base": {
+        "config": "https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_b+.yaml",
+        "checkpoint": "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_base_plus.pt"
+    },
+    "Large": {
+        "config": "https://raw.githubusercontent.com/facebookresearch/sam2/main/sam2/configs/sam2.1/sam2.1_hiera_l.yaml",
+        "checkpoint": "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt"
+    }
+}
