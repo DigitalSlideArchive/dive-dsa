@@ -59,6 +59,9 @@ RUN girder build
 # =================
 FROM python:3.11-slim-buster as server
 
+RUN apt-get update
+RUN apt-get install -y libgl1 libglib2.0-0
+
 # Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"
 ENV PATH="/opt/dive/local/venv/bin:$PATH"

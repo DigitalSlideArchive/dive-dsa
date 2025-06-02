@@ -8,6 +8,7 @@ from girder.utility import setting_utilities
 from dive_server import crud
 from dive_utils import constants, models
 from dive_tasks.sam_tasks import download_sam_models
+from girder_jobs.models.job import Job
 
 
 @setting_utilities.validator({constants.SAM2_CONFIG})
@@ -81,9 +82,19 @@ class ConfigurationResource(Resource):
     def update_sam2_configs(self, data, force):
         Setting().set(constants.SAM2_CONFIG, data)
         token = Token().createToken(user=self.getCurrentUser(), days=1)
-        download_sam_models.delay(
-            sam2_config=data,
-            force=force,
-            girder_job_title="Upgrade Pipelines",
-            girder_client_token=str(token["_id"]),
+        newjob = download_sam_models.apply_async(
+            queue='gpu',
+            kwargs=dict(
+                sam2_config=data,
+                force=force,
+                girder_client_token=str(token["_id"]),
+                girder_job_title=(f"Running SAM2 Model Downloading"),
+                girder_job_type="gpu",
+
+            ),
         )
+        Job().save(newjob.job)
+        return newjob.job
+
+
+

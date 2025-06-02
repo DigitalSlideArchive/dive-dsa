@@ -283,6 +283,7 @@ class RpcResource(Resource):
     def sam2_mask_track(self, datasetId, trackId, frameId, frameCount, SAMModel):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
         newjob = run_sam2_inference.apply_async(
+            queue='gpu',
             kwargs=dict(
                 datasetId=datasetId,
                 trackId=trackId,
@@ -291,7 +292,7 @@ class RpcResource(Resource):
                 SAMModel=SAMModel,
                 girder_client_token=str(token["_id"]),
                 girder_job_title=(f"Running SAM2 Mask Tracking"),
-                girder_job_type="celery",
+                girder_job_type="gpu",
 
             ),
         )

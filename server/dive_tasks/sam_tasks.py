@@ -568,13 +568,12 @@ def run_inference(
         else torch.device("mps") if torch.backends.mps.is_available()
         else torch.device("cpu")
     )
-    manager.write(f'Device: {str(device)}')
+    manager.write(f'Device: {str(device)}\n')
 
     track_data = {'tracks': {}, 'groups': {}, 'version': 2}
     rle_masks = {}
     # Target directory you want to link to
     GlobalHydra.instance().clear()
-
 
     # SAM2 initialization needs to be a relative path
     initialize(config_path='../../../../tmp/SAM2/models')
