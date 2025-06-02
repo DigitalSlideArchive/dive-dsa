@@ -587,6 +587,15 @@ class BrandData(BaseModel):
         extra = 'forbid'
 
 
+class SAM2Config(BaseModel):
+    config: str
+    checkpoint: str
+
+
+class SAM2ConfigDict(BaseModel):
+    __root__: Dict[str, SAM2Config]    
+
+
 # interpolate all features [a, b)
 def interpolate(a: Feature, b: Feature) -> List[Feature]:
     if a.interpolate is False:

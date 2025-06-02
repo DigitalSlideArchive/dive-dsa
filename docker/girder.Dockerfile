@@ -22,7 +22,7 @@ WORKDIR /opt/dive/src
 
 # https://cryptography.io/en/latest/installation/#debian-ubuntu
 RUN apt-get update
-RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm
+RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm libgl1
 # Recommended poetry install https://python-poetry.org/docs/master/#installation
 RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.1.2 POETRY_HOME=/opt/dive/poetry python -
 ENV PATH="/opt/dive/poetry/bin:$PATH"
@@ -58,6 +58,9 @@ RUN girder build
 # == DIST SERVER ==
 # =================
 FROM python:3.11-slim-buster as server
+
+RUN apt-get update
+RUN apt-get install -y libgl1 libglib2.0-0
 
 # Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"

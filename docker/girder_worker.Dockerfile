@@ -8,7 +8,7 @@ WORKDIR /opt/dive/src
 
 # https://cryptography.io/en/latest/installation/#debian-ubuntu
 RUN apt-get update
-RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm
+RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm libgl1
 # Recommended poetry install https://python-poetry.org/docs/master/#installation
 RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.1.2 POETRY_HOME=/opt/dive/poetry python -
 ENV PATH="/opt/dive/poetry/bin:$PATH"
@@ -46,6 +46,9 @@ RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
 FROM python:3.11-buster as worker
 # VIAME install at /opt/noaa/viame/
 # VIAME pipelines at /opt/noaa/viame/configs/pipelines/
+
+RUN apt-get update
+RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm libgl1
 
 # install tini init system
 ENV TINI_VERSION v0.19.0
