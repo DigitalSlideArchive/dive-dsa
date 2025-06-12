@@ -324,6 +324,23 @@ def update_metadata(dsFolder: types.GirderModel, data: dict, verify=True):
     Folder().save(dsFolder)
     return dsFolder['meta']
 
+class DIVEStylingUpdateArgs(models.DIVEStyling):
+    """Update schema for DIVE Styling fields"""
+
+    class Config:
+        extra = 'forbid'
+
+
+def update_styling_metadata(dsFolder: types.GirderModel, data: dict, verify=True):
+    """Update styling metadata"""
+    validated: DIVEStylingUpdateArgs = crud.get_validated_model(
+        DIVEStylingUpdateArgs, **data
+    )
+    for name, value in validated.dict(exclude_none=True).items():
+        dsFolder['meta'][name] = value
+    Folder().save(dsFolder)
+    return dsFolder['meta']
+
 
 class AttributeUpdateArgs(BaseModel):
     upsert: List[models.Attribute] = []

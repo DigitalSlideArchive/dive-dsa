@@ -3,6 +3,7 @@ import type { GirderModel } from '@girder/components/src';
 import {
   DatasetMetaMutable, FrameImage, SaveTimelineArgs,
   SaveAttributeArgs, SaveFilterArgs, SaveSwimlaneArgs,
+  SaveStylingArgs,
 } from 'dive-common/apispec';
 import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import girderRest from 'platform/web-girder/plugins/girder';
@@ -146,6 +147,9 @@ async function importAnnotationFile(parentId: string, path: string, file?: HTMLF
 function saveAttributes(folderId: string, args: SaveAttributeArgs) {
   return girderRest.patch(`/dive_dataset/${folderId}/attributes`, args);
 }
+function saveStyling(folderId: string, args: SaveStylingArgs) {
+  return girderRest.patch(`/dive_dataset/${folderId}/styling`, args);
+}
 
 function saveTimelines(folderId: string, args: SaveTimelineArgs) {
   return girderRest.patch(`/dive_dataset/${folderId}/timelines`, args);
@@ -192,6 +196,7 @@ export {
   importAnnotationFile,
   makeViameFolder,
   saveAttributes,
+  saveStyling,
   saveTimelines,
   saveSwimlanes,
   saveFilters,

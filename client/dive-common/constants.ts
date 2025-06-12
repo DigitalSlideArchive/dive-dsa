@@ -92,6 +92,7 @@ const inputAnnotationTypes = [
   'text/yaml',
   'application/x-yaml',
   'application/zip', // masks Zip files
+  'application/x-zip-compressed', //
 ];
 
 const inputAnnotationFileTypes = [
