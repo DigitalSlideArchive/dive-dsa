@@ -32,7 +32,7 @@ export default defineComponent({
         .range(attributeColors.value.map((item) => item.val) as any[]);
       // Recalculate percentage of width for gradient
       const max = domain[domain.length - 1];
-      const percent = domain.map((item) => (max === 0 ? 0 : (item / max)));
+      const percent = domain.map((item, index) => (max === 0 ? 0 : (index / max)));
       // Append multiple color stops using data/enter step
       linearGradient.selectAll('stop').remove();
       linearGradient.selectAll('stop')
@@ -378,7 +378,6 @@ export default defineComponent({
               <v-text-field
                 v-model="currentEditKey"
                 :rules="[
-                  val => val >= 0 || 'Must be >= 0',
                   val => attributeColors.findIndex((item) => item.key.toString() === val) === -1 || 'Values need to be unique',
                 ]"
 

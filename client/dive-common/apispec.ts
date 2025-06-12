@@ -122,6 +122,12 @@ interface DatasetMetaMutable {
 }
 const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'timelines', 'swimlanes'];
 
+export interface SaveStylingArgs {
+  customTypeStyling?: Record<string, CustomStyle>;
+  customGroupStyling?: Record<string, CustomStyle>;
+  confidenceFilters?: Record<string, number>;
+}
+
 interface DatasetMeta {
   id: Readonly<string>;
   imageData: Readonly<FrameImage[]>;
@@ -154,6 +160,7 @@ interface Api {
   saveDetections(datasetId: string, args: SaveDetectionsArgs): Promise<unknown>;
   saveMetadata(datasetId: string, metadata: DatasetMetaMutable): Promise<unknown>;
   saveAttributes(datasetId: string, args: SaveAttributeArgs): Promise<unknown>;
+  saveStyling(datasetId: string, args: SaveStylingArgs): Promise<unknown>;
   saveTimelines(datasetId: string, args: SaveTimelineArgs): Promise<unknown>;
   saveSwimlanes(datasetId: string, args: SaveSwimlaneArgs): Promise<unknown>;
   saveFilters(datasetId: string, args: SaveFilterArgs): Promise<unknown>;

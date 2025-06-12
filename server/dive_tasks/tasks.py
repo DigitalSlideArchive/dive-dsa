@@ -349,10 +349,12 @@ def extract_zip(
             for fileName in listOfFileNames:
                 folderName = os.path.dirname(fileName)
                 parentName = os.path.dirname(folderName)
-                if 'masks' in file_name:
-                    manager.write(f"Extracting: {fileName}\n")
+
+                # Correct mask folder check
+                if fileName.startswith('masks/') or '/masks/' in fileName:
                     zipObj.extract(fileName, f'{_working_directory}')
                     continue
+
                 if parentName in discovered_folders and folderName != '':
                     discovered_folders[folderName] = 'ignored'
                     continue
@@ -467,8 +469,8 @@ def process_masks_folder(
         rle_masks_json = {}
     manager.write(f"Processing mask tracks...{masks_path}\n")
     for track_dir in masks_path.iterdir():
-        manager.write(f"Processing track: {track_dir.name}\n")
         if not track_dir.is_dir():
+            manager.write(f'Not a Directory Skipping for now: {track_dir.name}\n')
             continue
         track_id = track_dir.name
         if not has_rle_mask:

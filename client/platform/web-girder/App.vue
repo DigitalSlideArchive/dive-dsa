@@ -15,6 +15,7 @@ import { useRoute } from 'vue-router/composables';
 import {
   saveMetadata,
   saveAttributes,
+  saveStyling,
   importAnnotationFile,
   loadDetections,
   saveDetections,
@@ -49,6 +50,7 @@ export default defineComponent({
       saveAttributes: unwrap(saveAttributes),
       saveTimelines: unwrap(saveTimelines),
       saveSwimlanes: unwrap(saveSwimlanes),
+      saveStyling: unwrap(saveStyling),
       saveFilters: unwrap(saveFilters),
       saveConfiguration: unwrap(saveConfiguration),
       transferConfiguration: unwrap(transferConfiguration),

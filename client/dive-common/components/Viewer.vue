@@ -668,15 +668,17 @@ export default defineComponent({
           }
         }
         /* Otherwise, complete loading of the dataset */
-        trackStyleManager.populateTypeStyles(meta.customTypeStyling);
-        groupStyleManager.populateTypeStyles(meta.customGroupStyling);
         if (configMeta.customTypeStyling) {
           trackFilters.importTypes(Object.keys(configMeta.customTypeStyling), false);
           trackStyleManager.populateTypeStyles(configMeta.customTypeStyling);
+        } else {
+          trackStyleManager.populateTypeStyles(meta.customTypeStyling);
         }
         if (configMeta.customGroupStyling) {
           groupFilters.importTypes(Object.keys(configMeta.customGroupStyling), false);
           groupStyleManager.populateTypeStyles(configMeta.customGroupStyling);
+        } else {
+          groupStyleManager.populateTypeStyles(meta.customGroupStyling);
         }
         if (configMeta.attributes) {
           loadAttributes(configMeta.attributes);

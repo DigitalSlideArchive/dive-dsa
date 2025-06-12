@@ -6,7 +6,7 @@ import {
   Attribute, AttributeFilter, SwimlaneGraph, TimelineGraph,
 } from 'vue-media-annotator/use/AttributeTypes';
 
-import { useApi, DatasetMetaMutable } from 'dive-common/apispec';
+import { useApi, DatasetMetaMutable, SaveStylingArgs } from 'dive-common/apispec';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
 import Group from 'vue-media-annotator/Group';
 
@@ -69,7 +69,7 @@ export default function useSave(
     },
   };
   const {
-    saveDetections, saveMetadata, saveAttributes, saveTimelines, saveFilters, saveSwimlanes,
+    saveDetections, saveMetadata, saveAttributes, saveTimelines, saveFilters, saveSwimlanes, saveStyling,
   } = useApi();
 
   async function save(
@@ -122,6 +122,12 @@ export default function useSave(
           pendingChangeMap.attributeDelete.clear();
         }));
       }
+      const stylingData: SaveStylingArgs = {
+        customGroupStyling: datasetMeta?.customGroupStyling,
+        customTypeStyling: datasetMeta?.customTypeStyling,
+        confidenceFilters: datasetMeta?.confidenceFilters,
+      };
+      promiseList.push(saveStyling(configurationId.value, stylingData));
       if (pendingChangeMap.timelineUpsert.size || pendingChangeMap.timelineDelete.size) {
         promiseList.push(saveTimelines(configurationId.value, {
           upsert: Array.from(pendingChangeMap.timelineUpsert).map((pair) => pair[1]),

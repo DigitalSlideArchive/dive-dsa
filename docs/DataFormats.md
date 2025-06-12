@@ -192,6 +192,7 @@ This structure ensures DIVE can properly associate each mask image with the corr
 ```
 masks/
 ├── RLE_MASKS.json        # Optional. JSON file containing RLE-encoded masks
+├── TrackJSON.json        # Optional. JSON File with the Track Data to import along with masks
 ├── 1/                    # Track ID (no leading zeros)
 │   ├── 1.png             # Frame number (no leading zeros)
 │   ├── 2.png

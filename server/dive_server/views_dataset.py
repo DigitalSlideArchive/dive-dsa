@@ -79,6 +79,7 @@ class DatasetResource(Resource):
         self.route("PATCH", (":id", "attributes"), self.patch_attributes)
         self.route("PATCH", (":id", "timelines"), self.patch_timelines)
         self.route("PATCH", (":id", "swimlanes"), self.patch_swimlanes)
+        self.route("PATCH", (":id", "styling"), self.patch_styling)
         self.route("PATCH", (":id", "configuration"), self.patch_configuration)
         self.route("PATCH", (":id", "filters"), self.patch_filters)
 
@@ -672,6 +673,19 @@ class DatasetResource(Resource):
     )
     def patch_swimlanes(self, folder, data):
         return crud_dataset.update_swimlanes(folder, data, False)
+
+    @autoDescribeRoute(
+        Description("Update Styling")
+        .modelParam("id", model=Folder, level=AccessType.WRITE)
+        .jsonParam(
+            "data",
+            description="JSON object of confidenceFilters and Styling",
+            requireObject=True,
+            paramType="body",
+        )
+    )
+    def patch_styling(self, folder, data):
+        return crud_dataset.update_styling_metadata(folder, data, True)
 
     @access.user
     @autoDescribeRoute(
