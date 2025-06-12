@@ -501,6 +501,7 @@ class DIVEStyling(BaseModel):
     customGroupStyling: Optional[Dict[str, CustomStyle]]
     confidenceFilters: Optional[Dict[str, float]]
 
+
 class MetadataMutable(BaseModel):
     version = (
         constants.JsonMetaCurrentVersion

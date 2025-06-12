@@ -349,7 +349,7 @@ def extract_zip(
             for fileName in listOfFileNames:
                 folderName = os.path.dirname(fileName)
                 parentName = os.path.dirname(folderName)
-                
+
                 # Correct mask folder check
                 if fileName.startswith('masks/') or '/masks/' in fileName:
                     zipObj.extract(fileName, f'{_working_directory}')
