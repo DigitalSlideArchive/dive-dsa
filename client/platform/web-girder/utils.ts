@@ -63,7 +63,7 @@ Promise<{ canceled: boolean; filePaths: string[]; fileList?: File[]}> {
           const fileList = Array.from(files);
           if (datasetType === 'annotation') {
             if (!fileList.every((item) => inputAnnotationTypes.includes(item.type))) {
-              reject(new Error('File Types did not match JSON or CSV'));
+              reject(new Error(`File Types did not match types: ${inputAnnotationTypes.join(', ')}`));
             }
           }
           const response = {

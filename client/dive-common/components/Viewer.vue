@@ -667,9 +667,9 @@ export default defineComponent({
             throw new Error('Multicamera dataset without default camera specified.');
           }
         }
-        /* Otherwise, complete loading of the dataset */
         trackStyleManager.populateTypeStyles(meta.customTypeStyling);
         groupStyleManager.populateTypeStyles(meta.customGroupStyling);
+        /* Otherwise, complete loading of the dataset */
         if (configMeta.customTypeStyling) {
           trackFilters.importTypes(Object.keys(configMeta.customTypeStyling), false);
           trackStyleManager.populateTypeStyles(configMeta.customTypeStyling);

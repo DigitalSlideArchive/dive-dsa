@@ -496,6 +496,12 @@ class DIVEConfiguration(BaseModel):
     customUI: Optional[CustomUISettings]
 
 
+class DIVEStyling(BaseModel):
+    customTypeStyling: Optional[Dict[str, CustomStyle]]
+    customGroupStyling: Optional[Dict[str, CustomStyle]]
+    confidenceFilters: Optional[Dict[str, float]]
+
+
 class MetadataMutable(BaseModel):
     version = (
         constants.JsonMetaCurrentVersion
