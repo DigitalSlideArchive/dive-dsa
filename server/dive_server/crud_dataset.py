@@ -320,6 +320,8 @@ def update_metadata(dsFolder: types.GirderModel, data: dict, verify=True):
         MetadataMutableUpdateArgs, **data
     )
     for name, value in validated.dict(exclude_none=True).items():
+        print(f'meta: {name}')
+        print(value)
         dsFolder['meta'][name] = value
     Folder().save(dsFolder)
     return dsFolder['meta']
@@ -386,8 +388,8 @@ def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):
     for attribute in validated.upsert:
         attributes_dict[str(attribute.key)] = attribute.dict(exclude_none=True)
 
-    upserted_len = len(validated.delete)
-    deleted_len = len(validated.upsert)
+    upserted_len = len(validated.upsert)
+    deleted_len = len(validated.delete)
 
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'attributes': attributes_dict}, verify)
