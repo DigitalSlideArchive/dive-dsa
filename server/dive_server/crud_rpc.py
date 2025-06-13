@@ -226,7 +226,7 @@ def postprocess(
     if fromMeta(dsFolder, constants.TypeMarker) is None:
         raise RestException(f'{constants.TypeMarker} missing from metadata')
 
-    if not skipJobs and not isClone:
+    if not skipJobs:
         token = Token().createToken(user=user, days=2)
 
         # extract ZIP Files if not already completed
@@ -257,58 +257,59 @@ def postprocess(
             Job().save(newjob.job)
             return dsFolder
 
-        # transcode VIDEO if necessary
-        videoItems = Folder().childItems(
-            dsFolder, filters={"lowerName": {"$regex": constants.videoRegex}}
-        )
-
-        for item in videoItems:
-            if item.get("meta", {}).get("codec", None) is not None:
-                continue
-            newjob = tasks.convert_video.apply_async(
-                kwargs=dict(
-                    folderId=str(item["folderId"]),
-                    itemId=str(item["_id"]),
-                    user_id=str(user["_id"]),
-                    user_login=str(user["login"]),
-                    skip_transcoding=skipTranscoding,
-                    girder_job_title=f"Converting {item['_id']} to a web friendly format",
-                    girder_client_token=str(token["_id"]),
-                    girder_job_type="private" if job_is_private else "convert",
-                ),
+        if not isClone:
+            # transcode VIDEO if necessary
+            videoItems = Folder().childItems(
+                dsFolder, filters={"lowerName": {"$regex": constants.videoRegex}}
             )
-            newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
-            newjob.job[constants.JOBCONST_DATASET_ID] = dsFolder["_id"]
-            Job().save(newjob.job)
 
-        # transcode IMAGERY if necessary
-        imageItems = Folder().childItems(
-            dsFolder, filters={"lowerName": {"$regex": constants.imageRegex}}
-        )
-        safeImageItems = Folder().childItems(
-            dsFolder, filters={"lowerName": {"$regex": constants.safeImageRegex}}
-        )
+            for item in videoItems:
+                if item.get("meta", {}).get("codec", None) is not None:
+                    continue
+                newjob = tasks.convert_video.apply_async(
+                    kwargs=dict(
+                        folderId=str(item["folderId"]),
+                        itemId=str(item["_id"]),
+                        user_id=str(user["_id"]),
+                        user_login=str(user["login"]),
+                        skip_transcoding=skipTranscoding,
+                        girder_job_title=f"Converting {item['_id']} to a web friendly format",
+                        girder_client_token=str(token["_id"]),
+                        girder_job_type="private" if job_is_private else "convert",
+                    ),
+                )
+                newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
+                newjob.job[constants.JOBCONST_DATASET_ID] = dsFolder["_id"]
+                Job().save(newjob.job)
 
-        if imageItems.count() > safeImageItems.count():
-            newjob = tasks.convert_images.apply_async(
-                queue='celery',
-                kwargs=dict(
-                    folderId=dsFolder["_id"],
-                    user_id=str(user["_id"]),
-                    user_login=str(user["login"]),
-                    girder_client_token=str(token["_id"]),
-                    girder_job_title=f"Converting {dsFolder['_id']} to a web friendly format",
-                    girder_job_type="private" if job_is_private else "convert",
-                ),
+            # transcode IMAGERY if necessary
+            imageItems = Folder().childItems(
+                dsFolder, filters={"lowerName": {"$regex": constants.imageRegex}}
             )
-            newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
-            newjob.job[constants.JOBCONST_DATASET_ID] = dsFolder["_id"]
-            Job().save(newjob.job)
+            safeImageItems = Folder().childItems(
+                dsFolder, filters={"lowerName": {"$regex": constants.safeImageRegex}}
+            )
 
-        elif imageItems.count() > 0:
-            dsFolder["meta"][constants.DatasetMarker] = True
+            if imageItems.count() > safeImageItems.count():
+                newjob = tasks.convert_images.apply_async(
+                    queue='celery',
+                    kwargs=dict(
+                        folderId=dsFolder["_id"],
+                        user_id=str(user["_id"]),
+                        user_login=str(user["login"]),
+                        girder_client_token=str(token["_id"]),
+                        girder_job_title=f"Converting {dsFolder['_id']} to a web friendly format",
+                        girder_job_type="private" if job_is_private else "convert",
+                    ),
+                )
+                newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
+                newjob.job[constants.JOBCONST_DATASET_ID] = dsFolder["_id"]
+                Job().save(newjob.job)
 
-        Folder().save(dsFolder)
+            elif imageItems.count() > 0:
+                dsFolder["meta"][constants.DatasetMarker] = True
+
+            Folder().save(dsFolder)
     print(f'Processing Items: {user}')
     process_items(dsFolder, user, additive, additivePrepend)
     return dsFolder
