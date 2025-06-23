@@ -282,8 +282,9 @@ class RpcResource(Resource):
     )
     def sam2_mask_track(self, datasetId, trackId, frameId, frameCount, SAMModel):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
+        sam2_config = Setting().get(SAM2_CONFIG) 
         newjob = run_sam2_inference.apply_async(
-            queue='gpu',
+            queue=sam2_config.get('celeryQueue', 'celery'),
             kwargs=dict(
                 datasetId=datasetId,
                 trackId=trackId,

@@ -593,13 +593,14 @@ class BrandData(BaseModel):
         extra = 'forbid'
 
 
-class SAM2Config(BaseModel):
+class SAM2Models(BaseModel):
     config: str
     checkpoint: str
 
+class SAM2Config(BaseModel):
+    celeryQueue: Literal['celery', 'dive_gpu']
+    models: Dict[str, SAM2Models]
 
-class SAM2ConfigDict(BaseModel):
-    __root__: Dict[str, SAM2Config]    
 
 
 # interpolate all features [a, b)

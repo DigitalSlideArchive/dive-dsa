@@ -68,7 +68,7 @@ class ConfigurationResource(Resource):
             paramType='body',
             requireObject=True,
             required=False,
-            default=str(constants.DEFAULT_SAM2_FILES),
+            default=str(constants.DEFAULT_SAM2_CONFIG),
         )
         .param(
             "force",
@@ -83,9 +83,9 @@ class ConfigurationResource(Resource):
         Setting().set(constants.SAM2_CONFIG, data)
         token = Token().createToken(user=self.getCurrentUser(), days=1)
         newjob = download_sam_models.apply_async(
-            queue='gpu',
+            queue=data.get('celeryQueue', 'celery'),
             kwargs=dict(
-                sam2_config=data,
+                sam2_config=data['models'],
                 force=force,
                 girder_client_token=str(token["_id"]),
                 girder_job_title=(f"Running SAM2 Model Downloading"),

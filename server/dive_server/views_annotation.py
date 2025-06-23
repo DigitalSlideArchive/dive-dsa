@@ -300,8 +300,9 @@ class AnnotationResource(Resource):
         Description("Update annotations")
         .modelParam("folderId", **DatasetModelParam, level=AccessType.WRITE)
         .jsonParam("body", "upsert and delete tracks", paramType="body", requireObject=True)
+        .param("preventRevision", "Prevent creation of a Revision", paramType='query', dataType="boolean", default=False)
     )
-    def save_annotations(self, folder, body):
+    def save_annotations(self, folder, body, preventRevision):
         crud.verify_dataset(folder)
         validated: models.Track.AnnotationUpdateArgs = crud.get_validated_model(
             crud_annotation.AnnotationUpdateArgs, **body
@@ -316,6 +317,7 @@ class AnnotationResource(Resource):
             delete_tracks=validated.tracks.delete,
             upsert_groups=upsert_groups,
             delete_groups=validated.groups.delete,
+            preventRevision=preventRevision,
         )
 
     @access.user
@@ -328,8 +330,9 @@ class AnnotationResource(Resource):
             paramType="body",
             requireObject=True,
         )
+        .param("preventRevision", "Prevent creation of a Revision", paramType='query', dataType="boolean", default=False)
     )
-    def update_tracks(self, folder, body):
+    def update_tracks(self, folder, body, preventRevision):
         crud.verify_dataset(folder)
         validated: crud_annotation.TrackPutArgs = crud.get_validated_model(
             crud_annotation.TrackPutArgs, **body
@@ -343,6 +346,7 @@ class AnnotationResource(Resource):
             delete_tracks={},
             upsert_groups={},
             delete_groups={},
+            preventRevision=preventRevision
         )
 
     @access.user

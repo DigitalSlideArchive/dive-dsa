@@ -144,3 +144,9 @@ DEFAULT_SAM2_FILES = {
         "checkpoint": "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt"
     }
 }
+
+DEFAULT_SAM2_CONFIG = {
+    "celeryQueue": 'dive_gpu',
+    "models": DEFAULT_SAM2_FILES,
+}
+
