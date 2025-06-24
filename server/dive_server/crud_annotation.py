@@ -197,6 +197,7 @@ def save_annotations(
     delete_groups: Optional[Iterable[int]] = None,
     description="save",
     overwrite=False,
+    preventRevision=False,
 ):
     """
     Annotations are lazy-deleted by marking their staleness property as true.
@@ -270,7 +271,7 @@ def save_annotations(
     additions = track_additions + group_additions
     deletions = track_deletions + group_deletions
 
-    if additions or deletions:
+    if (additions or deletions) and not preventRevision:
         # Write the revision to the log
         log_entry = models.RevisionLog(
             dataset=datasetId,
