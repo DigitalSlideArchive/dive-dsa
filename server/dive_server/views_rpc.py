@@ -11,9 +11,16 @@ from girder.models.setting import Setting
 from girder.models.token import Token
 from girder_jobs.models.job import Job
 
-from dive_utils import asbool, fromMeta
-from dive_utils.constants import DatasetMarker, FPSMarker, MarkForPostProcess, TypeMarker, SAM2_CONFIG
 from dive_tasks.sam_tasks import run_sam2_inference
+from dive_utils import asbool, fromMeta
+from dive_utils.constants import (
+    SAM2_CONFIG,
+    DatasetMarker,
+    FPSMarker,
+    MarkForPostProcess,
+    TypeMarker,
+)
+
 from . import crud_rpc
 
 
@@ -234,7 +241,6 @@ class RpcResource(Resource):
         )
         return 'Notification Sent'
 
-
     @access.user
     @autoDescribeRoute(
         Description("SAM2 Mask TRacking")
@@ -277,12 +283,10 @@ class RpcResource(Resource):
             default='Tiny',
             required=False,
         )
-
-
     )
     def sam2_mask_track(self, datasetId, trackId, frameId, frameCount, SAMModel):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
-        sam2_config = Setting().get(SAM2_CONFIG) 
+        sam2_config = Setting().get(SAM2_CONFIG)
         newjob = run_sam2_inference.apply_async(
             queue=sam2_config.get('celeryQueue', 'celery'),
             kwargs=dict(
@@ -294,10 +298,7 @@ class RpcResource(Resource):
                 girder_client_token=str(token["_id"]),
                 girder_job_title=(f"Running SAM2 Mask Tracking"),
                 girder_job_type="gpu",
-
             ),
         )
         Job().save(newjob.job)
         return newjob.job
-
-

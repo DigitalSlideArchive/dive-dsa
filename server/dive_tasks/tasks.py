@@ -23,7 +23,6 @@ from dive_utils import constants, fromMeta
 from dive_utils.types import GirderModel
 
 
-
 def get_gpu_environment() -> Dict[str, str]:
     """Get environment variables for using CUDA enabled GPUs."""
     env = os.environ.copy()

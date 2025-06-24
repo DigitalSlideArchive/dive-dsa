@@ -3,6 +3,7 @@ import re
 SETTINGS_CONST_JOBS_CONFIGS = 'jobs_configs'
 BRAND_DATA_CONFIG = 'brand_data_config'
 SAM2_CONFIG = 'sam2_config'
+DIVE_CONFIG = 'DIVE_CONFIG'
 INSTALLED_ADDONS_CONFIGS = 'installed_addons'
 
 ImageSequenceType = "image-sequence"
@@ -149,4 +150,3 @@ DEFAULT_SAM2_CONFIG = {
     "celeryQueue": 'dive_gpu',
     "models": DEFAULT_SAM2_FILES,
 }
-

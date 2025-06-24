@@ -597,10 +597,28 @@ class SAM2Models(BaseModel):
     config: str
     checkpoint: str
 
+
 class SAM2Config(BaseModel):
-    celeryQueue: Literal['celery', 'dive_gpu']
+    celeryQueue: str
     models: Dict[str, SAM2Models]
 
+
+class SAM2ClientConfig(BaseModel):
+    models: List[str]  # Models that are loaded
+    queues: List[str]  # celery | dive_gpu - first is default
+
+
+class AnnotatorFeatures(BaseModel):
+    sam2MaskTracking: Optional[bool]
+
+
+class EnabledFeatures(BaseModel):
+    annotator: AnnotatorFeatures
+
+
+class DIVESystemConfig(BaseModel):
+    SAM2Config: Optional[SAM2ClientConfig]
+    EnabledFeatures: Optional[EnabledFeatures]
 
 
 # interpolate all features [a, b)
