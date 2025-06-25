@@ -43,6 +43,7 @@ export default function registerNotifications(_rc: any) {
     for (let i = type.indexOf('.'); i !== -1; i = type.indexOf('.', i + 1)) {
       rc.$emit(`message:${type.substring(0, i)}`, notification);
     }
+    console.log(notification);
     rc.$emit(`message:${type}`, notification);
     rc.$emit('message', notification);
   }

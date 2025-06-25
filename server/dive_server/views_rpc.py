@@ -34,6 +34,7 @@ class RpcResource(Resource):
         self.route("POST", ("convert_dive", ":id"), self.convert_dive)
         self.route("POST", ("batch_postprocess", ":id"), self.batch_postprocess)
         self.route("POST", ("ui_notification", ":id"), self.ui_notification)
+        self.route("POST", ("mask_notifiction", ":id"), self.mask_notification)
         self.route("POST", ("sam2_mask_track",), self.sam2_mask_track)
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -235,6 +236,35 @@ class RpcResource(Resource):
 
         Notification().createNotification(
             type='ui_notification',
+            data=body,
+            user=self.getCurrentUser(),
+            expires=datetime.now() + timedelta(seconds=300),
+        )
+        return 'Notification Sent'
+
+    @access.user(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description("Provide Notification to current User of updates to mask")
+        .modelParam(
+            "id",
+            description="DIVE Dataset to post notifcation to",
+            model=Folder,
+            level=AccessType.READ,
+        )
+        .jsonParam(
+            "body",
+            "JSON structure of itemIds and frame features to update",
+            paramType="body",
+            requireObject=True,
+            default='{updates: [{"frameId": 0, "trackId": 0, "feature": "feature data", fileId: "mask fileId}]}',
+        )
+    )
+    def mask_notification(self, folder, body):
+
+        body['datasetId'] = (folder.get('_id', False),)
+
+        Notification().createNotification(
+            type='mask_update',
             data=body,
             user=self.getCurrentUser(),
             expires=datetime.now() + timedelta(seconds=300),

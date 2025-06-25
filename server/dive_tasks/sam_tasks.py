@@ -160,11 +160,13 @@ def run_sam2_inference(
             bbox,
             mask_location,
             working_dir_path,
-            upload_each,
             datasetId,
+            upload_each,
         )
         # Now I can either use the system Zip Upload and processing or I can do my own processing in the file.
-        process_masks_folder(gc, datasetId, output_dir, 'masks', 'merge')
+        # only do if you aren't uploading each value
+        if not upload_each:
+            process_masks_folder(gc, datasetId, output_dir, 'masks', 'merge')
 
 
 def get_model_files(gc: GirderClient, SAMModel: str = 'Tiny') -> Tuple[Path, Path]:
@@ -588,8 +590,8 @@ def run_inference(
     bbox: Optional[list],
     mask_location: Optional[Path],
     working_directory: Path,
-    upload_each: bool,
     datasetId: str,
+    upload_each: bool = True,
 ) -> Path:
     """
     Runs SAM2 inference on a video segment using either a bbox or mask as input.
@@ -656,15 +658,19 @@ def run_inference(
                     track_data,
                 )
                 if upload_each:  # Upload new Mask and update Track
-                    update_annotation(
+                    update_results = update_annotation(
                         task,
                         gc,
                         output_dir,
                         datasetId,
                         trackId,
+                        obj_id,
                         frame_idx + startFrame,
                         track_folder_id,
+                        track_data
                     )
+                    track_folder_id = update_results['trackFolderId']
+                    manager.updateProgress(trackingFrames, frame_idx, 'Frame has been updated')
 
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / "RLE_MASKS.json", "w") as f:
@@ -687,7 +693,7 @@ def update_annotation(
     track_data: dict,
 ):
     # find the new mask
-    mask_path = output_dir / trackId / f'{frameId}.png'
+    mask_path = output_dir / f'{trackId}' / f'{frameId}.png'
     item = None
     if os.path.exists(mask_path):
         if not track_folder_id:
@@ -700,14 +706,14 @@ def update_annotation(
                 reuseExisting=True,
                 metadata={'mask_track': True},
             )
-            track_folder_id = track_folder["_id"]
+            track_folder_id = str(track_folder["_id"])
         item = gc.uploadFileToFolder(track_folder_id, str(mask_path))
         gc.addMetadataToItem(
-            track_folder_id,
-            {'mask_track_id': trackId, 'mask_object_id': objectId, 'mask_frame': frameId},
+            item['itemId'],
+            {constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId, constants.MASK_FRAME_VALUE: frameId, constants.MASK_TRACK_FRAME_MARKER: True},
         )
     # Now we need to upsert the track without creating a revision
-    track_obj = track_data['tracks'].get(trackId, None)
+    track_obj = track_data['tracks'].get(str(trackId), None)
     if track_obj:  # Now we upsert the new track to indicate it should be updated
         patch_data = {
             "tracks": {"upsert": [track_obj], "delete": []},
@@ -716,7 +722,11 @@ def update_annotation(
                 "delete": [],
             },
         }
-        gc.patch('dive_annotation/', {"preventRevision": True}, json=patch_data)
+        gc.patch('/dive_annotation', {"preventRevision": True, "folderId": datasetId}, json=patch_data)
     # Now send a task update with a json structure of the ItemId and the new Track data to be added
     if item and track_obj:
-        return
+        return {
+            'trackFolderId': track_folder_id,
+            'fileId': item['itemId'],
+            'track': track_obj,
+        }

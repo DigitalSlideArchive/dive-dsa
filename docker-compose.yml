@@ -10,7 +10,7 @@ x-worker: &base-worker
   image:  ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-worker:${TAG:-latest}
   volumes:
     - addons:/tmp/addons:ro # readonly
-    - sam2_models:/tmp/SAM2
+    - sam2_models:/tmp/SAM2:rw
     - /var/run/docker.sock:/var/run/docker.sock
   labels:
     - "com.centurylinklabs.watchtower.enable=true"
@@ -120,7 +120,7 @@ services:
     image: ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-worker-gpu:${TAG:-latest}
     volumes:
       - addons:/tmp/addons:ro # readonly
-      - sam2_models:/tmp/SAM2
+      - sam2_models:/tmp/SAM2:rw
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - "com.centurylinklabs.watchtower.enable=true"

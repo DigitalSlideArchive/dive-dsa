@@ -54,6 +54,8 @@ RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo n
 ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
+RUN useradd --create-home --uid 1099 --shell=/bin/bash dive
+RUN install -g dive -o dive -d /tmp/SAM2
 
 # Setup the path of the incoming python installation
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
