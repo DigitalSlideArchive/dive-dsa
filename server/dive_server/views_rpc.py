@@ -34,7 +34,7 @@ class RpcResource(Resource):
         self.route("POST", ("convert_dive", ":id"), self.convert_dive)
         self.route("POST", ("batch_postprocess", ":id"), self.batch_postprocess)
         self.route("POST", ("ui_notification", ":id"), self.ui_notification)
-        self.route("POST", ("mask_notifiction", ":id"), self.mask_notification)
+        self.route("POST", ("mask_notification", ":id"), self.mask_notification)
         self.route("POST", ("sam2_mask_track",), self.sam2_mask_track)
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -261,7 +261,7 @@ class RpcResource(Resource):
     )
     def mask_notification(self, folder, body):
 
-        body['datasetId'] = (folder.get('_id', False),)
+        body['datasetId'] = folder.get('_id', False)
 
         Notification().createNotification(
             type='mask_update',
@@ -313,8 +313,26 @@ class RpcResource(Resource):
             default='Tiny',
             required=False,
         )
+        .param(
+            'batchSize',
+            "Batching to reduce GPU usage",
+            paramType='formData',
+            dataType='integer',
+            default=300,
+            required=False,
+        )
+        .param(
+            'notifyPercent',
+            "Every x% frames completes it will update the user",
+            paramType='formData',
+            dataType='float',
+            default=0.1,
+            required=False,
+        )
     )
-    def sam2_mask_track(self, datasetId, trackId, frameId, frameCount, SAMModel):
+    def sam2_mask_track(
+        self, datasetId, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent
+    ):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
         sam2_config = Setting().get(SAM2_CONFIG)
         newjob = run_sam2_inference.apply_async(
@@ -324,6 +342,8 @@ class RpcResource(Resource):
                 trackId=trackId,
                 frameId=frameId,
                 frameLength=frameCount,
+                batch_size=batchSize,
+                notify_percent=notifyPercent,
                 SAMModel=SAMModel,
                 girder_client_token=str(token["_id"]),
                 girder_job_title=(f"Running SAM2 Mask Tracking"),

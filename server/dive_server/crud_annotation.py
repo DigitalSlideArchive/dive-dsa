@@ -258,7 +258,7 @@ def save_annotations(
                             REVISION_CREATED: new_revision,
                         },
                         newdict,
-                        upsert=True
+                        upsert=True,
                     )
                 )
             else:

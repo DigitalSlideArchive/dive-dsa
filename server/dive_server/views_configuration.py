@@ -11,7 +11,6 @@ from dive_tasks.sam_tasks import download_sam_models
 from dive_utils import constants, models
 
 
-
 @setting_utilities.validator({constants.SAM2_CONFIG})
 def validdateSAM2(doc):
     """Handle plugin-specific system settings. Right now we don't do any validation."""

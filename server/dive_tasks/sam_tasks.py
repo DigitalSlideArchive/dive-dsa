@@ -119,7 +119,10 @@ def run_sam2_inference(
     frameId: int,
     frameLength: int,
     SAMModel: str = 'Tiny',
+    additive: bool = 'True',
     upload_each: bool = True,
+    notify_percent: float = 0.1,
+    batch_size: int = 300,
 ):
     context: dict = {}
     manager: JobManager = patch_manager(self.job_manager)
@@ -133,9 +136,6 @@ def run_sam2_inference(
         # get either default container model files or a girderFolder with model files
         manager.write(f'Getting the Models files for model: {SAMModel}\n')
         sam2_config, sam2_checkpoint = get_model_files(gc, SAMModel)
-        # extract the frames between startFrame and startFrame+trackingFrames into a frame_dir
-        manager.write(f'Extracting {frameLength} frames from the Dataset Video\n')
-        frame_dir = extract_frames(gc, manager, datasetId, frameId, frameLength, working_dir_path)
         # get the bbbox from existing trackJSON and the mask image file if it exists
         manager.write(
             f'Retrieving bbox or mask for the source trackId: {trackId} and frameId: {frameId}\n'
@@ -152,7 +152,6 @@ def run_sam2_inference(
             manager,
             sam2_config,
             sam2_checkpoint,
-            frame_dir,
             trackId,
             frameId,
             frameLength,
@@ -161,7 +160,10 @@ def run_sam2_inference(
             mask_location,
             working_dir_path,
             datasetId,
+            additive,
             upload_each,
+            batch_size=batch_size,
+            notify_percent=notify_percent,
         )
         # Now I can either use the system Zip Upload and processing or I can do my own processing in the file.
         # only do if you aren't uploading each value
@@ -377,17 +379,25 @@ def save_and_record_mask(
         else [0, 0, 0, 0]
     )
 
-    track['features'].append(
-        {
-            'frame': frame_idx,
-            'flick': frame_idx * 100000,
-            'bounds': bounds,
-            'attributes': {},
-            'hasMask': True,
-            'interpolate': False,
-            'keyframe': True,
-        }
-    )
+    new_feature = {
+        'frame': frame_idx,
+        'flick': frame_idx * 100000,
+        'bounds': bounds,
+        'attributes': {},
+        'hasMask': True,
+        'interpolate': False,
+        'keyframe': True,
+    }
+
+    # Try to find an existing feature with the same frame index
+    for i, feature in enumerate(track['features']):
+        if feature['frame'] == frame_idx:
+            # Replace the existing feature
+            track['features'][i] = new_feature
+            break
+    else:
+        # No existing feature found; append the new one
+        track['features'].append(new_feature)
     track['begin'] = min(track['begin'], frame_idx)
     track['end'] = max(track['end'], frame_idx)
 
@@ -582,7 +592,6 @@ def run_inference(
     manager: JobManager,
     sam2_config: str,
     sam2_checkpoint: str,
-    frame_dir: Path,
     trackId: str,
     startFrame: int,
     trackingFrames: int,
@@ -591,7 +600,10 @@ def run_inference(
     mask_location: Optional[Path],
     working_directory: Path,
     datasetId: str,
+    additive: bool = True,
     upload_each: bool = True,
+    batch_size: Optional[int] = 300,
+    notify_percent: float = 0.1,
 ) -> Path:
     """
     Runs SAM2 inference on a video segment using either a bbox or mask as input.
@@ -608,6 +620,12 @@ def run_inference(
     manager.write(f'Device: {str(device)}\n')
 
     track_data = {'tracks': {}, 'groups': {}, 'version': 2}
+    if additive:  # we download the track data instead of using new tracks
+        downloaded_tracks = gc.get(
+            'dive_annotation/track', {"limit": 0, "sort": "id", "dir": 1, "folderId": datasetId}
+        )
+        for item in downloaded_tracks:
+            track_data['tracks'][str(item['id'])] = item
     rle_masks = {}
     # Target directory you want to link to
     GlobalHydra.instance().clear()
@@ -619,45 +637,43 @@ def run_inference(
     updated_sam2_config = str(sam2_config).replace('/tmp/SAM2/models/', './')
     predictor = build_sam2_video_predictor(updated_sam2_config, sam2_checkpoint, device=device)
     manager.write('Predictor Built\n')
-    with torch.inference_mode(), torch.autocast(str(device), dtype=torch.bfloat16):
-        state = predictor.init_state(str(frame_dir))
-        ann_obj_id = trackId
+    output_dir = working_directory / 'output/masks'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    track_folder_id = None
+    items_uploaded = []
+    last_update_frame = 0
+    notify_interval = max(1, int(trackingFrames * notify_percent))
+    total_frames = trackingFrames
+    final_mask_path = mask_location
 
-        if mask_location:
-            torch_mask = load_png_mask_as_tensor(mask_location)
-            frame_idx, object_ids, masks = predictor.add_new_mask(state, 0, ann_obj_id, torch_mask)
-        else:
-            frame_idx, object_ids, masks = predictor.add_new_points_or_box(
-                state, frame_idx=0, box=bbox, obj_id=ann_obj_id
-            )
-        manager.write('Initial Seed mask created\n')
-        output_dir = working_directory / 'output/masks'
-        for obj_id, mask in zip(object_ids, masks):
-            save_and_record_mask(
-                mask, output_dir, trackId, frame_idx + startFrame, track_type, rle_masks, track_data
-            )
+    for batch_start in range(0, trackingFrames, batch_size or trackingFrames):
+        batch_end = min(batch_start + (batch_size or trackingFrames), trackingFrames)
+        batch_frame_count = batch_end - batch_start
+        absolute_start = startFrame + batch_start
 
-        track_folder_id = None
-        for count, (frame_idx, object_ids, masks) in enumerate(
-            predictor.propagate_in_video(state, 0, trackingFrames)
-        ):
-            if utils.check_canceled(task, {}):
-                manager.updateStatus(JobStatus.CANCELED)
-                return
-
-            if frame_idx >= trackingFrames:
-                continue
+        manager.write(f'Processing batch: {batch_start} to {batch_end}\n')
+        manager.write(f'Extracting {batch_end-batch_start} frames from the Dataset Video\n')
+        frame_dir = extract_frames(
+            gc, manager, datasetId, absolute_start, batch_frame_count, working_directory
+        )
+        with torch.inference_mode(), torch.autocast(str(device), dtype=torch.bfloat16):
+            state = predictor.init_state(str(frame_dir))
+            ann_obj_id = trackId
+            if final_mask_path and final_mask_path.exists():
+                torch_mask = load_png_mask_as_tensor(final_mask_path)
+                frame_idx, object_ids, masks = predictor.add_new_mask(
+                    state, 0, ann_obj_id, torch_mask
+                )
+            else:
+                frame_idx, object_ids, masks = predictor.add_new_points_or_box(
+                    state, frame_idx=0, box=bbox, obj_id=ann_obj_id
+                )
+            manager.write('Initial Seed mask created\n')
             for obj_id, mask in zip(object_ids, masks):
                 save_and_record_mask(
-                    mask,
-                    output_dir,
-                    trackId,
-                    frame_idx + startFrame,
-                    track_type,
-                    rle_masks,
-                    track_data,
+                    mask, output_dir, trackId, absolute_start, track_type, rle_masks, track_data
                 )
-                if upload_each:  # Upload new Mask and update Track
+                if upload_each:
                     update_results = update_annotation(
                         task,
                         gc,
@@ -665,12 +681,53 @@ def run_inference(
                         datasetId,
                         trackId,
                         obj_id,
-                        frame_idx + startFrame,
+                        absolute_start,
                         track_folder_id,
-                        track_data
+                        track_data,
                     )
                     track_folder_id = update_results['trackFolderId']
-                    manager.updateProgress(trackingFrames, frame_idx, 'Frame has been updated')
+                    items_uploaded.append(update_results['item'])
+
+            for count, (frame_idx, object_ids, masks) in enumerate(
+                predictor.propagate_in_video(state, 0, batch_frame_count)
+            ):
+                if utils.check_canceled(task, {}):
+                    manager.updateStatus(JobStatus.CANCELED)
+                    return
+
+                absolute_frame = absolute_start + frame_idx
+                if absolute_frame >= startFrame + trackingFrames:
+                    continue
+
+                for obj_id, mask in zip(object_ids, masks):
+                    save_and_record_mask(
+                        mask, output_dir, trackId, absolute_frame, track_type, rle_masks, track_data
+                    )
+                    if upload_each:
+                        update_results = update_annotation(
+                            task,
+                            gc,
+                            output_dir,
+                            datasetId,
+                            trackId,
+                            obj_id,
+                            absolute_frame,
+                            track_folder_id,
+                            track_data,
+                        )
+                        track_folder_id = update_results['trackFolderId']
+                        items_uploaded.append(update_results['item'])
+                        manager.updateProgress(
+                            trackingFrames, absolute_frame - startFrame, 'Frame updated'
+                        )
+
+                if (absolute_frame - last_update_frame) >= notify_interval:
+                    update_client(gc, datasetId, absolute_frame, items_uploaded, track_data)
+                    items_uploaded.clear()
+                    last_update_frame = absolute_frame
+
+        # save the final frame mask to use as seed
+        final_mask_path = output_dir / f"{trackId}" / f"{absolute_frame}.png"
 
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / "RLE_MASKS.json", "w") as f:
@@ -707,11 +764,22 @@ def update_annotation(
                 metadata={'mask_track': True},
             )
             track_folder_id = str(track_folder["_id"])
-        item = gc.uploadFileToFolder(track_folder_id, str(mask_path))
+        file = gc.uploadFileToFolder(track_folder_id, str(mask_path))
         gc.addMetadataToItem(
-            item['itemId'],
-            {constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId, constants.MASK_FRAME_VALUE: frameId, constants.MASK_TRACK_FRAME_MARKER: True},
+            file['itemId'],
+            {
+                constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId,
+                constants.MASK_FRAME_VALUE: frameId,
+                constants.MASK_TRACK_FRAME_MARKER: True,
+            },
         )
+        item = {'_id': str(file['itemId'])}
+        item["name"] = file['name']
+        item["meta"] = {
+            constants.MASK_FRAME_PARENT_TRACK_MARKER: trackId,
+            constants.MASK_FRAME_VALUE: frameId,
+            constants.MASK_TRACK_FRAME_MARKER: True,
+        }
     # Now we need to upsert the track without creating a revision
     track_obj = track_data['tracks'].get(str(trackId), None)
     if track_obj:  # Now we upsert the new track to indicate it should be updated
@@ -722,11 +790,56 @@ def update_annotation(
                 "delete": [],
             },
         }
-        gc.patch('/dive_annotation', {"preventRevision": True, "folderId": datasetId}, json=patch_data)
+        gc.patch(
+            '/dive_annotation', {"preventRevision": True, "folderId": datasetId}, json=patch_data
+        )
     # Now send a task update with a json structure of the ItemId and the new Track data to be added
     if item and track_obj:
         return {
             'trackFolderId': track_folder_id,
-            'fileId': item['itemId'],
+            'item': item,
             'track': track_obj,
         }
+
+
+def update_client(
+    gc: GirderClient, dataset_id: str, current_frame: int, items_uploaded, track_data: dict
+):
+    # POST to custom endpoint
+    masks = []
+    frame_ids = set()
+    track_id = None
+
+    for item in items_uploaded:
+        file_name = item['name']
+        track_id = item["meta"].get(constants.MASK_FRAME_PARENT_TRACK_MARKER, None)
+        frame_id = item["meta"].get(constants.MASK_FRAME_VALUE, None)
+
+        if frame_id is not None:
+            frame_ids.add(int(frame_id))
+
+        url = f"/api/v1/item/{str(item['_id'])}/download"
+        masks.append(
+            {
+                "id": str(item["_id"]),
+                "filename": file_name,
+                "metadata": {
+                    "frameId": frame_id,
+                    "trackId": track_id,
+                },
+                "url": url,
+            }
+        )
+
+    all_features = track_data['tracks'].get(str(track_id), {}).get('features', [])
+    filtered_features = [f for f in all_features if int(f.get('frame', -1)) in frame_ids]
+
+    payload = {
+        'datasetId': dataset_id,
+        'currentFrame': current_frame,
+        'trackFeatures': filtered_features,
+        'trackId': track_id,
+        'masks': masks,
+    }
+
+    gc.post(f'/dive_rpc/mask_notification/{dataset_id}', json=payload)
