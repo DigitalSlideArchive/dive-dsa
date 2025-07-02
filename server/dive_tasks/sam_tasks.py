@@ -647,10 +647,17 @@ def run_inference(
     track_folder_id = None
     items_uploaded = []
     last_update_frame = 0
-    notify_interval = max(1, int(trackingFrames * notify_percent))
     total_frames = trackingFrames
     final_mask_path = mask_location
+    folderObj = gc.get(f'folder/{datasetId}')
+    ffprobe_info = folderObj.get('meta', {}).get('ffprobe_info', False)
+    if ffprobe_info:
+        nb_frames = ffprobe_info.get('nb_frames', False)
+        if nb_frames:
+            if startFrame + total_frames > int(nb_frames):
+                trackingFrames = int(nb_frames) - startFrame
 
+    notify_interval = max(1, int(trackingFrames * notify_percent))
     for batch_start in range(0, trackingFrames, batch_size or trackingFrames):
         batch_end = min(batch_start + (batch_size or trackingFrames), trackingFrames)
         batch_frame_count = batch_end - batch_start
