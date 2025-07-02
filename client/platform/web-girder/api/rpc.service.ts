@@ -9,10 +9,10 @@ function postProcess(folderId: string, skipJobs = false, skipTranscoding = false
   });
 }
 
-async function maskTracking(datasetId: string, trackId: number, frameId: number, frameCount: number, SAMModel = 'Tiny', batchSize = 300, notifyPercent = 0.1): Promise<GirderJob> {
+async function maskTracking(datasetId: string, queue:string, trackId: number, frameId: number, frameCount: number, SAMModel = 'Tiny', batchSize = 300, notifyPercent = 0.1): Promise<GirderJob> {
   const result = await girderRest.post('dive_rpc/sam2_mask_track', null, {
     params: {
-      datasetId, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent,
+      datasetId, queue, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent,
     },
   });
   return result.data;

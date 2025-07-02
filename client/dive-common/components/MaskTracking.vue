@@ -58,12 +58,13 @@ export default defineComponent({
     const datasetId = useDatasetId();
     const { frame } = useTime();
     const store = useStore();
-    const enabled = computed(() => store.state.GirderConfig.girderState.enabledFeatures?.annotator.sam2MaskTracking);
+    const maskTrackingEnabled = computed(() => store.state.GirderConfig.girderState.EnabledFeatures?.annotator.sam2MaskTracking);
     const models = computed(() => store.state.GirderConfig.girderState.SAM2Config?.models);
     const queues = computed(() => store.state.GirderConfig.girderState.SAM2Config?.queues);
     const menuOpen = ref(false);
 
     const selectedModel = ref(models.value?.length ? models.value[0] : 'Tiny');
+    console.log(store.state.GirderConfig.girderState);
     const selectedQueue = ref(queues.value?.length ? queues.value[0] : 'celery');
     const frameCount = ref(100);
     const batchSize = ref(300);
@@ -123,7 +124,7 @@ export default defineComponent({
     });
     const startTracking = async () => {
       if (selectedTrackId.value !== null) {
-        const result = await maskTracking(datasetId.value, selectedTrackId.value, frame.value, frameCount.value, selectedModel.value, batchSize.value, notifyPercent.value);
+        const result = await maskTracking(datasetId.value, selectedQueue.value, selectedTrackId.value, frame.value, frameCount.value, selectedModel.value, batchSize.value, notifyPercent.value);
         trackingJob.value = result;
       }
     };
@@ -148,7 +149,7 @@ export default defineComponent({
       menuOpen,
       selectedTrackId,
       selectedQueue,
-      enabled,
+      maskTrackingEnabled,
       models,
       queues,
       selectedModel,
@@ -171,6 +172,7 @@ export default defineComponent({
 
 <template>
   <v-menu
+    v-if="maskTrackingEnabled"
     v-model="menuOpen"
     :close-on-content-click="false"
     :nudge-width="120"

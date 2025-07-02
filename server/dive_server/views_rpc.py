@@ -282,6 +282,13 @@ class RpcResource(Resource):
             required=True,
         )
         .param(
+            "queue",
+            "Celery Queue to run task on",
+            paramType="formData",
+            dataType="string",
+            required=True,
+        )
+        .param(
             "trackId",
             "Seed TrackId for tracking",
             paramType="formData",
@@ -331,12 +338,12 @@ class RpcResource(Resource):
         )
     )
     def sam2_mask_track(
-        self, datasetId, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent
+        self, datasetId, queue, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent
     ):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
         sam2_config = Setting().get(SAM2_CONFIG)
         newjob = run_sam2_inference.apply_async(
-            queue=sam2_config.get('celeryQueue', 'celery'),
+            queue=queue,
             kwargs=dict(
                 datasetId=datasetId,
                 trackId=trackId,

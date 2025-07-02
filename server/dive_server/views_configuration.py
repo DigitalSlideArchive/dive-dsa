@@ -93,12 +93,12 @@ class ConfigurationResource(Resource):
         base_config = Setting().get(constants.DIVE_CONFIG) or {}
         queues = ['celery']
         if base_queue != 'celery':
-            queues.append(base_queue)
+            queues.insert(0, base_queue)
         base_config["SAM2Config"] = {
             "queues": queues,
             "models": [],
         }
-        Setting().set(constants.DIVE_CONFIG, data)
+        Setting().set(constants.DIVE_CONFIG, base_config)
         newjob = download_sam_models.apply_async(
             queue=base_queue,
             kwargs=dict(
@@ -130,4 +130,4 @@ class ConfigurationResource(Resource):
         if data.get('EnabledFeatures', False):
             base_config['EnabledFeatures'] = data['EnabledFeatures']
 
-        Setting().set(constants.DIVE_CONFIG, data)
+        Setting().set(constants.DIVE_CONFIG, base_config)

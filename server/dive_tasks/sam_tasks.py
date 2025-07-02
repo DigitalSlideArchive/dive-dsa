@@ -104,10 +104,15 @@ def download_sam_models(
             manager.updateStatus(JobStatus.CANCELED)
             return
     base_dive_config = gc.get('dive_configuration/dive_config')
+    manager.write(f'{base_dive_config}\n')
     sam2_base_config = base_dive_config.get('SAM2Config', {'queues': ['celery'], 'models': []})
+    dive_config_queue = base_dive_config.get('celeryQueue', False)
+    if dive_config_queue and dive_config_queue not in sam2_base_config.get('queues', []):
+        sam2_base_config['queues'].insert(0, dive_config_queue)
 
     sam2_base_config['models'] = models
     base_dive_config["SAM2Config"] = sam2_base_config
+    manager.write(f'{base_dive_config}\n')
     gc.put('dive_configuration/dive_config', json=base_dive_config)
 
 

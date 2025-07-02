@@ -10,6 +10,16 @@ export interface BrandData {
   trainingMessage?: string;
 }
 
+export interface SAM2Model {
+  config: string;
+  checkpoint: string;
+}
+
+export interface SAM2Config {
+  celeryQueue: string;
+  models: Record<string, SAM2Model>;
+}
+
 export interface SAM2ClientConfig {
   models: string[];
   queues: string[];
@@ -24,7 +34,7 @@ export interface EnabledFeatures {
 }
 export interface DIVEGirderConfig {
   SAM2Config?: SAM2ClientConfig;
-  enabledFeatures? :EnabledFeatures;
+  EnabledFeatures? :EnabledFeatures;
 }
 
 export type AddOns = [string, string, string, boolean][];
@@ -44,9 +54,25 @@ function putDIVEGirderConfig(diveGirderConfig: DIVEGirderConfig) {
   return girderRest.put('dive_configuration/dive_config', diveGirderConfig);
 }
 
+function getSAM2Config() {
+  return girderRest.get<SAM2Config>('dive_configuration/sam2_configs');
+}
+
+function putSAM2Config(sam2Config: SAM2Config, forceDownload = false) {
+  const params = new URLSearchParams();
+  if (forceDownload) {
+    params.set('force', 'true');
+  }
+  return girderRest.put(`dive_configuration/sam2_configs?${params.toString()}`, {
+    ...sam2Config,
+  });
+}
+
 export {
   getBrandData,
   putBrandData,
   getDIVEGirderConfig,
   putDIVEGirderConfig,
+  getSAM2Config,
+  putSAM2Config,
 };
