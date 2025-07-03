@@ -98,6 +98,7 @@ class ConfigurationResource(Resource):
             "queues": queues,
             "models": [],
         }
+        base_config['celeryQueue'] = base_queue
         Setting().set(constants.DIVE_CONFIG, base_config)
         newjob = download_sam_models.apply_async(
             queue=base_queue,
@@ -105,8 +106,8 @@ class ConfigurationResource(Resource):
                 sam2_config=data['models'],
                 force=force,
                 girder_client_token=str(token["_id"]),
-                girder_job_title=(f"Running SAM2 Model Downloading"),
-                girder_job_type="gpu",
+                girder_job_title=("Running SAM2 Model Downloading"),
+                girder_job_type="SAM2",
             ),
         )
         Job().save(newjob.job)

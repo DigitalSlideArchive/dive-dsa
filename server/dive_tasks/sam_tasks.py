@@ -2,8 +2,6 @@ import json
 import math
 import os
 from pathlib import Path
-import pprint
-import shutil
 import subprocess
 import tempfile
 from typing import Literal, Optional, Tuple, Union
@@ -16,27 +14,22 @@ from girder_client import GirderClient
 from girder_worker.app import app
 from girder_worker.task import Task
 from girder_worker.utils import JobManager, JobStatus
-from hydra import compose, initialize
+from hydra import initialize
 from hydra.core.global_hydra import GlobalHydra
 import numpy as np
 from pycocotools import mask as mask_utils
 from sam2.build_sam import build_sam2_video_predictor
-from sam2.sam2_video_predictor import SAM2VideoPredictor
 import torch
 
 from dive_tasks import utils
 from dive_tasks.manager import patch_manager
-from dive_utils import constants, fromMeta
+from dive_utils import constants
 
 
 def get_filename_from_url(url):
     """Extracts the filename from a URL."""
     parsed_url = urlparse(url)
     return os.path.basename(parsed_url.path)
-
-
-import math
-from urllib import request
 
 
 @app.task(bind=True, acks_late=True, ignore_result=True)
@@ -177,13 +170,6 @@ def run_sam2_inference(
 
 
 def get_model_files(gc: GirderClient, SAMModel: str = 'Tiny') -> Tuple[Path, Path]:
-    """
-    Retrieves SAM2 model config and checkpoint paths from either default location or Girder folder.
-
-    Returns:
-        Tuple containing config and checkpoint paths.
-    """
-
     config_file = None
     checkpoint_file = None
     # Log existence of default files
@@ -258,13 +244,6 @@ def extract_frames(
     tracking_frames: int,
     working_directory: Path,
 ) -> Path:
-    """
-    Extracts a subset of frames from a video using ffmpeg.
-
-    Returns:
-        Path to directory containing extracted JPEG frames.
-    """
-
     media_results = gc.get(f'/dive_dataset/{dataset_id}/media')
     video = media_results.get('video', None)
     if video is None:
@@ -538,7 +517,7 @@ def process_masks_folder(
             with open(track_json_path, 'r') as f:
                 json_data = json.load(f)
             # Get the existing Tracks in the system
-            existing_tracks = gc.get(f'/dive_annotation/track', {'folderId': folderId})
+            existing_tracks = gc.get('/dive_annotation/track', {'folderId': folderId})
             track_map = {}
             for track in existing_tracks:
                 # Check if the track already exists in the new JSON
@@ -576,7 +555,7 @@ def process_masks_folder(
                 folderId,
                 str(updated_track_json_path),
             )
-            result = gc.post(f'dive_rpc/postprocess/{folderId}', data={"skipJobs": True})
+            gc.post(f'dive_rpc/postprocess/{folderId}', data={"skipJobs": True})
 
 
 def merge_features(features1, features2):
@@ -610,13 +589,6 @@ def run_inference(
     batch_size: Optional[int] = 300,
     notify_percent: float = 0.1,
 ) -> Path:
-    """
-    Runs SAM2 inference on a video segment using either a bbox or mask as input.
-
-    Returns:
-        Path to directory containing output masks and track data.
-    """
-
     device = (
         torch.device("cuda")
         if torch.cuda.is_available()
@@ -681,11 +653,11 @@ def run_inference(
                     state, frame_idx=0, box=bbox, obj_id=ann_obj_id
                 )
             manager.write('Initial Seed mask created\n')
-            for obj_id, mask in zip(object_ids, masks):
+            for _obj_id, mask in zip(object_ids, masks):
                 save_and_record_mask(
                     mask, output_dir, trackId, absolute_start, track_type, rle_masks, track_data
                 )
-            for count, (frame_idx, object_ids, masks) in enumerate(
+            for _count, (frame_idx, object_ids, masks) in enumerate(
                 predictor.propagate_in_video(state, 0, batch_frame_count)
             ):
                 if utils.check_canceled(task, {}):

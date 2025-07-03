@@ -7,14 +7,12 @@ from girder.constants import AccessType, TokenScope
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.notification import Notification
-from girder.models.setting import Setting
 from girder.models.token import Token
 from girder_jobs.models.job import Job
 
 from dive_tasks.sam_tasks import run_sam2_inference
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
-    SAM2_CONFIG,
     DatasetMarker,
     FPSMarker,
     MarkForPostProcess,
@@ -341,7 +339,6 @@ class RpcResource(Resource):
         self, datasetId, queue, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent
     ):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
-        sam2_config = Setting().get(SAM2_CONFIG)
         newjob = run_sam2_inference.apply_async(
             queue=queue,
             kwargs=dict(
@@ -353,8 +350,8 @@ class RpcResource(Resource):
                 notify_percent=notifyPercent,
                 SAMModel=SAMModel,
                 girder_client_token=str(token["_id"]),
-                girder_job_title=(f"Running SAM2 Mask Tracking"),
-                girder_job_type="gpu",
+                girder_job_title=("Running SAM2 Mask Tracking"),
+                girder_job_type="SAM2",
             ),
         )
         Job().save(newjob.job)

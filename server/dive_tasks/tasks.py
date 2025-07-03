@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Dict, List, Literal
+from typing import Dict, Literal
 import zipfile
 
 from GPUtil import getGPUs
