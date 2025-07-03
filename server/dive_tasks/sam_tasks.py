@@ -685,21 +685,6 @@ def run_inference(
                 save_and_record_mask(
                     mask, output_dir, trackId, absolute_start, track_type, rle_masks, track_data
                 )
-                if upload_each:
-                    update_results = update_annotation(
-                        task,
-                        gc,
-                        output_dir,
-                        datasetId,
-                        trackId,
-                        obj_id,
-                        absolute_start,
-                        track_folder_id,
-                        track_data,
-                    )
-                    track_folder_id = update_results['trackFolderId']
-                    items_uploaded.append(update_results['item'])
-
             for count, (frame_idx, object_ids, masks) in enumerate(
                 predictor.propagate_in_video(state, 0, batch_frame_count)
             ):

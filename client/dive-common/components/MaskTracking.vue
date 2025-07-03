@@ -64,7 +64,6 @@ export default defineComponent({
     const menuOpen = ref(false);
 
     const selectedModel = ref(models.value?.length ? models.value[0] : 'Tiny');
-    console.log(store.state.GirderConfig.girderState);
     const selectedQueue = ref(queues.value?.length ? queues.value[0] : 'celery');
     const frameCount = ref(100);
     const batchSize = ref(300);
@@ -222,12 +221,13 @@ export default defineComponent({
               label="Queue"
             />
           </v-row>
-          <v-row dense>
+          <v-row dense class="mt-6">
             <v-slider
               v-model="frameCount"
-              :label="`Track Frames ${frameCount.toFixed(0)}`"
+              label="Track Frames"
+              thumb-label="always"
               min="1"
-              max="1000"
+              max="5000"
               step="1"
             />
           </v-row>

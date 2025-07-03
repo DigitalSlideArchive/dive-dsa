@@ -13,6 +13,8 @@ import {
   DIVEGirderConfig,
   getSAM2Config,
 } from 'platform/web-girder/api/configuration.service';
+import { cloneDeep } from 'lodash';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 
 const defaultSAM2Config: SAM2Config = {
   celeryQueue: 'celery',
@@ -44,6 +46,7 @@ export default defineComponent({
       celeryQueue: 'celery',
       models: {},
     });
+    const { prompt } = usePrompt();
 
     const newModelKey = ref('');
     const newModelConfig = ref('');
@@ -75,6 +78,20 @@ export default defineComponent({
 
     const saveSAM2Config = async () => {
       await putSAM2Config(sam2Config.value, false);
+      prompt({
+        title: 'Running Sam Download',
+        text: 'Running a task to download SAM2 Config, please do not hit this button again until the task is complete',
+      });
+    };
+
+    const removeModel = (key: string) => {
+      const copyModels = cloneDeep(sam2Config.value);
+      delete copyModels.models[key];
+      sam2Config.value = copyModels;
+    };
+
+    const loadDefault = () => {
+      sam2Config.value = defaultSAM2Config;
     };
 
     onMounted(() => {
@@ -91,6 +108,8 @@ export default defineComponent({
       newModelConfig,
       newModelCheckpoint,
       forceDownload,
+      removeModel,
+      loadDefault,
     };
   },
 });
@@ -156,7 +175,7 @@ export default defineComponent({
             />
           </v-col>
           <v-col cols="12" sm="2">
-            <v-btn color="error" @click="delete sam2Config.models[key]">
+            <v-btn color="error" @click="removeModel(key)">
               Remove
             </v-btn>
           </v-col>
@@ -202,6 +221,14 @@ export default defineComponent({
         </v-row>
       </v-card-text>
       <v-card-actions>
+        <v-btn
+          color="primary"
+          class="ml-2"
+          @click="loadDefault"
+        >
+          Load Default Config
+        </v-btn>
+
         <v-spacer />
         <v-switch v-model="forceDownload" label="Force Download" />
         <v-btn
