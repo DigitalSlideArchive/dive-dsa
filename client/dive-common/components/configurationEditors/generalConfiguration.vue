@@ -101,8 +101,8 @@ export default defineComponent({
     const transferProgress = ref(false);
     const transferConfig = () => {
       transferProgress.value = true;
-      if (configMan.hierarchy.value?.length && baseConfiguration.value) {
-        configMan.transferConfiguration(configMan.hierarchy.value[0].id, baseConfiguration.value);
+      if (originalConfiguration.baseConfiguration && baseConfiguration.value) {
+        configMan.transferConfiguration(originalConfiguration.baseConfiguration, baseConfiguration.value);
       }
       transferProgress.value = false;
     };
