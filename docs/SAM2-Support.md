@@ -26,7 +26,7 @@ Also in the configuration, there is a global toggle:
 
 ## SAM2 Annotation Interface
 
-Once SAM2 is enabled, annotators will see a **`mdi-radar`** button in the annotation interface to initiate SAM2 mask tracking.
+Once SAM2 is enabled, annotators will see a **==:material-radar:==** button in the annotation interface to initiate SAM2 mask tracking.
 
 ### Requirements
 
