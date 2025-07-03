@@ -24,4 +24,4 @@ class DIVEPlugin(GirderWorkerPluginABC):
     def task_imports(self):
         # Return a list of python importable paths to the
         # plugin's path directory
-        return ["dive_tasks.tasks", "dive_tasks.dive_metadata_slicer_cli"]
+        return ["dive_tasks.tasks", "dive_tasks.dive_metadata_slicer_cli", "dive_tasks.sam_tasks"]

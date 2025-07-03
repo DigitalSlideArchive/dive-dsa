@@ -27,6 +27,7 @@ if (
 
 Promise.all([
   store.dispatch('Brand/loadBrand'),
+  store.dispatch('GirderConfig/loadDIVEGirderConfig'),
   store.dispatch('User/loadUser'),
 ]).then(() => {
   const vuetify = getVuetify(store.state.Brand.brandData?.vuetify);

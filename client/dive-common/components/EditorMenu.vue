@@ -8,6 +8,7 @@ import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
 import { useMasks } from 'vue-media-annotator/provides';
+import MaskTracking from 'dive-common/components/MaskTracking.vue';
 
 interface ButtonData {
   id: string;
@@ -22,8 +23,24 @@ interface ButtonData {
   click: () => void;
 }
 
+const buttonOptions = {
+  text: true,
+  color: 'grey lighten-1',
+  outlined: true,
+  depressed: true,
+  class: ['mx-1'],
+};
+
+const menuOptions = {
+  offsetY: true,
+  bottom: true,
+};
+
 export default defineComponent({
   name: 'EditorMenu',
+  components: {
+    MaskTracking,
+  },
   props: {
     editingTrack: { type: Boolean, required: true },
     visibleModes: { type: Array as PropType<(VisibleAnnotationTypes)[]>, required: true },
@@ -300,6 +317,8 @@ export default defineComponent({
       updateMaskOpacity,
       maskOpacity,
       loadingFrame,
+      buttonOptions,
+      menuOptions,
     };
   },
 });
@@ -367,6 +386,10 @@ export default defineComponent({
       <slot name="delete-controls" />
       <slot name="additional-controls" />
       <v-spacer />
+      <MaskTracking
+        :button-options="buttonOptions"
+        :menu-options="menuOptions"
+      />
       <span class="pb-1">
         <span class="mr-1 px-3 py-1">
           <v-icon class="pr-1">

@@ -8,6 +8,7 @@ import Dataset from './Dataset';
 import Brand from './Brand';
 import User from './User';
 import Jobs, { init as JobsInit } from './Jobs';
+import GirderConfig from './GirderConfig';
 
 Vue.use(Vuex);
 
@@ -18,6 +19,7 @@ const store = new Vuex.Store<RootState>({
     Location,
     Dataset,
     Jobs,
+    GirderConfig,
   },
 });
 

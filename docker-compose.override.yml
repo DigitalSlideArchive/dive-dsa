@@ -9,3 +9,6 @@ services:
   girder_worker_default:
     volumes:
       - ./server:/opt/dive/src
+  girder_worker_gpu:
+    volumes:
+      - ./server:/opt/dive/src

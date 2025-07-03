@@ -14,7 +14,7 @@ import { Handler } from 'vue-media-annotator/provides';
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
 const rleWorker = RLEWorker();
 
-type MaskItem = {
+export type MaskItem = {
   filename: string;
   id: string;
   metadata?: {
@@ -40,6 +40,7 @@ export interface UseMaskInterface {
     setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
     deleteMaskFrame: (trackId: number) => Promise<void>;
+    updateMaskData: (maskData: MaskItem[]) => void;
   },
 
 }
@@ -178,6 +179,41 @@ export default function useMasks(
     if (!useRLE) {
       preloadWindow(frame.value);
     }
+  }
+
+  function updateMaskData(newMaskData: MaskItem[]) {
+    newMaskData.forEach((newMask) => {
+      const frameId = newMask.metadata?.frameId;
+      const trackId = newMask.metadata?.trackId;
+
+      if (frameId === undefined || trackId === undefined) {
+        console.warn(`Skipping mask ${newMask.filename} due to missing metadata`);
+        return;
+      }
+
+      const key = frameKey(frameId, trackId);
+
+      // Replace mask entry in masks array
+      const existingIndex = masks.value.findIndex(
+        (item) => item.metadata?.frameId === frameId
+        && item.metadata?.trackId === trackId,
+      );
+
+      if (existingIndex !== -1) {
+        masks.value.splice(existingIndex, 1, newMask);
+      } else {
+        masks.value.push(newMask);
+      }
+
+      // Replace cached image if already cached
+      if (cache.has(key)) {
+        const img = new Image();
+        img.onload = () => {
+          cache.set(key, img);
+        };
+        img.src = newMask.url;
+      }
+    });
   }
 
   rleWorker.onmessage = (event) => {
@@ -409,6 +445,7 @@ export default function useMasks(
       loadingFrame,
     },
     editorFunctions: {
+      updateMaskData,
       setEditorOptions,
       addUpdateMaskFrame,
       deleteMaskFrame,

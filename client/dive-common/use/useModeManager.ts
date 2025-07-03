@@ -908,6 +908,12 @@ export default function useModeManager({
         selectTrack(newTrackId, true);
         if (geometryType !== 'rectangle') {
           selectTrack(newTrackId, true);
+          if (newTrackId !== null) {
+            const found = trackStore.getPossible(newTrackId);
+            if (found) {
+              found.meta = { time: true };
+            }
+          }
           handleSetAnnotationState({ editing: 'Time' });
           selectTrack(newTrackId, false);
         }

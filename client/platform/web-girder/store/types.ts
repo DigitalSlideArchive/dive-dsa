@@ -1,6 +1,6 @@
 import type { GirderModel, GirderModelType } from '@girder/components/src';
 import { inject } from 'vue';
-import type { BrandData } from 'platform/web-girder/api';
+import type { BrandData, DIVEGirderConfig } from 'platform/web-girder/api';
 import type { GirderMetadata } from 'platform/web-girder/constants';
 import { DiveConfiguration } from 'vue-media-annotator/ConfigurationManager';
 import { Store } from 'vuex';
@@ -29,6 +29,10 @@ export interface BrandState {
   brandData: BrandData;
 }
 
+export interface DIVEGirderState {
+  girderState: DIVEGirderConfig;
+}
+
 export interface UserState {
   user: null | {
     admin: boolean;
@@ -51,6 +55,7 @@ export interface RootState {
   Dataset: DatasetState;
   Brand: BrandState;
   User: UserState;
+  GirderConfig: DIVEGirderState;
 }
 
 export function useStore(): Store<RootState> {

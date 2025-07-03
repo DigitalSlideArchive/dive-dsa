@@ -197,12 +197,15 @@ def save_annotations(
     delete_groups: Optional[Iterable[int]] = None,
     description="save",
     overwrite=False,
+    preventRevision=False,
 ):
     """
     Annotations are lazy-deleted by marking their staleness property as true.
     """
     datasetId = dsFolder['_id']
-    new_revision = RevisionLogItem().latest(dsFolder) + 1
+    new_revision = RevisionLogItem().latest(dsFolder)
+    if not preventRevision:
+        new_revision += 1
     delete_annotation_update = {'$set': {REVISION_DELETED: new_revision}}
 
     if upsert_tracks is None:
@@ -246,7 +249,20 @@ def save_annotations(
             if not overwrite:
                 # UpdateMany for safety, UpdateOne would also work
                 expire_operations.append(pymongo.UpdateMany(filter, delete_annotation_update))
-            insert_operations.append(pymongo.InsertOne(newdict))
+            if preventRevision:
+                insert_operations.append(
+                    pymongo.ReplaceOne(
+                        {
+                            IDENTIFIER: newdict[IDENTIFIER],
+                            DATASET: datasetId,
+                            REVISION_CREATED: new_revision,
+                        },
+                        newdict,
+                        upsert=True,
+                    )
+                )
+            else:
+                insert_operations.append(pymongo.InsertOne(newdict))
 
         # Ordered=false allows fast parallel writes
         if len(expire_operations):
@@ -270,7 +286,7 @@ def save_annotations(
     additions = track_additions + group_additions
     deletions = track_deletions + group_deletions
 
-    if additions or deletions:
+    if (additions or deletions) and not preventRevision:
         # Write the revision to the log
         log_entry = models.RevisionLog(
             dataset=datasetId,

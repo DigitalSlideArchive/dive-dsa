@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Dict, List, Literal
+from typing import Dict, Literal
 import zipfile
 
 from GPUtil import getGPUs
@@ -20,27 +20,7 @@ from dive_tasks import utils
 from dive_tasks.frame_alignment import check_and_fix_frame_alignment
 from dive_tasks.manager import patch_manager
 from dive_utils import constants, fromMeta
-from dive_utils.types import AvailableJobSchema, GirderModel
-
-EMPTY_JOB_SCHEMA: AvailableJobSchema = {
-    'pipelines': {},
-    'training': {
-        'configs': [],
-        'default': None,
-    },
-}
-
-# https://github.com/VIAME/VIAME/blob/master/cmake/download_viame_addons.csv
-UPGRADE_JOB_DEFAULT_URLS: List[str] = [
-    'https://viame.kitware.com/api/v1/item/627b145487bad2e19a4c4697/download',  # HabCam
-    'https://viame.kitware.com/api/v1/item/627b32b1994809b024f207a7/download',  # SEFSC
-    'https://viame.kitware.com/api/v1/item/627b3289ea630db5587b577d/download',  # SWFSC-PengHead
-    'https://viame.kitware.com/api/v1/item/627b326fea630db5587b577b/download',  # Motion
-    'https://viame.kitware.com/api/v1/item/627b326cc4da86e2cd3abb5b/download',  # EM Tuna
-    'https://viame.kitware.com/api/v1/item/627b3282c4da86e2cd3abb5d/download',  # MOUSS
-    'https://viame.kitware.com/api/v1/item/615bc7aa7e5c13a5bb9af7a7/download',  # Aerial Penguin
-    'https://viame.kitware.com/api/v1/item/629807c192adc2f0ecfa5b54/download',  # Sea Lion
-]
+from dive_utils.types import GirderModel
 
 
 def get_gpu_environment() -> Dict[str, str]:
@@ -56,54 +36,6 @@ def get_gpu_environment() -> Dict[str, str]:
         env["CUDA_VISIBLE_DEVICES"] = str(gpus[0])
 
     return env
-
-
-class Config:
-    def __init__(self):
-        self.gpu_process_env = get_gpu_environment()
-        self.viame_install_directory = os.environ.get(
-            'VIAME_INSTALL_PATH',
-            '/opt/noaa/viame',
-        )
-        self.addon_root_directory = os.environ.get(
-            'ADDON_ROOT_DIR',
-            '/tmp/addons',
-        )
-        self.kwiver_log_level = os.environ.get(
-            'KWIVER_DEFAULT_LOG_LEVEL',
-            'warn',
-        )
-
-        self.viame_install_path = Path(self.viame_install_directory)
-        assert self.viame_install_path.exists(), "VIAME Base install directory missing."
-        self.viame_setup_script = self.viame_install_path / "setup_viame.sh"
-        assert self.viame_setup_script.is_file(), "VIAME Setup Script missing"
-        self.viame_training_executable = self.viame_install_path / "bin" / "viame_train_detector"
-        assert self.viame_training_executable.is_file(), "VIAME Training Executable missing"
-
-        # The subdirectory within VIAME_INSTALL_PATH where pipelines can be found
-        self.pipeline_subdir = 'configs/pipelines'
-        self.viame_pipeine_path = self.viame_install_path / self.pipeline_subdir
-        assert self.viame_pipeine_path.exists(), "VIAME common pipe directory missing."
-
-        self.addon_root_path = Path(self.addon_root_directory)
-        self.addon_zip_path = utils.make_directory(self.addon_root_path / 'zips')
-        self.addon_extracted_path = utils.make_directory(self.addon_root_path / 'extracted')
-
-        # Set include directory to include pipelines from this path
-        # https://github.com/VIAME/VIAME/issues/131
-        self.gpu_process_env['SPROKIT_PIPE_INCLUDE_PATH'] = str(
-            self.addon_extracted_path / self.pipeline_subdir
-        )
-
-    def get_extracted_pipeline_path(self, missing_ok=False) -> Path:
-        """
-        Includes subdirectory for pipelines
-        """
-        pipeline_path = self.addon_extracted_path / self.pipeline_subdir
-        if not missing_ok:
-            assert pipeline_path.exists(), f"Missing path {pipeline_path}"
-        return pipeline_path
 
 
 @app.task(bind=True, acks_late=True, ignore_result=True)
