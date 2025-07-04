@@ -201,7 +201,7 @@ class Attribute(BaseModel):
     datatype: Literal['text', 'number', 'boolean']
     values: Optional[List[str]]
     lockedValues: Optional[bool]
-    staticColor: Optional[bool] 
+    staticColor: Optional[bool]
     valueColors: Optional[Dict[str, str]]
     name: str
     description: Optional[str]
