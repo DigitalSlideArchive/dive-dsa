@@ -130,15 +130,15 @@ export default function useSave(
       //   confidenceFilters: datasetMeta?.confidenceFilters,
       // };
       // promiseList.push(saveStyling(configurationId.value, stylingData));
-      // if (pendingChangeMap.timelineUpsert.size || pendingChangeMap.timelineDelete.size) {
-      //   promiseList.push(saveTimelines(configurationId.value, {
-      //     upsert: Array.from(pendingChangeMap.timelineUpsert).map((pair) => pair[1]),
-      //     delete: Array.from(pendingChangeMap.timelineDelete),
-      //   }).then(() => {
-      //     pendingChangeMap.timelineUpsert.clear();
-      //     pendingChangeMap.timelineDelete.clear();
-      //   }));
-      // }
+      if (pendingChangeMap.timelineUpsert.size || pendingChangeMap.timelineDelete.size) {
+        promiseList.push(saveTimelines(configurationId.value, {
+          upsert: Array.from(pendingChangeMap.timelineUpsert).map((pair) => pair[1]),
+          delete: Array.from(pendingChangeMap.timelineDelete),
+        }).then(() => {
+          pendingChangeMap.timelineUpsert.clear();
+          pendingChangeMap.timelineDelete.clear();
+        }));
+      }
       if (pendingChangeMap.swimlaneUpsert.size || pendingChangeMap.swimlaneDelete.size) {
         promiseList.push(saveSwimlanes(configurationId.value, {
           upsert: Array.from(pendingChangeMap.swimlaneUpsert).map((pair) => pair[1]),
