@@ -118,6 +118,7 @@ export default defineComponent({
       generalDialog,
       hierarchy: configMan.hierarchy,
       baseConfiguration,
+      originalConfiguration,
       disableConfigurationEditing,
       mergeType,
       mergeSelection,
@@ -217,7 +218,7 @@ export default defineComponent({
           <v-row>
             <v-btn
               :disabled="
-                baseConfiguration === 'null' || (hierarchy && hierarchy[0].id === baseConfiguration)"
+                baseConfiguration === 'null' || (originalConfiguration.baseConfiguration === baseConfiguration)"
               color="warning"
               @click="transferConfig"
             >
