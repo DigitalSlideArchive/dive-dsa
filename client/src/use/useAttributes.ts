@@ -492,6 +492,12 @@ export default function UseAttributes(
 
   const getAttributeValueColor = (attribute: Attribute, val: string) => {
     if (attribute.datatype === 'text') {
+      if (attribute.staticColor) {
+        if (attribute.color) {
+          return attribute.color;
+        }
+        return trackStyleManager.typeStyling.value.color(attribute.name);
+      }
       if (attribute.valueColors && attribute.valueColors[val]) {
         return attribute.valueColors[val];
       }
@@ -576,7 +582,9 @@ export default function UseAttributes(
       }
       // Now we need to push data in based on values and change only when value changes:
       let color = 'white';
-      if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
+      if (baseAttribute?.datatype === 'number' && baseAttribute.staticColor) {
+        color = baseAttribute.color || trackStyleManager.typeStyling.value.color(baseAttribute.name);
+      } else if (baseAttribute?.datatype === 'number' && colorScalingNumbers && colorScalingNumbers[baseAttribute.key]) {
         color = colorScalingNumbers[baseAttribute.key](val);
       }
       if (typeof val === 'string' && baseAttribute && baseAttribute.datatype === 'text') {
@@ -589,15 +597,24 @@ export default function UseAttributes(
         valueMap[key].data.push({
           begin: frame,
           end: frame + 1,
+          singleVal: true,
           value: val,
           color,
         });
       } else if (lastValue !== val && valueMap[key].data.length > 0) {
         // eslint-disable-next-line no-param-reassign
         valueMap[key].data[valueMap[key].data.length - 1].end = frame;
+        if ((valueMap[key].data[valueMap[key].data.length - 1].end - valueMap[key].data[valueMap[key].data.length - 1].begin) === 1) {
+          // eslint-disable-next-line no-param-reassign
+          valueMap[key].data[valueMap[key].data.length - 1].singleVal = true;
+        } else {
+          // eslint-disable-next-line no-param-reassign
+          valueMap[key].data[valueMap[key].data.length - 1].singleVal = undefined;
+        }
         valueMap[key].data.push({
           begin: frame,
           end: frame + 1,
+          singleVal: true,
           value: val,
           color,
         });

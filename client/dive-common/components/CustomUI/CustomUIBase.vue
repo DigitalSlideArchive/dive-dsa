@@ -2,6 +2,7 @@
 import {
   defineComponent, computed, ref,
   Ref,
+  watch,
 } from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
@@ -27,6 +28,9 @@ interface AttributeDisplayButton {
     attrName: string;
     type: Attribute['belongs'];
     userAttribute: boolean;
+    segment?: boolean;
+    actionType: 'set' | 'remove' | 'dialog';
+    disabled: boolean;
     action: () => void;
 }
 
@@ -41,6 +45,7 @@ interface ActionDisplayButton {
 
 interface AttributeButtons {
     name: string;
+    attrName: string;
     type: 'track' | 'detection';
     description?: string;
     buttons: AttributeDisplayButton[];
@@ -73,6 +78,7 @@ export default defineComponent({
     const selectedTrackIdRef = useSelectedTrackId();
     const systemHandler = useHandler();
     const panelExpanded: Ref<Record<string, number | undefined>> = ref({});
+    const trackPercentSize = 0.01; // 5% of the track length is used for segment creation
 
     const title = computed(() => configMan.configuration.value?.customUI?.title || 'Custom Actions');
     const information = computed(() => configMan.configuration.value?.customUI?.information || []);
@@ -86,7 +92,57 @@ export default defineComponent({
       return null;
     }
 
-    function updateAttribute({ name, value, belongs }: { name: string; value: unknown; belongs: 'track' | 'detection' }) {
+    function getButtonDisabled(attribute: Attribute, shortcut: AttributeShortcut) {
+      if (selectedTrackIdRef.value === null) {
+        return { disabled: true, tooltip: 'No track selected' };
+      }
+
+      if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
+        const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+        const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
+        const ranges = rangeVals[attribute.name];
+        if (ranges && ranges.length > 0) {
+          if (ranges.length % 2 !== 0) {
+            return { disabled: true, tooltip: 'Segments are uneven' };
+          }
+          if (frameRef.value !== undefined) {
+            let inRange = false;
+            let varianceRange = false;
+            const segmentCreationFrames = (track.end - track.begin) * trackPercentSize;
+            for (let i = 0; i < ranges.length; i += 2) {
+              const start = ranges[i];
+              const end = ranges[i + 1];
+              if (frameRef.value >= start && frameRef.value <= end) {
+                inRange = true;
+                varianceRange = true;
+                break;
+              }
+              if (frameRef.value < start && frameRef.value > start - segmentCreationFrames) {
+                varianceRange = true;
+                break;
+              }
+              if (frameRef.value > end && frameRef.value < end + segmentCreationFrames) {
+                varianceRange = true;
+                break;
+              }
+            }
+            if (shortcut.type === 'remove' && !inRange) {
+              return { disabled: true, tooltip: 'Frame not in segment range' };
+            }
+            if ((shortcut.type === 'set' || shortcut.type === 'dialog') && varianceRange && !shortcut.segmentEditable) {
+              return { disabled: true, tooltip: 'Cannot Create Segment, too close to other segments' };
+            }
+          }
+        }
+      }
+
+      return { disabled: false, tooltip: shortcut.button?.buttonToolTip || '' };
+    }
+
+    function updateAttribute({
+      name, value, belongs, frame,
+    }: { name: string; value: unknown; belongs: 'track' | 'detection', frame?: number }) {
+      const frameVal = frame || frameRef.value;
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
@@ -95,7 +151,7 @@ export default defineComponent({
           if (belongs === 'track') {
             tracks.forEach((track) => track.setAttribute(name, value, user));
           } else if (belongs === 'detection' && frameRef.value !== undefined) {
-            tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value, user));
+            tracks.forEach((track) => track.setFeatureAttribute(frameVal, name, value, user));
           }
         }
       }
@@ -110,6 +166,58 @@ export default defineComponent({
           if (attribute.datatype === 'number' && typeof (shortcut.value) === 'string') {
             val = parseFloat(shortcut.value);
           }
+          if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
+            const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+            // Check if inside segment
+            if (shortcut.segmentEditable) {
+              const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
+              const ranges = rangeVals[attribute.name];
+              let insideSegmentBounds: { start: number, end: number} | null = null;
+              if (ranges && ranges.length > 0) {
+                for (let i = 0; i < ranges.length; i += 2) {
+                  const startseg = ranges[i];
+                  const endseg = ranges[i + 1];
+                  if (frameRef.value >= startseg && frameRef.value <= endseg) {
+                    insideSegmentBounds = { start: startseg, end: endseg };
+                    break;
+                  }
+                }
+              }
+              if (insideSegmentBounds) {
+                updateAttribute({
+                  name: attribute.name,
+                  value: val,
+                  belongs: attribute.belongs,
+                  frame: insideSegmentBounds.start,
+                });
+                updateAttribute({
+                  name: attribute.name,
+                  value: val,
+                  belongs: attribute.belongs,
+                  frame: insideSegmentBounds.end,
+                });
+                return;
+              }
+            }
+            // Create attribute segment if not inside segment and it is editable
+            const frame = frameRef.value;
+            const segmentCreationFrames = (track.end - track.begin) * trackPercentSize;
+            const start = Math.max(0, Math.round(frame - (segmentCreationFrames / 2.0)));
+            const end = Math.min(track.end, Math.round(frame + (segmentCreationFrames / 2.0)));
+            updateAttribute({
+              name: attribute.name,
+              value: val,
+              belongs: attribute.belongs,
+              frame: start,
+            });
+            updateAttribute({
+              name: attribute.name,
+              value: val,
+              belongs: attribute.belongs,
+              frame: end,
+            });
+            return;
+          }
           updateAttribute({
             name: attribute.name,
             value: val,
@@ -119,19 +227,51 @@ export default defineComponent({
       }
       if (shortcut.type === 'remove') {
         handler = () => {
-          updateAttribute({
-            name: attribute.name,
-            value: undefined,
-            belongs: attribute.belongs,
-          });
+          if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
+            const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+            const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
+            const ranges = rangeVals[attribute.name];
+            // find the range that contains the current frame
+            if (ranges && ranges.length > 0) {
+              for (let i = 0; i < ranges.length; i += 2) {
+                const start = ranges[i];
+                const end = ranges[i + 1];
+                if (frameRef.value >= start && frameRef.value <= end) {
+                  // remove the range
+                  updateAttribute({
+                    name: attribute.name,
+                    value: undefined,
+                    belongs: attribute.belongs,
+                    frame: start,
+                  });
+                  updateAttribute({
+                    name: attribute.name,
+                    value: undefined,
+                    belongs: attribute.belongs,
+                    frame: end,
+                  });
+                }
+              }
+            }
+          } else {
+            updateAttribute({
+              name: attribute.name,
+              value: undefined,
+              belongs: attribute.belongs,
+            });
+          }
+          updateButtonMap();
         };
       }
       if (shortcut.type === 'dialog') {
         handler = async () => {
-          const value = getAttributeValue(attribute.name, attribute.belongs, !!attribute.user) as string | number | boolean | undefined;
+          let value = getAttributeValue(attribute.name, attribute.belongs, !!attribute.user) as string | number | boolean | undefined;
+          if (!value && buttonValueMap.value[attribute.name]?.value) {
+            value = buttonValueMap.value[attribute.name].value as string | number | boolean | undefined;
+          }
           const val = await inputValue({
-            title: `Set ${attribute.name} Value`,
-            text: attribute.values ? 'Press Spacebar to choose a selection, then Enter to select' : 'Set the Attribute Value below',
+            title: `Set ${attribute.displayText || attribute.name} Value`,
+            text: attribute.values?.length ? 'Press Spacebar to choose a selection, then Enter to select' : `Set the ${attribute.displayText || attribute.name}  Value below`,
             positiveButton: 'Save',
             negativeButton: 'Cancel',
             confirm: true,
@@ -141,11 +281,66 @@ export default defineComponent({
             value,
           });
           if (val !== null) {
+            if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
+              const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+              const frame = frameRef.value;
+              // Check if inside segment
+              if (shortcut.segmentEditable) {
+                const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
+                const ranges = rangeVals[attribute.name];
+                let insideSegmentBounds: { start: number, end: number} | null = null;
+                if (ranges && ranges.length > 0) {
+                  for (let i = 0; i < ranges.length; i += 2) {
+                    const startseg = ranges[i];
+                    const endseg = ranges[i + 1];
+                    if (frameRef.value >= startseg && frameRef.value <= endseg) {
+                      insideSegmentBounds = { start: startseg, end: endseg };
+                      break;
+                    }
+                  }
+                }
+                if (insideSegmentBounds) {
+                  updateAttribute({
+                    name: attribute.name,
+                    value: val,
+                    belongs: attribute.belongs,
+                    frame: insideSegmentBounds.start,
+                  });
+                  updateAttribute({
+                    name: attribute.name,
+                    value: val,
+                    belongs: attribute.belongs,
+                    frame: insideSegmentBounds.end,
+                  });
+                  updateButtonMap();
+                  return;
+                }
+              }
+              // Create attribute segment
+              const segmentCreationFrames = (track.end - track.begin) * trackPercentSize;
+              const start = Math.round(frame - (segmentCreationFrames / 2.0));
+              const end = Math.round(frame + (segmentCreationFrames / 2.0));
+              updateAttribute({
+                name: attribute.name,
+                value: val,
+                belongs: attribute.belongs,
+                frame: start,
+              });
+              updateAttribute({
+                name: attribute.name,
+                value: val,
+                belongs: attribute.belongs,
+                frame: end,
+              });
+              updateButtonMap();
+              return;
+            }
             updateAttribute({
               name: attribute.name,
               value: val,
               belongs: attribute.belongs,
             });
+            updateButtonMap();
           }
         };
       }
@@ -159,23 +354,28 @@ export default defineComponent({
           const buttons: AttributeDisplayButton[] = [];
           attribute.shortcuts.forEach((shortcut) => {
             if (shortcut.button) {
+              const { disabled, tooltip } = getButtonDisabled(attribute, shortcut);
               buttons.push({
                 name: shortcut.button.buttonText,
                 color: shortcut.button.buttonColor || attribute.color || 'primary',
                 prependIcon: shortcut.button.iconPrepend,
                 appendIcon: shortcut.button.iconAppend,
-                buttonToolTip: shortcut.button.buttonToolTip,
+                buttonToolTip: tooltip,
                 displayValue: shortcut.button.displayValue,
                 attrName: attribute.name,
                 type: attribute.belongs,
                 userAttribute: !!attribute.user,
+                segment: shortcut.segment,
+                actionType: shortcut.type,
+                disabled,
                 action: createShortcutHandler(shortcut, attribute),
               });
             }
           });
           if (buttons.length > 0) {
             attributeButtonList.push({
-              name: attribute.name,
+              name: attribute.displayText || attribute.name,
+              attrName: attribute.name,
               description: attribute.description,
               type: attribute.belongs,
               buttons,
@@ -243,17 +443,98 @@ export default defineComponent({
       return '';
     };
 
-    const buttonValueMap = computed(() => {
+    // const buttonValueMap = computed(() => {
+    //   const buttonMapping: Record<string, {attribute: string, button: string; value: string | boolean | number | unknown; length: number }> = {};
+    //   attributeButtons.value.forEach((attribute) => attribute.buttons.forEach((button) => {
+    //     if (button.displayValue) {
+    //       if (button.segment && selectedTrackIdRef.value !== null) {
+    //         const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+    //         const rangeVals = track.getFrameAttributeRanges([attribute.attrName], store.state.User.user?.login || null);
+    //         const ranges = rangeVals[attribute.attrName];
+    //         if (ranges && ranges.length > 0) {
+    //           for (let i = 0; i < ranges.length; i += 2) {
+    //             const start = ranges[i];
+    //             const end = ranges[i + 1];
+    //             if (frameRef.value >= start && frameRef.value <= end) {
+    //               const [real] = track.getFeature(start);
+    //               if (real && real.attributes) {
+    //                 if (button.userAttribute && real.attributes.userAttributes) {
+    //                   const user = store.state.User.user?.login;
+    //                   if (user && real.attributes.userAttributes[user]) {
+    //                     const val = ((real.attributes.userAttributes[user] as StringKeyObject)[button.attrName] as string | boolean | number);
+    //                     buttonMapping[button.attrName] = {
+    //                       attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+    //                     };
+    //                   }
+    //                 } else if (real.attributes) {
+    //                   const val = (real.attributes[button.attrName] as string | boolean | number);
+    //                   buttonMapping[button.attrName] = {
+    //                     attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+    //                   };
+    //                 }
+    //               }
+    //             }
+    //           }
+    //         }
+    //       } else {
+    //         const val = getAttributeValue(button.attrName, button.type, button.userAttribute);
+    //         buttonMapping[button.attrName] = {
+    //           attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+    //         };
+    //       }
+    //     }
+    //   }));
+    //   return buttonMapping;
+    // });
+
+    const buttonValueMap: Ref<Record<string, {attribute: string, button: string; value: string | boolean | number | unknown; length: number }>> = ref({});
+
+    const updateButtonMap = () => {
       const buttonMapping: Record<string, {attribute: string, button: string; value: string | boolean | number | unknown; length: number }> = {};
       attributeButtons.value.forEach((attribute) => attribute.buttons.forEach((button) => {
         if (button.displayValue) {
-          const val = getAttributeValue(button.attrName, button.type, button.userAttribute);
-          buttonMapping[button.attrName] = {
-            attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
-          };
+          if (button.segment && selectedTrackIdRef.value !== null) {
+            const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+            const rangeVals = track.getFrameAttributeRanges([attribute.attrName], store.state.User.user?.login || null);
+            const ranges = rangeVals[attribute.attrName];
+            if (ranges && ranges.length > 0) {
+              for (let i = 0; i < ranges.length; i += 2) {
+                const start = ranges[i];
+                const end = ranges[i + 1];
+                if (frameRef.value >= start && frameRef.value <= end) {
+                  const [real] = track.getFeature(start);
+                  if (real && real.attributes) {
+                    if (button.userAttribute && real.attributes.userAttributes) {
+                      const user = store.state.User.user?.login;
+                      if (user && real.attributes.userAttributes[user]) {
+                        const val = ((real.attributes.userAttributes[user] as StringKeyObject)[button.attrName] as string | boolean | number);
+                        buttonMapping[button.attrName] = {
+                          attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+                        };
+                      }
+                    } else if (real.attributes) {
+                      const val = (real.attributes[button.attrName] as string | boolean | number);
+                      buttonMapping[button.attrName] = {
+                        attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            const val = getAttributeValue(button.attrName, button.type, button.userAttribute);
+            buttonMapping[button.attrName] = {
+              attribute: attribute.name, button: button.attrName, value: val, length: val ? (val as string | boolean | number).toString()?.length : 0,
+            };
+          }
         }
       }));
-      return buttonMapping;
+      buttonValueMap.value = buttonMapping;
+    };
+
+    watch([attributeButtons, frameRef, selectedTrackIdRef], () => {
+      updateButtonMap();
     });
 
     const expandPanel = (buttonName: string) => {
@@ -277,7 +558,7 @@ export default defineComponent({
       buttonValueMap,
       panelExpanded,
       expandPanel,
-
+      getButtonDisabled,
     };
   },
 });
@@ -344,12 +625,11 @@ export default defineComponent({
               <v-tooltip bottom>
                 <template #activator="{ on }">
                   <v-btn
-                    :color="button.color"
+                    :color="button.disabled ? 'rgba(255, 255, 255, 0.3)' : button.color"
                     outlined
-                    :disabled="selectedTrackIdRef === null"
                     class="mx-2"
                     v-on="button.buttonToolTip && on"
-                    @click="button.action"
+                    @click="!button.disabled ? button.action() : () => undefined"
                   >
                     <template v-if="button.prependIcon !== undefined">
                       <v-icon>{{ button.prependIcon }}</v-icon>
@@ -364,16 +644,16 @@ export default defineComponent({
               </v-tooltip>
             </v-col>
           </v-row>
-          <v-row v-if="buttonValueMap[attribute.name]">
+          <v-row v-if="buttonValueMap[attribute.attrName]">
             <v-col cols="12">
-              <span v-if="buttonValueMap[attribute.name].length < 50">
-                {{ buttonValueMap[attribute.name].value }}
+              <span v-if="buttonValueMap[attribute.attrName].length < 50">
+                {{ buttonValueMap[attribute.attrName].value }}
               </span>
-              <v-expansion-panels v-else :value="panelExpanded[attribute.name]">
-                <v-expansion-panel class="border" @change="expandPanel(attribute.name)">
+              <v-expansion-panels v-else :value="panelExpanded[attribute.attrName]">
+                <v-expansion-panel class="border" @change="expandPanel(attribute.attrName)">
                   <v-expansion-panel-header>{{ attribute.name }} Value</v-expansion-panel-header>
                   <v-expansion-panel-content>
-                    {{ buttonValueMap[attribute.name].value }}
+                    {{ buttonValueMap[attribute.attrName].value }}
                   </v-expansion-panel-content>
                 </v-expansion-panel>
               </v-expansion-panels>

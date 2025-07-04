@@ -34,6 +34,8 @@ export default defineComponent({
     const selectedShortcutKey = ref('');
     const selectedShortcutModifiers: Ref<string[]> = ref([]);
     const selectedShortcutButton: Ref<ButtonShortcut | undefined> = ref(undefined);
+    const isSegment = ref(false);
+    const segmentEditable = ref(false);
     const copy = ref(props.value);
     const awaitingKeyPress = ref(false);
     const shortcutError: Ref<{description: string; type: 'System' | 'Custom'}| null> = ref(null);
@@ -77,6 +79,8 @@ export default defineComponent({
       selectedShortcutKey.value = getShortcutDisplay(shortcut);
       selectedShortcutButton.value = shortcut.button || undefined;
       editShortcutDialog.value = true;
+      isSegment.value = shortcut.segment || false;
+      segmentEditable.value = !shortcut.segment ? false : shortcut.segmentEditable || false;
     };
 
     const cancel = () => {
@@ -85,8 +89,10 @@ export default defineComponent({
       selectedShortcutType.value = 'set';
       selectedShortcutDescription.value = '';
       selectedShortcutValue.value = '';
-      selectedShortcutKey.value = '';
       selectedShortcutButton.value = undefined;
+      selectedShortcutKey.value = '';
+      isSegment.value = false;
+      segmentEditable.value = false;
     };
     const save = () => {
       editShortcutDialog.value = false;
@@ -97,6 +103,8 @@ export default defineComponent({
         value: selectedShortcutValue.value,
         description: selectedShortcutDescription.value,
         button: selectedShortcutButton.value,
+        segment: isSegment.value || undefined,
+        segmentEditable: isSegment.value ? (segmentEditable.value || undefined) : undefined,
       };
       selectedShortcutButton.value = undefined;
       emit('input', copy.value);
@@ -107,7 +115,6 @@ export default defineComponent({
     };
     const addShortcut = () => {
       selectedShortcut.value = props.value.length;
-      selectedShortcutType.value = 'set';
       selectedShortcutType.value = 'set';
       selectedShortcutDescription.value = 'Enter a Description';
       if (props.valueType === 'boolean') {
@@ -195,21 +202,6 @@ export default defineComponent({
       window.document.addEventListener('keydown', handleKeyDown);
     };
 
-    const deleteShortcutKey = () => {
-      awaitingKeyPress.value = false;
-      selectedShortcutModifiers.value = [];
-      selectedShortcutKey.value = '';
-    };
-
-    const shortcutLabel = (shortcut: AttributeShortcut) => {
-      if (shortcut.key) {
-        return shortcut.key;
-      } if (shortcut.button) {
-        return shortcut.button.buttonText;
-      }
-      return '';
-    };
-
     const selectedDisplayKey = computed(() => {
       let base = '';
       if (selectedShortcutModifiers.value.length) {
@@ -224,9 +216,11 @@ export default defineComponent({
       selectedShortcutDescription,
       selectedShortcutKey,
       selectedShortcutValue,
+      selectedShortcutButton,
+      isSegment,
+      segmentEditable,
       shortcutTypes,
       selectedDisplayKey,
-      selectedShortcutButton,
       awaitingKeyPress,
       shortcutError,
       getShortcutDisplay,
@@ -237,8 +231,6 @@ export default defineComponent({
       editShortcut,
       editKeyPress,
       copy,
-      shortcutLabel,
-      deleteShortcutKey,
     };
   },
 });
@@ -252,10 +244,9 @@ awaitingKeyPress
     <v-list>
       <v-list-item
         v-for="(shortcut, index) in copy"
-        :key="`${shortcut.type}_shorcut_${shortcutLabel(shortcut)}`"
+        :key="`${shortcut.type}_shorcut_${shortcut.key}`"
       >
-        <span v-if="shortcut.key" class="mr-2"><span>Key:</span><v-chip>{{ getShortcutDisplay(shortcut) }}</v-chip></span>
-        <span v-if="shortcut.button"><span>Button:</span><v-chip>{{ shortcut.button.buttonText }}</v-chip></span>
+        <span>Key:</span><v-chip>{{ getShortcutDisplay(shortcut) }}</v-chip>
         <v-spacer />
         <span>Type:</span><v-chip>{{ shortcut.type }}</v-chip>
         <v-spacer />
@@ -311,6 +302,40 @@ awaitingKeyPress
         </v-card-title>
         <v-card-text>
           <v-row>
+            <v-btn
+              class="mr-4"
+              @click="editKeyPress"
+            >
+              Edit Keys
+            </v-btn>
+            <v-chip v-if="!awaitingKeyPress && !shortcutError">
+              {{ selectedDisplayKey || 'Enter Shorcut' }}
+            </v-chip>
+            <v-chip
+              v-else-if="awaitingKeyPress"
+              color="warning"
+            >
+              Press Key(s)
+            </v-chip>
+            <v-chip
+              v-else-if="shortcutError"
+              color="error"
+            >
+              <span style="font-weight:bold">Key:</span>
+              <span class="pl-2">{{ selectedDisplayKey }}</span>
+              <span
+                class="pl-4"
+                style="font-weight:bold"
+              >Type:  </span>
+              <span class="pl-2">{{ shortcutError.type }}</span>
+              <span
+                class="pl-4"
+                style="font-weight:bold"
+              >Description:  </span>
+              <span class="pl-2">{{ shortcutError.description }}</span>
+            </v-chip>
+          </v-row>
+          <v-row>
             <v-select
               v-model="selectedShortcutType"
               :items="shortcutTypes"
@@ -345,57 +370,48 @@ awaitingKeyPress
               label="Description"
             />
           </v-row>
-          <v-row class="pb-2">
-            <v-btn
-              class="mr-4"
-              @click="editKeyPress"
+          <v-row>
+            <v-checkbox
+              v-model="isSegment"
+              label="Segment Shortcut"
+            />
+            <v-tooltip
+              open-delay="200"
+              bottom
+              max-width="200"
             >
-              Edit Keys
-            </v-btn>
-            <v-chip v-if="!awaitingKeyPress && !shortcutError">
-              {{ selectedDisplayKey || 'Enter Shortcut' }}
-            </v-chip>
-            <v-chip
-              v-else-if="awaitingKeyPress"
-              color="warning"
+              <template #activator="{ on }">
+                <v-icon class="ml-2" v-on="on">
+                  mdi-information-outline
+                </v-icon>
+              </template>
+              <span>Segment shortcuts will create when setting a segment of percentage size of the video.  Deletion will occur when the frame is inside of a segment</span>
+            </v-tooltip>
+            <v-checkbox
+              v-model="segmentEditable"
+              label="Segment Editable"
+              class="ml-6"
+            />
+            <v-tooltip
+              open-delay="200"
+              bottom
+              max-width="200"
             >
-              Press Key(s)
-            </v-chip>
-            <v-chip
-              v-else-if="shortcutError"
-              color="error"
-            >
-              <span style="font-weight:bold">Key:</span>
-              <span class="pl-2">{{ selectedDisplayKey }}</span>
-              <span
-                class="pl-4"
-                style="font-weight:bold"
-              >Type:  </span>
-              <span class="pl-2">{{ shortcutError.type }}</span>
-              <span
-                class="pl-4"
-                style="font-weight:bold"
-              >Description:  </span>
-              <span class="pl-2">{{ shortcutError.description }}</span>
-            </v-chip>
-            <v-spacer />
-            <v-btn v-if="!awaitingKeyPress && !shortcutError && selectedDisplayKey" color="error" @click="deleteShortcutKey()">
-              Delete <v-icon>mdi-delete</v-icon>
-            </v-btn>
+              <template #activator="{ on }">
+                <v-icon class="ml-2" v-on="on">
+                  mdi-information-outline
+                </v-icon>
+              </template>
+              <span>Allows for editing of an entire segment</span>
+            </v-tooltip>
           </v-row>
+
           <button-shortcut-editor
             v-model="selectedShortcutButton"
           />
-          <v-row v-if="!!shortcutError || (selectedDisplayKey === '' && !selectedShortcutButton?.buttonText) ">
-            <v-spacer />
-            <v-alert type="warning">
-              Saving requires either a Keyboard Shortcut or a Button
-            </v-alert>
-            <v-spacer />
-          </v-row>
         </v-card-text>
         <v-card-actions>
-          <v-row class="my-3 pb-2">
+          <v-row>
             <v-spacer />
             <v-btn
               depressed
@@ -406,7 +422,7 @@ awaitingKeyPress
             </v-btn>
             <v-btn
               color="primary"
-              :disabled="!!shortcutError || (selectedDisplayKey === '' && !selectedShortcutButton?.buttonText)"
+              :disabled="!!shortcutError || selectedDisplayKey === ''"
               @click="save"
             >
               Save

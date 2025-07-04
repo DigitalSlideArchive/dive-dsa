@@ -88,7 +88,7 @@ export default defineComponent({
     ]"
   >
     <v-card
-      class="px-4 py-1"
+      class="px-4 py-1 controller"
       tile
     >
       <v-slider
@@ -171,6 +171,7 @@ export default defineComponent({
             </v-icon>
           </v-btn>
           <v-btn
+            v-if="getUISetting('UIResetCamera')"
             icon
             small
             title="(r)eset pan and zoom"
@@ -206,3 +207,11 @@ export default defineComponent({
     </v-card>
   </div>
 </template>
+
+<style lang="css" scoped>
+.controller {
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
+}
+</style>

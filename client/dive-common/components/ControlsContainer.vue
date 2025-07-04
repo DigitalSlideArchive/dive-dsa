@@ -214,6 +214,7 @@ export default defineComponent({
             <span>Collapse/Expand Timeline</span>
           </v-tooltip>
           <v-tooltip
+            v-if="getUISetting('UILegendControls')"
             open-delay="200"
             bottom
           >
@@ -231,6 +232,7 @@ export default defineComponent({
             <span>Show Legend/Key</span>
           </v-tooltip>
           <timeline-buttons
+            v-if="getUISetting('UITimelineSelection')"
             :dismissed-buttons="dismissedButtons"
             :collapsed="collapsed"
             :current-view="currentView"

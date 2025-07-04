@@ -48,7 +48,20 @@ export default defineComponent({
     const editSwimlaneSettings: Ref<Record<string, SwimlaneGraphSettings>> = ref(props.swimlaneGraph.settings || {});
     const editSwimlaneenabled = ref(props.swimlaneGraph.enabled);
     const editSwimlaneDefault = ref(props.swimlaneGraph.default || false);
-    const editSwimlaneDisplay: Ref<SwimlaneGraph['displaySettings']> = ref(props.swimlaneGraph.displaySettings || { display: 'static' as 'static' | 'selected', trackFilter: ['all'] });
+    const editSwimlaneDisplay: Ref<SwimlaneGraph['displaySettings']> = ref(
+      props.swimlaneGraph.displaySettings
+      || {
+        display: 'static' as 'static' | 'selected',
+        trackFilter: ['all'],
+        renderMode: 'classic',
+        highlightSegments: true,
+        editSegments: true,
+        minSegmentSize: 0,
+      },
+    );
+    if (editSwimlaneDisplay.value && editSwimlaneDisplay.value.minSegmentSize === undefined) {
+      editSwimlaneDisplay.value.minSegmentSize = 0;
+    }
 
     const originalName = props.swimlaneGraph.name;
     const originalDefault = props.swimlaneGraph.default || false;
@@ -144,11 +157,10 @@ export default defineComponent({
         </h2>
         <p> Set graphs to display only on selected track types</p>
         <div
-          v-if="showDisplaySettings"
+          v-if="showDisplaySettings && editSwimlaneDisplay"
           class="graph-settings-area"
         >
           <v-row
-            v-if="editSwimlaneDisplay"
             dense
           >
             <v-radio-group
@@ -190,11 +202,67 @@ export default defineComponent({
                 </v-chip>
               </template>
             </v-select>
+          </v-row>
+          <v-row dense>
             <v-checkbox
               v-model="editSwimlaneDisplay.displayFrameIndicators"
               label="Display Set Value Indicators"
               class="mx-2"
             />
+          </v-row>
+          <v-row dense>
+            <v-checkbox
+              v-model="editSwimlaneDisplay.displayTooltip"
+              label="Display Swimlane Tooltip"
+              class="mx-2"
+            />
+          </v-row>
+          <v-row dense>
+            <v-select
+              v-model="editSwimlaneDisplay.renderMode"
+              style="max-width: 200px"
+              outlined
+              :items="[{ value: 'classic', title: 'Classic' }, { value: 'segments', title: 'Segments' }]"
+              item-text="title"
+              item-value="value"
+              label="Render Mode"
+            />
+            <v-checkbox
+              v-if="editSwimlaneDisplay.renderMode === 'segments'"
+              v-model="editSwimlaneDisplay.highlightSegments"
+              label="Highlight Segments"
+              class="mx-2"
+            />
+            <v-checkbox
+              v-if="editSwimlaneDisplay.renderMode === 'segments'"
+              v-model="editSwimlaneDisplay.editSegments"
+              label="Edit Segments"
+              class="mx-2"
+            />
+          </v-row>
+          <v-row v-if="editSwimlaneDisplay.renderMode === 'segments'">
+            <v-text-field
+              v-if="editSwimlaneDisplay.renderMode === 'segments'"
+              v-model.number="editSwimlaneDisplay.minSegmentSize"
+              type="number"
+              label="Minimum Frame Segment Size"
+              class="mx-2"
+              outlined
+              min="0"
+              style="max-width: 200px;"
+            />
+            <v-tooltip
+              open-delay="200"
+              top
+              max-width="200"
+            >
+              <template #activator="{ on }">
+                <v-icon class="ml-2" v-on="on">
+                  mdi-information-outline
+                </v-icon>
+              </template>
+              <span>When a segment is resized to 0 if this value is zero it will remove the segment, if the value is greater it will make the segment this minimum size.</span>
+            </v-tooltip>
           </v-row>
         </div>
       </div>

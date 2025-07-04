@@ -9,6 +9,12 @@ export interface SwimlaneGraph {
     display: 'static' | 'selected';
     trackFilter: string[];
     displayFrameIndicators?: boolean;
+    displayTooltip?: boolean;
+    renderMode?: 'classic' | 'segments';
+    highlightSegments?: boolean;
+    editSegments?: boolean;
+    minSegmentSize?: number;
+
   };
   settings?: Record<string, SwimlaneGraphSettings>;
 }
@@ -59,6 +65,9 @@ export interface AttributeShortcut {
     type: 'set' | 'dialog' | 'remove';
     modifiers?: string[];
     value: number | boolean | string;
+    // segment Means that the adding will add two points and that deletion will delete a segment when inside it
+    segment?: boolean; // if this shortcut is for a segment
+    segmentEditable?: boolean;
     description?: string;
     button?: ButtonShortcut;
   }
@@ -96,9 +105,11 @@ export interface Attribute {
     datatype: 'text' | 'number' | 'boolean';
     values?: string[];
     valueColors?: Record<string, string>;
+    staticColor?: boolean;
     valueOrder?: Record<string, number>;
-    name: string;
     description?: string;
+    displayText?: string;
+    name: string;
     key: string;
     color?: string;
     user?: boolean;
@@ -173,6 +184,7 @@ export interface SwimlaneData {
     begin: number;
     end: number;
     value: string | boolean | number;
+    singleVal?: boolean;
     color?: string;
   }
 
