@@ -25,8 +25,9 @@ export default defineComponent({
     watch(() => context.state.width, () => {
       updatedWidth.value = context.state.width || props.width;
     });
+    const getOptionText = (text: string) => options.value.find((item) => item.value === text)?.text || 'Custom UI';
     return {
-      context, options, getUISetting, updatedWidth,
+      context, options, getUISetting, updatedWidth, getOptionText,
     };
   },
 });
@@ -44,6 +45,7 @@ export default defineComponent({
     >
       <div class="d-flex align-center mx-1">
         <v-select
+          v-if="options.length > 1"
           :items="options"
           :value="context.state.active"
           dense
@@ -53,6 +55,9 @@ export default defineComponent({
           style="max-width: 240px;"
           @change="context.toggle($event)"
         />
+        <h2 v-else>
+          {{ getOptionText(context.state.active) }}
+        </h2>
         <v-spacer />
         <v-btn
           v-if="getUISetting('UIContextBarNotStatic')"

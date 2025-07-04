@@ -60,6 +60,7 @@ export default defineComponent({
     const currentEditIndex: Ref<number> = ref(0);
     const currentEditKey: Ref<number> = ref(0);
     const colorKey = ref(props.attribute.colorKey || false);
+    const staticColor = ref(props.attribute.staticColor || false);
     const colorKeySettings = ref(props.attribute.colorKeySettings || undefined);
     const toggleKeySettings = ref(false);
 
@@ -81,7 +82,7 @@ export default defineComponent({
         mapper[item.key] = item.val;
       });
 
-      const data: { colorValues: Record<string, string>; colorKey?: boolean; colorKeySettings?: Attribute['colorKeySettings'] } = {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean; staticColor?: boolean; colorKeySettings?: Attribute['colorKeySettings'] } = {
         colorValues: mapper,
       };
       if (colorKey.value) {
@@ -89,6 +90,9 @@ export default defineComponent({
       }
       if (colorKeySettings.value) {
         data.colorKeySettings = colorKeySettings.value;
+      }
+      if (staticColor.value) {
+        data.staticColor = true;
       }
       emit('save', data);
     };
@@ -155,6 +159,7 @@ export default defineComponent({
 
     const validForm = ref(false);
     watch(colorKey, () => updateColors());
+    watch(staticColor, () => updateColors());
     watch(colorKeySettings, () => updateColors(), { deep: true });
 
     const setKeySettings = () => {
@@ -197,6 +202,7 @@ export default defineComponent({
       saveColorHex,
       setKeySettings,
       deleteChip,
+      staticColor,
     };
   },
 });
@@ -317,6 +323,13 @@ export default defineComponent({
             mdi-cog
           </v-icon>
         </v-btn>
+        <v-checkbox
+          v-model="staticColor"
+          label="Static Color"
+          hint="Use Attribute color"
+          persistent-hint
+          dense
+        />
       </v-row>
       <v-row
         v-if="toggleKeySettings && colorKeySettings"

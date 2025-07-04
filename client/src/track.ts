@@ -592,6 +592,36 @@ export default class Track extends BaseAnnotation {
     }
   }
 
+  getFrameAttributeRanges(attributeNames: string[], user: null | string = null) {
+    const ranges: Record<string, number[]> = {};
+    this.features.forEach((feature) => {
+      const { frame } = feature;
+      if (this.features[frame] && this.features[frame].attributes !== undefined) {
+        if (Object.keys(this.features[frame].attributes || {}).length === 0) {
+          return;
+        }
+        attributeNames.forEach((name) => {
+          if (user !== null && this.features[frame].attributes !== undefined
+            && this.features[frame].attributes?.userAttributes !== undefined
+            && ((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user]
+            && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
+            if (ranges[name] === undefined) {
+              ranges[name] = [];
+            }
+            ranges[name].push(frame);
+          } else
+            if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject)[name] !== undefined) {
+              if (ranges[name] === undefined) {
+                ranges[name] = [];
+              }
+              ranges[name].push(frame);
+            }
+        });
+      }
+    });
+    return ranges;
+  }
+
   /* Interpolate feature from d0 to d1 @ frame */
   static interpolate(frame: number, d0: Feature, d1: Feature): Feature | null {
     if (!d0.interpolate) {

@@ -1,3 +1,4 @@
+<!-- eslint-disable no-param-reassign -->
 <!-- eslint-disable @typescript-eslint/no-unused-vars -->
 <!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script lang="ts">
@@ -5,11 +6,16 @@ import {
   defineComponent, ref, computed, onMounted, watch, PropType,
   Ref,
   nextTick,
+  onUnmounted,
 } from 'vue';
 import { throttle } from 'lodash';
 import * as d3 from 'd3';
-import { useTime } from 'vue-media-annotator/provides';
-import { SwimlaneAttribute, SwimlaneData } from 'vue-media-annotator/use/AttributeTypes';
+import {
+  useAttributes, useCameraStore, useSelectedTrackId, useTime,
+} from 'vue-media-annotator/provides';
+import { SwimlaneAttribute, SwimlaneData, SwimlaneGraph } from 'vue-media-annotator/use/AttributeTypes';
+import { mdiArrowLeftRightBold } from '@mdi/js';
+import { useStore } from 'platform/web-girder/store/types';
 import { injectAggregateController } from '../annotators/useMediaController';
 
 function intersect(range1: number[], range2: number[]): number[] | null {
@@ -21,6 +27,16 @@ function intersect(range1: number[], range2: number[]): number[] | null {
   return [max[0], Math.min(min[1], max[1])];
 }
 
+export interface DragData {
+  isDragging: boolean;
+  draggedFrame: number | null;
+  draggedSubsectionIndex: number | null;
+  dragTarget:'begin' | 'end' | null;
+  dragBarName: string | null;
+  draggingCurrentLocation: number| null;
+  draggingValue: string | number | boolean | null;
+
+}
 export default defineComponent({
   name: 'AttributeSwimlaneGraph',
   props: {
@@ -31,10 +47,24 @@ export default defineComponent({
     clientHeight: { type: Number, required: true },
     margin: { type: Number, default: 0 },
     data: { type: Object as PropType<Record<string, SwimlaneAttribute>>, required: true },
-    displayFrameIndicators: { type: Boolean, default: false },
+    displaySettings: {
+      type: Object as PropType<SwimlaneGraph['displaySettings']>,
+      default: () => ({
+        display: 'static',
+        trackFilter: [],
+        displayFrameIndicators: false,
+        renderMode: 'classic',
+        editSegments: false,
+        minSegmentSize: 0,
+      }),
+    },
   },
   emits: ['scroll-swimlane', 'select-track'],
   setup(props, { emit }) {
+    const attributes = useAttributes();
+    const cameraStore = useCameraStore();
+    const selectedTrackIdRef = useSelectedTrackId();
+    const store = useStore();
     const chartTop = ref(0);
     const x = ref<any>(null);
     const tooltip: Ref<null | {
@@ -49,16 +79,54 @@ export default defineComponent({
     const scrollPos = ref(0);
     const mediaController = injectAggregateController().value;
     const { frame } = useTime();
-    const showSymbols = ref(props.displayFrameIndicators);
+    const showSymbols = ref(props.displaySettings?.displayFrameIndicators);
     const symbolGenerator = ref<any>(null);
     const canvas = ref<HTMLCanvasElement | null>(null);
     const chart = ref<HTMLDivElement | null>(null);
     const hoveredZone = ref<number | null>(null);
+    const hoveredAttributeType = ref<string | null>(null);
 
     const startFrame_ = ref(props.startFrame);
     const endFrame_ = ref(props.endFrame);
+    const dragData: DragData = {
+      isDragging: false,
+      draggedFrame: null,
+      draggedSubsectionIndex: null,
+      dragTarget: null,
+      dragBarName: null,
+      draggingCurrentLocation: null,
+      draggingValue: null,
+    };
+
+    function getAttributeUser({ name, belongs }: { name: string; belongs: 'track' | 'detection' }) {
+      const attribute = attributes.value.find((attr) => attr.name === name && attr.belongs === belongs);
+      if (attribute?.user) {
+        return store.state.User.user?.login || null;
+      }
+      return null;
+    }
+
+    function updateAttribute({
+      name, updateFrame, value, belongs,
+    }: { name: string; updateFrame: number, value: unknown; belongs: 'track' | 'detection' }) {
+      if (selectedTrackIdRef.value !== null) {
+        // Tracks across all cameras get the same attributes set if they are linked
+        const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
+        const user = getAttributeUser({ name, belongs });
+        if (tracks.length) {
+          if (belongs === 'track') {
+            tracks.forEach((track) => track.setAttribute(name, value, user));
+          } else if (belongs === 'detection' && updateFrame !== undefined) {
+            tracks.forEach((track) => track.setFeatureAttribute(updateFrame, name, value, user));
+          }
+        }
+      }
+    }
 
     const tooltipComputed = computed(() => {
+      if (!props.displaySettings?.displayTooltip) {
+        return null;
+      }
       if (tooltip.value !== null) {
         return {
           style: {
@@ -71,18 +139,34 @@ export default defineComponent({
       }
       return null;
     });
+    function skipEveryOtherSection(subsections: SwimlaneData[]): SwimlaneData[] {
+      const filtered = subsections.filter((data, index) => index % 2 === 0);
+      return filtered;
+    }
 
-    const barData = computed(() => Object.entries(props.data).map(([_key, bar]) => ({
-      name: bar.name,
-      startPosition: bar.start,
-      endPosition: bar.end,
-      color: bar.color,
-      subSections: bar.data,
-    })));
+    const barData = computed(() => Object.entries(props.data).map(([_key, bar]) => {
+      if (props.displaySettings?.renderMode === 'segments') {
+        const updatedSubSections = skipEveryOtherSection(bar.data);
+        return {
+          name: bar.name,
+          startPosition: bar.start,
+          endPosition: bar.end,
+          color: bar.color,
+          subSections: updatedSubSections,
+
+        };
+      }
+      return {
+        name: bar.name,
+        startPosition: bar.start,
+        endPosition: bar.end,
+        color: bar.color,
+        subSections: bar.data,
+      };
+    }));
 
     const bars = computed(() => {
       if (!x.value) return [];
-
       const barsList: {
         left: number;
         right: number;
@@ -122,48 +206,100 @@ export default defineComponent({
     };
 
     const iconFrames = computed(() => {
-      const barFrames: number[] = [];
+      const barFrames: Record<string, number[]> = {};
       const barList = bars.value;
       if (!barList.length) {
         return barFrames;
       }
       barList.forEach((bar) => {
+        barFrames[bar.id] = [];
         bar.subSections.forEach((sub) => {
-          barFrames.push(sub.begin);
+          barFrames[bar.id].push(sub.begin);
+          if (props.displaySettings?.renderMode === 'segments') {
+            barFrames[bar.id].push(sub.end);
+          }
         });
       });
       return barFrames;
     });
 
     const interactiveZones = computed(() => {
-      const frames = [...iconFrames.value].sort((a, b) => a - b);
-      const zones = [];
-      const baseWidth = Math.round((props.endFrame - props.startFrame) * 0.03); // Number of frames to extend on each side
+      const zones: Record<string, {frame: number, start: number; end:number}[]> = {};
+      Object.keys(iconFrames.value).forEach((key) => {
+        zones[key] = [];
+        const iconFramesVal = iconFrames.value[key];
 
-      for (let i = 0; i < frames.length; i += 1) {
-        const current = frames[i];
-        const prev = frames[i - 1] ?? -Infinity;
-        const next = frames[i + 1] ?? Infinity;
+        const frames = [...iconFramesVal].sort((a, b) => a - b);
+        const baseWidth = Math.round((props.endFrame - props.startFrame) * 0.01) || 1; // Number of frames to extend on each side
 
-        // Calculate distance to neighboring frames
-        const distPrev = current - prev;
-        const distNext = next - current;
+        for (let i = 0; i < frames.length; i += 1) {
+          const current = frames[i];
+          const prev = frames[i - 1] ?? -Infinity;
+          const next = frames[i + 1] ?? Infinity;
 
-        // Adjust width to prevent overlap
-        const leftWidth = Math.min(baseWidth, Math.floor(distPrev / 2));
-        const rightWidth = Math.min(baseWidth, Math.floor(distNext / 2));
+          // Calculate distance to neighboring frames
+          const distPrev = current - prev;
+          const distNext = next - current;
 
-        zones.push({
-          frame: current,
-          start: current - leftWidth,
-          end: current + rightWidth,
-        });
-      }
+          // Adjust width to prevent overlap
+          const leftWidth = Math.min(baseWidth, Math.floor(distPrev / 2));
+          const rightWidth = Math.min(baseWidth, Math.floor(distNext / 2));
 
+          zones[key].push({
+            frame: current,
+            start: current - leftWidth,
+            end: current + rightWidth,
+          });
+        }
+      });
       return zones;
     });
 
+    const getSymbolPath = (type: 'diamond' | 'arrows', size: number) => {
+      if (type === 'arrows') {
+        return new Path2D(mdiArrowLeftRightBold);
+      }
+      return new Path2D(symbolGenerator.value.size(size)());
+    };
+
+    const drawIcon = (ctx: CanvasRenderingContext2D, xFrame: number, xPosition: number, yPosition: number, symbol: 'diamond' | 'arrows' = 'diamond') => {
+      let fillColor = xFrame === frame.value ? 'cyan' : 'white';
+      let symbolSize = xFrame === frame.value ? 100 : 50;
+      let thickness = xFrame === frame.value ? 2 : 1;
+      if (symbol === 'arrows') {
+        fillColor = 'cyan';
+      }
+      if (dragData.isDragging) {
+        fillColor = 'yellow';
+      }
+
+      if (hoveredZone.value !== null && xFrame === hoveredZone.value) {
+        if (props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
+          symbol = 'arrows';
+        }
+        if (xFrame !== frame.value) {
+          fillColor = 'yellow';
+        }
+        symbolSize = 100;
+        thickness = 2;
+      }
+      const path = getSymbolPath(symbol, symbolSize);
+      ctx.save();
+      const updatedYPos = symbol === 'diamond' ? yPosition : yPosition - 10;
+      const updatedXPos = symbol === 'diamond' ? xPosition : xPosition - 10;
+      ctx.translate(updatedXPos, updatedYPos);
+      ctx.fillStyle = fillColor;
+      ctx.fill(path);
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = thickness;
+      ctx.stroke(path);
+      ctx.restore();
+    };
+
     const baseUpdate = () => {
+      if (dragData.isDragging) {
+        hoveredState.value = 'hover-grabbing';
+      }
       startFrame_.value = props.startFrame;
       endFrame_.value = props.endFrame;
       x.value?.domain([startFrame_.value, endFrame_.value]);
@@ -189,43 +325,34 @@ export default defineComponent({
         ctx.lineWidth = 2;
         ctx.strokeRect(bar.left, bar.top, barWidth, barHeight);
 
-        bar.subSections.forEach((sub) => {
-          const left = x.value(sub.begin);
-          const right = x.value(sub.end);
+        bar.subSections.forEach((sub, index) => {
+          let left = x.value(sub.begin);
+          let right = x.value(sub.end);
+          if (dragData.isDragging && index === dragData.draggedSubsectionIndex && dragData.draggingCurrentLocation !== null) {
+            if (sub.begin === dragData.draggedFrame) {
+              left = x.value(dragData.draggingCurrentLocation);
+            } else if (sub.end === dragData.draggedFrame) {
+              right = x.value(dragData.draggingCurrentLocation);
+            }
+          }
           const width = right - left;
           ctx.fillStyle = sub.color || 'white';
           ctx.fillRect(left, bar.top, width, barHeight);
-
           if (showSymbols.value) {
-            let fillColor = sub.begin === frame.value ? 'cyan' : 'white';
-            let symbolSize = sub.begin === frame.value ? 100 : 50;
-            let thickness = sub.begin === frame.value ? 2 : 1;
-            if (hoveredZone.value !== null && sub.begin === hoveredZone.value && frame.value !== sub.begin) {
-              fillColor = 'yellow';
-              symbolSize = 100;
-              thickness = 2;
+            const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
+            if (!sub.singleVal || props.displaySettings?.renderMode !== 'segments') {
+              drawIcon(ctx, sub.begin, left, bar.top + barHeight / 2, symbol);
             }
-            const path = new Path2D(symbolGenerator.value.size(symbolSize)());
-            ctx.save();
-            ctx.translate(left, bar.top + barHeight / 2);
-            ctx.fillStyle = fillColor;
-            ctx.fill(path);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = thickness;
-            ctx.stroke(path);
-            ctx.restore();
+            if (props.displaySettings?.renderMode === 'segments') {
+              const symbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
+              drawIcon(ctx, sub.end, right, bar.top + barHeight / 2, symbol);
+            }
           }
         });
       });
     };
 
     const update = throttle(baseUpdate, 20);
-
-    watch(frame, (oldVal, newVal) => {
-      if (iconFrames.value.includes(oldVal) !== iconFrames.value.includes(newVal)) {
-        update();
-      }
-    });
 
     const detectBarHovering = throttle((e: MouseEvent) => {
       const { offsetX, offsetY } = e;
@@ -241,30 +368,28 @@ export default defineComponent({
         hoverTrack.value = null;
         return false;
       }
-      const sub = bar.subSections.find((s) => offsetX > x.value(s.begin) && offsetX < x.value(s.end));
-      tooltip.value = {
-        left: offsetX,
-        top: offsetY,
-        contentColor: bar.color,
-        subColor: sub?.color || 'transparent',
-        name: bar.name,
-        subDisplay: sub?.value || 'None',
-      };
-      hoverTrack.value = bar.id;
+      const dragSubSectionIndex = bar.subSections.findIndex((s) => hoveredZone.value === s.begin || hoveredZone.value === s.end);
+      if (dragData.isDragging && dragSubSectionIndex !== -1 && dragData.draggedSubsectionIndex === null) {
+        dragData.draggedSubsectionIndex = dragSubSectionIndex;
+        const sub = bar.subSections[dragSubSectionIndex];
+        dragData.dragBarName = bar.name;
+        dragData.draggingValue = sub.value || 'None';
+      }
+      const subIndex = bar.subSections.findIndex((s) => offsetX >= x.value(s.begin) && offsetX <= x.value(s.end));
+      if (subIndex !== -1) {
+        const sub = bar.subSections[subIndex];
+        tooltip.value = {
+          left: offsetX,
+          top: offsetY,
+          contentColor: bar.color,
+          subColor: sub?.color || 'transparent',
+          name: bar.name,
+          subDisplay: sub?.value || 'None',
+        };
+        hoverTrack.value = bar.id;
+      }
       return true;
     }, 200);
-
-    const scrollToElement = (selectedBar: any) => {
-      const chartEl = canvas.value?.parentNode as HTMLElement;
-      if (!chartEl) return;
-      const { offsetHeight, scrollTop } = chartEl;
-      const { top } = selectedBar;
-      if (top > offsetHeight + scrollTop || top < scrollTop) {
-        chartEl.scrollTop = top - offsetHeight / 2.0;
-      } else if (scrollTop > top) {
-        chartEl.scrollTop = 0.0;
-      }
-    };
 
     const recordScroll = (ev: Event) => {
       const { scrollTop } = (ev.target as HTMLElement);
@@ -278,15 +403,40 @@ export default defineComponent({
       const { offsetX } = e;
       const frameAtCursor = x.value.invert(offsetX);
 
+      if (dragData.draggedFrame !== null && dragData.dragTarget != null) {
+        dragData.draggingCurrentLocation = frameAtCursor;
+        update();
+      }
+
       hoveredZone.value = null;
+      hoveredAttributeType.value = null;
       if (showSymbols.value) {
-        // eslint-disable-next-line no-restricted-syntax
-        for (const zone of interactiveZones.value) {
-          if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
-            hoveredZone.value = zone.frame;
+        const zoneKeys = Object.keys(interactiveZones.value);
+
+        let found = dragData.isDragging;
+        for (let i = 0; i < zoneKeys.length; i += 1) {
+          const zones = interactiveZones.value[zoneKeys[i]];
+          for (let k = 0; k < zones.length; k += 1) {
+            const zone = zones[k];
+            if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
+              hoveredZone.value = zone.frame;
+              hoveredAttributeType.value = zoneKeys[i];
+              if (!dragData.isDragging && props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
+                hoveredState.value = 'hover-grab';
+              }
+              found = true;
+              break;
+            }
+          }
+          if (found) {
             break;
           }
         }
+        if (!found && !dragData.isDragging) {
+          hoveredState.value = 'hover-cursor';
+        }
+      } else {
+        hoveredState.value = 'hover-cursor';
       }
     };
 
@@ -300,6 +450,35 @@ export default defineComponent({
       if (hoverTrack.value !== null) {
         emit('select-track', hoverTrack.value);
       }
+      if (hoveredZone.value !== null && props.displaySettings?.renderMode === 'segments' && props.displaySettings?.editSegments) {
+        dragData.isDragging = true;
+        hoveredState.value = 'hover-grabbing';
+        dragData.draggedFrame = hoveredZone.value;
+        // Need to know if we are dragging a being or end for the section
+        const bar = bars.value.find((bar) => bar.name === hoveredAttributeType.value);
+        if (bar) {
+          const subsection = bar.subSections.find((sub) => sub.begin === hoveredZone.value || sub.end === hoveredZone.value);
+          if (subsection) {
+            if (subsection.begin === dragData.draggedFrame) {
+              dragData.dragTarget = 'begin';
+            } else if (subsection.end === dragData.draggedFrame) {
+              dragData.dragTarget = 'end';
+            }
+          }
+        }
+      }
+    };
+
+    watch(frame, () => {
+      if (dragData.isDragging && dragData.draggedFrame !== null && dragData.dragTarget !== null) {
+        dragData.draggingCurrentLocation = frame.value;
+        update();
+      } else if (props.displaySettings?.renderMode !== 'segments') {
+        update();
+      }
+    });
+
+    const mouseclick = (e: MouseEvent) => {
       if (showSymbols.value && hoveredZone.value !== null) {
         e.preventDefault();
         e.stopPropagation();
@@ -308,18 +487,176 @@ export default defineComponent({
         nextTick(() => baseUpdate());
       }
     };
-
     const mouseout = () => {
-      detectBarHovering.cancel();
-      hoverTrack.value = null;
+    };
+
+    const getDragSubsection = (name: string, subsectionIndex: number) => {
+      const foundBar = bars.value.find((bar) => (bar.name === name));
+      if (foundBar) {
+        const subSection = foundBar.subSections[subsectionIndex];
+        if (subSection) {
+          return subSection;
+        }
+      }
+      return null;
+    };
+
+    const dragEndRemoveExtraPoints = (name: string, begin: number, end: number) => {
+      const bar = bars.value.find((b) => b.name === name);
+      if (!bar) return;
+      // get all values that are within the range of begin and end
+      const valuesToRemove = bar.subSections.filter((sub) => ((sub.begin > begin && sub.begin <= end) || (sub.end < end && sub.end > begin)));
+      let newBegin = begin;
+      let newEnd = end;
+      valuesToRemove.forEach((sub) => {
+        // Removes frames from intersections
+        if (sub.begin > begin && sub.begin < end) {
+          updateAttribute({
+            name,
+            updateFrame: sub.begin,
+            value: undefined,
+            belongs: 'detection',
+          });
+        }
+        if (sub.end < end && sub.end > begin) {
+          updateAttribute({
+            name,
+            updateFrame: sub.end,
+            value: undefined,
+            belongs: 'detection',
+          });
+        }
+        // Find the new begin and end values
+        newBegin = Math.min(newBegin, sub.begin);
+        newEnd = Math.max(newEnd, sub.end);
+      });
+      // Now we have an encompassing range, we can Remove any data inside of it
+      const encompassingRemoval = bar.subSections.filter((sub) => ((sub.begin > newBegin && sub.begin <= newEnd) || (sub.end < newEnd && sub.end > newBegin)));
+      encompassingRemoval.forEach((sub) => {
+        // Removes frames from intersections
+        if (sub.begin > newBegin && sub.begin < newEnd) {
+          updateAttribute({
+            name,
+            updateFrame: sub.begin,
+            value: undefined,
+            belongs: 'detection',
+          });
+        }
+        if (sub.end < newEnd && sub.end > newBegin) {
+          updateAttribute({
+            name,
+            updateFrame: sub.end,
+            value: undefined,
+            belongs: 'detection',
+          });
+        }
+      });
+      // Remove new point if it is inside the new range
+      if (begin > newBegin && begin < newEnd) {
+        updateAttribute({
+          name,
+          updateFrame: begin,
+          value: undefined,
+          belongs: 'detection',
+        });
+      }
+      if (end > newBegin && end < newEnd) {
+        updateAttribute({
+          name,
+          updateFrame: end,
+          value: undefined,
+          belongs: 'detection',
+        });
+      }
+    };
+
+    const systemMouseUp = (e: MouseEvent) => {
+      if (dragData.isDragging && dragData.dragBarName && dragData.draggedFrame !== null) {
+        // Unset the previous value
+        if (dragData.draggedSubsectionIndex !== null) {
+          const subSection = getDragSubsection(dragData.dragBarName, dragData.draggedSubsectionIndex);
+          // Updated Frame Size is zero and minSegmentSize supports zero we delete the segment
+          if (((subSection?.begin === frame.value && dragData.dragTarget === 'end') || (subSection?.end === frame.value && dragData.dragTarget === 'begin'))) {
+            updateAttribute({
+              name: dragData.dragBarName,
+              updateFrame: dragData.draggedFrame,
+              value: undefined,
+              belongs: 'detection',
+            });
+            updateAttribute({
+              name: dragData.dragBarName,
+              updateFrame: subSection.begin,
+              value: undefined,
+              belongs: 'detection',
+            });
+            dragData.isDragging = false;
+            dragData.dragBarName = null;
+            dragData.draggedFrame = null;
+            dragData.draggedSubsectionIndex = null;
+            dragData.dragTarget = null;
+            dragData.draggingCurrentLocation = null;
+            hoveredState.value = 'hover-cursor';
+            return;
+          }
+          const newSize = dragData.dragTarget === 'end' ? Math.abs(frame.value - (subSection?.begin || 0)) : Math.abs(frame.value - (subSection?.end || 0));
+          if (newSize < (props.displaySettings?.minSegmentSize || 0)) {
+            const anchorFrame = dragData.dragTarget === 'end' && subSection?.begin !== undefined ? subSection?.begin : subSection?.end;
+            if (anchorFrame !== undefined) {
+              updateAttribute({
+                name: dragData.dragBarName,
+                updateFrame: anchorFrame,
+                value: dragData.draggingValue,
+                belongs: 'detection',
+              });
+              updateAttribute({
+                name: dragData.dragBarName,
+                updateFrame: anchorFrame + (props.displaySettings?.minSegmentSize || 0),
+                value: dragData.draggingValue,
+                belongs: 'detection',
+              });
+            }
+          }
+          updateAttribute({
+            name: dragData.dragBarName,
+            updateFrame: dragData.draggedFrame,
+            value: undefined,
+            belongs: 'detection',
+          });
+          // Set the new value
+          updateAttribute({
+            name: dragData.dragBarName,
+            updateFrame: frame.value,
+            value: dragData.draggingValue,
+            belongs: 'detection',
+          });
+          if (subSection?.begin !== undefined && subSection.end !== undefined) {
+            const begin = dragData.dragTarget === 'begin' ? frame.value : subSection.begin;
+            const end = dragData.dragTarget === 'end' ? frame.value : subSection.end;
+            dragEndRemoveExtraPoints(dragData.dragBarName, begin, end);
+          }
+        }
+        update();
+      }
+      dragData.isDragging = false;
+      dragData.dragBarName = null;
+      dragData.draggedFrame = null;
+      dragData.draggedSubsectionIndex = null;
+      dragData.dragTarget = null;
+      dragData.draggingCurrentLocation = null;
+      hoveredState.value = 'hover-cursor';
     };
 
     onMounted(() => {
       initialize();
+      window.addEventListener('mouseup', systemMouseUp);
       update();
       if (chart.value) {
         chartTop.value = chart.value.offsetTop;
       }
+    });
+
+    onUnmounted(() => {
+      window.removeEventListener('mouseup', systemMouseUp);
     });
 
     watch(() => props.startFrame, update);
@@ -330,6 +667,7 @@ export default defineComponent({
     });
     watch(() => props.data, update);
 
+    const hoveredState: Ref<'hover-grabbing' | 'hover-grab' | 'hover-pointer' | 'hover-cursor'> = ref('hover-cursor');
     return {
       chartTop,
       canvas,
@@ -338,16 +676,18 @@ export default defineComponent({
       mousemove,
       mouseout,
       mousedown,
+      mouseclick,
       recordScroll,
       showSymbols,
       update,
+      hoveredState,
     };
   },
 });
 </script>
 
 <template>
-  <div style="position: relative;">
+  <div style="position: relative;" :class="hoveredState">
     <div
       ref="chart"
       class="event-chart"
@@ -359,17 +699,17 @@ export default defineComponent({
         <template #activator="{ on }">
           <div
             class="yaxisclick"
-            :style="`height: ${clientHeight}px !important; top:${chartTop}px`"
+            :style="`height: ${clientHeight - 10}px !important; top:${chartTop}px`"
             v-on="on"
             @click="showSymbols = !showSymbols; update()"
           />
         </template>
         <span class="ma-0 pa-1">Click to toggle Symbols for set Values</span>
       </v-tooltip>
-      <canvas ref="canvas" @mousemove="mousemove" @mouseout="mouseout" @mousedown="mousedown" />
+      <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseout="mouseout" @mousedown="mousedown" />
     </div>
     <v-card
-      v-if="tooltipComputed && (typeof (tooltipComputed.subDisplay) === 'string' && tooltipComputed.subDisplay.length ? tooltipComputed.subDisplay.length < 50 : true)"
+      v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)"
       class="tooltip"
       :style="tooltipComputed.style"
       outlined
@@ -397,6 +737,21 @@ export default defineComponent({
   overflow-y: visible;
   overflow-x: hidden;
 
+}
+
+.hover-grab {
+  cursor: grab;
+}
+
+.hover-grabbing {
+  cursor: default;
+}
+.hover-pointer {
+  cursor: pointer;
+}
+
+.hover-cursor {
+  cursor: unset;
 }
 
 .tooltip {

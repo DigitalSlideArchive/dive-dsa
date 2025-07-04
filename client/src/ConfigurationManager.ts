@@ -79,6 +79,8 @@ interface UITrackDetails {
 }
 
 interface UIControls {
+    UILegendControls?: boolean;
+    UITimelineSelection?: boolean;
     UIPlaybackControls? : boolean;
     UIAudioControls? : boolean;
     UISpeedControls? : boolean;
@@ -86,6 +88,7 @@ interface UIControls {
     UIFrameDisplay? : boolean;
     UIImageNameDisplay? : boolean;
     UILockCamera? : boolean;
+    UIResetCamera?: boolean;
 }
 
 interface UITimeline {

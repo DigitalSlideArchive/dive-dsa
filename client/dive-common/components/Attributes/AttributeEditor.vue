@@ -34,6 +34,7 @@ export default defineComponent({
     const { prompt } = usePrompt();
     const trackStyleManager = useTrackStyleManager();
     const name: Ref<string> = ref(props.selectedAttribute.name);
+    const displayText: Ref<string> = ref(props.selectedAttribute.displayText || '');
     const description: Ref<string> = ref(props.selectedAttribute.description || '');
     const belongs: Ref<Attribute['belongs']> = ref(props.selectedAttribute.belongs);
     const datatype: Ref<Attribute['datatype']> = ref(props.selectedAttribute.datatype);
@@ -41,6 +42,7 @@ export default defineComponent({
       Ref<Record<string, string> | undefined> = ref(props.selectedAttribute.valueColors);
     let valueOrder: Record<string, number> | undefined;
     const colorKey = ref(props.selectedAttribute.colorKey || false);
+    const staticColor = ref(props.selectedAttribute.staticColor || false);
     const colorKeySettings = ref(props.selectedAttribute.colorKeySettings || undefined);
     const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
@@ -74,6 +76,7 @@ export default defineComponent({
     function setDefaultValue() {
       name.value = '';
       description.value = '';
+      displayText.value = '';
       belongs.value = 'track';
       datatype.value = 'number';
       values = [];
@@ -94,6 +97,7 @@ export default defineComponent({
       const data: Attribute = {
         name: name.value,
         description: description.value || undefined,
+        displayText: displayText.value || undefined,
         belongs: belongs.value,
         datatype: datatype.value,
         values: datatype.value === 'text' && values ? values : [],
@@ -111,6 +115,9 @@ export default defineComponent({
       }
       if (colorKey.value) {
         data.colorKey = true;
+      }
+      if (staticColor.value) {
+        data.staticColor = true;
       }
       if (colorKeySettings.value) {
         data.colorKeySettings = colorKeySettings.value;
@@ -212,11 +219,13 @@ export default defineComponent({
        {
         colorValues: Record<string, string>;
         colorKey?: boolean;
+        staticColor?: boolean;
         valueOrder?: Record<string, number>;
         colorKeySettings?: Attribute['colorKeySettings'];
       }) => {
       attributeColors.value = data.colorValues;
       colorKey.value = !!data.colorKey;
+      staticColor.value = !!data.staticColor;
       colorKeySettings.value = data.colorKeySettings;
       if (data.valueOrder) {
         valueOrder = data.valueOrder;
@@ -228,6 +237,7 @@ export default defineComponent({
     return {
       name,
       description,
+      displayText,
       belongs,
       color,
       colorEditor,
@@ -299,6 +309,10 @@ export default defineComponent({
                 :rules="[v => !!v || 'Name is required', v => !v.includes(' ')
                   || 'No spaces', v => v !== 'userAttributes' || 'Reserved Name']"
                 required
+              />
+              <v-text-field
+                v-model="displayText"
+                label="Display Text"
               />
               <v-text-field
                 v-model="description"
