@@ -53,6 +53,18 @@ export default defineComponent({
       configurationMerge: mergeType.value,
       disableConfigurationEditing: disableConfigurationEditing.value,
     };
+    const currentConfigName = ref('unknown');
+    const calculateConfigName = () => {
+      if (configMan.hierarchy.value) {
+        const origIndex = configMan.hierarchy.value.findIndex((item) => item.id === originalConfiguration.baseConfiguration);
+        if (origIndex !== -1) {
+          currentConfigName.value = configMan.hierarchy.value[origIndex].name;
+          return;
+        }
+      }
+      currentConfigName.value = 'unknown';
+    };
+    calculateConfigName();
 
     const saveChanges = async () => {
       // We need to take the new values and set them on the 'general' settings
@@ -103,6 +115,8 @@ export default defineComponent({
       transferProgress.value = true;
       if (originalConfiguration.baseConfiguration && baseConfiguration.value) {
         configMan.transferConfiguration(originalConfiguration.baseConfiguration, baseConfiguration.value);
+        originalConfiguration.baseConfiguration = baseConfiguration.value;
+        calculateConfigName();
       }
       transferProgress.value = false;
     };
@@ -120,6 +134,7 @@ export default defineComponent({
       baseConfiguration,
       originalConfiguration,
       disableConfigurationEditing,
+      currentConfigName,
       mergeType,
       mergeSelection,
       launchEditor,
@@ -180,6 +195,9 @@ export default defineComponent({
               timeline and configuration will be saved.
               The list is a folder hierarchy.
             </p>
+            <div class="mb-4">
+              <span>Current Config:</span> <span class="ml-2"><b>{{ currentConfigName }}</b></span>
+            </div>
             <v-select
               v-model="baseConfiguration"
               :items="hierarchy"
