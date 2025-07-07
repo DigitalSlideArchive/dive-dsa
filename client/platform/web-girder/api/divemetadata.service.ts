@@ -99,7 +99,7 @@ function createDiveMetadataFolder(
     display: ['DIVE_DatasetId', 'DIVE_Name'],
   },
   ffprobeMetadata = {
-    import: true, keys: ['width', 'height', 'display_aspect_ratio'],
+    import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
   return girderRest.post<createDiveMetadataResponse>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {

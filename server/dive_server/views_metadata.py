@@ -445,7 +445,7 @@ class DIVEMetadata(Resource):
             required=True,
             default={
                 "import": True,
-                "keys": ["width", "height", "display_aspect_ratio"],
+                "keys": ["width", "height", "display_aspect_ratio", "nb_frames", "duration"],
             },
         )
         .param(
@@ -487,8 +487,12 @@ class DIVEMetadata(Resource):
                 ffmetadata = item.get('meta', {}).get('ffprobe_info', {})
                 ffkeys = ffprobeMetadata.get('keys', [])
                 for ffMetadataKey in ffkeys:
-                    if ffmetadata.get(ffMetadataKey, False):
-                        data[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(ffMetadataKey, False)
+                    if ffmetadata.get(ffMetadataKey) is not None:
+                        raw_value = ffmetadata[ffMetadataKey]
+                        try:
+                            data[f'ffprobe_{ffMetadataKey}'] = float(raw_value)
+                        except (ValueError, TypeError):
+                            data[f'ffprobe_{ffMetadataKey}'] = str(raw_value)
             DIVE_Metadata().createMetadata(item, base_folder, user, data)
             for key in data.keys():
                 if key not in metadataKeys.keys() and data[key] is not None:
