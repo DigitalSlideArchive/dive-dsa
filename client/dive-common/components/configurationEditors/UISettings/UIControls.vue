@@ -10,6 +10,8 @@ export default defineComponent({
   },
   setup() {
     const configMan = useConfiguration();
+    const UILegendControls = ref(configMan.getUISetting('UILegendControls') as boolean);
+    const UITimelineSelection = ref(configMan.getUISetting('UITimelineSelection') as boolean);
     const UIPlaybackControls = ref(configMan.getUISetting('UIPlaybackControls') as boolean);
     const UIAudioControls = ref(configMan.getUISetting('UIAudioControls') as boolean);
     const UISpeedControls = ref(configMan.getUISetting('UISpeedControls') as boolean);
@@ -17,10 +19,13 @@ export default defineComponent({
     const UIFrameDisplay = ref(configMan.getUISetting('UIFrameDisplay') as boolean);
     const UIImageNameDisplay = ref(configMan.getUISetting('UIImageNameDisplay') as boolean);
     const UILockCamera = ref(configMan.getUISetting('UILockCamera') as boolean);
+    const UIResetCamera = ref(configMan.getUISetting('UIResetCamera') as boolean);
 
-    watch([UIPlaybackControls, UIAudioControls,
-      UITimeDisplay, UIFrameDisplay, UIImageNameDisplay, UILockCamera, UISpeedControls], () => {
+    watch([UILegendControls, UITimelineSelection, UIPlaybackControls, UIAudioControls,
+      UITimeDisplay, UIFrameDisplay, UIImageNameDisplay, UILockCamera, UISpeedControls, UIResetCamera], () => {
       const data = {
+        UILegendControls: UILegendControls.value ? undefined : false,
+        UITimelineSelection: UITimelineSelection.value ? undefined : false,
         UIPlaybackControls: UIPlaybackControls.value ? undefined : false,
         UIAudioControls: UIAudioControls.value ? undefined : false,
         UISpeedControls: UISpeedControls.value ? undefined : false,
@@ -28,11 +33,13 @@ export default defineComponent({
         UIFrameDisplay: UIFrameDisplay.value ? undefined : false,
         UIImageNameDisplay: UIImageNameDisplay.value ? undefined : false,
         UILockCamera: UILockCamera.value ? undefined : false,
-
+        UIResetCamera: UIResetCamera.value ? undefined : false,
       };
       configMan.setUISettings('UIControls', data);
     });
     return {
+      UILegendControls,
+      UITimelineSelection,
       UIPlaybackControls,
       UIAudioControls,
       UISpeedControls,
@@ -40,6 +47,7 @@ export default defineComponent({
       UIFrameDisplay,
       UIImageNameDisplay,
       UILockCamera,
+      UIResetCamera,
     };
   },
 
@@ -51,6 +59,18 @@ export default defineComponent({
     <v-card-title>Playback Controls</v-card-title>
     <v-card-text>
       <div>
+        <v-row dense>
+          <v-switch
+            v-model="UILegendControls"
+            label="Legend Controls"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UITimelineSelection"
+            label="Timeline Selection Button"
+          />
+        </v-row>
         <v-row dense>
           <v-switch
             v-model="UIPlaybackControls"
@@ -91,6 +111,12 @@ export default defineComponent({
           <v-switch
             v-model="UILockCamera"
             label="Lock Camera Button"
+          />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="UIResetCamera"
+            label="Reset Camera Button"
           />
         </v-row>
       </div>

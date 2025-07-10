@@ -267,7 +267,7 @@ export default defineComponent({
               :client-width="clientWidth"
               :client-height="getTimelineHeight(timeline)"
               :margin="margin"
-              :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
+              :display-settings="swimlaneDisplaySettings[key]"
               :class="{ 'timeline-config': timelineList.length }"
               @scroll-swimlane="swimlaneOffset = $event"
             />
@@ -479,7 +479,10 @@ export default defineComponent({
   border:1px solid white;
 }
 .timeline-header {
-  display:inline
+  display:inline;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
 }
 
 </style>

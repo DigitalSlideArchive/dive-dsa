@@ -1350,9 +1350,9 @@
   resolved "https://registry.npmjs.org/@mdi/font/-/font-6.9.96.tgz"
   integrity sha512-z3QVZStyHVwkDsFR7A7F2PIvZJPWgdSFw4BEEy2Gc9HUN5NfK9mGbjgaYClRcbMWiYEV45srmiYtczmBtCqR8w==
 
-"@mdi/js@^7.2.96":
+"@mdi/js@^7.2.96", "@mdi/js@^7.4.47":
   version "7.4.47"
-  resolved "https://registry.npmjs.org/@mdi/js/-/js-7.4.47.tgz"
+  resolved "https://registry.yarnpkg.com/@mdi/js/-/js-7.4.47.tgz#7d8a4edc9631bffeed80d1ec784f9beae559a76a"
   integrity sha512-KPnNOtm5i2pMabqZxpUz7iQf+mfrYZyKCZ8QNz85czgEt7cuHcGorWfdzUMWYA0SD+a6Hn4FmJ+YhzzzjkTZrQ==
 
 "@node-ipc/js-queue@2.0.3":

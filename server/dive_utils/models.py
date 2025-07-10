@@ -144,6 +144,8 @@ class ShortcutAttributeOptions(BaseModel):
     modifiers: Optional[List[str]]
     value: Union[str, float, bool]
     description: Optional[str]
+    segment: Optional[bool]
+    segmentEditable: Optional[bool]
     type: Literal['set', 'dialog', 'remove']
     button: Optional[ButtonShortcut]
 
@@ -189,6 +191,11 @@ class DisplayTrackFilterSettings(BaseModel):
     display: Literal['static', 'selected']
     trackFilter: List[str]
     displayFrameIndicators: Optional[bool]
+    displayTooltip: Optional[bool]
+    renderMode: Optional[Literal['classic', 'segments']]
+    highlightSegments: Optional[bool]
+    editSegments: Optional[bool]
+    minSegmentSize: Optional[int]
 
 
 class Attribute(BaseModel):
@@ -196,6 +203,7 @@ class Attribute(BaseModel):
     datatype: Literal['text', 'number', 'boolean']
     values: Optional[List[str]]
     lockedValues: Optional[bool]
+    staticColor: Optional[bool]
     valueColors: Optional[Dict[str, str]]
     name: str
     description: Optional[str]
@@ -208,6 +216,7 @@ class Attribute(BaseModel):
     colorKey: Optional[bool]
     colorKeySettings: Optional[DisplayTrackFilterSettings]
     valueOrder: Optional[Dict[str, int]]
+    displayText: Optional[str]
 
 
 class AttributeNumberFilter(BaseModel):
@@ -359,6 +368,8 @@ class UITrackDetails(BaseModel):
 
 
 class UIControls(BaseModel):
+    UILegendControls: Optional[bool]
+    UITimelineSelection: Optional[bool]
     UIPlaybackControls: Optional[bool]
     UIAudioControls: Optional[bool]
     UISpeedControls: Optional[bool]
@@ -366,6 +377,7 @@ class UIControls(BaseModel):
     UIFrameDisplay: Optional[bool]
     UIImageNameDisplay: Optional[bool]
     UILockCamera: Optional[bool]
+    UIResetCamera: Optional[bool]
 
 
 class UITimeline(BaseModel):
