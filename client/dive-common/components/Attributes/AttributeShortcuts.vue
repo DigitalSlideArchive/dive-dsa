@@ -422,7 +422,7 @@ awaitingKeyPress
             </v-btn>
             <v-btn
               color="primary"
-              :disabled="!!shortcutError || selectedDisplayKey === ''"
+              :disabled="!!shortcutError"
               @click="save"
             >
               Save

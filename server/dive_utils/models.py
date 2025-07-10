@@ -144,6 +144,8 @@ class ShortcutAttributeOptions(BaseModel):
     modifiers: Optional[List[str]]
     value: Union[str, float, bool]
     description: Optional[str]
+    segment: Optional[bool]
+    segmentEditable: Optional[bool]
     type: Literal['set', 'dialog', 'remove']
     button: Optional[ButtonShortcut]
 
