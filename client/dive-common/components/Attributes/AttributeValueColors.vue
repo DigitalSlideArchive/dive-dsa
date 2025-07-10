@@ -38,8 +38,10 @@ export default defineComponent({
 
     const colorKey = ref(props.attribute.colorKey || false);
     const staticColor = ref(props.attribute.staticColor || false);
+    const noneColor = ref(props.attribute.noneColor ?? false);
     const colorKeySettings = ref(props.attribute.colorKeySettings || undefined);
     const toggleKeySettings = ref(false);
+    const editNoneColor = ref(false);
 
     const getActualValues = () => {
       // Need to go through all tracks with the attribute and get their values.
@@ -94,7 +96,7 @@ export default defineComponent({
     };
 
     const updateColors = () => {
-      const data: { colorValues: Record<string, string>; colorKey?: boolean; staticColor?: boolean; valueOrder?: Record<string, number>; colorKeySettings?: Attribute['colorKeySettings'] } = {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean; staticColor?: boolean; valueOrder?: Record<string, number>; colorKeySettings?: Attribute['colorKeySettings'], noneColor?: false | string } = {
         colorValues: attributeColors.value,
         valueOrder: attributeOrder.value,
       };
@@ -107,6 +109,7 @@ export default defineComponent({
       if (staticColor.value) {
         data.staticColor = true;
       }
+      data.noneColor = noneColor.value;
       emit('save', data);
     };
 
@@ -166,7 +169,17 @@ export default defineComponent({
 
     watch(colorKey, () => updateColors());
     watch(staticColor, () => updateColors());
+    watch(noneColor, () => updateColors());
     watch(colorKeySettings, () => updateColors(), { deep: true });
+
+    const toggleEditNoneColor = () => {
+      if (!noneColor.value) {
+        noneColor.value = '#000000';
+      } else {
+        noneColor.value = false;
+      }
+    };
+
     return {
       attributeColors,
       editingColor,
@@ -177,6 +190,8 @@ export default defineComponent({
       colorKeySettings,
       typeStylingRef,
       types,
+      noneColor,
+      editNoneColor,
       setEditingColor,
       saveEditingColor,
       getActualValues,
@@ -185,6 +200,7 @@ export default defineComponent({
       deleteValue,
       setKeySettings,
       deleteChip,
+      toggleEditNoneColor,
       staticColor,
     };
   },
@@ -270,7 +286,7 @@ export default defineComponent({
         <v-col>
           <v-text-field
             type="number"
-            :value="attributeOrder[key] !== undefined ? attributeOrder[key] : -1"
+            :model-value="attributeOrder[key] !== undefined ? attributeOrder[key] : -1"
             :rules="[v => v >= -1 || 'Value must be greater than -1']"
             label="Order"
             @change="setOrder(key, $event)"
@@ -311,10 +327,26 @@ export default defineComponent({
           persistent-hint
           dense
         />
+        <v-checkbox
+          :input-value="!!noneColor"
+          label="None Color"
+          hint="Set None Color"
+          dense
+          @click="toggleEditNoneColor()"
+        />
+        <div
+          v-if="noneColor"
+          class="small-color-box mx-2 mt-2"
+          :style="{
+            backgroundColor: noneColor,
+          }"
+          @click="editNoneColor = true"
+        />
       </v-row>
       <v-row
         v-if="toggleKeySettings && colorKeySettings"
         dense
+        align="center"
       >
         <v-radio-group
           v-model="colorKeySettings.display"
@@ -357,6 +389,32 @@ export default defineComponent({
         </v-select>
       </v-row>
     </v-container>
+    <v-dialog
+      v-model="editNoneColor"
+      max-width="300"
+    >
+      <v-card v-if="noneColor">
+        <v-card-title>
+          Edit None color
+        </v-card-title>
+        <v-card-text>
+          <v-color-picker
+            v-model="noneColor"
+            hide-inputs
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            depressed
+            text
+            @click="editNoneColor = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog
       v-model="editingColor"
@@ -411,6 +469,19 @@ export default defineComponent({
   max-width: 20px;
   min-height: 20px;
   max-height: 20px;
+}
+.small-color-box {
+  display: inline-block;
+  margin-left: 10px;
+  min-width: 20px;
+  max-width: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  &:hover {
+    cursor: pointer;
+    border: 2px solid white
+  }
+
 }
 .edit-color-box {
   &:hover {

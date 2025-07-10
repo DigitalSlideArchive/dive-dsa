@@ -61,8 +61,10 @@ export default defineComponent({
     const currentEditKey: Ref<number> = ref(0);
     const colorKey = ref(props.attribute.colorKey || false);
     const staticColor = ref(props.attribute.staticColor || false);
+    const noneColor = ref(props.attribute.noneColor ?? false);
     const colorKeySettings = ref(props.attribute.colorKeySettings || undefined);
     const toggleKeySettings = ref(false);
+    const editNoneColor = ref(false);
 
     const setEditingColor = (index: number) => {
       editingColor.value = true;
@@ -82,7 +84,7 @@ export default defineComponent({
         mapper[item.key] = item.val;
       });
 
-      const data: { colorValues: Record<string, string>; colorKey?: boolean; staticColor?: boolean; colorKeySettings?: Attribute['colorKeySettings'] } = {
+      const data: { colorValues: Record<string, string>; colorKey?: boolean; staticColor?: boolean; colorKeySettings?: Attribute['colorKeySettings'], noneColor?: false | string } = {
         colorValues: mapper,
       };
       if (colorKey.value) {
@@ -94,6 +96,7 @@ export default defineComponent({
       if (staticColor.value) {
         data.staticColor = true;
       }
+      data.noneColor = noneColor.value;
       emit('save', data);
     };
     const saveEditingColor = () => {
@@ -160,6 +163,7 @@ export default defineComponent({
     const validForm = ref(false);
     watch(colorKey, () => updateColors());
     watch(staticColor, () => updateColors());
+    watch(noneColor, () => updateColors());
     watch(colorKeySettings, () => updateColors(), { deep: true });
 
     const setKeySettings = () => {
@@ -179,6 +183,14 @@ export default defineComponent({
     const deleteChip = (item: string) => {
       if (colorKeySettings.value) {
         colorKeySettings.value.trackFilter.splice(colorKeySettings.value.trackFilter.findIndex((data) => data === item));
+      }
+    };
+
+    const toggleEditNoneColor = () => {
+      if (!noneColor.value) {
+        noneColor.value = '#000000';
+      } else {
+        noneColor.value = false;
       }
     };
 
@@ -202,7 +214,10 @@ export default defineComponent({
       saveColorHex,
       setKeySettings,
       deleteChip,
+      toggleEditNoneColor,
       staticColor,
+      noneColor,
+      editNoneColor,
     };
   },
 });
@@ -260,7 +275,7 @@ export default defineComponent({
         >
           <div>
             <div
-              class="color-box mx-2 mt-2 edit-color-box"
+              class="small-color-box mx-2 mt-2"
               :style="{
                 backgroundColor: item.val,
               }"
@@ -330,6 +345,21 @@ export default defineComponent({
           persistent-hint
           dense
         />
+        <v-checkbox
+          :input-value="!!noneColor"
+          label="None Color"
+          hint="Set None Color"
+          dense
+          @click="toggleEditNoneColor()"
+        />
+        <div
+          v-if="noneColor"
+          class="small-color-box mx-2 mt-2"
+          :style="{
+            backgroundColor: noneColor,
+          }"
+          @click="editNoneColor = true"
+        />
       </v-row>
       <v-row
         v-if="toggleKeySettings && colorKeySettings"
@@ -338,6 +368,7 @@ export default defineComponent({
         <v-radio-group
           v-model="colorKeySettings.display"
           class="pr-2"
+          editing-color
         >
           <v-radio
             label="Static"
@@ -376,6 +407,33 @@ export default defineComponent({
         </v-select>
       </v-row>
     </v-container>
+
+    <v-dialog
+      v-model="editNoneColor"
+      max-width="300"
+    >
+      <v-card v-if="noneColor">
+        <v-card-title>
+          Edit None color
+        </v-card-title>
+        <v-card-text>
+          <v-color-picker
+            v-model="noneColor"
+            hide-inputs
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            depressed
+            text
+            @click="editNoneColor = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog
       v-model="editingColor"
@@ -439,6 +497,20 @@ export default defineComponent({
   overflow-y:auto;
   max-height: 600px;
 }
+.small-color-box {
+  display: inline-block;
+  margin-left: 10px;
+  min-width: 20px;
+  max-width: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  &:hover {
+    cursor: pointer;
+    border: 2px solid white
+  }
+
+}
+
 .color-box {
   display: inline-block;
   margin-left: 10px;

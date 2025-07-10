@@ -43,6 +43,7 @@ export default defineComponent({
     let valueOrder: Record<string, number> | undefined;
     const colorKey = ref(props.selectedAttribute.colorKey || false);
     const staticColor = ref(props.selectedAttribute.staticColor || false);
+    const noneColor = ref(props.selectedAttribute.noneColor ?? false);
     const colorKeySettings = ref(props.selectedAttribute.colorKeySettings || undefined);
     const user: Ref<boolean | undefined> = ref(props.selectedAttribute.user);
     const color: Ref<string | undefined> = ref(props.selectedAttribute.color);
@@ -119,6 +120,7 @@ export default defineComponent({
       if (staticColor.value) {
         data.staticColor = true;
       }
+      data.noneColor = noneColor.value;
       if (colorKeySettings.value) {
         data.colorKeySettings = colorKeySettings.value;
       }
@@ -220,12 +222,14 @@ export default defineComponent({
         colorValues: Record<string, string>;
         colorKey?: boolean;
         staticColor?: boolean;
+        noneColor?: false | string;
         valueOrder?: Record<string, number>;
         colorKeySettings?: Attribute['colorKeySettings'];
       }) => {
       attributeColors.value = data.colorValues;
       colorKey.value = !!data.colorKey;
       staticColor.value = !!data.staticColor;
+      noneColor.value = data.noneColor ?? false;
       colorKeySettings.value = data.colorKeySettings;
       if (data.valueOrder) {
         valueOrder = data.valueOrder;

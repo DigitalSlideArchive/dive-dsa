@@ -119,6 +119,7 @@ export interface Attribute {
     render?: AttributeRendering;
     colorKey?: boolean;
     colorKeySettings?: {display: 'static' | 'selected'; trackFilter: string[] };
+    noneColor?: false | string;
   }
 
 export type Attributes = Record<string, Attribute>;
@@ -193,6 +194,7 @@ export interface SwimlaneAttribute{
     name: string;
     data: SwimlaneData[];
     color: string;
+    backgroundColor?: string | false;
     displayName?: boolean;
     start: number;
     end: number;

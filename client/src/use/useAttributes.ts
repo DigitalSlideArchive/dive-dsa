@@ -578,6 +578,7 @@ export default function UseAttributes(
           start: track.begin,
           end: track.end,
           order: baseAttribute?.valueOrder,
+          backgroundColor: baseAttribute?.noneColor ?? false,
         };
       }
       // Now we need to push data in based on values and change only when value changes:
