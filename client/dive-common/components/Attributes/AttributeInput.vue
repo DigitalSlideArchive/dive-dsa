@@ -182,7 +182,7 @@ export default defineComponent({
         :max="typeSettings.range[1]"
         dense
         class="attribute-slider"
-        @input="sliderChange"
+        @change="sliderChange"
       />
     </div>
     <select

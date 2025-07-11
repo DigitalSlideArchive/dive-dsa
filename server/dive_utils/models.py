@@ -204,6 +204,7 @@ class Attribute(BaseModel):
     values: Optional[List[str]]
     lockedValues: Optional[bool]
     staticColor: Optional[bool]
+    noneColor: Optional[Union[bool, str]]
     valueColors: Optional[Dict[str, str]]
     name: str
     description: Optional[str]

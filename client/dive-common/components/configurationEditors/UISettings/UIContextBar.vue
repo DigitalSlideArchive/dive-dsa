@@ -48,6 +48,10 @@ export default defineComponent({
       customUIInformation.value.splice(index, 1);
     };
     watch([CustomUIEnabled, customUITitle, customUIInformation, customUIWidth], () => {
+      if (!CustomUIEnabled.value) {
+        configMan.setCustomUI(undefined);
+        return;
+      }
       const data = {
         title: customUITitle.value,
         information: customUIInformation.value,

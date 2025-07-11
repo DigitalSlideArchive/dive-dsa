@@ -8,6 +8,7 @@ from girder.exceptions import RestException
 from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
+from girder.models.user import User
 from girder.utility import ziputil
 from pydantic.main import BaseModel
 
@@ -351,7 +352,253 @@ class AttributeUpdateArgs(BaseModel):
         extra = 'forbid'
 
 
-def transfer_config(source: types.GirderModel, dest: types.GirderModel):
+def config_merge(a, b, path=None):
+    """Merges b into a"""
+    if path is None:
+        path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                config_merge(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass  # same leaf value
+            else:
+                a[key] = b[key]
+        else:
+            a[key] = b[key]
+    return a
+
+
+def get_configuration(folder: Folder, user: User):
+    baseFolder = folder
+    configurationList = []
+    baseConfigurationId = None  # lowest configurationId to start merge from
+    rootConfig = baseFolder.get('meta', {}).get('configuration', False)
+    folderPairs = [
+        {
+            'name': baseFolder.get('name'),
+            'id': str(baseFolder.get('_id')),
+            'owner': baseFolder.get('creatorId', {}),
+            'baseConfiguration': baseFolder.get('meta', {})
+            .get('configuration', {})
+            .get('general', {})
+            .get('baseConfiguration', False),
+            'configuration': baseFolder.get('meta', {}).get('configuration', {}),
+            'attributes': baseFolder.get('meta', {}).get('attributes', False),
+            'timelines': baseFolder.get('meta', {}).get('timelines', False),
+            'swimlanes': baseFolder.get('meta', {}).get('swimlanes', False),
+            'confidenceFilters': baseFolder.get('meta', {}).get('confidenceFilters', False),
+            'customTypeStyling': baseFolder.get('meta', {}).get('customTypeStyling', False),
+            'customGroupStyling': baseFolder.get('meta', {}).get('customGroupStyling', False),
+        }
+    ]
+    if rootConfig:
+        configurationList.append(rootConfig)
+    while baseFolder:
+        parentFolderId = baseFolder.get('parentId', False)
+        parentFolder = Folder().findOne({"_id": (parentFolderId)})
+        if parentFolder:
+            folderPairs.append(
+                {
+                    'name': parentFolder.get('name'),
+                    'id': str(parentFolder.get('_id')),
+                    'owner': parentFolder.get('creatorId'),
+                    'baseConfiguration': parentFolder.get('meta', {})
+                    .get('configuration', {})
+                    .get('general', {})
+                    .get('baseConfiguration', False),
+                    'configuration': parentFolder.get('meta', {}).get('configuration', {}),
+                    'attributes': parentFolder.get('meta', {}).get('attributes', False),
+                    'timelines': parentFolder.get('meta', {}).get('timelines', False),
+                    'swimlanes': parentFolder.get('meta', {}).get('swimlanes', False),
+                    'confidenceFilters': parentFolder.get('meta', {}).get(
+                        'confidenceFilters', False
+                    ),
+                    'customTypeStyling': parentFolder.get('meta', {}).get(
+                        'customTypeStyling', False
+                    ),
+                    'customGroupStyling': parentFolder.get('meta', {}).get(
+                        'customGroupStyling', False
+                    ),
+                    'filters': parentFolder.get('meta', {}).get('filters', False),
+                }
+            )
+            if parentFolder.get('_modelType', False) == 'folder':
+                meta = parentFolder.get('meta', False)
+                configuration = meta.get('configuration', False)
+                general = configuration.get('general', False)
+                if configuration:
+                    configurationList.append(general)
+                    if baseConfigurationId is None:
+                        hasBaseId = general.get('baseConfiguration', False)
+                        if hasBaseId:
+                            baseConfigurationId = hasBaseId
+            baseFolder = parentFolder
+        else:
+            baseFolder = None
+    # Now we have a list of configurations, find the lowest
+    # one with the baseConfiguration str and the merge type
+    baseConfigurationId = folder.get('_id')
+    configOwners = None
+    baseMetaData = {}
+    mergeType = 'disabled'
+    for item in folderPairs:
+        if item.get('baseConfiguration', False) == item['id']:
+            baseConfigurationId = item['baseConfiguration']
+            baseMetaData = item
+            possibleMerge = (
+                item.get('configuration', {}).get('general', {}).get('configurationMerge', False)
+            )
+            if possibleMerge:
+                mergeType = possibleMerge
+            break
+
+    accessList = Folder().getFullAccessList(folder)
+    accessUsers = accessList['users']
+    userList = []
+    for subUser in accessUsers:
+        if subUser['level'] == 2:
+            userList.append(
+                {
+                    "name": subUser['login'],
+                    "id": str(subUser["id"]),
+                }
+            )
+    accessGroups = accessList['groups']
+    groupList = []
+    for group in accessGroups:
+        if group['level'] == 2:
+            groupList.append(
+                {
+                    "name": group['name'],
+                    "id": str(group["id"]),
+                }
+            )
+
+    configOwners = {
+        "users": userList,
+        "groups": groupList,
+    }
+    if baseConfigurationId == folder.get('_id'):
+        baseMetaData = folder.get('meta', {})
+
+    # now that we have the folder with the lowest baseConfiguration Set
+    # determine the merge process if it exists
+    # merge down means that lower folders are overwritten by higher folders
+    # merge up means that lower folders will overwrite higher folders
+    # disable means now merging at all
+    currentAttributes = {}
+    currentConfiguration = {}
+    currentTimelines = {}
+    currentSwimlanes = {}
+    currentConfidenceFilters = {}
+    currentCustomTypeStyling = {}
+    currentCustomGroupStyling = {}
+    currentFilters = {}
+    if mergeType != 'disabled':
+        for item in folderPairs:
+            if mergeType == 'merge up':
+                if item.get('configuration', False):
+                    currentConfiguration = config_merge(
+                        item.get('configuration'), currentConfiguration
+                    )
+                if item.get('attributes', False):
+                    currentAttributes = config_merge(item.get('attributes'), currentAttributes)
+                if item.get('timelines', False):
+                    currentTimelines = config_merge(item.get('timelines'), currentTimelines)
+                if item.get('swimlanes', False):
+                    currentSwimlanes = config_merge(item.get('swimlanes'), currentSwimlanes)
+                if item.get('confidenceFilters', False):
+                    currentConfidenceFilters = config_merge(
+                        item.get('confidenceFilters'), currentConfidenceFilters
+                    )
+                if item.get('customTypeStyling', False):
+                    currentCustomTypeStyling = config_merge(
+                        item.get('customTypeStyling'), currentCustomTypeStyling
+                    )
+                if item.get('customGroupStyling', False):
+                    currentCustomGroupStyling = config_merge(
+                        item.get('customGroupStyling'), currentCustomGroupStyling
+                    )
+                if item.get('filters', False):
+                    currentFilters = config_merge(item.get('filters'), currentFilters)
+    else:
+        currentConfiguration = baseMetaData.get('configuration', {})
+        currentAttributes = baseMetaData.get('attributes', {})
+        currentTimelines = baseMetaData.get('timelines', {})
+        currentSwimlanes = baseMetaData.get('swimlanes', {})
+        currentConfidenceFilters = baseMetaData.get('confidenceFilters', {})
+        currentCustomTypeStyling = baseMetaData.get('customTypeStyling', {})
+        currentCustomGroupStyling = baseMetaData.get('customGroupStyling', {})
+        currentFilters = baseMetaData.get('filters', {})
+    combinedConfiguration = {}
+    if bool(currentAttributes):
+        combinedConfiguration['attributes'] = currentAttributes
+    if bool(currentConfiguration):
+        combinedConfiguration['configuration'] = currentConfiguration
+    if bool(currentTimelines):
+        combinedConfiguration['timelines'] = currentTimelines
+    if bool(currentSwimlanes):
+        combinedConfiguration['swimlanes'] = currentSwimlanes
+    if bool(currentConfidenceFilters):
+        combinedConfiguration['confidenceFilters'] = currentConfidenceFilters
+    if bool(currentCustomTypeStyling):
+        combinedConfiguration['customTypeStyling'] = currentCustomTypeStyling
+    if bool(currentCustomTypeStyling):
+        combinedConfiguration['customGroupStyling'] = currentCustomGroupStyling
+    if bool(currentFilters):
+        combinedConfiguration['filters'] = currentFilters
+
+    hierarchy = []
+    for item in folderPairs:
+        hierarchy.append({'name': item['name'], 'id': item['id']})
+    folderParentId = folder.get('parentId', False)
+    folderParentType = folder.get('parentCollection', False)
+    prev = None
+    next = None
+    folderParent = Folder().load(str(folderParentId), level=AccessType.READ, user=user, force=True)
+    childFolders = list(
+        Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]], user=user)
+    )
+    for index, item in enumerate(childFolders):
+        if item.get('_id') == folder.get('_id'):
+            if index > 0:
+                counter = 1
+                while index - counter >= 0:
+                    if childFolders[index - counter].get('meta', {}).get('annotate', False) is True:
+                        prev = childFolders[index - counter]
+                        break
+                    counter += 1
+            if index + 1 < len(childFolders):
+                counter = 1
+                while index + counter < len(childFolders):
+                    if childFolders[index + counter].get('meta', {}).get('annotate', False):
+                        next = childFolders[index + counter]
+                        break
+                    counter += 1
+            break
+    prevNext = {}
+    if prev:
+        prevNext['previous'] = {
+            "id": str(prev.get('_id')),
+            "name": prev.get('name'),
+        }
+    if next:
+        prevNext['next'] = {
+            "id": str(next.get('_id')),
+            "name": next.get('name'),
+        }
+
+    returnVal = {
+        'configOwners': configOwners,
+        "prevNext": prevNext,
+        'hierarchy': hierarchy,
+        'metadata': combinedConfiguration,
+    }
+    return returnVal
+
+
+def transfer_config(source: Folder, dest: Folder, user: User):
     attributes = source.get('meta', {}).get('attributes', {})
     timelines = source.get('meta', {}).get('timelines', None)
     swimlanes = source.get('meta', {}).get('swimlanes', None)
@@ -373,6 +620,17 @@ def transfer_config(source: types.GirderModel, dest: types.GirderModel):
         'confidenceFilters': confidenceFilters,
         'configuration': configuration,
     }
+    dest_id = dest.get('_id', False)
+    found_in_hierarchy = False
+    if dest_id:
+        config = get_configuration(source, user)
+        hierarchy = config.get('hierarchy', [])
+        for item in hierarchy:
+            if item.get('id', False) == str(dest_id):
+                found_in_hierarchy = True
+                break
+    if found_in_hierarchy:
+        update_metadata(source, data, False)
     return update_metadata(dest, data, False)
 
 

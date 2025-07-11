@@ -324,12 +324,18 @@ export default defineComponent({
         <div
           v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
           :class="{ 'timeline-config': timelineList.length }"
-          :style="`min-height:${getTimelineHeight(timeline)}px;max-height:${getTimelineHeight(timeline)}px;`"
+          :style="{
+            minHeight: `${getTimelineHeight(timeline)}px`,
+            maxHeight: `${getTimelineHeight(timeline)}px`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }"
         >
           <v-row>
             <v-spacer />
             <h3>
-              Track needs to be selected to show Attributes
+              Track needs to be selected to Show Attributes
             </h3>
             <v-spacer />
           </v-row>
@@ -383,6 +389,7 @@ export default defineComponent({
             :client-width="clientWidth"
             :client-height="clientHeight / timelineList.length"
             :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
+            :display-settings="swimlaneDisplaySettings[key]"
             :margin="margin"
             @scroll-swimlane="swimlaneOffset = $event"
           />
@@ -396,15 +403,12 @@ export default defineComponent({
 
         </span>
       </span>
-      <div v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null">
-        <v-row>
-          <v-spacer />
-          <h2>
-            Track needs to be selected to Show Attributes
-          </h2>
-          <v-spacer />
-        </v-row>
-      </div>
+      <v-row
+        v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null"
+        class="d-flex align-center justify-center fill-height text-center"
+      >
+        <h3>Track needs to be selected to Show Attributes</h3>
+      </v-row>
 
       <span v-if="attributeDataTimeline.length">
         <span
@@ -434,14 +438,13 @@ export default defineComponent({
 
         </span>
       </span>
-      <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-        <v-row>
-          <v-spacer />
-          <h2>
-            Track needs to be selected to Graph Attributes
-          </h2>
-          <v-spacer />
-        </v-row>
+      <div
+        v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+        class="d-flex align-center justify-center fill-height text-center"
+      >
+        <h3>
+          Track needs to be selected to Graph Attributes
+        </h3>
       </div>
       <span v-if="attributeSwimlaneData">
         <span
@@ -461,14 +464,13 @@ export default defineComponent({
           />
         </span>
       </span>
-      <div v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null">
-        <v-row>
-          <v-spacer />
-          <h2>
-            Track needs to be selected to show Swimlane Attributes
-          </h2>
-          <v-spacer />
-        </v-row>
+      <div
+        v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+        class="d-flex align-center justify-center fill-height text-center"
+      >
+        <h3>
+          Track needs to be selected to show Swimlane Attributes
+        </h3>
       </div>
     </span>
   </span>

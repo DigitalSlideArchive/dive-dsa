@@ -153,6 +153,7 @@ export default defineComponent({
           endPosition: bar.end,
           color: bar.color,
           subSections: updatedSubSections,
+          backgroundColor: bar.backgroundColor ?? false,
 
         };
       }
@@ -162,6 +163,7 @@ export default defineComponent({
         endPosition: bar.end,
         color: bar.color,
         subSections: bar.data,
+        backgroundColor: bar.backgroundColor ?? false,
       };
     }));
 
@@ -176,7 +178,9 @@ export default defineComponent({
         color: string;
         length: number;
         id: string;
-        subSections: SwimlaneData[]}[] = [];
+        subSections: SwimlaneData[]
+        backgroundColor: string | false;
+      }[] = [];
       barData.value
         .filter((bar) => intersect([startFrame_.value, endFrame_.value], [bar.startPosition, bar.endPosition]))
         .forEach((bar, i) => {
@@ -191,6 +195,7 @@ export default defineComponent({
             length: bar.endPosition - bar.startPosition,
             subSections: bar.subSections,
             id: bar.name,
+            backgroundColor: bar.backgroundColor ?? false,
           });
         });
       return barsList;
@@ -324,6 +329,10 @@ export default defineComponent({
         ctx.strokeStyle = bar.color;
         ctx.lineWidth = 2;
         ctx.strokeRect(bar.left, bar.top, barWidth, barHeight);
+        if (bar.backgroundColor) {
+          ctx.fillStyle = bar.backgroundColor;
+          ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
+        }
 
         bar.subSections.forEach((sub, index) => {
           let left = x.value(sub.begin);
@@ -387,9 +396,10 @@ export default defineComponent({
           subDisplay: sub?.value || 'None',
         };
         hoverTrack.value = bar.id;
+        return true;
       }
-      return true;
-    }, 200);
+      return false;
+    }, 0);
 
     const recordScroll = (ev: Event) => {
       const { scrollTop } = (ev.target as HTMLElement);
@@ -397,9 +407,19 @@ export default defineComponent({
       emit('scroll-swimlane', scrollTop);
     };
 
-    const mousemove = (e: MouseEvent) => {
+    const mouseout = () => {
       tooltip.value = null;
+      hoveredZone.value = null;
+      hoveredAttributeType.value = null;
+    };
+
+    const mousemove = (e: MouseEvent) => {
       const hovering = detectBarHovering(e);
+      if (!hovering) {
+        tooltip.value = null;
+        hoveredZone.value = null;
+        hoveredAttributeType.value = null;
+      }
       const { offsetX } = e;
       const frameAtCursor = x.value.invert(offsetX);
 
@@ -486,8 +506,6 @@ export default defineComponent({
         // Trigger highlighting after clicking
         nextTick(() => baseUpdate());
       }
-    };
-    const mouseout = () => {
     };
 
     const getDragSubsection = (name: string, subsectionIndex: number) => {
@@ -694,6 +712,8 @@ export default defineComponent({
       :style="`height: ${clientHeight - 10}px;`"
       @mousewheel.prevent
       @scroll="recordScroll"
+      @mouseleave="mouseout"
+      @mouseout="mouseout"
     >
       <v-tooltip open-delay="100" top>
         <template #activator="{ on }">
@@ -706,7 +726,7 @@ export default defineComponent({
         </template>
         <span class="ma-0 pa-1">Click to toggle Symbols for set Values</span>
       </v-tooltip>
-      <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseout="mouseout" @mousedown="mousedown" />
+      <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseleave="mouseout" @mouseout="mouseout" @mousedown="mousedown" />
     </div>
     <v-card
       v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)"
