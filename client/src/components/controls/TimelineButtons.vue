@@ -41,7 +41,7 @@ export default defineComponent({
 
     const timelineConfig: Ref<TimelineConfiguration | null> = ref(configMan.configuration.value?.timelineConfigs || null);
 
-    const hasTimelineConfig = computed(() => configMan.configuration.value?.timelineConfigs?.timelines);
+    const hasTimelineConfig = computed(() => (configMan.configuration.value?.timelineConfigs?.timelines?.length || 0) > 0);
     const timelineListBtns = computed(() => {
       const list: {name: string; type: TimelineDisplay['type']; dismissed: boolean}[] = [];
       if (configMan.configuration.value?.timelineConfigs?.timelines) {
