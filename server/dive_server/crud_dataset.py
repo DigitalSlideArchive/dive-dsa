@@ -7,8 +7,8 @@ from girder.constants import AccessType
 from girder.exceptions import RestException
 from girder.models.file import File
 from girder.models.folder import Folder
-from girder.models.user import User
 from girder.models.item import Item
+from girder.models.user import User
 from girder.utility import ziputil
 from pydantic.main import BaseModel
 
@@ -447,9 +447,7 @@ def get_configuration(folder: Folder, user: User):
             baseConfigurationId = item['baseConfiguration']
             baseMetaData = item
             possibleMerge = (
-                item.get('configuration', {})
-                .get('general', {})
-                .get('configurationMerge', False)
+                item.get('configuration', {}).get('general', {}).get('configurationMerge', False)
             )
             if possibleMerge:
                 mergeType = possibleMerge
@@ -558,23 +556,16 @@ def get_configuration(folder: Folder, user: User):
     folderParentType = folder.get('parentCollection', False)
     prev = None
     next = None
-    folderParent = Folder().load(
-        str(folderParentId), level=AccessType.READ, user=user, force=True
-    )
+    folderParent = Folder().load(str(folderParentId), level=AccessType.READ, user=user, force=True)
     childFolders = list(
-        Folder().childFolders(
-            folderParent, folderParentType, sort=[['lowerName', 1]], user=user
-        )
+        Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]], user=user)
     )
     for index, item in enumerate(childFolders):
         if item.get('_id') == folder.get('_id'):
             if index > 0:
                 counter = 1
                 while index - counter >= 0:
-                    if (
-                        childFolders[index - counter].get('meta', {}).get('annotate', False)
-                        is True
-                    ):
+                    if childFolders[index - counter].get('meta', {}).get('annotate', False) is True:
                         prev = childFolders[index - counter]
                         break
                     counter += 1
@@ -605,7 +596,6 @@ def get_configuration(folder: Folder, user: User):
         'metadata': combinedConfiguration,
     }
     return returnVal
-
 
 
 def transfer_config(source: Folder, dest: Folder, user: User):

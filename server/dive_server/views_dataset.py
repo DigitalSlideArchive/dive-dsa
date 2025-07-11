@@ -24,7 +24,6 @@ DatasetModelParam = {
 }
 
 
-
 class DatasetResource(Resource):
     """RESTful Dataset resource"""
 
