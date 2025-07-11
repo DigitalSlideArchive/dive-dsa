@@ -11,8 +11,8 @@ import ViewerLoader from './views/ViewerLoader.vue';
 import DataShared from './views/DataShared.vue';
 import DataBrowser from './views/DataBrowser.vue';
 import Summary from './views/Summary.vue';
-import DIVEMetadataSearchVue from './views/DIVEMetadataSearch.vue';
-import DiveMetadataEditVue from './views/DIVEMetadataEdit.vue';
+import DIVEMetadataSearchVue from './views/DIVEMetadata/DIVEMetadataSearch.vue';
+import DiveMetadataEditVue from './views/DIVEMetadata/DIVEMetadataEdit.vue';
 
 Vue.use(Router);
 let previousViewerRoute = '';
