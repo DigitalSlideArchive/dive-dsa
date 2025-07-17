@@ -165,7 +165,7 @@ export default defineComponent({
 
     const updateDiveMetadataKeyVal = async (id: string, key: string, val: boolean | number | string) => {
       try {
-        await setDiveDatasetMetadataKey(id, key, val);
+        await setDiveDatasetMetadataKey(id, props.id, key, val);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         prompt.prompt({
