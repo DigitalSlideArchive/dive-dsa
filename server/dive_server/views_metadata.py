@@ -1286,7 +1286,11 @@ class DIVEMetadata(Resource):
                     {"filename": video_name, 'root': str(rootFolder["_id"])}
                 )
                 if not dive_metadata:
-                    reason = f"No dataset found with videoName {video_name}"
+                    dive_metadata = DIVE_Metadata().findOne(
+                        {"metadata.DIVE_Name": video_name, 'root': str(rootFolder["_id"])}
+                    )
+                if not dive_metadata:
+                    reason = f"No dataset found with videoName or DIVE_Name {video_name}"
             else:
                 reason = "No matcher provided (need datasetId or videoName)"
             if dive_metadata:
