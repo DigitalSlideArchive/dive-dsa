@@ -1027,7 +1027,6 @@ class DIVEMetadata(Resource):
             level=AccessType.READ,
             destName="rootId",
         )
-
         .param(
             "key",
             "Metadata key to delete",
@@ -1220,7 +1219,12 @@ class DIVEMetadata(Resource):
             required=True,
             paramType="body",
             requireArray=True,
-            default=[{"matcher": {"datasetId": "12345", "videoName": "videoName.mp4"}, "metadata": {"newKey": "NewValue"}}],
+            default=[
+                {
+                    "matcher": {"datasetId": "12345", "videoName": "videoName.mp4"},
+                    "metadata": {"newKey": "NewValue"},
+                }
+            ],
         )
     )
     def bulk_update_metadata(self, rootFolder, updates):
@@ -1231,7 +1235,9 @@ class DIVEMetadata(Resource):
             raise RestException('Folder is not a DIVE Metadata folder', code=404)
         query = {"root": str(rootFolder["_id"])}
         metadata_keys_doc = DIVE_MetadataKeys().findOne(query=query)
-        categoricalLimit = rootFolder.get('meta', {}).get('DIVEMetadataFilter', {}).get('categoricalLimit', 50)
+        categoricalLimit = (
+            rootFolder.get('meta', {}).get('DIVEMetadataFilter', {}).get('categoricalLimit', 50)
+        )
         # Helper to infer type/category
         new_keys = {}
         for idx, entry in enumerate(updates):
@@ -1261,9 +1267,7 @@ class DIVEMetadata(Resource):
                     "min": min(values),
                     "max": max(values),
                 }
-            DIVE_MetadataKeys().addKey(
-                rootFolder, user, key, info, unlocked=True
-            )
+            DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=True)
         for idx, entry in enumerate(updates):
             matcher = entry.get("matcher", {})
             metadata = entry.get("metadata", {})
@@ -1272,18 +1276,24 @@ class DIVEMetadata(Resource):
             dataset_id = matcher.get("datasetId")
             video_name = matcher.get("videoName")
             if dataset_id:
-                dive_metadata = DIVE_Metadata().findOne({"DIVEDataset": dataset_id, 'root': str(rootFolder["_id"])})
+                dive_metadata = DIVE_Metadata().findOne(
+                    {"DIVEDataset": dataset_id, 'root': str(rootFolder["_id"])}
+                )
                 if not dive_metadata:
                     reason = f"No dataset found with id {dataset_id}"
             elif video_name:
-                dive_metadata =  DIVE_Metadata().findOne({"filename": video_name, 'root': str(rootFolder["_id"])})
+                dive_metadata = DIVE_Metadata().findOne(
+                    {"filename": video_name, 'root': str(rootFolder["_id"])}
+                )
                 if not dive_metadata:
                     reason = f"No dataset found with videoName {video_name}"
             else:
                 reason = "No matcher provided (need datasetId or videoName)"
             if dive_metadata:
                 # Find the DIVE_Metadata entry for this dataset and root
-                dataset = Folder().load(dive_metadata['DIVEDataset'], level=AccessType.READ, user=user)
+                dataset = Folder().load(
+                    dive_metadata['DIVEDataset'], level=AccessType.READ, user=user
+                )
                 updated_keys = []
                 errors = []
                 # initial pass for all metadata keys:
@@ -1291,36 +1301,46 @@ class DIVEMetadata(Resource):
                     # Set the value for this key on the dataset
                     try:
                         rootId = str(rootFolder["_id"])
-                        DIVE_Metadata().updateKey(dataset, rootId, user, key, value, categoricalLimit, force=True)
+                        DIVE_Metadata().updateKey(
+                            dataset, rootId, user, key, value, categoricalLimit, force=True
+                        )
                         updated_keys.append(key)
                     except Exception as ex:
                         errors.append(f"Failed to set {key}: {str(ex)}")
                 if updated_keys and not errors:
-                    results.append({
-                        "matcher": matcher,
-                        "status": "success",
-                        "datasetId": str(dataset["_id"]),
-                        "updatedKeys": updated_keys,
-                    })
+                    results.append(
+                        {
+                            "matcher": matcher,
+                            "status": "success",
+                            "datasetId": str(dataset["_id"]),
+                            "updatedKeys": updated_keys,
+                        }
+                    )
                 elif updated_keys and errors:
-                    results.append({
-                        "matcher": matcher,
-                        "status": "partial_success",
-                        "datasetId": str(dataset["_id"]),
-                        "updatedKeys": updated_keys,
-                        "errors": errors,
-                    })
+                    results.append(
+                        {
+                            "matcher": matcher,
+                            "status": "partial_success",
+                            "datasetId": str(dataset["_id"]),
+                            "updatedKeys": updated_keys,
+                            "errors": errors,
+                        }
+                    )
                 else:
-                    results.append({
-                        "matcher": matcher,
-                        "status": "error",
-                        "datasetId": str(dataset["_id"]),
-                        "errors": errors,
-                    })
+                    results.append(
+                        {
+                            "matcher": matcher,
+                            "status": "error",
+                            "datasetId": str(dataset["_id"]),
+                            "errors": errors,
+                        }
+                    )
             else:
-                results.append({
-                    "matcher": matcher,
-                    "status": "not_found",
-                    "error": reason,
-                })
+                results.append(
+                    {
+                        "matcher": matcher,
+                        "status": "not_found",
+                        "error": reason,
+                    }
+                )
         return {"results": results}
