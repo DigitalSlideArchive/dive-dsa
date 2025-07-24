@@ -135,14 +135,14 @@ function deleteDiveMetadataKey(rootMetadataFolder:string, key: string, removeVal
   });
 }
 
-function deleteDiveDatasetMetadataKey(diveDatasetId: string, key: string) {
-  return girderRest.delete(`dive_metadata/${diveDatasetId}`, { params: { key } });
+function deleteDiveDatasetMetadataKey(diveDatasetId: string, rootId: string, key: string) {
+  return girderRest.delete(`dive_metadata/${diveDatasetId}`, { params: { key, rootId } });
 }
-function setDiveDatasetMetadataKey(diveDatasetId: string, key: string, updateValue?: number | string | boolean) {
+function setDiveDatasetMetadataKey(diveDatasetId: string, rootId: string, key: string, updateValue?: number | string | boolean) {
   const value = updateValue === undefined ? null : updateValue;
   return girderRest.patch(`dive_metadata/${diveDatasetId}`, null, {
     params: {
-      key, value,
+      key, value, rootId,
     },
   });
 }

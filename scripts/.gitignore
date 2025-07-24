@@ -1,0 +1,16 @@
+*.json
+*.csv
+*.xml
+*.yaml
+*.yml
+*.txt
+*.log
+*.md
+*.DS_Store
+*.swp
+*.bak
+*.tmp
+*.log
+*.pid
+*.pid.lock
+*.db    

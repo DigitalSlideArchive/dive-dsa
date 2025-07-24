@@ -134,7 +134,7 @@ def process_metadata(args, gc: girder_client.GirderClient):
             print(diveMetadataFilter)
             gc.put(f'/folder/{DIVEMetadataRoot}/metadata', json={'DIVEMetadataFilter': diveMetadataFilter})
     # Now we set the actual value to the system
-    gc.patch(f'dive_metadata/{DIVEDatasetId}', {"key": MetadataKey, "value": MetadataValue})
+    gc.patch(f'dive_metadata/{DIVEDatasetId}', {"key": MetadataKey, "value": MetadataValue, "rootId": DIVEMetadataRoot})
 
 def main(args):
 

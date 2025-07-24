@@ -80,7 +80,6 @@ class DIVE_Metadata(Model):
         )
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
-        print(f'MetdataKeysOwner: {metadataKeys["owner"]} Owner: {str(owner["_id"])}')
         if (
             key not in metadataKeys['unlocked'] and metadataKeys['owner'] != str(owner['_id'])
         ) and force is False:
