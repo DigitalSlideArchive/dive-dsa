@@ -1240,7 +1240,7 @@ class DIVEMetadata(Resource):
         )
         # Helper to infer type/category
         new_keys = {}
-        for idx, entry in enumerate(updates):
+        for _idx, entry in enumerate(updates):
             metadata = entry.get("metadata", {})
             for key, value in metadata.items():
                 if key not in metadata_keys_doc["metadataKeys"]:
@@ -1267,8 +1267,8 @@ class DIVEMetadata(Resource):
                     "min": min(values),
                     "max": max(values),
                 }
-            DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=True)
-        for idx, entry in enumerate(updates):
+            DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
+        for _idx, entry in enumerate(updates):
             matcher = entry.get("matcher", {})
             metadata = entry.get("metadata", {})
             reason = None
