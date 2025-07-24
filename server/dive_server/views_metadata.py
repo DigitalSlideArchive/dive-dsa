@@ -150,7 +150,7 @@ class DIVEMetadata(Resource):
             self.run_slicer_cli_task,
         )
         self.route("POST", (":id", "export"), self.export_metadata)
-        self.route("POST", ("bulk_update_metadata",), self.bulk_update_metadata)
+        self.route("POST", ("bulk_update_metadata", ':rootFolder'), self.bulk_update_metadata)
 
     @access.user
     @autoDescribeRoute(
@@ -1212,13 +1212,15 @@ class DIVEMetadata(Resource):
             description="Root metadata FolderId",
             model=Folder,
             level=AccessType.WRITE,
-            destName="rootId",
+            destName="rootFolder",
         )
         .jsonParam(
             "updates",
-            description="Array of objects with 'matcher' and 'metadata' fields.",
+            description="Array of objects with 'matcher' either matching 'datasetId' or 'videoName' and 'metadata' fields uising 'key:value' pairs.",
             required=True,
             paramType="body",
+            requireArray=True,
+            default=[{"matcher": {"datasetId": "12345", "videoName": "videoName.mp4"}, "metadata": {"newKey": "NewValue"}}],
         )
     )
     def bulk_update_metadata(self, rootFolder, updates):
@@ -1270,12 +1272,12 @@ class DIVEMetadata(Resource):
             dataset_id = matcher.get("datasetId")
             video_name = matcher.get("videoName")
             if dataset_id:
-                dive_metadata = DIVE_Metadata().findOne({"DIVEDataset": dataset_id, 'root': str(rootId["_id"])})
-                if not dataset:
+                dive_metadata = DIVE_Metadata().findOne({"DIVEDataset": dataset_id, 'root': str(rootFolder["_id"])})
+                if not dive_metadata:
                     reason = f"No dataset found with id {dataset_id}"
             elif video_name:
-                dive_metadata =  DIVE_Metadata().findOne({"filename": video_name, 'root': str(rootId["_id"])})
-                if not dataset:
+                dive_metadata =  DIVE_Metadata().findOne({"filename": video_name, 'root': str(rootFolder["_id"])})
+                if not dive_metadata:
                     reason = f"No dataset found with videoName {video_name}"
             else:
                 reason = "No matcher provided (need datasetId or videoName)"
