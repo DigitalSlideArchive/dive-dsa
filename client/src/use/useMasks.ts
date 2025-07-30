@@ -4,7 +4,7 @@ import {
   ref, watch, Ref, computed,
 } from 'vue';
 import {
-  getRLEMask, RLETrackFrameData, uploadMask, deleteMask,
+  getRLEMaskData, RLETrackFrameData, uploadMask, deleteMask,
   RLEFrameData,
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
@@ -27,6 +27,7 @@ export type MaskItem = {
 export type MaskTriggerActions = null | 'save' | 'delete';
 export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
+  getRLEMask: (trackId: number, frameId: number) => RLEFrameData | undefined;
   editorOptions: {
     toolEnabled: Ref<MaskEditingTools>,
     brushSize: Ref<number>,
@@ -45,7 +46,7 @@ export interface UseMaskInterface {
 
 }
 
-const useRLE = false;
+const useRLE = true;
 const ENABLE_TIMING_LOGS = false;
 let lastTime = 0;
 export async function getMaskBlobAndBoundsFromImage(
@@ -168,7 +169,7 @@ export default function useMasks(
   }
 
   async function getFolderRLEMasks(folderId: string) {
-    rleMasks.value = (await getRLEMask(folderId)).data;
+    rleMasks.value = (await getRLEMaskData(folderId)).data;
     if (useRLE) {
       preloadWindow(frame.value);
     }
@@ -320,78 +321,78 @@ export default function useMasks(
         }
       });
     } else {
-      const frameBuckets: Record<number, Record<number, RLEFrameData>> = {};
+      // const frameBuckets: Record<number, Record<number, RLEFrameData>> = {};
 
-      Object.keys(rleMasks.value).forEach((trackIdStr) => {
-        const trackId = Number(trackIdStr);
-        Object.keys(rleMasks.value[trackIdStr]).forEach((frameIdStr) => {
-          const frameId = Number(frameIdStr);
-          const key = frameKey(frameId, trackId);
+      // Object.keys(rleMasks.value).forEach((trackIdStr) => {
+      //   const trackId = Number(trackIdStr);
+      //   Object.keys(rleMasks.value[trackIdStr]).forEach((frameIdStr) => {
+      //     const frameId = Number(frameIdStr);
+      //     const key = frameKey(frameId, trackId);
 
-          if (
-            frameId >= minFrame
-            && frameId <= maxFrame
-            && !cache.has(key)
-            && !inFlightWorker.has(key)
-          ) {
-            if (!frameBuckets[frameId]) {
-              frameBuckets[frameId] = {};
-            }
-            frameBuckets[frameId][trackId] = rleMasks.value[trackId][frameId];
-            inFlightWorker.set(key, true);
-          }
-        });
-      });
+      //     if (
+      //       frameId >= minFrame
+      //       && frameId <= maxFrame
+      //       && !cache.has(key)
+      //       && !inFlightWorker.has(key)
+      //     ) {
+      //       if (!frameBuckets[frameId]) {
+      //         frameBuckets[frameId] = {};
+      //       }
+      //       frameBuckets[frameId][trackId] = rleMasks.value[trackId][frameId];
+      //       inFlightWorker.set(key, true);
+      //     }
+      //   });
+      // });
 
-      // Sort frames by proximity to currentFrame
-      const sortedFrameIds = Object.keys(frameBuckets)
-        .map(Number)
-        .sort((a, b) => {
-          const distA = Math.abs(a - currentFrame);
-          const distB = Math.abs(b - currentFrame);
-          return distA - distB;
-        });
+      // // Sort frames by proximity to currentFrame
+      // const sortedFrameIds = Object.keys(frameBuckets)
+      //   .map(Number)
+      //   .sort((a, b) => {
+      //     const distA = Math.abs(a - currentFrame);
+      //     const distB = Math.abs(b - currentFrame);
+      //     return distA - distB;
+      //   });
 
-      const maskList: RLETrackFrameData = {};
+      // const maskList: RLETrackFrameData = {};
 
-      // Within each frame, add all tracks (optionally sorted)
-      sortedFrameIds.forEach((frameId) => {
-        const trackBuckets = frameBuckets[frameId];
+      // // Within each frame, add all tracks (optionally sorted)
+      // sortedFrameIds.forEach((frameId) => {
+      //   const trackBuckets = frameBuckets[frameId];
 
-        // Optionally sort tracks within frame by track ID (could add a currentTrack variable if needed)
-        const sortedTrackIds = Object.keys(trackBuckets)
-          .map(Number)
-          .sort((a, b) => a - b); // simple ascending track order (can tweak)
+      //   // Optionally sort tracks within frame by track ID (could add a currentTrack variable if needed)
+      //   const sortedTrackIds = Object.keys(trackBuckets)
+      //     .map(Number)
+      //     .sort((a, b) => a - b); // simple ascending track order (can tweak)
 
-        sortedTrackIds.forEach((trackId) => {
-          const rleWrapper = trackBuckets[trackId];
-          if (!maskList[trackId]) {
-            maskList[trackId] = {};
-          }
-          maskList[trackId][frameId] = rleWrapper;
-        });
-      });
+      //   sortedTrackIds.forEach((trackId) => {
+      //     const rleWrapper = trackBuckets[trackId];
+      //     if (!maskList[trackId]) {
+      //       maskList[trackId] = {};
+      //     }
+      //     maskList[trackId][frameId] = rleWrapper;
+      //   });
+      // });
 
-      // ✅ Post the ordered data
-      if (Object.keys(maskList).length > 0) {
-        if (ENABLE_TIMING_LOGS) {
-          lastTime = performance.now();
-          console.log(
-            `🧾 Worker Start: ${lastTime}`,
-          );
-        }
+      // // ✅ Post the ordered data
+      // if (Object.keys(maskList).length > 0) {
+      //   if (ENABLE_TIMING_LOGS) {
+      //     lastTime = performance.now();
+      //     console.log(
+      //       `🧾 Worker Start: ${lastTime}`,
+      //     );
+      //   }
 
-        const batchSize = 10;
-        const maskEntries = Object.entries(maskList);
-        for (let i = 0; i < maskEntries.length; i += batchSize) {
-          const batch = maskEntries.slice(i, i + batchSize);
-          const batchObj: RLETrackFrameData = {};
-          batch.forEach(([trackIdStr, frames]) => {
-            batchObj[trackIdStr] = frames;
-          });
-          rleWorker.postMessage({ rleMasks: batchObj });
-        }
-      }
+      //   const batchSize = 10;
+      //   const maskEntries = Object.entries(maskList);
+      //   for (let i = 0; i < maskEntries.length; i += batchSize) {
+      //     const batch = maskEntries.slice(i, i + batchSize);
+      //     const batchObj: RLETrackFrameData = {};
+      //     batch.forEach(([trackIdStr, frames]) => {
+      //       batchObj[trackIdStr] = frames;
+      //     });
+      //     rleWorker.postMessage({ rleMasks: batchObj });
+      //   }
+      // }
     }
   }
 
@@ -430,11 +431,17 @@ export default function useMasks(
     return masks.value.length > 0;
   });
 
+  const getRLEMask = (trackId: number, frameId: number): RLEFrameData | undefined => {
+    console.log(rleMasks.value);
+    return rleMasks.value[trackId]?.[frameId];
+  };
+
   return {
     initializeMaskData,
     setFrameRate,
     getMask,
     getFolderRLEMasks,
+    getRLEMask,
     editorOptions: {
       hasMasks,
       toolEnabled,

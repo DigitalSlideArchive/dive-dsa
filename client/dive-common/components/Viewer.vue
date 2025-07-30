@@ -923,6 +923,7 @@ export default defineComponent({
       initializeMaskData,
       setFrameRate,
       getMask,
+      getRLEMask,
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
@@ -980,7 +981,9 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
-        masks: { getMask, editorFunctions, editorOptions },
+        masks: {
+          getMask, getRLEMask, editorFunctions, editorOptions,
+        },
       },
       globalHandler,
       useAttributeFilters,

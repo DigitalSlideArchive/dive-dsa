@@ -314,3 +314,131 @@ function rleFrString(R: RLE, s: string, h: number, w: number): void {
   }
   rleInit(R, h, w, m, cnts);
 }
+
+export function createMaskTexture(
+  gl: WebGL2RenderingContext,
+  maskData: Uint8Array,
+  width: number,
+  height: number,
+): WebGLTexture {
+  const texture = gl.createTexture();
+  if (!texture) throw new Error('Failed to create WebGL texture');
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.R8, // ✅ Internal format for 1 channel, 8-bit
+    width,
+    height,
+    0,
+    gl.RED, // ✅ Format for single-channel input
+    gl.UNSIGNED_BYTE,
+    maskData,
+  );
+
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  return texture;
+}
+
+export function downloadMaskImage(maskData: Uint8Array, width: number, height: number, filename = 'mask.png') {
+  // Create a canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return;
+  }
+  // Create image data
+  const imageData = ctx.createImageData(width, height);
+
+  for (let i = 0; i < maskData.length; i++) {
+    const value = maskData[i]; // should be 0–255
+    const j = i * 4;
+    imageData.data[j] = value; // Red
+    imageData.data[j + 1] = value; // Green
+    imageData.data[j + 2] = value; // Blue
+    imageData.data[j + 3] = 255; // Alpha
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // Convert canvas to data URL (PNG)
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href); // Cleanup
+  }, 'image/png');
+}
+
+export function generateDummyMask(width: number, height: number) {
+  const dummy = new Uint8Array(width * height).fill(0); // Black background
+
+  // Define a centered white rectangle
+  const boxWidth = Math.floor(width / 2);
+  const boxHeight = Math.floor(height / 2);
+  const startX = Math.floor((width - boxWidth) / 2);
+  const startY = Math.floor((height - boxHeight) / 2);
+
+  for (let y = startY; y < startY + boxHeight; y++) {
+    for (let x = startX; x < startX + boxWidth; x++) {
+      const i = y * width + x;
+      dummy[i] = 255; // White pixel
+    }
+  }
+
+  return dummy;
+}
+
+export function generateTestTexture(width: number, height: number) {
+  // Create RGBA data (4 bytes per pixel)
+  const data = new Uint8Array(width * height * 4);
+
+  // Generate random background
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.floor(Math.random() * 100); // R (dark background)
+    data[i + 1] = Math.floor(Math.random() * 100); // G
+    data[i + 2] = Math.floor(Math.random() * 100); // B
+    data[i + 3] = 255; // A (fully opaque)
+  }
+
+  // Draw random circles
+  for (let circle = 0; circle < 10; circle++) {
+    const centerX = Math.floor(Math.random() * width);
+    const centerY = Math.floor(Math.random() * height);
+    const radius = Math.floor(Math.random() * 50) + 10;
+    const colorR = Math.floor(Math.random() * 255);
+    const colorG = Math.floor(Math.random() * 255);
+    const colorB = Math.floor(Math.random() * 255);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= radius) {
+          const index = (y * width + x) * 4;
+          data[index] = colorR; // R
+          data[index + 1] = colorG; // G
+          data[index + 2] = colorB; // B
+          data[index + 3] = 255; // A
+        }
+      }
+    }
+  }
+
+  return {
+    data,
+    width,
+    height,
+  };
+}
