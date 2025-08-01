@@ -604,6 +604,20 @@ def run_inference(
         for item in downloaded_tracks:
             track_data['tracks'][str(item['id'])] = item
     rle_masks = {}
+
+    mask_folder = gc.createFolder(
+        datasetId, name='masks', reuseExisting=True, metadata={'mask': True}
+    )
+    rle_mask_items = list(gc.listItem(mask_folder['_id'], name='RLE_MASKS.json'))
+    if len(rle_mask_items) > 0:
+        base_rle_mask_path = working_directory / 'RLE_MASKS/RLE_MASKS.json'
+        gc.downloadItem(rle_mask_items[0]['_id'], working_directory, name="RLE_MASKS" )
+        with open(base_rle_mask_path, 'r') as f:
+            rle_masks = json.load(f)
+        # Delete the existing RLE_MASKS.json file
+        gc.delete(f"item/{rle_mask_items[0]['_id']}")
+
+
     # Target directory you want to link to
     GlobalHydra.instance().clear()
 
@@ -678,11 +692,13 @@ def run_inference(
                             gc,
                             output_dir,
                             datasetId,
+                            mask_folder,
                             trackId,
                             obj_id,
                             absolute_frame,
                             track_folder_id,
                             track_data,
+                            rle_masks,
                         )
                         track_folder_id = update_results['trackFolderId']
                         items_uploaded.append(update_results['item'])
@@ -712,20 +728,19 @@ def update_annotation(
     gc: GirderClient,
     output_dir: Path,
     datasetId: str,
+    mask_folder: str,
     trackId: int,
     objectId: int,
     frameId: int,
     track_folder_id: str | None,
     track_data: dict,
+    rle_masks_json: dict
 ):
     # find the new mask
     mask_path = output_dir / f'{trackId}' / f'{frameId}.png'
     item = None
     if os.path.exists(mask_path):
         if not track_folder_id:
-            mask_folder = gc.createFolder(
-                datasetId, name='masks', reuseExisting=True, metadata={'mask': True}
-            )
             track_folder = gc.createFolder(
                 mask_folder["_id"],
                 name=f'{trackId}',
@@ -763,6 +778,24 @@ def update_annotation(
             '/dive_annotation', {"preventRevision": True, "folderId": datasetId}, json=patch_data
         )
     # Now send a task update with a json structure of the ItemId and the new Track data to be added
+    if rle_masks_json is not None:
+        # Create empty RLE file
+        rle_path = output_dir / 'RLE_MASKS'
+        with open(rle_path, 'w') as fp:
+            json.dump(rle_masks_json, fp)
+        rle_masks = list(gc.listItem(mask_folder['_id'], name='RLE_MASKS.json'))
+        if len(rle_masks) > 0:
+            # Delete the existing RLE_MASKS.json file
+            gc.delete(f"item/{rle_masks[0]['_id']}")
+
+        rle_item = gc.uploadFileToFolder(mask_folder['_id'], str(rle_path), filename="RLE_MASKS.json")
+        gc.addMetadataToItem(
+            rle_item['itemId'],
+            {
+                'description': 'Nested JSON with COCO RLE for all tracks and frames',
+                'RLE_MASK_FILE': True,
+            },
+        )
     if item and track_obj:
         return {
             'trackFolderId': track_folder_id,

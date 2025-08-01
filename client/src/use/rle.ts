@@ -119,6 +119,22 @@ export function decode(rleObjs: RLEObject[]): DataArray {
   return masks.toDataArray();
 }
 
+export function maskToRGBA(maskData: Uint8Array, width: number, height: number) {
+  const rgbaData = new Uint8Array(width * height * 4);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cocoIndex = row + col * height;
+      const value = maskData[cocoIndex] ? 255 : 0;
+      const imgIndex = (row * width + col) * 4;
+      rgbaData[imgIndex + 0] = value;
+      rgbaData[imgIndex + 1] = value;
+      rgbaData[imgIndex + 2] = value;
+      rgbaData[imgIndex + 3] = value;
+    }
+  }
+  return rgbaData;
+}
+
 export function toBbox(rleObjs: RLEObject[]): BB {
   const Rs = _frString(rleObjs);
   const n = Rs._n;

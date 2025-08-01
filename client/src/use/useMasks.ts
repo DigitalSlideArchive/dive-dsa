@@ -36,6 +36,7 @@ export interface UseMaskInterface {
     opacity: Ref<number>,
     triggerAction: Ref<null | 'save' | 'delete'>, // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>,
+    useRLE: Ref<boolean>,
   },
   editorFunctions: {
     setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
@@ -46,7 +47,7 @@ export interface UseMaskInterface {
 
 }
 
-const useRLE = true;
+const useRLE = ref(true);
 const ENABLE_TIMING_LOGS = false;
 let lastTime = 0;
 export async function getMaskBlobAndBoundsFromImage(
@@ -170,14 +171,14 @@ export default function useMasks(
 
   async function getFolderRLEMasks(folderId: string) {
     rleMasks.value = (await getRLEMaskData(folderId)).data;
-    if (useRLE) {
+    if (useRLE.value) {
       preloadWindow(frame.value);
     }
   }
 
   function initializeMaskData(maskData: { masks: Readonly<MaskItem[]> }) {
     masks.value = [...maskData.masks];
-    if (!useRLE) {
+    if (!useRLE.value) {
       preloadWindow(frame.value);
     }
   }
@@ -244,7 +245,7 @@ export default function useMasks(
   }
 
   function getFrameWindow(currentFrame: number) {
-    if (!useRLE) {
+    if (!useRLE.value) {
       const minFrame = Math.max(0, Math.floor(currentFrame - frameRate.value * 2));
       const maxFrame = Math.floor(currentFrame + frameRate.value * 5);
       return { minFrame, maxFrame };
@@ -296,7 +297,7 @@ export default function useMasks(
   function preloadWindow(currentFrame: number) {
     const { minFrame, maxFrame } = getFrameWindow(currentFrame);
 
-    if (!useRLE) {
+    if (!useRLE.value) {
       // ✅ No change: regular image preloading
       clearOutOfWindow(minFrame, maxFrame);
       masks.value.forEach((mask) => {
@@ -402,7 +403,7 @@ export default function useMasks(
     if (cacheFound) {
       return cacheFound;
     }
-    if (useRLE) {
+    if (useRLE.value) {
       const mask = rleMasks.value[trackId]?.[frameId];
       if (mask && inFlightWorker.has(key)) {
         loadingFrame.value = key;
@@ -425,16 +426,13 @@ export default function useMasks(
   });
 
   const hasMasks = computed(() => {
-    if (useRLE) {
+    if (useRLE.value) {
       return Object.keys(rleMasks.value).length > 0;
     }
     return masks.value.length > 0;
   });
 
-  const getRLEMask = (trackId: number, frameId: number): RLEFrameData | undefined => {
-    console.log(rleMasks.value);
-    return rleMasks.value[trackId]?.[frameId];
-  };
+  const getRLEMask = (trackId: number, frameId: number): RLEFrameData | undefined => rleMasks.value[trackId]?.[frameId];
 
   return {
     initializeMaskData,
@@ -450,6 +448,7 @@ export default function useMasks(
       triggerAction,
       maxBrushSize,
       loadingFrame,
+      useRLE,
     },
     editorFunctions: {
       updateMaskData,

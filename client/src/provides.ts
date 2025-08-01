@@ -374,6 +374,7 @@ function dummyState(): State {
         opacity: ref(0.75),
         triggerAction: ref(null),
         loadingFrame: ref(false),
+        useRLE: ref(false),
       },
       editorFunctions: {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars

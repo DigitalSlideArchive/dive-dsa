@@ -348,24 +348,37 @@ export default defineComponent({
       }
 
       if (visibleModes.includes('Mask')) {
-        const maskData: {trackId: number, mask: Uint8Array, width: number, height: number}[] = [];
+        const maskRLEData: {trackId: number, mask: Uint8Array, width: number, height: number}[] = [];
+        const maskImages : {trackId: number, image: HTMLImageElement}[] = [];
         frameData.forEach((track) => {
           if (track.features?.hasMask) {
-            const rle = getRLEMask(track.track.id, frame);
-            if (rle) {
-              const mask = decode([rle.rle] as RLEObject[]);
-              maskData.push({
-                trackId: track.track.id,
-                mask: mask.data,
-                width: mask.shape[1],
-                height: mask.shape[0],
-              });
+            if (editorOptions.useRLE.value) {
+              const rle = getRLEMask(track.track.id, frame);
+              if (rle) {
+                const mask = decode([rle.rle] as RLEObject[]);
+                maskRLEData.push({
+                  trackId: track.track.id,
+                  mask: mask.data,
+                  width: mask.shape[1],
+                  height: mask.shape[0],
+                });
+              }
+            } else {
+              const image = getMask(track.track.id, frame);
+              if (image) {
+                maskImages.push({
+                  trackId: track.track.id,
+                  image,
+                });
+              }
             }
             getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
           }
         });
-        if (maskData.length) {
-          maskLayer.setSegmenationRLE(maskData);
+        if (maskRLEData.length && editorOptions.useRLE.value) {
+          maskLayer.setSegmenationRLE(maskRLEData);
+        } else if (maskImages.length) {
+          maskLayer.setSegmenationImages(maskImages);
         } else {
           maskLayer.disable();
         }
