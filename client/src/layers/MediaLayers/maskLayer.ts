@@ -1,5 +1,7 @@
 import { MediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { Ref } from 'vue';
+//import { generateTestTexture } from 'vue-media-annotator/use/rle';
+import { maskToRGBA } from 'vue-media-annotator/use/rle';
 import { TypeStyling } from '../../StyleManager';
 
 export default class MaskLayer {
@@ -82,13 +84,44 @@ export default class MaskLayer {
         this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
-        // HACK to update the texture
-        //this.quads[item.trackId]._cleanup();
         this.quads[item.trackId].data([
           {
             ul: { x: 0, y: 0 },
             lr: { x: width, y: height },
             image: item.image,
+          },
+        ]).draw();
+        this.featureLayers[item.trackId].visible(true);
+      }
+    });
+  }
+
+  setSegmenationRLE(data: {trackId: number, mask: Uint8Array, width: number, height: number}[]) {
+    const [frameWidth, frameHeight] = this.annotator.frameSize.value;
+    this.disable();
+    data.forEach((item) => {
+      if (!this.featureLayers[item.trackId]) {
+        this.featureLayers[item.trackId] = this.annotator.geoViewerRef.value.createLayer('feature', {
+          features: ['quad.image'],
+          autoshareRenderer: false,
+        });
+        this.quads[item.trackId] = this.featureLayers[item.trackId].createFeature('quad');
+        this.featureLayers[item.trackId].node().css('filter', `url(#mask-filter-${item.trackId})`);
+        this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
+      }
+      if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
+        // Use setQuadTexture to upload the mask as a texture
+        //const texture = generateTestTexture(item.width, item.height);
+        const texture = {
+          width: item.width,
+          height: item.height,
+          data: maskToRGBA(item.mask, item.width, item.height),
+        };
+        this.quads[item.trackId].data([
+          {
+            ul: { x: 0, y: 0 },
+            lr: { x: frameWidth, y: frameHeight },
+            texture,
           },
         ]).draw();
         this.featureLayers[item.trackId].visible(true);

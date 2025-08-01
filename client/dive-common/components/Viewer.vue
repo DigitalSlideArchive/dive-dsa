@@ -722,7 +722,9 @@ export default defineComponent({
             setFrameRate(meta.fps);
             initializeMaskData({ masks: mediaMasks.value });
           }
-          getFolderRLEMasks(cameraId);
+          if (editorOptions.useRLE.value) {
+            getFolderRLEMasks(cameraId);
+          }
           // eslint-disable-next-line no-await-in-loop
           const { tracks, groups } = await loadDetections(cameraId, props.revision);
           progress.total = tracks.length + groups.length;
@@ -923,6 +925,7 @@ export default defineComponent({
       initializeMaskData,
       setFrameRate,
       getMask,
+      getRLEMask,
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
@@ -980,7 +983,9 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
-        masks: { getMask, editorFunctions, editorOptions },
+        masks: {
+          getMask, getRLEMask, editorFunctions, editorOptions,
+        },
       },
       globalHandler,
       useAttributeFilters,
