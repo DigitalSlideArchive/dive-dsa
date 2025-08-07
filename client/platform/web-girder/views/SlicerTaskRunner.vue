@@ -58,12 +58,12 @@ export default defineComponent({
     const getDefaults = async () => {
       const resp = await getTaskDefaults(datasetId.value);
       folderName.value = resp.data.folderName;
-      if (resp.data.video) {
+      if (resp.data.sourceVideo) {
         defaults.value = {
-          fileId: resp.data.video.fileId,
+          fileId: resp.data.sourceVideo.fileId,
           parentId: datasetId.value,
-          girderId: resp.data.video.id,
-          inputName: resp.data.video.filename,
+          girderId: resp.data.sourceVideo.id,
+          inputName: resp.data.sourceVideo.filename,
           outputId: datasetId.value,
         };
       }
