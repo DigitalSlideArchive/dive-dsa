@@ -570,6 +570,7 @@ class MediaResource(BaseModel):
 class DatasetTaskDefaults(BaseModel):
     imageData: List[MediaResource]
     video: Optional[MediaResource]
+    sourceVideo: Optional[MediaResource]
     overlays: Optional[List[MediaResource]]
     folderName: str
 
@@ -577,6 +578,7 @@ class DatasetTaskDefaults(BaseModel):
 class DatasetSourceMedia(BaseModel):
     imageData: List[MediaResource]
     video: Optional[MediaResource]
+    sourceVideo: Optional[MediaResource]
     overlays: Optional[List[MediaResource]]
     masks: Optional[List[MediaResource]]
 

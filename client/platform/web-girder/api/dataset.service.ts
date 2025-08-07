@@ -64,6 +64,7 @@ export interface DatasetSourceMedia {
 export interface DatasetTaskDefaults {
   imageData: MediaResource[];
   video?: MediaResource;
+  sourceVideo?: MediaResource;
   overlays?: MediaResource[];
   folderName: string;
 }

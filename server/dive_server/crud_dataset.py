@@ -126,9 +126,15 @@ def get_task_defaults(
                 'meta.source_video': {'$in': [None, False]},
             }
         )
+        sourceVideoItem = Item().findOne(
+            {
+                'folderId': crud.getCloneRoot(user, dsFolder)['_id'],
+                'meta.source_video': {'$in': [True, 'true', 'True']},
+            }
+        )
+
         if videoItem:
             foundFile = File().findOne({'itemId': videoItem['_id']})
-            print(foundFile)
             foundFileId = None
             if foundFile:
                 foundFileId = str(foundFile['_id'])
@@ -138,6 +144,23 @@ def get_task_defaults(
                 filename=videoItem['name'],
                 fileId=foundFileId,
             )
+            if (
+                sourceVideoItem
+                and str(sourceVideoItem['_id']) != str(videoItem['_id'])
+            ):
+                foundFile = File().findOne({'itemId': videoItem['_id']})
+                foundFileId = None
+                if foundFile:
+                    foundFileId = str(foundFile['_id'])
+                sourceVideoResource = models.MediaResource(
+                    id=str(sourceVideoItem['_id']),
+                    url=get_url(dsFolder, sourceVideoItem),
+                    filename=sourceVideoItem['name'],
+                    fileId=foundFileId,
+                )
+            else:
+                sourceVideoResource = videoResource
+
     elif source_type == constants.ImageSequenceType:
         imageData = [
             models.MediaResource(
@@ -179,6 +202,7 @@ def get_task_defaults(
     return models.DatasetTaskDefaults(
         imageData=imageData,
         video=videoResource,
+        sourceVideo=sourceVideoResource,
         overlays=overlays,
         folderName=dsFolder['name'],
     )
@@ -204,6 +228,7 @@ def get_media(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> models.DatasetSourceMedia:
     videoResource = None
+    sourceVideoResource = None
     imageData: List[models.MediaResource] = []
     crud.verify_dataset(dsFolder)
     source_type = fromMeta(dsFolder, constants.TypeMarker)
@@ -223,6 +248,24 @@ def get_media(
                 url=get_url(dsFolder, videoItem),
                 filename=videoItem['name'],
             )
+            sourceVideoItem = Item().findOne(
+                {
+                    'folderId': crud.getCloneRoot(user, dsFolder)['_id'],
+                    'meta.source_video': {'$in': [True, 'true', 'True']},
+                }
+            )
+            if (
+                sourceVideoItem
+                and str(sourceVideoItem['_id']) != str(videoItem['_id'])
+            ):
+                sourceVideoResource = models.MediaResource(
+                    id=str(sourceVideoItem['_id']),
+                    url=get_url(dsFolder, sourceVideoItem),
+                    filename=sourceVideoItem['name'],
+                )
+            else:
+                sourceVideoResource = videoResource
+
     elif source_type == constants.ImageSequenceType:
         imageData = [
             models.MediaResource(
@@ -301,6 +344,7 @@ def get_media(
     return models.DatasetSourceMedia(
         imageData=imageData,
         video=videoResource,
+        sourceVideo=sourceVideoResource,
         overlays=overlays,
         masks=masks,
     )
