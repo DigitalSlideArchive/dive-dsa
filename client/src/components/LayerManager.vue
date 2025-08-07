@@ -9,6 +9,7 @@ import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
 import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
 import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
+import { decode, RLEObject, rleObjectToImageSync } from 'vue-media-annotator/use/rle';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -84,7 +85,9 @@ export default defineComponent({
     const configMan = useConfiguration();
     const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
-    const { getMask, editorOptions, editorFunctions } = useMasks();
+    const {
+      getMask, editorOptions, editorFunctions, getRLEMask,
+    } = useMasks();
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
     const groupStore = cameraStore.camMap.value.get(props.camera)?.groupStore;
@@ -345,21 +348,36 @@ export default defineComponent({
       }
 
       if (visibleModes.includes('Mask')) {
+        const maskRLEData: {trackId: number, mask: Uint8Array, width: number, height: number}[] = [];
         const maskImages : {trackId: number, image: HTMLImageElement}[] = [];
-
         frameData.forEach((track) => {
           if (track.features?.hasMask) {
-            const image = getMask(track.track.id, frame);
-            if (image) {
-              maskImages.push({
-                trackId: track.track.id,
-                image,
-              });
+            if (editorOptions.useRLE.value) {
+              const rle = getRLEMask(track.track.id, frame);
+              if (rle) {
+                const mask = decode([rle.rle] as RLEObject[]);
+                maskRLEData.push({
+                  trackId: track.track.id,
+                  mask: mask.data,
+                  width: mask.shape[1],
+                  height: mask.shape[0],
+                });
+              }
+            } else {
+              const image = getMask(track.track.id, frame);
+              if (image) {
+                maskImages.push({
+                  trackId: track.track.id,
+                  image,
+                });
+              }
             }
             getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
           }
         });
-        if (maskImages.length) {
+        if (maskRLEData.length && editorOptions.useRLE.value) {
+          maskLayer.setSegmenationRLE(maskRLEData);
+        } else if (maskImages.length) {
           maskLayer.setSegmenationImages(maskImages);
         } else {
           maskLayer.disable();
@@ -418,7 +436,15 @@ export default defineComponent({
           editAnnotationLayer.disable();
           rectAnnotationLayer.setDisableClicking(true);
           const track = editingTracks[0];
-          const image = getMask(track.track.id, frame);
+          let image: HTMLImageElement | undefined;
+          if (editorOptions.useRLE.value) {
+            const rle = getRLEMask(track.track.id, frame);
+            if (rle) {
+              image = rleObjectToImageSync(rle.rle);
+            }
+          } else {
+            image = getMask(track.track.id, frame);
+          }
           maskEditorLayer.setEditingImage({ trackId: track.track.id, frameId: frame, image });
           getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
         } else {

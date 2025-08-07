@@ -4,11 +4,12 @@ import {
   ref, watch, Ref, computed,
 } from 'vue';
 import {
-  getRLEMask, RLETrackFrameData, uploadMask, deleteMask,
+  getRLEMaskData, RLETrackFrameData, uploadMask, deleteMask,
   RLEFrameData,
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
+import { imageToRLEObject } from './rle';
 
 // Dynamically import the worker
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
@@ -24,9 +25,12 @@ export type MaskItem = {
   url: string;
 };
 
+export type MaskSAM2UpdateItem = MaskItem & { 'rleMask': RLEFrameData };
+
 export type MaskTriggerActions = null | 'save' | 'delete';
 export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
+  getRLEMask: (trackId: number, frameId: number) => RLEFrameData | undefined;
   editorOptions: {
     toolEnabled: Ref<MaskEditingTools>,
     brushSize: Ref<number>,
@@ -35,17 +39,18 @@ export interface UseMaskInterface {
     opacity: Ref<number>,
     triggerAction: Ref<null | 'save' | 'delete'>, // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>,
+    useRLE: Ref<boolean>,
   },
   editorFunctions: {
     setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
     deleteMaskFrame: (trackId: number) => Promise<void>;
-    updateMaskData: (maskData: MaskItem[]) => void;
+    updateMaskData: (maskData: MaskSAM2UpdateItem[]) => void;
   },
 
 }
 
-const useRLE = false;
+const useRLE = ref(true);
 const ENABLE_TIMING_LOGS = false;
 let lastTime = 0;
 export async function getMaskBlobAndBoundsFromImage(
@@ -150,7 +155,18 @@ export default function useMasks(
       handler.updateRectBounds(frame.value, flick.value, bounds, false, true);
     }
     await uploadMask(datasetId.value, trackId, frame.value, blob);
-    cache.set(frameKey(frame.value, trackId), image);
+    if (!useRLE.value) {
+      cache.set(frameKey(frame.value, trackId), image);
+    } else {
+      // Create RLE data from the image
+      const rleObject = imageToRLEObject(image);
+      const rleData: RLEFrameData = {
+        rle: rleObject,
+        file_name: `${trackId}_${frame.value}.png`,
+      };
+      rleMasks.value[trackId] = rleMasks.value[trackId] || {};
+      rleMasks.value[trackId][frame.value] = rleData;
+    }
     handler.save();
   }
 
@@ -168,20 +184,20 @@ export default function useMasks(
   }
 
   async function getFolderRLEMasks(folderId: string) {
-    rleMasks.value = (await getRLEMask(folderId)).data;
-    if (useRLE) {
+    rleMasks.value = (await getRLEMaskData(folderId)).data;
+    if (useRLE.value) {
       preloadWindow(frame.value);
     }
   }
 
   function initializeMaskData(maskData: { masks: Readonly<MaskItem[]> }) {
     masks.value = [...maskData.masks];
-    if (!useRLE) {
+    if (!useRLE.value) {
       preloadWindow(frame.value);
     }
   }
 
-  function updateMaskData(newMaskData: MaskItem[]) {
+  function updateMaskData(newMaskData: MaskSAM2UpdateItem[]) {
     newMaskData.forEach((newMask) => {
       const frameId = newMask.metadata?.frameId;
       const trackId = newMask.metadata?.trackId;
@@ -190,28 +206,37 @@ export default function useMasks(
         console.warn(`Skipping mask ${newMask.filename} due to missing metadata`);
         return;
       }
-
-      const key = frameKey(frameId, trackId);
-
-      // Replace mask entry in masks array
-      const existingIndex = masks.value.findIndex(
-        (item) => item.metadata?.frameId === frameId
-        && item.metadata?.trackId === trackId,
-      );
-
-      if (existingIndex !== -1) {
-        masks.value.splice(existingIndex, 1, newMask);
+      if (useRLE.value) {
+        if (!newMask.rleMask) {
+          console.warn(`Skipping RLE mask ${newMask.filename} due to missing rleMask`);
+          return;
+        }
+        // Update RLE mask data
+        rleMasks.value[trackId] = rleMasks.value[trackId] || {};
+        rleMasks.value[trackId][frameId] = newMask.rleMask;
       } else {
-        masks.value.push(newMask);
-      }
+        const key = frameKey(frameId, trackId);
 
-      // Replace cached image if already cached
-      if (cache.has(key)) {
-        const img = new Image();
-        img.onload = () => {
-          cache.set(key, img);
-        };
-        img.src = newMask.url;
+        // Replace mask entry in masks array
+        const existingIndex = masks.value.findIndex(
+          (item) => item.metadata?.frameId === frameId
+        && item.metadata?.trackId === trackId,
+        );
+
+        if (existingIndex !== -1) {
+          masks.value.splice(existingIndex, 1, newMask);
+        } else {
+          masks.value.push(newMask);
+        }
+
+        // Replace cached image if already cached
+        if (cache.has(key)) {
+          const img = new Image();
+          img.onload = () => {
+            cache.set(key, img);
+          };
+          img.src = newMask.url;
+        }
       }
     });
   }
@@ -243,7 +268,7 @@ export default function useMasks(
   }
 
   function getFrameWindow(currentFrame: number) {
-    if (!useRLE) {
+    if (!useRLE.value) {
       const minFrame = Math.max(0, Math.floor(currentFrame - frameRate.value * 2));
       const maxFrame = Math.floor(currentFrame + frameRate.value * 5);
       return { minFrame, maxFrame };
@@ -295,7 +320,7 @@ export default function useMasks(
   function preloadWindow(currentFrame: number) {
     const { minFrame, maxFrame } = getFrameWindow(currentFrame);
 
-    if (!useRLE) {
+    if (!useRLE.value) {
       // ✅ No change: regular image preloading
       clearOutOfWindow(minFrame, maxFrame);
       masks.value.forEach((mask) => {
@@ -320,78 +345,78 @@ export default function useMasks(
         }
       });
     } else {
-      const frameBuckets: Record<number, Record<number, RLEFrameData>> = {};
+      // const frameBuckets: Record<number, Record<number, RLEFrameData>> = {};
 
-      Object.keys(rleMasks.value).forEach((trackIdStr) => {
-        const trackId = Number(trackIdStr);
-        Object.keys(rleMasks.value[trackIdStr]).forEach((frameIdStr) => {
-          const frameId = Number(frameIdStr);
-          const key = frameKey(frameId, trackId);
+      // Object.keys(rleMasks.value).forEach((trackIdStr) => {
+      //   const trackId = Number(trackIdStr);
+      //   Object.keys(rleMasks.value[trackIdStr]).forEach((frameIdStr) => {
+      //     const frameId = Number(frameIdStr);
+      //     const key = frameKey(frameId, trackId);
 
-          if (
-            frameId >= minFrame
-            && frameId <= maxFrame
-            && !cache.has(key)
-            && !inFlightWorker.has(key)
-          ) {
-            if (!frameBuckets[frameId]) {
-              frameBuckets[frameId] = {};
-            }
-            frameBuckets[frameId][trackId] = rleMasks.value[trackId][frameId];
-            inFlightWorker.set(key, true);
-          }
-        });
-      });
+      //     if (
+      //       frameId >= minFrame
+      //       && frameId <= maxFrame
+      //       && !cache.has(key)
+      //       && !inFlightWorker.has(key)
+      //     ) {
+      //       if (!frameBuckets[frameId]) {
+      //         frameBuckets[frameId] = {};
+      //       }
+      //       frameBuckets[frameId][trackId] = rleMasks.value[trackId][frameId];
+      //       inFlightWorker.set(key, true);
+      //     }
+      //   });
+      // });
 
-      // Sort frames by proximity to currentFrame
-      const sortedFrameIds = Object.keys(frameBuckets)
-        .map(Number)
-        .sort((a, b) => {
-          const distA = Math.abs(a - currentFrame);
-          const distB = Math.abs(b - currentFrame);
-          return distA - distB;
-        });
+      // // Sort frames by proximity to currentFrame
+      // const sortedFrameIds = Object.keys(frameBuckets)
+      //   .map(Number)
+      //   .sort((a, b) => {
+      //     const distA = Math.abs(a - currentFrame);
+      //     const distB = Math.abs(b - currentFrame);
+      //     return distA - distB;
+      //   });
 
-      const maskList: RLETrackFrameData = {};
+      // const maskList: RLETrackFrameData = {};
 
-      // Within each frame, add all tracks (optionally sorted)
-      sortedFrameIds.forEach((frameId) => {
-        const trackBuckets = frameBuckets[frameId];
+      // // Within each frame, add all tracks (optionally sorted)
+      // sortedFrameIds.forEach((frameId) => {
+      //   const trackBuckets = frameBuckets[frameId];
 
-        // Optionally sort tracks within frame by track ID (could add a currentTrack variable if needed)
-        const sortedTrackIds = Object.keys(trackBuckets)
-          .map(Number)
-          .sort((a, b) => a - b); // simple ascending track order (can tweak)
+      //   // Optionally sort tracks within frame by track ID (could add a currentTrack variable if needed)
+      //   const sortedTrackIds = Object.keys(trackBuckets)
+      //     .map(Number)
+      //     .sort((a, b) => a - b); // simple ascending track order (can tweak)
 
-        sortedTrackIds.forEach((trackId) => {
-          const rleWrapper = trackBuckets[trackId];
-          if (!maskList[trackId]) {
-            maskList[trackId] = {};
-          }
-          maskList[trackId][frameId] = rleWrapper;
-        });
-      });
+      //   sortedTrackIds.forEach((trackId) => {
+      //     const rleWrapper = trackBuckets[trackId];
+      //     if (!maskList[trackId]) {
+      //       maskList[trackId] = {};
+      //     }
+      //     maskList[trackId][frameId] = rleWrapper;
+      //   });
+      // });
 
-      // ✅ Post the ordered data
-      if (Object.keys(maskList).length > 0) {
-        if (ENABLE_TIMING_LOGS) {
-          lastTime = performance.now();
-          console.log(
-            `🧾 Worker Start: ${lastTime}`,
-          );
-        }
+      // // ✅ Post the ordered data
+      // if (Object.keys(maskList).length > 0) {
+      //   if (ENABLE_TIMING_LOGS) {
+      //     lastTime = performance.now();
+      //     console.log(
+      //       `🧾 Worker Start: ${lastTime}`,
+      //     );
+      //   }
 
-        const batchSize = 10;
-        const maskEntries = Object.entries(maskList);
-        for (let i = 0; i < maskEntries.length; i += batchSize) {
-          const batch = maskEntries.slice(i, i + batchSize);
-          const batchObj: RLETrackFrameData = {};
-          batch.forEach(([trackIdStr, frames]) => {
-            batchObj[trackIdStr] = frames;
-          });
-          rleWorker.postMessage({ rleMasks: batchObj });
-        }
-      }
+      //   const batchSize = 10;
+      //   const maskEntries = Object.entries(maskList);
+      //   for (let i = 0; i < maskEntries.length; i += batchSize) {
+      //     const batch = maskEntries.slice(i, i + batchSize);
+      //     const batchObj: RLETrackFrameData = {};
+      //     batch.forEach(([trackIdStr, frames]) => {
+      //       batchObj[trackIdStr] = frames;
+      //     });
+      //     rleWorker.postMessage({ rleMasks: batchObj });
+      //   }
+      // }
     }
   }
 
@@ -401,7 +426,7 @@ export default function useMasks(
     if (cacheFound) {
       return cacheFound;
     }
-    if (useRLE) {
+    if (useRLE.value) {
       const mask = rleMasks.value[trackId]?.[frameId];
       if (mask && inFlightWorker.has(key)) {
         loadingFrame.value = key;
@@ -424,17 +449,20 @@ export default function useMasks(
   });
 
   const hasMasks = computed(() => {
-    if (useRLE) {
+    if (useRLE.value) {
       return Object.keys(rleMasks.value).length > 0;
     }
     return masks.value.length > 0;
   });
+
+  const getRLEMask = (trackId: number, frameId: number): RLEFrameData | undefined => rleMasks.value[trackId]?.[frameId];
 
   return {
     initializeMaskData,
     setFrameRate,
     getMask,
     getFolderRLEMasks,
+    getRLEMask,
     editorOptions: {
       hasMasks,
       toolEnabled,
@@ -443,6 +471,7 @@ export default function useMasks(
       triggerAction,
       maxBrushSize,
       loadingFrame,
+      useRLE,
     },
     editorFunctions: {
       updateMaskData,
