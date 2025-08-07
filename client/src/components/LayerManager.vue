@@ -9,7 +9,7 @@ import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
 import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
 import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
-import { decode, RLEObject } from 'vue-media-annotator/use/rle';
+import { decode, RLEObject, rleObjectToImageSync } from 'vue-media-annotator/use/rle';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -436,7 +436,15 @@ export default defineComponent({
           editAnnotationLayer.disable();
           rectAnnotationLayer.setDisableClicking(true);
           const track = editingTracks[0];
-          const image = getMask(track.track.id, frame);
+          let image: HTMLImageElement | undefined;
+          if (editorOptions.useRLE.value) {
+            const rle = getRLEMask(track.track.id, frame);
+            if (rle) {
+              image = rleObjectToImageSync(rle.rle);
+            }
+          } else {
+            image = getMask(track.track.id, frame);
+          }
           maskEditorLayer.setEditingImage({ trackId: track.track.id, frameId: frame, image });
           getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
         } else {

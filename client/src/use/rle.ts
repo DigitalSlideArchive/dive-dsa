@@ -458,3 +458,72 @@ export function generateTestTexture(width: number, height: number) {
     height,
   };
 }
+
+export function rleObjectToImageSync(rleObj: RLEObject): HTMLImageElement {
+  const [height, width] = rleObj.size;
+
+  // Step 1: Decode the RLE into a DataArray
+  const decoded = decode([rleObj]);
+
+  // Step 2: Convert mask data to RGBA format
+  const rgba = maskToRGBA(decoded.data, width, height);
+
+  // Step 3: Create a canvas and draw the RGBA data
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
+
+  const imageData = new ImageData(new Uint8ClampedArray(rgba), width, height);
+  ctx.putImageData(imageData, 0, 0);
+
+  // Step 4: Convert the canvas to data URL and create an image
+  const img = new Image();
+  img.src = canvas.toDataURL('image/png');
+  return img;
+}
+
+export function imageToRLEObject(img: HTMLImageElement): RLEObject {
+  const width = img.naturalWidth;
+  const height = img.naturalHeight;
+
+  // Step 1: Draw the image to a canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
+
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Step 2: Read image pixel data (RGBA)
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const rgba = imageData.data;
+
+  // Step 3: Convert RGBA to binary mask (1 for white-ish pixels, 0 otherwise)
+  // Convert RGBA to binary mask (thresholded)
+  // Then transpose row-major → column-major
+  const binaryMask = new Uint8Array(width * height);
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const index2D = row * width + col;
+      const r = rgba[index2D * 4];
+      const g = rgba[index2D * 4 + 1];
+      const b = rgba[index2D * 4 + 2];
+      const a = rgba[index2D * 4 + 3];
+      const avg = (r + g + b) / 3;
+
+      const maskValue = a > 0 && avg > 127 ? 1 : 0;
+
+      // COCO-style expects column-major: (col * height + row)
+      const cocoIndex = col * height + row;
+      binaryMask[cocoIndex] = maskValue;
+    }
+  }
+
+  // Step 4: Wrap as DataArray and encode
+  const mask = new DataArray(binaryMask, [height, width, 1]);
+  const rleObjs = encode(mask);
+  return rleObjs[0]; // since we passed n = 1
+}

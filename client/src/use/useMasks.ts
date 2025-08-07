@@ -9,6 +9,7 @@ import {
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
+import { imageToRLEObject } from './rle';
 
 // Dynamically import the worker
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
@@ -152,7 +153,18 @@ export default function useMasks(
       handler.updateRectBounds(frame.value, flick.value, bounds, false, true);
     }
     await uploadMask(datasetId.value, trackId, frame.value, blob);
-    cache.set(frameKey(frame.value, trackId), image);
+    if (!useRLE.value) {
+      cache.set(frameKey(frame.value, trackId), image);
+    } else {
+      // Create RLE data from the image
+      const rleObject = imageToRLEObject(image);
+      const rleData: RLEFrameData = {
+        rle: rleObject,
+        file_name: `${trackId}_${frame.value}.png`,
+      };
+      rleMasks.value[trackId] = rleMasks.value[trackId] || {};
+      rleMasks.value[trackId][frame.value] = rleData;
+    }
     handler.save();
   }
 
