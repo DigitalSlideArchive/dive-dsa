@@ -9,7 +9,7 @@ It begins with choosing a task.  The task button will automatically filter the e
 
 #### Defaults 
 
-The system will automatically populate the file input with a reference to the video file for the DIVE Dataset specificially if it has the ID/Name **DIVEVideo**
+The system will automatically populate the file input with a reference to the video file for the DIVE Dataset specificially if it has the ID/Name **DIVEVideo**.  This DIVEVideo will be the source video meaning it will be the non-transcoded video if video transcoding is done on import.
 
 The system will also populate any folder output with the DIVE Dataset Folder if it has the ID/name **DIVEDirectory**
 
