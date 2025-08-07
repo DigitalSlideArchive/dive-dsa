@@ -25,6 +25,8 @@ export type MaskItem = {
   url: string;
 };
 
+export type MaskSAM2UpdateItem = MaskItem & { 'rleMask': RLEFrameData };
+
 export type MaskTriggerActions = null | 'save' | 'delete';
 export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
@@ -43,7 +45,7 @@ export interface UseMaskInterface {
     setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions}) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
     deleteMaskFrame: (trackId: number) => Promise<void>;
-    updateMaskData: (maskData: MaskItem[]) => void;
+    updateMaskData: (maskData: MaskSAM2UpdateItem[]) => void;
   },
 
 }
@@ -195,7 +197,7 @@ export default function useMasks(
     }
   }
 
-  function updateMaskData(newMaskData: MaskItem[]) {
+  function updateMaskData(newMaskData: MaskSAM2UpdateItem[]) {
     newMaskData.forEach((newMask) => {
       const frameId = newMask.metadata?.frameId;
       const trackId = newMask.metadata?.trackId;
@@ -204,28 +206,37 @@ export default function useMasks(
         console.warn(`Skipping mask ${newMask.filename} due to missing metadata`);
         return;
       }
-
-      const key = frameKey(frameId, trackId);
-
-      // Replace mask entry in masks array
-      const existingIndex = masks.value.findIndex(
-        (item) => item.metadata?.frameId === frameId
-        && item.metadata?.trackId === trackId,
-      );
-
-      if (existingIndex !== -1) {
-        masks.value.splice(existingIndex, 1, newMask);
+      if (useRLE.value) {
+        if (!newMask.rleMask) {
+          console.warn(`Skipping RLE mask ${newMask.filename} due to missing rleMask`);
+          return;
+        }
+        // Update RLE mask data
+        rleMasks.value[trackId] = rleMasks.value[trackId] || {};
+        rleMasks.value[trackId][frameId] = newMask.rleMask;
       } else {
-        masks.value.push(newMask);
-      }
+        const key = frameKey(frameId, trackId);
 
-      // Replace cached image if already cached
-      if (cache.has(key)) {
-        const img = new Image();
-        img.onload = () => {
-          cache.set(key, img);
-        };
-        img.src = newMask.url;
+        // Replace mask entry in masks array
+        const existingIndex = masks.value.findIndex(
+          (item) => item.metadata?.frameId === frameId
+        && item.metadata?.trackId === trackId,
+        );
+
+        if (existingIndex !== -1) {
+          masks.value.splice(existingIndex, 1, newMask);
+        } else {
+          masks.value.push(newMask);
+        }
+
+        // Replace cached image if already cached
+        if (cache.has(key)) {
+          const img = new Image();
+          img.onload = () => {
+            cache.set(key, img);
+          };
+          img.src = newMask.url;
+        }
       }
     });
   }

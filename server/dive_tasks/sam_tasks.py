@@ -245,7 +245,7 @@ def extract_frames(
     working_directory: Path,
 ) -> Path:
     media_results = gc.get(f'/dive_dataset/{dataset_id}/media')
-    video = media_results.get('video', None)
+    video = media_results.get('sourceVideo', None)
     if video is None:
         raise ValueError('Video file does not exists for this dataset so SAM can not be run')
     video_item_id = video.get('id', None)
@@ -632,6 +632,7 @@ def run_inference(
     output_dir.mkdir(parents=True, exist_ok=True)
     track_folder_id = None
     items_uploaded = []
+    rle_masks_updates = []
     last_update_frame = 0
     total_frames = trackingFrames
     final_mask_path = mask_location
@@ -701,7 +702,8 @@ def run_inference(
                             rle_masks,
                         )
                         track_folder_id = update_results['trackFolderId']
-                        items_uploaded.append(update_results['item'])
+                        items_uploaded.append(update_results)
+                        rle_masks_updates.append(update_results['rleMask'])
                         manager.updateProgress(
                             trackingFrames, absolute_frame - startFrame, 'Frame updated'
                         )
@@ -797,10 +799,18 @@ def update_annotation(
             },
         )
     if item and track_obj:
+        rle_data = rle_masks_json[str(trackId)][str(frameId)] if rle_masks_json else None
+        rleMask = None
+        if rle_data:
+            rleMask = {
+                'rle': rle_data['rle'],
+                'file_name': mask_path.name,
+            }
         return {
             'trackFolderId': track_folder_id,
             'item': item,
             'track': track_obj,
+            'rleMask': rleMask,
         }
 
 
@@ -812,7 +822,9 @@ def update_client(
     frame_ids = set()
     track_id = None
 
-    for item in items_uploaded:
+    for updated_mask in items_uploaded:
+        item = updated_mask['item']
+        rle_mask = updated_mask.get('rleMask', None)
         file_name = item['name']
         track_id = item["meta"].get(constants.MASK_FRAME_PARENT_TRACK_MARKER, None)
         frame_id = item["meta"].get(constants.MASK_FRAME_VALUE, None)
@@ -830,6 +842,7 @@ def update_client(
                     "trackId": track_id,
                 },
                 "url": url,
+                "rleMask": rle_mask
             }
         )
 
