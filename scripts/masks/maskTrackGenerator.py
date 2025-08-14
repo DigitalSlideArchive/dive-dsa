@@ -1,3 +1,15 @@
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#     "girder-client",
+#     "numpy",
+#     "pillow",
+#     "pycocotools",
+#     "scikit-image",
+#     "click",
+#     "setuptools"
+# ]
+# ///
 import json
 import random
 import numpy as np
@@ -11,17 +23,25 @@ import girder_client
 
 # === GLOBAL CONFIG ===
 API_URL = 'localhost'
-DATASET_ID = '67eecf75e6ee4e673f857aa9'
+DATASET_ID = '68347799959c4322160de6a4'
 PORT = 8010
 
 OUTPUT_MASKS = True  # ✅ Set to True to save masks as PNG images
-IMAGE_SIZE = (1024, 1280)  # height, width of image
+IMAGE_SIZE = (720, 1280)  # height, width of image
 SHAPE_SIZE = (100, 100)  # width, height of shape
 
 CONFIG = [
-    {'track_number': 0, 'num_frames': 500, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 1, 'num_frames': 300, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 0, 'num_frames': 200, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 1, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'bounce'},
     {'track_number': 2, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 3, 'num_frames': 200, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 4, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 5, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 6, 'num_frames': 200, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 7, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 8, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 9, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'circle'},
+    {'track_number': 10, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
 ]
 
 
@@ -133,6 +153,7 @@ def generate_tracks(upload):
                 'end': num_frames - 1,
                 'id': track_id,
                 'confidencePairs': [[mask_type, 1.0]],
+                'hasMask': True,
                 'attributes': {},
                 'meta': {},
                 'features': []
@@ -167,7 +188,7 @@ def generate_tracks(upload):
 
                 rle_masks_json[str(track_id)][str(frame_id)] = {
                     'rle': {
-                        'size': [IMAGE_SIZE[1], IMAGE_SIZE[0]],  # width, height
+                        'size': [IMAGE_SIZE[0], IMAGE_SIZE[1]],  # width, height
                         'counts': rle['counts']
                     }
                 }
@@ -246,6 +267,12 @@ def upload_to_girder():
             'RLE_MASK_FILE': True
         })
         print('Uploaded RLE_MASKS.json to masks folder.')
+
+    # Create a TrackJSON for uploading
+    if os.path.exists('trackJSON.json'):
+        track_item = gc.uploadFileToFolder(DATASET_ID, 'trackJSON.json')
+        gc.sendRestRequest("POST", f"/dive_rpc/postprocess/{DATASET_ID}")
+        print('Uploaded trackJSON.json to masks folder.')
 
 
 if __name__ == '__main__':

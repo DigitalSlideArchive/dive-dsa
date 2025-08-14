@@ -10,10 +10,16 @@ import {
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
 import { imageToRLEObject } from './rle';
+import { createRLEPreloader } from './usePreloadWorkers';
 
 // Dynamically import the worker
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
 const rleWorker = RLEWorker();
+
+const { preloadRLEMasks, terminate } = createRLEPreloader(
+  RLEWorker,
+  { batchSize: 50, enableTimingLogs: true },
+);
 
 export type MaskItem = {
   filename: string;
@@ -329,6 +335,27 @@ export default function useMasks(
         }
       });
     } else {
+      const startTime = performance.now();
+      preloadRLEMasks(
+        frame.value,
+        rleMasks.value,
+        inFlightWorker,
+        (results) => {
+          results.forEach(({ trackId, frameId, mask }) => {
+            const key = `${frameId}_${trackId}`;
+            rleCache.set(key, mask);
+            if (rleCache.size === masks.value.length) {
+              const endTime = performance.now();
+              console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
+              terminate();
+            }
+            if (loadingFrame.value === key) {
+              loadingFrame.value = false;
+            }
+          });
+        },
+      );
+      return;
       const frameBuckets: Record<number, Record<number, RLEFrameData>> = {};
       const sortedFlattenedMaskEntries: { trackId: number, frameId: number, rleWrapper: RLEFrameData }[] = [];
       Object.keys(rleMasks.value).forEach((trackIdStr) => {
@@ -338,13 +365,14 @@ export default function useMasks(
           const key = frameKey(frameId, trackId);
 
           if (
-            !rleCache.has(key)
+            !rleCache.has(key) && !inFlightWorker.has(key)
           ) {
             if (!frameBuckets[frameId]) {
               frameBuckets[frameId] = {};
             }
             frameBuckets[frameId][trackId] = rleMasks.value[trackId][frameId];
             sortedFlattenedMaskEntries.push({ trackId, frameId, rleWrapper: rleMasks.value[trackId][frameId] });
+            inFlightWorker.set(key, true);
           }
         });
       });
@@ -379,6 +407,9 @@ export default function useMasks(
           const newBatch = sortedFlattenedMaskEntries.slice(currentBatchIndex, currentBatchIndex + batchSize);
           currentBatchIndex += batchSize;
           // log frame start and end of the last batch
+          if (ENABLE_TIMING_LOGS) {
+            console.log(`🧾 Worker Batch: ${currentBatchIndex} of ${sortedFlattenedMaskEntries.length}`);
+          }
           rleWorker.postMessage({ rleMasks: newBatch }); // send the new batch to the worker
         }
       };
