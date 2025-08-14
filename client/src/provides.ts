@@ -366,6 +366,10 @@ function dummyState(): State {
       getRLEMask(trackId: number, frameId: number): RLEFrameData | undefined {
         return undefined;
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      getRLELuminanceMask(trackId: number, frameId: number): { width: number, height: number, data: Uint8Array } | undefined {
+        return undefined;
+      },
       editorOptions: {
         hasMasks: ref(false),
         toolEnabled: ref('pointer'),

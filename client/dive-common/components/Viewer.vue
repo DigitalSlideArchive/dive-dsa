@@ -926,6 +926,7 @@ export default defineComponent({
       setFrameRate,
       getMask,
       getRLEMask,
+      getRLELuminanceMask,
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
@@ -984,7 +985,7 @@ export default defineComponent({
         readOnlyMode: readonlyState,
         imageEnhancements,
         masks: {
-          getMask, getRLEMask, editorFunctions, editorOptions,
+          getMask, getRLEMask, getRLELuminanceMask, editorFunctions, editorOptions,
         },
       },
       globalHandler,
