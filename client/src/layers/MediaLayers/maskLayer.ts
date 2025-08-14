@@ -1,7 +1,8 @@
 import { MediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { Ref } from 'vue';
 //import { generateTestTexture } from 'vue-media-annotator/use/rle';
-import { maskToRGBA } from 'vue-media-annotator/use/rle';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { maskToLuminance, maskToLuminanceAlpha, maskToRGBA } from 'vue-media-annotator/use/rle';
 import { TypeStyling } from '../../StyleManager';
 
 export default class MaskLayer {
@@ -115,7 +116,8 @@ export default class MaskLayer {
         const texture = {
           width: item.width,
           height: item.height,
-          data: maskToRGBA(item.mask, item.width, item.height),
+          data: maskToLuminanceAlpha(item.mask, item.width, item.height),
+          type: 'LuminanceAlpha',
         };
         this.quads[item.trackId].data([
           {

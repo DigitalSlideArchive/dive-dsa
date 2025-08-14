@@ -37,14 +37,14 @@ export type RLEObject = {
     counts: string;
   };
 
-  type RLE = {
-    h: number;
-    w: number;
-    m: number;
-    cnts: number[];
-  };
+type RLE = {
+  h: number;
+  w: number;
+  m: number;
+  cnts: number[];
+};
 
-  type BB = number[];
+type BB = number[];
 
 function rleInit(R: RLE, h: number, w: number, m: number, cnts: number[]) {
   R.h = h;
@@ -135,6 +135,32 @@ export function maskToRGBA(maskData: Uint8Array, width: number, height: number) 
   return rgbaData;
 }
 
+export function maskToLuminance(maskData: Uint8Array, width: number, height: number) {
+  const luminanceData = new Uint8Array(width * height);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cocoIndex = row + col * height;
+      const value = maskData[cocoIndex] ? 255 : 0;
+      const imgIndex = (row * width + col) * 1;
+      luminanceData[imgIndex] = value;
+    }
+  }
+  return luminanceData;
+}
+
+export function maskToLuminanceAlpha(maskData: Uint8Array, width: number, height: number) {
+  const luminanceAlphaData = new Uint8Array(width * height * 2);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cocoIndex = row + col * height;
+      const value = maskData[cocoIndex] ? 255 : 0;
+      const imgIndex = (row * width + col) * 2;
+      luminanceAlphaData[imgIndex] = value;
+      luminanceAlphaData[imgIndex + 1] = value;
+    }
+  }
+  return luminanceAlphaData;
+}
 export function toBbox(rleObjs: RLEObject[]): BB {
   const Rs = _frString(rleObjs);
   const n = Rs._n;
