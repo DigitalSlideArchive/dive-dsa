@@ -246,7 +246,7 @@ export default defineComponent({
               x-small
               color="primary"
               depressed
-              :to="{ name: 'viewer', params: { id: item.DIVEDataset } }"
+              :to="{ name: 'viewer', params: { id: item.DIVEDataset }, query: { diveMetadataRootId: id } }"
             >
               Launch Annotator
             </v-btn>

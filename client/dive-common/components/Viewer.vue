@@ -293,6 +293,7 @@ export default defineComponent({
       selectedKey,
       selectedCamera,
       editingTrack,
+      diveMetadataRootId,
     } = useModeManager({
       recipes,
       trackFilterControls: trackFilters,
@@ -856,6 +857,7 @@ export default defineComponent({
           mediaLoaded,
           handler.trackSelect,
           aggregateController.value.seek,
+          handler.setDiveMetadataRootId,
         );
         if (!getUISetting('UIContextBarDefaultNotOpen')) {
           context.toggle();
@@ -980,6 +982,7 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
+        diveMetadataRootId,
         masks: { getMask, editorFunctions, editorOptions },
       },
       globalHandler,
