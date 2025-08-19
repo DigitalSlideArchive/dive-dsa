@@ -16,9 +16,10 @@ import { createRLEPreloader } from './usePreloadWorkers';
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
 const rleWorker = RLEWorker();
 
+const ENABLE_TIMING_LOGS = true;
 const { preloadRLEMasks, terminate } = createRLEPreloader(
   RLEWorker,
-  { batchSize: 50, enableTimingLogs: true },
+  { batchSize: 50, enableTimingLogs: ENABLE_TIMING_LOGS },
 );
 
 export type MaskItem = {
@@ -57,10 +58,7 @@ export interface UseMaskInterface {
 
 }
 
-const useRLE = ref(true);
-const batchSize = 100;
-const ENABLE_TIMING_LOGS = true;
-let lastTime = 0;
+const useRLE = ref(true); // This should only be false for testing purposes
 export async function getMaskBlobAndBoundsFromImage(
   image: HTMLImageElement,
 ): Promise<{ blob: Blob; bounds: RectBounds | null }> {
@@ -248,6 +246,30 @@ export default function useMasks(
         }
       }
     });
+    if (useRLE.value) {
+      const startTime = performance.now();
+      preloadRLEMasks(
+        frame.value,
+        rleMasks.value,
+        inFlightWorker,
+        (results) => {
+          results.forEach(({ trackId, frameId, mask }) => {
+            const key = `${frameId}_${trackId}`;
+            rleCache.set(key, mask);
+            if (rleCache.size === masks.value.length) {
+              const endTime = performance.now();
+              if (ENABLE_TIMING_LOGS) {
+                console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
+              }
+              terminate();
+            }
+            if (loadingFrame.value === key) {
+              loadingFrame.value = false;
+            }
+          });
+        },
+      );
+    }
   }
 
   rleWorker.onerror = (error) => {
@@ -346,7 +368,9 @@ export default function useMasks(
             rleCache.set(key, mask);
             if (rleCache.size === masks.value.length) {
               const endTime = performance.now();
-              console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
+              if (ENABLE_TIMING_LOGS) {
+                console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
+              }
               terminate();
             }
             if (loadingFrame.value === key) {
@@ -355,76 +379,6 @@ export default function useMasks(
           });
         },
       );
-      return;
-      const frameBuckets: Record<number, Record<number, RLEFrameData>> = {};
-      const sortedFlattenedMaskEntries: { trackId: number, frameId: number, rleWrapper: RLEFrameData }[] = [];
-      Object.keys(rleMasks.value).forEach((trackIdStr) => {
-        const trackId = Number(trackIdStr);
-        Object.keys(rleMasks.value[trackIdStr]).forEach((frameIdStr) => {
-          const frameId = Number(frameIdStr);
-          const key = frameKey(frameId, trackId);
-
-          if (
-            !rleCache.has(key) && !inFlightWorker.has(key)
-          ) {
-            if (!frameBuckets[frameId]) {
-              frameBuckets[frameId] = {};
-            }
-            frameBuckets[frameId][trackId] = rleMasks.value[trackId][frameId];
-            sortedFlattenedMaskEntries.push({ trackId, frameId, rleWrapper: rleMasks.value[trackId][frameId] });
-            inFlightWorker.set(key, true);
-          }
-        });
-      });
-      // Sort flattenedMask Entries by distance to currentFrame
-      sortedFlattenedMaskEntries.sort((a, b) => {
-        const distA = Math.abs(a.frameId - currentFrame);
-        const distB = Math.abs(b.frameId - currentFrame);
-        return distA - distB;
-      });
-
-      // Create a batch of RLEFrameData
-      const batch = sortedFlattenedMaskEntries.slice(0, batchSize);
-      let currentBatchIndex = batchSize;
-
-      rleWorker.onmessage = (event) => {
-        const { rleLuminanceMasks } = event.data;
-        if (ENABLE_TIMING_LOGS) {
-          const end = performance.now();
-          //console.log(`🧾 Worker End: ${end}`);
-          console.log(`🧾 Worker Time: ${end - lastTime}ms`);
-          lastTime = end;
-        }
-        rleLuminanceMasks.forEach((rle: { trackId: number, frameId: number, width: number, height: number, data: Uint8Array }) => {
-          const key = frameKey(rle.frameId, rle.trackId);
-          rleCache.set(key, { width: rle.width, height: rle.height, data: rle.data });
-          if (loadingFrame.value === key) {
-            loadingFrame.value = false;
-          }
-          inFlightWorker.delete(key);
-        });
-        if (currentBatchIndex < sortedFlattenedMaskEntries.length && rleLuminanceMasks.length > 0) {
-          const newBatch = sortedFlattenedMaskEntries.slice(currentBatchIndex, currentBatchIndex + batchSize);
-          currentBatchIndex += batchSize;
-          // log frame start and end of the last batch
-          if (ENABLE_TIMING_LOGS) {
-            console.log(`🧾 Worker Batch: ${currentBatchIndex} of ${sortedFlattenedMaskEntries.length}`);
-          }
-          rleWorker.postMessage({ rleMasks: newBatch }); // send the new batch to the worker
-        }
-      };
-
-      // ✅ Post the ordered data
-      if (sortedFlattenedMaskEntries.length > 0) {
-        if (ENABLE_TIMING_LOGS) {
-          lastTime = performance.now();
-          console.log(
-            `🧾 Worker Start: ${lastTime}`,
-          );
-        }
-
-        rleWorker.postMessage({ rleMasks: batch });
-      }
     }
   }
 

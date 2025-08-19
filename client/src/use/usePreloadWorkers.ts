@@ -28,7 +28,7 @@ export function createRLEPreloader(
   const {
     batchSize,
     maxWorkers = navigator.hardwareConcurrency
-      ? Math.max(1, Math.floor(navigator.hardwareConcurrency / 2))
+      ? Math.max(1, Math.floor(navigator.hardwareConcurrency / 4))
       : 4,
     enableTimingLogs = false,
   } = options;
