@@ -202,6 +202,10 @@ async function exportDiveMetadata(folderId: string, filters: DIVEMetadataFilter,
   URL.revokeObjectURL(url);
 }
 
+async function putDiveMetadataLastModified(folderId:string, rootId: string) {
+  return girderRest.put(`dive_metadata/${folderId}/last_modified`, null, { params: { rootId } });
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
@@ -216,4 +220,5 @@ export {
   updateDiveMetadataSlicerConfig,
   runSlicerMetadataTask,
   exportDiveMetadata,
+  putDiveMetadataLastModified,
 };

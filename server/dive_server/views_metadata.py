@@ -3,6 +3,7 @@ import io
 import json
 import math
 import re
+from datetime import datetime
 
 import cherrypy
 from girder.api import access
@@ -151,6 +152,7 @@ class DIVEMetadata(Resource):
         )
         self.route("POST", (":id", "export"), self.export_metadata)
         self.route("POST", ("bulk_update_metadata", ':rootFolder'), self.bulk_update_metadata)
+        self.route("PUT", (':divedataset', 'last_modified'), self.set_last_modified)
 
     @access.user
     @autoDescribeRoute(
@@ -1348,3 +1350,43 @@ class DIVEMetadata(Resource):
                     }
                 )
         return {"results": results}
+
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Set Last Modified Date for a DIVE Dataset")
+        .modelParam(
+            "divedataset",
+            description="The folder to set last modified date for",
+            model=Folder,
+            level=AccessType.WRITE,
+            destName="divedataset",
+        )
+        .modelParam(
+            "rootId",
+            description="The root metadata folder this dataset belongs to",
+            model=Folder,
+            level=AccessType.READ,
+            destName="rootId",
+        )
+    )
+    def set_last_modified(self, divedataset, rootId):
+        user = self.getCurrentUser()
+        query = {
+            "DIVEDataset": str(divedataset["_id"]),
+            "root": str(rootId["_id"]),
+        }
+        found = DIVE_Metadata().findOne(query=query, user=user, level=AccessType.READ)
+        if found:
+            DIVE_MetadataKeys().addModifiedKeys(rootId)
+            rootFolder = Folder().load(str(rootId["_id"]), user=user, level=AccessType.WRITE)
+            categoricalLimit = (
+                rootFolder['meta'].get(DIVEMetadataFilter, {}).get('categoricalLimit', 50)
+            )
+
+            DIVE_Metadata().updateKey(divedataset, rootId, user, 'LastModifiedTime', datetime.now().isoformat(), categoricalLimit, force=True)
+            DIVE_Metadata().updateKey(divedataset, rootId, user, 'LastModifiedBy', user['email'], categoricalLimit, force=True)
+        else:
+            raise RestException(
+                f'Could not find for FolderId: {divedataset["_id"]} to set last modified date.'
+            )
