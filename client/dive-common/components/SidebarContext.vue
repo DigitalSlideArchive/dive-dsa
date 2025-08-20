@@ -86,6 +86,5 @@ export default defineComponent({
   overflow-y: hidden;
 }
 .sidebar-content {
-  overflow-y: auto;
 }
 </style>
