@@ -19,6 +19,7 @@ export default defineComponent({
     const valueList: Ref<string[] | undefined> = ref(undefined);
     const lockedValueList = ref(true);
     const allowNullValueList = ref(false);
+    const maxWidth = ref('400px');
 
     /**
      * Placeholder resolver function.  Wrapped in object so that
@@ -130,6 +131,7 @@ export default defineComponent({
       input,
       positive,
       negative,
+      maxWidth,
       focusPositive,
       focusNegative,
     };
@@ -140,7 +142,7 @@ export default defineComponent({
 <template>
   <v-dialog
     v-model="show"
-    max-width="400"
+    :max-width="maxWidth"
   >
     <v-card>
       <v-card-title
