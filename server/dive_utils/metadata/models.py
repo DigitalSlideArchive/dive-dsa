@@ -247,7 +247,7 @@ class DIVE_MetadataKeys(Model):
                     if key == 'LastModifiedTime':
                         existing['metadataKeys'][key] = {'category': 'search', 'set': []}
                     else:
-                        existing['metadataKeys'][key] = {'category': 'categorical', 'set': []}   
+                        existing['metadataKeys'][key] = {'category': 'categorical', 'set': []}
             self.save(existing)
 
     def deleteKey(self, folder, owner, key):

@@ -1,9 +1,9 @@
 import csv
+from datetime import datetime
 import io
 import json
 import math
 import re
-from datetime import datetime
 
 import cherrypy
 from girder.api import access
@@ -1351,7 +1351,6 @@ class DIVEMetadata(Resource):
                 )
         return {"results": results}
 
-
     @access.user
     @autoDescribeRoute(
         Description("Set Last Modified Date for a DIVE Dataset")
@@ -1384,8 +1383,24 @@ class DIVEMetadata(Resource):
                 rootFolder['meta'].get(DIVEMetadataFilter, {}).get('categoricalLimit', 50)
             )
 
-            DIVE_Metadata().updateKey(divedataset, rootId, user, 'LastModifiedTime', datetime.now().isoformat(), categoricalLimit, force=True)
-            DIVE_Metadata().updateKey(divedataset, rootId, user, 'LastModifiedBy', user['email'], categoricalLimit, force=True)
+            DIVE_Metadata().updateKey(
+                divedataset,
+                rootId,
+                user,
+                'LastModifiedTime',
+                datetime.now().isoformat(),
+                categoricalLimit,
+                force=True,
+            )
+            DIVE_Metadata().updateKey(
+                divedataset,
+                rootId,
+                user,
+                'LastModifiedBy',
+                user['email'],
+                categoricalLimit,
+                force=True,
+            )
         else:
             raise RestException(
                 f'Could not find for FolderId: {divedataset["_id"]} to set last modified date.'
