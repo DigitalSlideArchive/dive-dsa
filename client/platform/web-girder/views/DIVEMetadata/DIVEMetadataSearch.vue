@@ -11,6 +11,7 @@ import {
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataEditKey from './DIVEMetadataEditKey.vue';
@@ -33,6 +34,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const router = useRouter();
     const folderList: Ref<MetadataResultItem[]> = ref([]);
     const timeString = ref(Date.now());
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
@@ -174,6 +176,11 @@ export default defineComponent({
         });
       }
     };
+    const openInNewTab = (id: string) => {
+      const route = router.resolve({ name: 'viewer', params: { id } });
+      window.open(route.href, '_blank');
+    };
+
     return {
       totalPages,
       count,
@@ -195,6 +202,7 @@ export default defineComponent({
       unlockedMap,
       updateDiveMetadataKeyVal,
       loading,
+      openInNewTab,
     };
   },
 });
@@ -242,13 +250,22 @@ export default defineComponent({
           <div>{{ item.filename }}</div>
           <div>
             <v-btn
-              class="mx-2 mb-2"
+              class="ml-2"
               x-small
               color="primary"
               depressed
               :to="{ name: 'viewer', params: { id: item.DIVEDataset } }"
             >
               Launch Annotator
+              <span class="ml-1">|</span>
+              <v-icon
+                small
+                class="ml-1"
+                @click.stop.prevent="openInNewTab(item.DIVEDataset)"
+                style="cursor:pointer;"
+              >
+                mdi-open-in-new
+              </v-icon>
             </v-btn>
           </div>
         </v-row>
