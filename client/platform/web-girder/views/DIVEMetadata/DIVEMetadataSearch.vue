@@ -177,7 +177,7 @@ export default defineComponent({
       }
     };
     const openInNewTab = (id: string) => {
-      const route = router.resolve({ name: 'viewer', params: { id } });
+      const route = router.resolve({ name: 'viewer', params: { id }, query: { diveMetadataRootId: props.id } });
       window.open(route.href, '_blank');
     };
 
