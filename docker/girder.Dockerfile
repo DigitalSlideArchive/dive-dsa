@@ -1,7 +1,7 @@
 # ========================
 # == CLIENT BUILD STAGE ==
 # ========================
-FROM node:20 as client-builder
+FROM node:20 AS client-builder
 WORKDIR /app
 
 # Install dependencies
@@ -16,7 +16,7 @@ RUN yarn build:web
 # == SERVER BUILD STAGE ==
 # ========================
 # Note: server-builder stage will be the same in both dockerfiles
-FROM python:3.11-buster as server-builder
+FROM python:3.11-bookworm AS server-builder
 
 WORKDIR /opt/dive/src
 
@@ -57,7 +57,7 @@ RUN girder build
 # =================
 # == DIST SERVER ==
 # =================
-FROM python:3.11-slim-buster as server
+FROM python:3.11-slim-bookworm AS server
 
 RUN apt-get update
 RUN apt-get install -y libgl1 libglib2.0-0

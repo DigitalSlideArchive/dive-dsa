@@ -60,6 +60,7 @@ import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue'
 import useURLParameters from 'vue-media-annotator/use/useURLParameters';
 import useUINotifications from 'platform/web-girder/UIControls';
 import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
+import { putDiveMetadataLastModified } from 'platform/web-girder/api/divemetadata.service';
 import { OverlayPreferences } from 'vue-media-annotator/types';
 import { useRoute } from 'vue-router/composables';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
@@ -293,6 +294,7 @@ export default defineComponent({
       selectedKey,
       selectedCamera,
       editingTrack,
+      diveMetadataRootId,
     } = useModeManager({
       recipes,
       trackFilterControls: trackFilters,
@@ -504,6 +506,9 @@ export default defineComponent({
         const revisions = (await getLatestRevision(datasetId.value)).data;
         if (revisions.length) {
           latestRevisionId.value = revisions[0].revision;
+        }
+        if (diveMetadataRootId.value) {
+          putDiveMetadataLastModified(datasetId.value, diveMetadataRootId.value);
         }
       } catch (err) {
         let text = 'Unable to Save Data';
@@ -856,6 +861,7 @@ export default defineComponent({
           mediaLoaded,
           handler.trackSelect,
           aggregateController.value.seek,
+          handler.setDiveMetadataRootId,
         );
         if (!getUISetting('UIContextBarDefaultNotOpen')) {
           context.toggle();
@@ -980,6 +986,7 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
+        diveMetadataRootId,
         masks: { getMask, editorFunctions, editorOptions },
       },
       globalHandler,

@@ -198,6 +198,8 @@ class DIVE_MetadataKeys(Model):
         if owner['_id'] and existing['owner'] != str(owner['_id']):
             raise Exception('Only the Owner can modify key permissions')
         elif existing:
+            if key in ['LastModifiedTime', 'LastModifiedBy']:
+                raise Exception('LastModifiedTime and LastModifiedBy are not modifiable')
             if key not in existing['metadataKeys'].keys():
                 raise Exception(f'Key: {key} not in the metadata keys to modify permission')
             else:
@@ -234,10 +236,24 @@ class DIVE_MetadataKeys(Model):
                     existing['unlocked'].append(key)
                 self.save(existing)
 
+    def addModifiedKeys(self, folder):
+        existing = self.findOne({'root': str(folder['_id'])})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
+        elif existing and existing.get('metadataKeys', {}).get('LastModifiedTime', None) is None:
+            keys = ['LastModifiedTime', 'LastModifiedBy']
+            for key in keys:
+                if key not in existing['metadataKeys'].keys():
+                    if key == 'LastModifiedTime':
+                        existing['metadataKeys'][key] = {'category': 'search', 'set': []}
+                    else:
+                        existing['metadataKeys'][key] = {'category': 'categorical', 'set': []}
+            self.save(existing)
+
     def deleteKey(self, folder, owner, key):
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
         if owner['_id'] and existing['owner'] != str(owner['_id']):
             raise Exception('Only the Owner can modify key permissions')
         elif existing:

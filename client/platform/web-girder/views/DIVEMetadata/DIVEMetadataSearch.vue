@@ -177,7 +177,7 @@ export default defineComponent({
       }
     };
     const openInNewTab = (id: string) => {
-      const route = router.resolve({ name: 'viewer', params: { id } });
+      const route = router.resolve({ name: 'viewer', params: { id }, query: { diveMetadataRootId: props.id } });
       window.open(route.href, '_blank');
     };
 
@@ -254,7 +254,7 @@ export default defineComponent({
               x-small
               color="primary"
               depressed
-              :to="{ name: 'viewer', params: { id: item.DIVEDataset } }"
+              :to="{ name: 'viewer', params: { id: item.DIVEDataset }, query: { diveMetadataRootId: id } }"
             >
               Launch Annotator
               <span class="ml-1">|</span>
