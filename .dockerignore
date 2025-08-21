@@ -3,3 +3,5 @@ db
 logs
 **/node_modules
 .env
+**/.venv
+**/.tox

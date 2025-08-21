@@ -53,12 +53,11 @@ COPY docker/entrypoint_worker_gpu.sh /entrypoint_worker_gpu.sh
 RUN chmod +x /tini /entrypoint_worker_gpu.sh
 
 # ----------------------------
-# Poetry Installation & Python venv
+# UV Installation & Python venv
 # ----------------------------
-RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.1.2 POETRY_HOME=/opt/dive/poetry python3.11 -
-ENV PATH="/opt/dive/poetry/bin:$PATH"
-
-RUN python3.11 -m venv --copies /opt/dive/local/venv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV UV_PROJECT_ENVIRONMENT=/opt/dive/local/venv
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
@@ -66,11 +65,10 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Dependency Installation
 # ----------------------------
 COPY server/pyproject.toml /opt/dive/src/
+COPY server/uv.lock /opt/dive/src/
 COPY .git/ /opt/dive/src/.git/
 
-RUN poetry env use system && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-root
+RUN uv sync --frozen --no-install-project --no-dev
 
 # ----------------------------
 # Application Source Code
@@ -84,7 +82,7 @@ RUN install -g dive -o dive -d /tmp/SAM2
 USER dive
 
 # Final install in user context
-RUN poetry install --only main
+RUN uv sync --frozen --no-dev
 
 # ----------------------------
 # FFmpeg Binary into venv
