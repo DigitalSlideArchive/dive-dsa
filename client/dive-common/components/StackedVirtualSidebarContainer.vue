@@ -52,8 +52,7 @@ export default defineComponent({
     v-resize="onResize"
     :width="width"
     tile
-    outlined
-    class="sidebar d-flex flex-column overflow-hidden"
+    class="sidebar-virtual d-flex flex-column"
     style="z-index:1;"
   >
     <slot
@@ -64,7 +63,9 @@ export default defineComponent({
 </template>
 
 <style scoped>
-.sidebar {
+.sidebar-virtual {
   max-height: calc(100vh - 112px);
+  min-height: calc(100vh - 112px);
+  overflow-x: hidden;
 }
 </style>
