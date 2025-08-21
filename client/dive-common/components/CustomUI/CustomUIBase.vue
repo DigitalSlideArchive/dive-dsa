@@ -279,6 +279,7 @@ export default defineComponent({
             valueList: attribute.values,
             lockedValueList: !!attribute.lockedValues,
             value,
+            maxWidth: '45vw',
           });
           if (val !== null) {
             if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
