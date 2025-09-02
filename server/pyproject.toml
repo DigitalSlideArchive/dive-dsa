@@ -29,6 +29,9 @@ authors = [{name = "Kitware, Inc.", email = "viame-web@kitware.com"}]
 license = {text = "Apache 2.0"}
 readme = "README.md"
 keywords = ["DIVE", "VIAME", "Annotation", "Computer Vision", "Marine"]
+default-optional-dependency-keys = [
+  "cpu",
+]
 classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Natural Language :: English",
@@ -58,17 +61,25 @@ dependencies = [
   "pycocotools>=2.0.8",
   "pillow>=11.3.0",
   "numpy>=1.21.4",
-  "torch>=2.7.1",
-  "sam2>=1.1.0",
   "opencv-python-headless>=4.11.0.86",
+  "sam2>=1.1.0",
+  "torch>=2.7.1",
+  "triton>=3.4.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "numpy>=1.21.4",
   "opencv-python>=4.5.5",
   "tox>=3.25.0",
 ]
+cpu = [
+  "torch>=2.7.1",
+  "triton>=3.4.0",
+]
+cu128 = [
+  "torch>=2.7.1",
+]
+
 
 [project.scripts]
 diveutils = "scripts.entrypoint_dev:cli"
@@ -92,8 +103,26 @@ include = ["**/*.mako"]
 include = ["dive_server/", "dive_tasks/", "dive_utils/", "**/*.mako", "README.md"]
 
 [tool.uv]
-dev-dependencies = [
-  "numpy>=1.21.4",
-  "opencv-python>=4.5.5",
-  "tox>=3.25.0",
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cu128" },
+  ],
 ]
+
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu128", extra = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

@@ -3,6 +3,7 @@
 # ========================
 FROM node:20 AS client-builder
 WORKDIR /app
+SHELL ["/bin/bash", "-c"]
 
 # Install dependencies
 COPY client/package.json client/yarn.lock /app/
@@ -17,12 +18,13 @@ RUN yarn build:web
 # ========================
 # Note: server-builder stage will be the same in both dockerfiles
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server-builder
+SHELL ["/bin/bash", "-c"]
 
 WORKDIR /opt/dive/src
 
 # https://cryptography.io/en/latest/installation/#debian-ubuntu
 RUN apt-get update
-RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm libgl1 git
+RUN apt-get install -y cargo npm git curl
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # Create a virtual environment for the installation
 RUN uv venv /opt/dive/local/venv
@@ -55,9 +57,6 @@ RUN girder build
 # == DIST SERVER ==
 # =================
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server
-
-RUN apt-get update
-RUN apt-get install -y libgl1 libglib2.0-0
 
 # Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"

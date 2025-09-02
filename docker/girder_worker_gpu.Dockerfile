@@ -2,7 +2,7 @@
 # == SERVER BUILD STAGE ==
 # ========================
 
-FROM nvidia/cuda:12.6.0-devel-ubuntu20.04 AS server-builder
+FROM nvidia/cuda:12.6.0-runtime-ubuntu20.04 AS server-builder
 
 # ----------------------------
 # Environment Configuration
@@ -16,33 +16,17 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ENV TINI_VERSION=v0.19.0
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget curl tar xz-utils ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 # ----------------------------
 # System Dependencies & Python 3.11
 # ----------------------------
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    build-essential \
-    libssl-dev \
-    libffi-dev \
-    libsm6 \
-    libxext6 \
-    libgl1 \
-    curl \
-    wget \
-    git && \
-    wget -O ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
+RUN wget -O ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
     mkdir /tmp/ffextracted && \
     tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components=1 && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-venv \
-    python3.11-dev \
-    python3.11-tk && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 - && \
-    ln -s /usr/bin/python3.11 /usr/bin/python && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* ffmpeg.tar.xz
+     rm -rf /var/lib/apt/lists/* ffmpeg.tar.xz
 
 # ----------------------------
 # Working Directory & Entrypoint
@@ -52,10 +36,21 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 COPY docker/entrypoint_worker_gpu.sh /entrypoint_worker_gpu.sh
 RUN chmod +x /tini /entrypoint_worker_gpu.sh
 
+# Create user & assign permissions
+RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
+    chown -R dive:dive /opt/dive
+RUN install -g dive -o dive -d /tmp/SAM2
+USER dive
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/
+# Move into the PATH
+RUN ls /usr/local
+ENV PATH="/usr/local:$PATH"
+
+
 # ----------------------------
 # UV Installation & Python venv
 # ----------------------------
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/opt/dive/local/venv
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
@@ -75,14 +70,10 @@ RUN uv sync --frozen --no-install-project --no-dev
 # ----------------------------
 COPY server/ /opt/dive/src/
 
-# Create user & assign permissions
-RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
-    chown -R dive /opt/dive
-RUN install -g dive -o dive -d /tmp/SAM2
-USER dive
-
 # Final install in user context
 RUN uv sync --frozen --no-dev
+
+
 
 # ----------------------------
 # FFmpeg Binary into venv

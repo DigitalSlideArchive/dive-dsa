@@ -3,12 +3,13 @@
 # ========================
 # Note: server-builder stage will be the same in both dockerfiles
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server-builder
+SHELL ["/bin/bash", "-c"]
 
 WORKDIR /opt/dive/src
 
 # https://cryptography.io/en/latest/installation/#debian-ubuntu
 RUN apt-get update
-RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm libgl1 git
+RUN apt-get install -y cargo npm libgl1 git
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # Create a virtual environment for the installation
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
@@ -19,13 +20,13 @@ COPY server/pyproject.toml /opt/dive/src/
 COPY server/uv.lock /opt/dive/src/
 COPY .git/ /opt/dive/src/.git/
 # Install dependencies only (no dev dependencies)
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev --extra cu128
 # Build girder client, including plugins like worker/jobs
 # RUN girder build
 
 # Copy full source code and install
 COPY server/ /opt/dive/src/
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra cu128
 
 # ====================
 # == FFMPEG FETCHER ==
