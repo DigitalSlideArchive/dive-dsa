@@ -11,11 +11,12 @@ import DIVEMetadataFilterItemVue from './DIVEMetadataFilterItem.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataSlicerVue from './DIVEMetadataSlicer.vue';
 import DIVEMetadataExportVue from './DIVEMetadataExport.vue';
+import DIVEMetadataImportVue from './DIVEMetadataImport.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataFilter',
   components: {
-    DIVEMetadataFilterItemVue, DIVEMetadataCloneVue, DIVEMetadataSlicerVue, DIVEMetadataExportVue,
+    DIVEMetadataFilterItemVue, DIVEMetadataCloneVue, DIVEMetadataSlicerVue, DIVEMetadataExportVue, DIVEMetadataImportVue,
   },
   props: {
     currentPage: {
@@ -264,6 +265,10 @@ export default defineComponent({
       return false;
     });
 
+    const metadataImported = () => {
+      emit('update:currentPage', 0);
+    };
+
     return {
 
       pageList,
@@ -286,6 +291,7 @@ export default defineComponent({
       toggleRegex,
       regEx,
       showSlicerCLI,
+      metadataImported,
     };
   },
 });
@@ -332,6 +338,7 @@ export default defineComponent({
 
         <v-spacer />
         <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="pr-2" @job-complete="jobCompleted()" />
+        <DIVEMetadataImportVue :metadata-root="id" class="pr-2" @updated="metadataImported()" />
         <DIVEMetadataExportVue :metadata-root="id" :filters="currentFilter" class="pr-4" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select

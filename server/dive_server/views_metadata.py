@@ -14,6 +14,7 @@ from girder.exceptions import RestException
 from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
+from girder.models.upload import Upload
 from girder.models.setting import Setting
 from girder.models.token import Token
 from girder.utility import path as path_util
@@ -27,6 +28,7 @@ from dive_utils.constants import (
     DIVEMetadataClonedFilterBase,
     DIVEMetadataFilter,
     DIVEMetadataMarker,
+    DIVEMetadataHistoryMarker,
     jsonRegex,
     ndjsonRegex,
 )
@@ -109,6 +111,127 @@ def load_metadata_json(search_folder, type='ndjson'):
             return False
         return json_data, file['name']
 
+def bulk_metadata_update_process(user, rootFolder, updates):
+    results = []
+    # Get or create MetadataKeys for the root
+    if rootFolder['meta'].get(DIVEMetadataMarker, False) is False:
+        raise RestException('Folder is not a DIVE Metadata folder', code=404)
+    query = {"root": str(rootFolder["_id"])}
+    metadata_keys_doc = DIVE_MetadataKeys().findOne(query=query)
+    categoricalLimit = (
+        rootFolder.get('meta', {}).get('DIVEMetadataFilter', {}).get('categoricalLimit', 50)
+    )
+    # Helper to infer type/category
+    new_keys = {}
+    for _idx, entry in enumerate(updates):
+        metadata = entry.get("metadata", {})
+        for key, value in metadata.items():
+            if key not in metadata_keys_doc["metadataKeys"]:
+                if key not in new_keys:
+                    new_keys[key] = set()
+                new_keys[key].add(value)
+    # Infer types/categories for new keys
+    for key, values in new_keys.items():
+        if isinstance(next(iter(values)), str):
+            category = 'categorical' if len(values) < categoricalLimit else 'search'
+        elif isinstance(next(iter(values)), (int, float)):
+            category = 'numerical'
+
+        else:
+            category = 'search'
+        info = {
+            "category": category,
+            "count": len(values),
+        }
+        if category == 'categorical':
+            info['set'] = list(values)
+        elif category == 'numerical':
+            info['range'] = {
+                "min": min(values),
+                "max": max(values),
+            }
+        DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
+    for _idx, entry in enumerate(updates):
+        matcher = entry.get("matcher", {})
+        metadata = entry.get("metadata", {})
+        reason = None
+        # Try to find by DIVEDataset (datasetId) or videoName
+        dataset_id = matcher.get("datasetId")
+        video_name = matcher.get("videoName")
+        if dataset_id:
+            dive_metadata = DIVE_Metadata().findOne(
+                {"DIVEDataset": dataset_id, 'root': str(rootFolder["_id"])}
+            )
+            if not dive_metadata:
+                reason = f"No dataset found with id {dataset_id}"
+        elif video_name:
+            dive_metadata = DIVE_Metadata().findOne(
+                {"filename": video_name, 'root': str(rootFolder["_id"])}
+            )
+            if not dive_metadata:
+                dive_metadata = DIVE_Metadata().findOne(
+                    {"metadata.DIVE_Name": video_name, 'root': str(rootFolder["_id"])}
+                )
+            if not dive_metadata:
+                reason = f"No dataset found with videoName or DIVE_Name {video_name}"
+        else:
+            reason = "No matcher provided (need datasetId or videoName)"
+        if dive_metadata:
+            # Find the DIVE_Metadata entry for this dataset and root
+            dataset = Folder().load(
+                dive_metadata['DIVEDataset'], level=AccessType.READ, user=user
+            )
+            updated_keys = []
+            errors = []
+            # initial pass for all metadata keys:
+            for key, value in metadata.items():
+                # Set the value for this key on the dataset
+                try:
+                    rootId = str(rootFolder["_id"])
+                    DIVE_Metadata().updateKey(
+                        dataset, rootId, user, key, value, categoricalLimit, force=True
+                    )
+                    updated_keys.append(key)
+                except Exception as ex:
+                    errors.append(f"Failed to set {key}: {str(ex)}")
+            if updated_keys and not errors:
+                results.append(
+                    {
+                        "matcher": matcher,
+                        "status": "success",
+                        "datasetId": str(dataset["_id"]),
+                        "updatedKeys": updated_keys,
+                    }
+                )
+            elif updated_keys and errors:
+                results.append(
+                    {
+                        "matcher": matcher,
+                        "status": "partial_success",
+                        "datasetId": str(dataset["_id"]),
+                        "updatedKeys": updated_keys,
+                        "errors": errors,
+                    }
+                )
+            else:
+                results.append(
+                    {
+                        "matcher": matcher,
+                        "status": "error",
+                        "datasetId": str(dataset["_id"]),
+                        "errors": errors,
+                    }
+                )
+        else:
+            results.append(
+                {
+                    "matcher": matcher,
+                    "status": "not_found",
+                    "error": reason,
+                }
+            )
+    return results
+
 
 class DIVEMetadata(Resource):
     """DIVE Metadata processing and filtering for parent folders"""
@@ -152,6 +275,7 @@ class DIVEMetadata(Resource):
         )
         self.route("POST", (":id", "export"), self.export_metadata)
         self.route("POST", ("bulk_update_metadata", ':rootFolder'), self.bulk_update_metadata)
+        self.route("POST", ("bulk_update_file", ':rootFolder'), self.bulk_update_metadata_file)
         self.route("PUT", (':divedataset', 'last_modified'), self.set_last_modified)
 
     @access.user
@@ -1205,6 +1329,102 @@ class DIVEMetadata(Resource):
             setResponseHeader('Content-Type', 'application/json')
             return json.dumps(export_data).encode('utf-8')
 
+
+    def bulk_metadata_process_file(self, user, rootFolder, updates):
+        query = self.get_filter_query(rootFolder, user, None)
+        metadata_items = list(DIVE_Metadata().find(query, user=user))
+
+        previous_data = []
+        for item in metadata_items:
+            export_item = item.get('metadata', {}).copy()
+            export_item['DIVEDataset'] = str(item['DIVEDataset'])
+            previous_data.append(export_item)
+        json.dumps(previous_data).encode('utf-8')
+
+        results = bulk_metadata_update_process(user, rootFolder, updates)
+        # get errors in the results
+        errors = []
+        for item in results:
+            if 'error' in item.keys():
+                errors.append(item['error'])
+        if len(errors) > 0:
+            return results
+        # Check and find DIVEMetadataMarker folder or create it if it doesn't exist
+        metadata_folder = Folder().findOne({
+            "name": DIVEMetadataHistoryMarker,
+            "parent": str(rootFolder["_id"]),
+            f'meta.{DIVEMetadataHistoryMarker}': {'$in': TRUTHY_META_VALUES},
+
+        }, user=user, level=AccessType.WRITE)
+        if not metadata_folder:
+            metadata_folder = Folder().createFolder(
+                rootFolder, DIVEMetadataHistoryMarker,
+                reuseExisting=True, creator=user,
+            )
+            Folder().setMetadata(metadata_folder, {DIVEMetadataHistoryMarker: True})
+        # now save the previous_data with a timestamp for the name in the folder
+        previous_item = Item().createItem(
+            f'History_{datetime.now().isoformat()}.json',
+            creator=user,
+            folder=metadata_folder,
+            reuseExisting=True,
+        )
+
+        json_bytes = json.dumps(previous_data).encode('utf-8')
+        byteIO = io.BytesIO(json_bytes)
+
+        Upload().uploadFromFile(
+            byteIO,
+            len(json_bytes),
+            previous_item['name'],
+            parentType="item",
+            parent=previous_item,
+            user=user,
+            mimeType="application/json",
+        )
+        return results
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Processes any uploaded JSON files to the rootFolder to bulk update metadata")
+        .modelParam(
+            "rootFolder",
+            description="Root metadata FolderId",
+            model=Folder,
+            level=AccessType.WRITE,
+            destName="rootFolder",
+        )
+    )
+    def bulk_update_metadata_file(self, rootFolder, ):
+        user = self.getCurrentUser()
+        # We Need to find any JSON file in the folder and be able to proces it
+        unprocessed_items = Folder().childItems(
+            rootFolder,
+            filters={
+                "$or": [
+                    {"lowerName": {"$regex": jsonRegex}},
+                ]
+            },
+            # Processing order: oldest to newest
+            sort=[("created", pymongo.ASCENDING)],
+        )
+        if unprocessed_items is None or unprocessed_items.count() == 0:
+            raise RestException('No JSON files found in the folder to process.')
+        updates = None
+        if unprocessed_items:
+            item = unprocessed_items[0]
+            file = next(Item().childFiles(item), None)
+            if file is None:
+                raise RestException('No file found in the item to process.')
+            file_generator = File().download(file, headers=False)()
+            file_string = b"".join(list(file_generator)).decode()
+            updates = json.loads(file_string)
+            Item().remove(item)
+            results = self.bulk_metadata_process_file(user, rootFolder, updates)
+            return results
+        else:
+            raise RestException('No valid update files found.')
+
     @access.user
     @autoDescribeRoute(
         Description("Bulk update metadata for multiple datasets via JSON upload.")
@@ -1231,125 +1451,10 @@ class DIVEMetadata(Resource):
     )
     def bulk_update_metadata(self, rootFolder, updates):
         user = self.getCurrentUser()
-        results = []
-        # Get or create MetadataKeys for the root
-        if rootFolder['meta'].get(DIVEMetadataMarker, False) is False:
-            raise RestException('Folder is not a DIVE Metadata folder', code=404)
-        query = {"root": str(rootFolder["_id"])}
-        metadata_keys_doc = DIVE_MetadataKeys().findOne(query=query)
-        categoricalLimit = (
-            rootFolder.get('meta', {}).get('DIVEMetadataFilter', {}).get('categoricalLimit', 50)
-        )
-        # Helper to infer type/category
-        new_keys = {}
-        for _idx, entry in enumerate(updates):
-            metadata = entry.get("metadata", {})
-            for key, value in metadata.items():
-                if key not in metadata_keys_doc["metadataKeys"]:
-                    if key not in new_keys:
-                        new_keys[key] = set()
-                    new_keys[key].add(value)
-        # Infer types/categories for new keys
-        for key, values in new_keys.items():
-            if isinstance(next(iter(values)), str):
-                category = 'categorical' if len(values) < categoricalLimit else 'search'
-            elif isinstance(next(iter(values)), (int, float)):
-                category = 'numerical'
+        # We want to get the Data before processing
+        results = self.bulk_metadata_process_file(user, rootFolder, updates)
 
-            else:
-                category = 'search'
-            info = {
-                "category": category,
-                "count": len(values),
-            }
-            if category == 'categorical':
-                info['set'] = list(values)
-            elif category == 'numerical':
-                info['range'] = {
-                    "min": min(values),
-                    "max": max(values),
-                }
-            DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
-        for _idx, entry in enumerate(updates):
-            matcher = entry.get("matcher", {})
-            metadata = entry.get("metadata", {})
-            reason = None
-            # Try to find by DIVEDataset (datasetId) or videoName
-            dataset_id = matcher.get("datasetId")
-            video_name = matcher.get("videoName")
-            if dataset_id:
-                dive_metadata = DIVE_Metadata().findOne(
-                    {"DIVEDataset": dataset_id, 'root': str(rootFolder["_id"])}
-                )
-                if not dive_metadata:
-                    reason = f"No dataset found with id {dataset_id}"
-            elif video_name:
-                dive_metadata = DIVE_Metadata().findOne(
-                    {"filename": video_name, 'root': str(rootFolder["_id"])}
-                )
-                if not dive_metadata:
-                    dive_metadata = DIVE_Metadata().findOne(
-                        {"metadata.DIVE_Name": video_name, 'root': str(rootFolder["_id"])}
-                    )
-                if not dive_metadata:
-                    reason = f"No dataset found with videoName or DIVE_Name {video_name}"
-            else:
-                reason = "No matcher provided (need datasetId or videoName)"
-            if dive_metadata:
-                # Find the DIVE_Metadata entry for this dataset and root
-                dataset = Folder().load(
-                    dive_metadata['DIVEDataset'], level=AccessType.READ, user=user
-                )
-                updated_keys = []
-                errors = []
-                # initial pass for all metadata keys:
-                for key, value in metadata.items():
-                    # Set the value for this key on the dataset
-                    try:
-                        rootId = str(rootFolder["_id"])
-                        DIVE_Metadata().updateKey(
-                            dataset, rootId, user, key, value, categoricalLimit, force=True
-                        )
-                        updated_keys.append(key)
-                    except Exception as ex:
-                        errors.append(f"Failed to set {key}: {str(ex)}")
-                if updated_keys and not errors:
-                    results.append(
-                        {
-                            "matcher": matcher,
-                            "status": "success",
-                            "datasetId": str(dataset["_id"]),
-                            "updatedKeys": updated_keys,
-                        }
-                    )
-                elif updated_keys and errors:
-                    results.append(
-                        {
-                            "matcher": matcher,
-                            "status": "partial_success",
-                            "datasetId": str(dataset["_id"]),
-                            "updatedKeys": updated_keys,
-                            "errors": errors,
-                        }
-                    )
-                else:
-                    results.append(
-                        {
-                            "matcher": matcher,
-                            "status": "error",
-                            "datasetId": str(dataset["_id"]),
-                            "errors": errors,
-                        }
-                    )
-            else:
-                results.append(
-                    {
-                        "matcher": matcher,
-                        "status": "not_found",
-                        "error": reason,
-                    }
-                )
-        return {"results": results}
+        return results
 
     @access.user
     @autoDescribeRoute(
