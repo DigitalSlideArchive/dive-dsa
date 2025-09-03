@@ -78,10 +78,6 @@ RUN poetry env use system && \
 COPY server/ /opt/dive/src/
 
 # Create user & assign permissions
-RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
-    chown -R dive /opt/dive
-RUN install -g dive -o dive -d /tmp/SAM2
-USER dive
 
 # Final install in user context
 RUN poetry install --only main
@@ -91,6 +87,12 @@ RUN poetry install --only main
 # ----------------------------
 RUN cp /tmp/ffextracted/ffmpeg /opt/dive/local/venv/bin/ffmpeg && \
     cp /tmp/ffextracted/ffprobe /opt/dive/local/venv/bin/ffprobe
+
+RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
+    chown -R dive /opt/dive
+RUN install -g dive -o dive -d /tmp/SAM2
+USER dive
+
 
 # ----------------------------
 # Entrypoint & CMD
