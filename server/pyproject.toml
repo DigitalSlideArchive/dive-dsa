@@ -69,6 +69,7 @@ numpy = "^1.21.4"
 torch = "^2.7.1"
 sam2 = "^1.1.0"
 opencv-python-headless = "^4.11.0.86"
+pandas = "^2.3.2"
 
 
 [tool.poetry.group.dev.dependencies]

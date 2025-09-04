@@ -20,6 +20,7 @@ from girder.models.token import Token
 from girder.utility import path as path_util
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
+from pandas import pandas as pd
 import pymongo
 
 from dive_utils import FALSY_META_VALUES, TRUTHY_META_VALUES, setContentDisposition
@@ -31,6 +32,7 @@ from dive_utils.constants import (
     DIVEMetadataHistoryMarker,
     jsonRegex,
     ndjsonRegex,
+    csvRegex
 )
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from dive_utils.types import DiveDatasetList, DIVEMetadataSlicerCLITaskParams
@@ -111,6 +113,7 @@ def load_metadata_json(search_folder, type='ndjson'):
             return False
         return json_data, file['name']
 
+
 def bulk_metadata_update_process(user, rootFolder, updates):
     results = []
     # Get or create MetadataKeys for the root
@@ -124,8 +127,7 @@ def bulk_metadata_update_process(user, rootFolder, updates):
     # Helper to infer type/category
     new_keys = {}
     for _idx, entry in enumerate(updates):
-        metadata = entry.get("metadata", {})
-        for key, value in metadata.items():
+        for key, value in entry.items():
             if key not in metadata_keys_doc["metadataKeys"]:
                 if key not in new_keys:
                     new_keys[key] = set()
@@ -152,12 +154,18 @@ def bulk_metadata_update_process(user, rootFolder, updates):
             }
         DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
     for _idx, entry in enumerate(updates):
-        matcher = entry.get("matcher", {})
-        metadata = entry.get("metadata", {})
         reason = None
-        # Try to find by DIVEDataset (datasetId) or videoName
-        dataset_id = matcher.get("datasetId")
-        video_name = matcher.get("videoName")
+        # Try to find by DIVEDataset by the matchers
+        dive_metadata = None
+        matcher = None
+        if entry.get('DIVEDataset', False):
+            dataset_id = entry['DIVEDataset']
+            video_name = None
+            matcher = 'DIVEDataset'
+        elif entry.get('Filename', False):
+            dataset_id = None
+            video_name = entry['Filename']
+            matcher = 'Filename'
         if dataset_id:
             dive_metadata = DIVE_Metadata().findOne(
                 {"DIVEDataset": dataset_id, 'root': str(rootFolder["_id"])}
@@ -175,7 +183,7 @@ def bulk_metadata_update_process(user, rootFolder, updates):
             if not dive_metadata:
                 reason = f"No dataset found with videoName or DIVE_Name {video_name}"
         else:
-            reason = "No matcher provided (need datasetId or videoName)"
+            raise RestException('Metadata Updates need either DIVEDataset or Filename', code=400)
         if dive_metadata:
             # Find the DIVE_Metadata entry for this dataset and root
             dataset = Folder().load(
@@ -184,7 +192,7 @@ def bulk_metadata_update_process(user, rootFolder, updates):
             updated_keys = []
             errors = []
             # initial pass for all metadata keys:
-            for key, value in metadata.items():
+            for key, value in entry.items():
                 # Set the value for this key on the dataset
                 try:
                     rootId = str(rootFolder["_id"])
@@ -1329,7 +1337,6 @@ class DIVEMetadata(Resource):
             setResponseHeader('Content-Type', 'application/json')
             return json.dumps(export_data).encode('utf-8')
 
-
     def bulk_metadata_process_file(self, user, rootFolder, updates):
         query = self.get_filter_query(rootFolder, user, None)
         metadata_items = list(DIVE_Metadata().find(query, user=user))
@@ -1395,7 +1402,7 @@ class DIVEMetadata(Resource):
             destName="rootFolder",
         )
     )
-    def bulk_update_metadata_file(self, rootFolder, ):
+    def bulk_update_metadata_file(self, rootFolder):
         user = self.getCurrentUser()
         # We Need to find any JSON file in the folder and be able to proces it
         unprocessed_items = Folder().childItems(
@@ -1403,13 +1410,15 @@ class DIVEMetadata(Resource):
             filters={
                 "$or": [
                     {"lowerName": {"$regex": jsonRegex}},
+                    {"lowerName": {"$regex": ndjsonRegex}},
+                    {"lowerName": {"$regex": csvRegex}},
                 ]
             },
             # Processing order: oldest to newest
             sort=[("created", pymongo.ASCENDING)],
         )
         if unprocessed_items is None or unprocessed_items.count() == 0:
-            raise RestException('No JSON files found in the folder to process.')
+            raise RestException('No JSON/NDJSON/CSV files found in the folder to process.')
         updates = None
         if unprocessed_items:
             item = unprocessed_items[0]
@@ -1418,7 +1427,14 @@ class DIVEMetadata(Resource):
                 raise RestException('No file found in the item to process.')
             file_generator = File().download(file, headers=False)()
             file_string = b"".join(list(file_generator)).decode()
-            updates = json.loads(file_string)
+            print(f'Processing file: {file["name"]}...')
+            if file['name'].endswith('.json'):  # standard json file
+                updates = json.loads(file_string)
+            elif file['name'].endswith('.ndjson'):  # new line delimited json
+                updates = [json.loads(line) for line in file_string.splitlines()]
+            elif file['name'].endswith('.csv'):  # use pandas for automatic type conversion
+                df = pd.read_csv(io.StringIO(file_string))
+                updates = df.to_dict(orient='records')
             Item().remove(item)
             results = self.bulk_metadata_process_file(user, rootFolder, updates)
             return results
