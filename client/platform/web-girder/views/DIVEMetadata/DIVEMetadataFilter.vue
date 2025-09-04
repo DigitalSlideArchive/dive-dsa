@@ -337,8 +337,8 @@ export default defineComponent({
         </v-btn>
 
         <v-spacer />
-        <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="pr-2" @job-complete="jobCompleted()" />
-        <DIVEMetadataImportVue :metadata-root="id" class="pr-2" @updated="metadataImported()" />
+        <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="mr-2" @job-complete="jobCompleted()" />
+        <DIVEMetadataImportVue v-if="ownerAdmin" :metadata-root="id" class="mr-2" @updated="metadataImported()" />
         <DIVEMetadataExportVue :metadata-root="id" :filters="currentFilter" class="pr-4" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
         <v-select

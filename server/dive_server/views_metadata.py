@@ -173,13 +173,19 @@ def bulk_metadata_update_process(user, rootFolder, updates):
             if not dive_metadata:
                 reason = f"No dataset found with id {dataset_id}"
         elif video_name:
-            dive_metadata = DIVE_Metadata().findOne(
+            dive_metadata_items = DIVE_Metadata().find(
                 {"filename": video_name, 'root': str(rootFolder["_id"])}
             )
-            if not dive_metadata:
-                dive_metadata = DIVE_Metadata().findOne(
-                    {"metadata.DIVE_Name": video_name, 'root': str(rootFolder["_id"])}
-                )
+            if dive_metadata_items.count() > 1:
+                # do we have to match the resouce with the DIVE Path
+                dive_path = entry.get('DIVE_Path', False)
+                if not dive_path:
+                    reason = f"Multiple datasets found with videoName {video_name}, need DIVE_Path to disambiguate"
+                else:
+                    for item in dive_metadata_items:
+                        if item.get('DIVE_Path', False) == dive_path:
+                            dive_metadata = item
+                            break
             if not dive_metadata:
                 reason = f"No dataset found with videoName or DIVE_Name {video_name}"
         else:
@@ -1427,7 +1433,6 @@ class DIVEMetadata(Resource):
                 raise RestException('No file found in the item to process.')
             file_generator = File().download(file, headers=False)()
             file_string = b"".join(list(file_generator)).decode()
-            print(f'Processing file: {file["name"]}...')
             if file['name'].endswith('.json'):  # standard json file
                 updates = json.loads(file_string)
             elif file['name'].endswith('.ndjson'):  # new line delimited json
@@ -1453,14 +1458,12 @@ class DIVEMetadata(Resource):
         )
         .jsonParam(
             "updates",
-            description="Array of objects with 'matcher' either matching 'datasetId' or 'videoName' and 'metadata' fields uising 'key:value' pairs.",
+            description="Array of objects but requires that the user have 'DIVEDataset' or 'Filename' that matches a filename in the system",
             required=True,
             paramType="body",
             requireArray=True,
             default=[
                 {
-                    "matcher": {"datasetId": "12345", "videoName": "videoName.mp4"},
-                    "metadata": {"newKey": "NewValue"},
                 }
             ],
         )

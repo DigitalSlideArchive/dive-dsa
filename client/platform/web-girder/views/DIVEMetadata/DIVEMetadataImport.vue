@@ -98,7 +98,7 @@ export default defineComponent({
       <v-tooltip bottom>
         <template #activator="{ on: tooltipOn }">
           <v-btn
-            class="ma-0"
+            class="ma-0 mx-2"
             v-bind="buttonOptions"
             :disabled="processing"
             v-on="{ ...tooltipOn, ...menuOn }"
@@ -131,7 +131,9 @@ export default defineComponent({
           <ul>
             <li> Metadata JSON </li>
             <li> Metadata NDJSON </li>
+            <li> Metadata CSV </li>
           </ul>
+          <p>The Import matching requires that either the key/column 'DIVEDataset' or 'Filename' is present.  If there are multiple 'Filename' matches in the DIVEMetadata it will then rely on the field 'DIVE_Path' to match the path.</p>
         </v-card-text>
         <v-container>
           <v-col>
