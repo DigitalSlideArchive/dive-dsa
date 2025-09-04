@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "click",
+#     "girder-client",
+#     "setuptools",
+# ]
+# ///
 import click
 import girder_client
 import json
@@ -7,7 +15,7 @@ import subprocess
 
 apiURL = "127.0.0.1"  # url of the server
 port = 8010  # set to your local port being used
-rootFolderId = '67dc125c4ae830e7742d1eee'  # root folderId to push data to
+rootFolderId = '68b832711394856d5124a243'  # root folderId to push data to
 limit = 1000  # only want to process X videos
 # Below is a global variable which shouldn't be edited
 totalFolders = 0  # use to maintain a total count of items added
@@ -124,7 +132,7 @@ def run_script(ndfile):
     print(f'FolderIds: {folderIds}')
     params = {
         "displayConfig": {
-            "display": ['PaitentName', 'SampleDate', 'Age', 'Height', 'Weight', 'City', 'State'],
+            "display": ['PatientName', 'SampleDate', 'Age', 'Height', 'Weight', 'City', 'State'],
             "hide": [],
         },
         "ffprobeMetadata": {

@@ -948,6 +948,10 @@ export default function useModeManager({
     diveMetadataRootId.value = id;
   }
 
+  function getDiveMetadataRootId() {
+    return diveMetadataRootId.value;
+  }
+
   async function setMetadataKeyValue(datasetId: string, key: string, value: string) {
     if (diveMetadataRootId.value === null) {
       console.error('Dive metadata root ID is not set');
@@ -1001,6 +1005,7 @@ export default function useModeManager({
       toggleKeyFrame,
       setMetadataKeyValue,
       setDiveMetadataRootId,
+      getDiveMetadataRootId,
     },
   };
 }

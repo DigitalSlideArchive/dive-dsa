@@ -223,6 +223,7 @@ export interface Handler {
   seekFrame(frame: number): void;
   toggleKeyFrame(selectedTrack?: number): void;
   setDiveMetadataRootId(id: string | null): void;
+  getDiveMetadataRootId(): string | null;
   setMetadataKeyValue(datasetId: string, key: string, value: string): void;
 }
 const HandlerSymbol = Symbol('handler');
@@ -267,6 +268,7 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     seekFrame(...args) { handle('seekFrame', args); },
     toggleKeyFrame(...args) { handle('toggleKeyFrame', args); },
     setDiveMetadataRootId(...args) { handle('setDiveMetadataRootId', args); },
+    getDiveMetadataRootId(...args) { handle('getDiveMetadataRootId', args); return ''; },
     setMetadataKeyValue(...args) { handle('setMetadataKeyValue', args); },
   };
 }
