@@ -206,15 +206,15 @@ async function putDiveMetadataLastModified(folderId:string, rootId: string) {
   return girderRest.put(`dive_metadata/${folderId}/last_modified`, null, { params: { rootId } });
 }
 
-async function processImportedFile(rootId:string) {
-  return girderRest.post(`dive_metadata/bulk_update_file/${rootId}`);
+async function processImportedFile(rootId:string, replace = false) {
+  return girderRest.post(`dive_metadata/bulk_update_file/${rootId}`, null, { params: { replace } });
 }
 
 interface HTMLFile extends File {
   webkitRelativePath?: string;
 }
 
-async function importMetadataFile(parentId: string, path: string, file?: HTMLFile) {
+async function importMetadataFile(parentId: string, path: string, file?: HTMLFile, replace = false) {
   if (file === undefined) {
     return false;
   }
@@ -236,7 +236,7 @@ async function importMetadataFile(parentId: string, path: string, file?: HTMLFil
       headers: { 'Content-Type': 'application/octet-stream' },
     });
     if (uploadResponse.status === 200) {
-      const final = await processImportedFile(parentId);
+      const final = await processImportedFile(parentId, replace);
       return final.status === 200;
     }
   }

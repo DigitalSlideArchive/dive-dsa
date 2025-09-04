@@ -114,7 +114,7 @@ def load_metadata_json(search_folder, type='ndjson'):
         return json_data, file['name']
 
 
-def bulk_metadata_update_process(user, rootFolder, updates):
+def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
     results = []
     # Get or create MetadataKeys for the root
     if rootFolder['meta'].get(DIVEMetadataMarker, False) is False:
@@ -198,10 +198,12 @@ def bulk_metadata_update_process(user, rootFolder, updates):
             updated_keys = []
             errors = []
             # initial pass for all metadata keys:
+            rootId = str(rootFolder["_id"])
+            if replace:
+                DIVE_Metadata().removeCustomKeys(dataset, rootId, user)
             for key, value in entry.items():
                 # Set the value for this key on the dataset
                 try:
-                    rootId = str(rootFolder["_id"])
                     DIVE_Metadata().updateKey(
                         dataset, rootId, user, key, value, categoricalLimit, force=True
                     )
@@ -1314,13 +1316,14 @@ class DIVEMetadata(Resource):
                 {key for item in metadata_items for key in item.get('metadata', {}).keys()}
             )
             headers.insert(0, 'DIVEDataset')  # Add DIVEDataset as first column
-
+            headers.insert(1, 'filename')  # Add filename as second column
             writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
             writer.writeheader()
             for item in metadata_items:
 
                 row = {key: item.get('metadata', {}).get(key, '') for key in headers}
                 row['DIVEDataset'] = str(item['DIVEDataset'])
+                row['Filename'] = item.get('filename', '')
                 writer.writerow(row)
 
             csv_output = output.getvalue()
@@ -1336,6 +1339,7 @@ class DIVEMetadata(Resource):
             for item in metadata_items:
                 export_item = item.get('metadata', {}).copy()
                 export_item['DIVEDataset'] = str(item['DIVEDataset'])
+                export_item['Filename'] = item.get('filename', '')
                 export_data.append(export_item)
             setContentDisposition(filename, mime='application/json')
             setRawResponse()
@@ -1343,7 +1347,7 @@ class DIVEMetadata(Resource):
             setResponseHeader('Content-Type', 'application/json')
             return json.dumps(export_data).encode('utf-8')
 
-    def bulk_metadata_process_file(self, user, rootFolder, updates):
+    def bulk_metadata_process_file(self, user, rootFolder, updates, replace=False):
         query = self.get_filter_query(rootFolder, user, None)
         metadata_items = list(DIVE_Metadata().find(query, user=user))
 
@@ -1354,7 +1358,7 @@ class DIVEMetadata(Resource):
             previous_data.append(export_item)
         json.dumps(previous_data).encode('utf-8')
 
-        results = bulk_metadata_update_process(user, rootFolder, updates)
+        results = bulk_metadata_update_process(user, rootFolder, updates, replace)
         # get errors in the results
         errors = []
         for item in results:
@@ -1407,8 +1411,15 @@ class DIVEMetadata(Resource):
             level=AccessType.WRITE,
             destName="rootFolder",
         )
+        .param(
+            "replace",
+            "If true will replace the metadata values instead of merging them",
+            dataType='boolean',
+            required=False,
+            default=False,
+        )
     )
-    def bulk_update_metadata_file(self, rootFolder):
+    def bulk_update_metadata_file(self, rootFolder, replace):
         user = self.getCurrentUser()
         # We Need to find any JSON file in the folder and be able to proces it
         unprocessed_items = Folder().childItems(
@@ -1441,7 +1452,7 @@ class DIVEMetadata(Resource):
                 df = pd.read_csv(io.StringIO(file_string))
                 updates = df.to_dict(orient='records')
             Item().remove(item)
-            results = self.bulk_metadata_process_file(user, rootFolder, updates)
+            results = self.bulk_metadata_process_file(user, rootFolder, updates, replace)
             return results
         else:
             raise RestException('No valid update files found.')
@@ -1467,11 +1478,19 @@ class DIVEMetadata(Resource):
                 }
             ],
         )
+        .param(
+            "replace",
+            "If true will replace the metadata values instead of merging them",
+            dataType='boolean',
+            required=False,
+            default=False,
+        )
+
     )
-    def bulk_update_metadata(self, rootFolder, updates):
+    def bulk_update_metadata(self, rootFolder, updates, replace=False):
         user = self.getCurrentUser()
         # We want to get the Data before processing
-        results = self.bulk_metadata_process_file(user, rootFolder, updates)
+        results = self.bulk_metadata_process_file(user, rootFolder, updates, replace)
 
         return results
 

@@ -35,8 +35,7 @@ export default defineComponent({
     const { prompt } = usePrompt();
     const processing = ref(false);
     const menuOpen = ref(false);
-    const additive = ref(false);
-    const additivePrepend = ref('');
+    const replace = ref(false);
     const openUpload = async () => {
       try {
         const ret = await openFromDisk('annotation');
@@ -50,12 +49,14 @@ export default defineComponent({
               props.metadataRoot,
               path,
               ret.fileList[0],
+              replace.value,
             );
           } else {
             importFile = await importMetadataFile(
               props.metadataRoot,
               path,
               undefined,
+              replace.value,
             );
           }
           if (importFile) {
@@ -78,8 +79,7 @@ export default defineComponent({
       openUpload,
       processing,
       menuOpen,
-      additive,
-      additivePrepend,
+      replace,
 
     };
   },
@@ -134,6 +134,13 @@ export default defineComponent({
             <li> Metadata CSV </li>
           </ul>
           <p>The Import matching requires that either the key/column 'DIVEDataset' or 'Filename' is present.  If there are multiple 'Filename' matches in the DIVEMetadata it will then rely on the field 'DIVE_Path' to match the path.</p>
+          <v-card-actions>
+            <v-checkbox
+              v-model="replace"
+              label="Replace existing metadata"
+              :disabled="processing || readOnlyMode"
+            />
+          </v-card-actions>
         </v-card-text>
         <v-container>
           <v-col>
