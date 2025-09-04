@@ -197,7 +197,7 @@ function defaultFormatter(
         if (currentRender.sticky && (value === undefined || value === '') && type === 'detection') {
           let newVal: undefined | string | boolean | number;
           let prevFrame = frame;
-          while (prevFrame > 0 && newVal === undefined) {
+          while (prevFrame >= 0 && newVal === undefined) {
             // We need to get the previous frames attributes
             const previous = annotation.track.getPreviousKeyframe(prevFrame);
             if (previous !== undefined) {
