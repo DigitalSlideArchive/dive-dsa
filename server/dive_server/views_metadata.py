@@ -1316,7 +1316,7 @@ class DIVEMetadata(Resource):
                 {key for item in metadata_items for key in item.get('metadata', {}).keys()}
             )
             headers.insert(0, 'DIVEDataset')  # Add DIVEDataset as first column
-            headers.insert(1, 'filename')  # Add filename as second column
+            headers.insert(1, 'Filename')  # Add filename as second column
             writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
             writer.writeheader()
             for item in metadata_items:
