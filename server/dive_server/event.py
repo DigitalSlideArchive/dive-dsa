@@ -1,14 +1,19 @@
 from datetime import datetime, timedelta
 import os
+import cherrypy
 
 from bson.objectid import ObjectId
 from girder import logger
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
+from girder.models.token import Token
 from girder.models.user import User
+from girder_jobs.models.job import Job
+from girder.api.rest import getApiUrl
 from girder.settings import SettingKey
 from girder.utility.mail_utils import renderTemplate, sendMail
+from girder_worker.girder_plugin.utils import getWorkerApiUrl
 
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
@@ -22,7 +27,7 @@ from dive_utils.constants import (
     videoRegex,
 )
 
-from . import crud_rpc
+from dive_tasks.dive_batch_postprocess import DIVEBatchPostprocessTaskParams
 
 
 def send_new_user_email(event):
@@ -66,11 +71,11 @@ def process_assetstore_import(event, meta: dict):
         userId = parentFolder['creatorId'] or parentFolder['baseParentId']
         user = User().findOne({'_id': ObjectId(userId)})
         foldername = f'Video {item["name"]}'
-        # resuse existing folder if it already exists with same name
+        # reuse existing folder if it already exists with same name
         dest = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
         now = datetime.now()
         if now - dest['created'] > timedelta(hours=1):
-            # Remove the old  referenced item, replace it with the new one.
+            # Remove the old referenced item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:
                 if oldItem['meta'].get('codec', False):
@@ -108,12 +113,40 @@ def process_assetstore_import(event, meta: dict):
 
 
 def convert_video_recrusive(folder, user):
-    subFolders = list(Folder().childFolders(folder, 'folder', user))
-    for child in subFolders:
-        if child.get('meta', {}).get(MarkForPostProcess, False):
-            Folder().save(child)
-            crud_rpc.postprocess(user, child, False, True)
-        convert_video_recrusive(child, user)
+    """
+    Start a batch postprocess job for all folders with MarkForPostProcess flag.
+    This replaces the manual recursive postprocess calls with a single batch job.
+    """
+    # Create a token for the batch job
+
+    token = Token().createToken(user=user, days=2)
+
+    dive_batch_postprocess_task_params: DIVEBatchPostprocessTaskParams = {
+        "source_folder_id": str(folder['_id']),
+        "skipJobs": False,  # Allow jobs to run (transcoding, etc.)
+        "skipTranscoding": True,  # Skip transcoding if not needed
+        "additive": False,
+        "additivePrepend": '',
+        "userId": str(user['_id']),
+        "girderToken": str(token['_id']),
+        "girderApiUrl": getWorkerApiUrl(),
+    }
+    if not Setting().get('worker.api_url'):
+        Setting().set('worker.api_url', getApiUrl())
+    job = Job().createLocalJob(
+        module='dive_tasks.dive_batch_postprocess',
+        function='batchPostProccessingTaskLauncher',
+        kwargs={'params': dive_batch_postprocess_task_params, 'url': cherrypy.url()},
+        title='Batch process Dive Batch Postprocess',
+        type='DIVE Batch Postprocess',
+        user=user,
+        public=True,
+        asynchronous=True,
+    )
+    job = Job().save(job)
+    Job().scheduleJob(job)
+
+    logger.info(f'Started batch postprocess job {job.job["_id"]} for folder {folder["name"]}')
 
 
 class DIVES3Imports:
