@@ -96,7 +96,7 @@ class RpcResource(Resource):
         )
     )
     def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend, logic):
-        return crud_rpc.postprocess(
+        result = crud_rpc.postprocess(
             self.getCurrentUser(),
             folder,
             skipJobs,
@@ -105,6 +105,8 @@ class RpcResource(Resource):
             additivePrepend,
             logic,
         )
+        # Return the folder for backward compatibility, but also include job_ids
+        return result
 
     @access.user
     @autoDescribeRoute(

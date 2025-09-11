@@ -104,7 +104,6 @@ def convert_video(
             and item['name'].endswith('.mp4')
         ):
             # Now we can update the meta data and push the values
-            manager.updateStatus(JobStatus.PUSHING_OUTPUT)
             gc.addMetadataToItem(
                 itemId,
                 {
