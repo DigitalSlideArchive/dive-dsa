@@ -81,6 +81,12 @@ RUN uv sync --frozen --no-dev
 RUN cp /tmp/ffextracted/ffmpeg /opt/dive/local/venv/bin/ffmpeg && \
     cp /tmp/ffextracted/ffprobe /opt/dive/local/venv/bin/ffprobe
 
+RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
+    chown -R dive /opt/dive
+RUN install -g dive -o dive -d /tmp/SAM2
+USER dive
+
+
 # ----------------------------
 # Entrypoint & CMD
 # ----------------------------

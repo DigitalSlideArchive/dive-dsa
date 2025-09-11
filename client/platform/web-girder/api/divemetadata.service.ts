@@ -206,6 +206,43 @@ async function putDiveMetadataLastModified(folderId:string, rootId: string) {
   return girderRest.put(`dive_metadata/${folderId}/last_modified`, null, { params: { rootId } });
 }
 
+async function processImportedFile(rootId:string, replace = false) {
+  return girderRest.post(`dive_metadata/bulk_update_file/${rootId}`, null, { params: { replace } });
+}
+
+interface HTMLFile extends File {
+  webkitRelativePath?: string;
+}
+
+async function importMetadataFile(parentId: string, path: string, file?: HTMLFile, replace = false) {
+  if (file === undefined) {
+    return false;
+  }
+  const resp = await girderRest.post('/file', null, {
+    params: {
+      parentType: 'folder',
+      parentId,
+      name: file.name,
+      size: file.size,
+      mimeType: file.type,
+    },
+  });
+  if (resp.status === 200) {
+    const uploadResponse = await girderRest.post('file/chunk', file, {
+      params: {
+        uploadId: resp.data._id,
+        offset: 0,
+      },
+      headers: { 'Content-Type': 'application/octet-stream' },
+    });
+    if (uploadResponse.status === 200) {
+      const final = await processImportedFile(parentId, replace);
+      return final.status === 200;
+    }
+  }
+  return false;
+}
+
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
@@ -221,4 +258,6 @@ export {
   runSlicerMetadataTask,
   exportDiveMetadata,
   putDiveMetadataLastModified,
+  processImportedFile,
+  importMetadataFile,
 };

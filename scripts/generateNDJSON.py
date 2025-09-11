@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "click",
+#     "faker",
+# ]
+# ///
 import click
 import json
 import random

@@ -40,7 +40,7 @@ class DIVE_Metadata(Model):
         )
 
     def createMetadata(self, folder, root, owner, metadata, created_date=None):  # noqa: B006
-        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': str(root['_id'])})
         if not existing:
             if created_date is None:
                 created = datetime.datetime.utcnow()
@@ -95,7 +95,7 @@ class DIVE_Metadata(Model):
     def deleteKey(self, folder, root, owner, key):
         existing = self.findOne({'DIVEDataset': str(folder['_id'])})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
         query = {'root': existing['root']}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,
@@ -106,6 +106,22 @@ class DIVE_Metadata(Model):
         if existing['metadata'].get(key, None) is not None:
             del existing['metadata'][key]
             self.save(existing)
+
+    def removeCustomKeys(self, folder, root, owner):
+        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
+        query = {'root': existing['root']}
+        metadataKeys = DIVE_MetadataKeys().findOne(
+            query=query,
+            owner=str(owner['_id']),
+        )
+        if not metadataKeys:
+            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+        keys_to_remove = [key for key in existing['metadata'].keys() if key not in ['LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path'] and not key.startswith('DIVE_') and not key.startswith('ffprobe')]
+        for key in keys_to_remove:
+            del existing['metadata'][key]
+        self.save(existing)
 
     def deleteKeys(self, root, owner, key):
         existing = self.find({'root': str(root['_id'])})
@@ -264,6 +280,21 @@ class DIVE_MetadataKeys(Model):
                 self.save(existing)
             else:
                 raise Exception(f'Key: {key} not found in the current metdata')
+
+    def removeCustomKeys(self, folderId, owner):
+        existing = self.findOne({'root': str(folderId)})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {folderId} not found')
+        if owner['_id'] and existing['owner'] != str(owner['_id']):
+            raise Exception('Only the Owner can modify key permissions')
+        elif existing:
+            keys_to_remove = [key for key in existing['metadataKeys'].keys() if key not in ['LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path'] and not key.startswith('DIVE_') and not key.startswith('ffprobe')]
+            for key in keys_to_remove:
+                if key in existing['unlocked']:
+                    existing['unlocked'].remove(key)
+                if key in existing['metadataKeys'].keys():
+                    del existing['metadataKeys'][key]
+            self.save(existing)
 
     def updateKeyValue(self, folderId, owner, key, value, categoricalLimit):
         existing = self.findOne({'root': folderId})
