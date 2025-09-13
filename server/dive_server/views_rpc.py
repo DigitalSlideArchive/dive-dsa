@@ -10,7 +10,8 @@ from girder.models.notification import Notification
 from girder.models.token import Token
 from girder_jobs.models.job import Job
 
-from dive_tasks.sam_tasks import run_sam2_inference
+# Import Celery app for task scheduling
+from girder_worker.app import app
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     DatasetMarker,
@@ -339,7 +340,10 @@ class RpcResource(Resource):
         self, datasetId, queue, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent
     ):
         token = Token().createToken(user=self.getCurrentUser(), days=1)
-        newjob = run_sam2_inference.apply_async(
+
+        # Schedule SAM2 task using module path - no import needed
+        newjob = app.send_task(
+            'dive_tasks.sam_tasks.run_sam2_inference',
             queue=queue,
             kwargs=dict(
                 datasetId=datasetId,
