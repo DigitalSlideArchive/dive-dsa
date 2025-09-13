@@ -23,7 +23,7 @@ exclude = '\.eggs|\.git|\.mypy_cache|\.tox|\.env|\.venv|env|venv|_build|buck-out
 
 [project]
 name = "dive_server"
-version = "1.0.0"
+dynamic = ["version"]
 description = "DIVE Data Server"
 authors = [{name = "Kitware, Inc.", email = "viame-web@kitware.com"}]
 license = {text = "Apache 2.0"}
@@ -42,6 +42,10 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 requires-python = ">=3.10.0,<=3.12"
+packages = [
+  { include = "dive_server" },
+  { include = "dive_tasks" },
+]
 dependencies = [
   "cheroot>=8.4.5",
   "click>=8.1.3",
@@ -61,23 +65,21 @@ dependencies = [
   "pycocotools>=2.0.8",
   "pillow>=11.3.0",
   "numpy>=1.21.4",
-  "opencv-python-headless>=4.11.0.86",
-  "sam2>=1.1.0",
-  "torch>=2.7.1",
-  "triton>=3.4.0",
+  "pandas>=2.3.2",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "opencv-python>=4.5.5",
   "tox>=3.25.0",
 ]
 cpu = [
   "torch>=2.7.1",
   "triton>=3.4.0",
+  "sam2>=1.1.0",
 ]
 cu128 = [
   "torch>=2.7.1",
+  "sam2>=1.1.0",
 ]
 
 
@@ -92,7 +94,7 @@ dive_server = "dive_server:GirderPlugin"
 dive_tasks = "dive_tasks:DIVEPlugin"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -101,6 +103,10 @@ include = ["**/*.mako"]
 
 [tool.hatch.build.targets.sdist]
 include = ["dive_server/", "dive_tasks/", "dive_utils/", "**/*.mako", "README.md"]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
 
 [tool.uv]
 conflicts = [
@@ -126,3 +132,6 @@ explicit = true
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
+
+[tool.uv-dynamic-versioning]
+fallback-version = "0.0.0"  

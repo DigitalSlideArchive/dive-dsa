@@ -1,12 +1,9 @@
 # ========================
-# == SERVER BUILD STAGE ==
+# == BUILD STAGE ==
 # ========================
+FROM nvidia/cuda:12.6.0-runtime-ubuntu20.04
 
-FROM nvidia/cuda:12.6.0-runtime-ubuntu20.04 AS server-builder
-
-# ----------------------------
 # Environment Configuration
-# ----------------------------
 ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
 ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 ENV PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:$PATH
@@ -16,79 +13,64 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 ENV TINI_VERSION=v0.19.0
 
+# Install build dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget curl tar xz-utils ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+        wget curl tar xz-utils ca-certificates \
+        build-essential pkg-config \
+        libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# ----------------------------
-# System Dependencies & Python 3.11
-# ----------------------------
+# Download and extract ffmpeg
 RUN wget -O ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
     mkdir /tmp/ffextracted && \
     tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components=1 && \
-     rm -rf /var/lib/apt/lists/* ffmpeg.tar.xz
+    rm ffmpeg.tar.xz
 
-# ----------------------------
-# Working Directory & Entrypoint
-# ----------------------------
 WORKDIR /opt/dive/src
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-COPY docker/entrypoint_worker_gpu.sh /entrypoint_worker_gpu.sh
-RUN chmod +x /tini /entrypoint_worker_gpu.sh
 
-# Create user & assign permissions
-RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
-    chown -R dive:dive /opt/dive
-RUN install -g dive -o dive -d /tmp/SAM2
-USER dive
-
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/
-# Move into the PATH
-RUN ls /usr/local
 ENV PATH="/usr/local:$PATH"
 
-
-# ----------------------------
-# UV Installation & Python venv
-# ----------------------------
+# Setup Python environment
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-ENV UV_PROJECT_ENVIRONMENT=/opt/dive/local/venv
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
+ENV UV_PROJECT_ENVIRONMENT="/opt/dive/local/venv"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# ----------------------------
-# Dependency Installation
-# ----------------------------
-COPY server/pyproject.toml /opt/dive/src/
-COPY server/uv.lock /opt/dive/src/
-COPY .git/ /opt/dive/src/.git/
+WORKDIR /opt/dive/src
 
-RUN uv sync --frozen --no-install-project --no-dev
+# Copy dependency files for better caching
+COPY server/pyproject.toml server/uv.lock .git/ /opt/dive/src/
 
-# ----------------------------
-# Application Source Code
-# ----------------------------
+# Install dependencies with CUDA support
+RUN uv sync --frozen --no-install-project --no-dev --extra cu128
+
+# Copy source and install project
 COPY server/ /opt/dive/src/
+RUN uv sync --frozen --no-dev --extra cu128
 
-# Final install in user context
-RUN uv sync --frozen --no-dev
+# Copy ffmpeg binaries to venv
+RUN cp /tmp/ffextracted/ffmpeg /tmp/ffextracted/ffprobe /opt/dive/local/venv/bin/
 
 
-
-# ----------------------------
-# FFmpeg Binary into venv
-# ----------------------------
-RUN cp /tmp/ffextracted/ffmpeg /opt/dive/local/venv/bin/ffmpeg && \
-    cp /tmp/ffextracted/ffprobe /opt/dive/local/venv/bin/ffprobe
-
+# Create user and directories
 RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
     chown -R dive /opt/dive
 RUN install -g dive -o dive -d /tmp/SAM2
 USER dive
 
+# Setup environment
+ENV PATH="/opt/dive/local/venv/bin:$PATH"
 
-# ----------------------------
-# Entrypoint & CMD
-# ----------------------------
+# Copy uv binary for runtime use
+
+# Copy startup script
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+COPY docker/entrypoint_worker_gpu.sh /entrypoint_worker_gpu.sh
+RUN chmod +x /tini /entrypoint_worker_gpu.sh
+
 ENTRYPOINT ["/tini", "--"]
 CMD ["/entrypoint_worker_gpu.sh"]

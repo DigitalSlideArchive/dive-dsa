@@ -1,32 +1,39 @@
 # ========================
 # == SERVER BUILD STAGE ==
 # ========================
-# Note: server-builder stage will be the same in both dockerfiles
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server-builder
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /opt/dive/src
 
-# https://cryptography.io/en/latest/installation/#debian-ubuntu
-RUN apt-get update
-RUN apt-get install -y cargo npm libgl1 git
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+        pkg-config \
+        libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-# Create a virtual environment for the installation
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
 ENV UV_PROJECT_ENVIRONMENT=/opt/dive/local/venv
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
-# Copy only the lock and project files to optimize cache
+
+# Copy dependency files first for better caching
 COPY server/pyproject.toml /opt/dive/src/
 COPY server/uv.lock /opt/dive/src/
 COPY .git/ /opt/dive/src/.git/
-# Install dependencies only (no dev dependencies)
-RUN uv sync --frozen --no-install-project --no-dev --extra cu128
-# Build girder client, including plugins like worker/jobs
-# RUN girder build
 
-# Copy full source code and install
+# Install dependencies with CPU-only PyTorch for smaller size
+RUN uv sync --frozen --no-install-project --no-dev --extra cpu
+
+# Copy source and install project
 COPY server/ /opt/dive/src/
-RUN uv sync --frozen --no-dev --extra cu128
+RUN uv sync --frozen --no-dev --extra cpu
+
 
 # ====================
 # == FFMPEG FETCHER ==
@@ -41,30 +48,39 @@ RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
 # =================
 # == DIST WORKER ==
 # =================
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS worker
-# VIAME install at /opt/noaa/viame/
-# VIAME pipelines at /opt/noaa/viame/configs/pipelines/
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server
 
-RUN apt-get update
-RUN apt-get install -y build-essential libssl-dev libffi-dev python3-dev cargo npm libgl1
+# Install only runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libgomp1 \
+        ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# install tini init system
+# Install tini init system
 ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
-RUN useradd --create-home --uid 1099 --shell=/bin/bash dive
-RUN install -g dive -o dive -d /tmp/SAM2
 
-# Setup the path of the incoming python installation
+# Create user and directories
+RUN useradd --create-home --uid 1099 --shell=/bin/bash dive && \
+    install -g dive -o dive -d /tmp/SAM2
+
+# Setup environment
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
 
-# Copy the built python installation
+# Copy the built python installation and source
 COPY --chown=dive:dive --from=server-builder /opt/dive/local/venv/ /opt/dive/local/venv/
-# Copy the source code of the editable module
 COPY --chown=dive:dive --from=server-builder /opt/dive/src /opt/dive/src
-# Copy ffmpeg
+
+# Copy ffmpeg binaries
 COPY --from=ffmpeg-builder /tmp/ffextracted/ffmpeg /tmp/ffextracted/ffprobe /opt/dive/local/venv/bin/
-# Copy provision scripts
+
+# Copy uv binary for runtime use
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy startup script
 COPY --chown=dive:dive docker/entrypoint_worker.sh /
 
 ENTRYPOINT ["/tini", "--"]
