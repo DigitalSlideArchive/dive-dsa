@@ -44,6 +44,7 @@ MANIFEST
 .venv
 env/
 venv/
+server/.venv/
 ENV/
 env.bak/
 venv.bak/

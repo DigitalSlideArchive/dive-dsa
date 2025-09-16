@@ -25,7 +25,6 @@ ENV PATH="/opt/dive/local/venv/bin:$PATH"
 # Copy dependency files first for better caching
 COPY server/pyproject.toml /opt/dive/src/
 COPY server/uv.lock /opt/dive/src/
-COPY .git/ /opt/dive/src/.git/
 
 # Install dependencies with CPU-only PyTorch for smaller size
 RUN uv sync --frozen --no-install-project --no-dev --extra cpu

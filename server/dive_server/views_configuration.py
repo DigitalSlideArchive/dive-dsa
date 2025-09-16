@@ -8,7 +8,7 @@ from girder_jobs.models.job import Job
 
 from dive_server import crud
 # Import Celery app for task scheduling
-from girder_worker.app import app
+from dive_tasks.sam_tasks import download_sam_models
 from dive_utils import constants, models
 
 
@@ -102,9 +102,7 @@ class ConfigurationResource(Resource):
         base_config['celeryQueue'] = base_queue
         Setting().set(constants.DIVE_CONFIG, base_config)
 
-        # Schedule SAM2 model download task using module path - no import needed
-        newjob = app.send_task(
-            'dive_tasks.sam_tasks.download_sam_models',
+        newjob = download_sam_models.apply_async(
             queue=base_queue,
             kwargs=dict(
                 sam2_config=data['models'],

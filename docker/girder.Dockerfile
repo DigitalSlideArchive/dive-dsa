@@ -50,7 +50,7 @@ RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy source and install project
 COPY server/ /opt/dive/src/
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra cpu
 
 # Install Node.js for Girder build
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
@@ -99,6 +99,4 @@ COPY docker/entrypoint_server.sh docker/server_setup.py /
 # Create non-root user for security
 RUN useradd --create-home --uid 1000 --shell=/bin/bash dive && \
     chown -R dive:dive /opt/dive
-
-USER dive
 ENTRYPOINT [ "/entrypoint_server.sh" ]
