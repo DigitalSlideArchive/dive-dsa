@@ -14,9 +14,9 @@ from girder.exceptions import RestException
 from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.upload import Upload
 from girder.models.setting import Setting
 from girder.models.token import Token
+from girder.models.upload import Upload
 from girder.utility import path as path_util
 from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
@@ -28,11 +28,11 @@ from dive_utils.constants import (
     DIVEMetadataClonedFilter,
     DIVEMetadataClonedFilterBase,
     DIVEMetadataFilter,
-    DIVEMetadataMarker,
     DIVEMetadataHistoryMarker,
+    DIVEMetadataMarker,
+    csvRegex,
     jsonRegex,
     ndjsonRegex,
-    csvRegex
 )
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
 from dive_utils.types import DiveDatasetList, DIVEMetadataSlicerCLITaskParams
@@ -192,9 +192,7 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
             raise RestException('Metadata Updates need either DIVEDataset or Filename', code=400)
         if dive_metadata:
             # Find the DIVE_Metadata entry for this dataset and root
-            dataset = Folder().load(
-                dive_metadata['DIVEDataset'], level=AccessType.READ, user=user
-            )
+            dataset = Folder().load(dive_metadata['DIVEDataset'], level=AccessType.READ, user=user)
             updated_keys = []
             errors = []
             # initial pass for all metadata keys:
@@ -1367,16 +1365,21 @@ class DIVEMetadata(Resource):
         if len(errors) > 0:
             return results
         # Check and find DIVEMetadataMarker folder or create it if it doesn't exist
-        metadata_folder = Folder().findOne({
-            "name": DIVEMetadataHistoryMarker,
-            "parent": str(rootFolder["_id"]),
-            f'meta.{DIVEMetadataHistoryMarker}': {'$in': TRUTHY_META_VALUES},
-
-        }, user=user, level=AccessType.WRITE)
+        metadata_folder = Folder().findOne(
+            {
+                "name": DIVEMetadataHistoryMarker,
+                "parent": str(rootFolder["_id"]),
+                f'meta.{DIVEMetadataHistoryMarker}': {'$in': TRUTHY_META_VALUES},
+            },
+            user=user,
+            level=AccessType.WRITE,
+        )
         if not metadata_folder:
             metadata_folder = Folder().createFolder(
-                rootFolder, DIVEMetadataHistoryMarker,
-                reuseExisting=True, creator=user,
+                rootFolder,
+                DIVEMetadataHistoryMarker,
+                reuseExisting=True,
+                creator=user,
             )
             Folder().setMetadata(metadata_folder, {DIVEMetadataHistoryMarker: True})
         # now save the previous_data with a timestamp for the name in the folder
@@ -1473,10 +1476,7 @@ class DIVEMetadata(Resource):
             required=True,
             paramType="body",
             requireArray=True,
-            default=[
-                {
-                }
-            ],
+            default=[{}],
         )
         .param(
             "replace",
@@ -1485,7 +1485,6 @@ class DIVEMetadata(Resource):
             required=False,
             default=False,
         )
-
     )
     def bulk_update_metadata(self, rootFolder, updates, replace=False):
         user = self.getCurrentUser()
