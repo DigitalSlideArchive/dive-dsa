@@ -1,13 +1,12 @@
-import threading
 import copy
+import threading
 import time
 from typing import Dict, List, Union
 
 import cherrypy
-
-from girder_client import GirderClient
 from girder.models.token import Token
 from girder.models.user import User
+from girder_client import GirderClient
 from girder_jobs.models.job import Job
 from girder_worker.app import app
 from girder_worker.task import Task
@@ -36,7 +35,6 @@ class DIVEBatchPostprocessTaskParams:
         self.userId = userId
         self.girderToken = girderToken
         self.girderApiUrl = girderApiUrl
-
 
 
 def batch_postprocess_task(baseJob: Task):
@@ -158,7 +156,7 @@ def batch_postprocess_task(baseJob: Task):
                             'skipTranscoding': skipTranscoding,
                             'additive': additive,
                             'additivePrepend': additivePrepend,
-                        }
+                        },
                     )
 
                     # If skipJobs=True, postprocess runs synchronously
@@ -226,6 +224,7 @@ def batch_postprocess_task(baseJob: Task):
         status=JobStatus.SUCCESS,
     )
 
+
 def batchPostProccessingTaskLauncher(job):
     """
     Run a batch of jobs via a thread.
@@ -283,8 +282,6 @@ def batchPostprocessTask(job):
 
     :param job: the job model.
     """
-    proc = threading.Thread(
-        target=batch_postprocess_task, args=(job,), daemon=True
-    )
+    proc = threading.Thread(target=batch_postprocess_task, args=(job,), daemon=True)
     proc.start()
     return job, proc

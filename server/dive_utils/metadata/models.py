@@ -118,7 +118,14 @@ class DIVE_Metadata(Model):
         )
         if not metadataKeys:
             raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
-        keys_to_remove = [key for key in existing['metadata'].keys() if key not in ['LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path'] and not key.startswith('DIVE_') and not key.startswith('ffprobe')]
+        keys_to_remove = [
+            key
+            for key in existing['metadata'].keys()
+            if key
+            not in ['LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path']
+            and not key.startswith('DIVE_')
+            and not key.startswith('ffprobe')
+        ]
         for key in keys_to_remove:
             del existing['metadata'][key]
         self.save(existing)
@@ -288,7 +295,20 @@ class DIVE_MetadataKeys(Model):
         if owner['_id'] and existing['owner'] != str(owner['_id']):
             raise Exception('Only the Owner can modify key permissions')
         elif existing:
-            keys_to_remove = [key for key in existing['metadataKeys'].keys() if key not in ['LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path'] and not key.startswith('DIVE_') and not key.startswith('ffprobe')]
+            keys_to_remove = [
+                key
+                for key in existing['metadataKeys'].keys()
+                if key
+                not in [
+                    'LastModifiedTime',
+                    'LastModifiedBy',
+                    'DIVEDataset',
+                    'filename',
+                    'DIVE_Path',
+                ]
+                and not key.startswith('DIVE_')
+                and not key.startswith('ffprobe')
+            ]
             for key in keys_to_remove:
                 if key in existing['unlocked']:
                     existing['unlocked'].remove(key)

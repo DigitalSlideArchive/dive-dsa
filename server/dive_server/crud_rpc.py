@@ -222,7 +222,7 @@ def postprocess(
     isClone = dsFolder.get(constants.ForeignMediaIdMarker, None) is not None
     # add default confidence filter threshold to folder metadata
     dsFolder['meta'][constants.ConfidenceFiltersMarker] = {'default': 0.1}
-    
+
     # Track job IDs for batch processing
     created_job_ids = []
 

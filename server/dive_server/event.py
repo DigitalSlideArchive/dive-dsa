@@ -1,20 +1,22 @@
 from datetime import datetime, timedelta
 import os
-import cherrypy
 
 from bson.objectid import ObjectId
+import cherrypy
 from girder import logger
+from girder.api.rest import getApiUrl
+from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.models.token import Token
 from girder.models.user import User
-from girder_jobs.models.job import Job
-from girder.api.rest import getApiUrl
 from girder.settings import SettingKey
 from girder.utility.mail_utils import renderTemplate, sendMail
+from girder_jobs.models.job import Job
 from girder_worker.girder_plugin.utils import getWorkerApiUrl
 
+from dive_tasks.dive_batch_postprocess import DIVEBatchPostprocessTaskParams
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     AssetstoreSourceMarker,
@@ -26,8 +28,6 @@ from dive_utils.constants import (
     VideoType,
     videoRegex,
 )
-
-from dive_tasks.dive_batch_postprocess import DIVEBatchPostprocessTaskParams
 
 
 def send_new_user_email(event):
@@ -146,8 +146,6 @@ def convert_video_recrusive(folder, user):
     job = Job().save(job)
     Job().scheduleJob(job)
 
-    logger.info(f'Started batch postprocess job {job.job["_id"]} for folder {folder["name"]}')
-
 
 class DIVES3Imports:
     destinationId = None
@@ -165,6 +163,14 @@ class DIVES3Imports:
             userId = destinationFolder['creatorId'] or destinationFolder['baseParentId']
             user = User().findOne({'_id': ObjectId(userId)})
             convert_video_recrusive(destinationFolder, user)
+        if self.destinationType == 'collection' and self.destinationId is not None:
+            destinationCollection = Collection().findOne({"_id": ObjectId(self.destinationId)})
+            userId = destinationCollection['creatorId'] or destinationCollection['baseParentId']
+            user = User().findOne({'_id': ObjectId(userId)})
+            child_folders = Folder().find({'parentId': ObjectId(self.destinationId)})
+            for child in child_folders:
+                convert_video_recrusive(child, user)
+
         self.destinationId = None
         self.destinationType = None
 
