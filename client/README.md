@@ -102,7 +102,7 @@ The client is broken into 4 main folders which separate different parts of the s
 
 ## Unified API Specification
 
-To resuse as much code as possible between the Desktop and Web versions there is a unified API which provides the capability to export/import/save/delete annotations and metadata as well as run training and configuration pipelines.  This API allows both versions to share the `/dive-common` and `/src` folders while handling these calls differently.
+To reuse as much code as possible between the Desktop and Web versions there is a unified API which provides the capability to export/import/save/delete annotations and metadata as well as run training and configuration pipelines.  This API allows both versions to share the `/dive-common` and `/src` folders while handling these calls differently.
 
 ## Annotation Viewer Organization
 

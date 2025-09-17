@@ -222,7 +222,7 @@ def batch_postprocess_task(baseJob: Task):
     )
 
 
-def batchPostProccessingTaskLauncher(job):
+def batchPostProcessingTaskLauncher(job):
     """
     Run a batch of jobs via a thread.
 
@@ -271,14 +271,3 @@ def _get_folder_name(gc: GirderClient, folder_id: str) -> str:
         return folder.get('name', folder_id)
     except Exception:
         return folder_id
-
-
-def batchPostprocessTask(job):
-    """
-    Run a batch postprocess task via a thread.
-
-    :param job: the job model.
-    """
-    proc = threading.Thread(target=batch_postprocess_task, args=(job,), daemon=True)
-    proc.start()
-    return job, proc

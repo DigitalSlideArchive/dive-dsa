@@ -135,7 +135,7 @@ def convert_video_recrusive(folder, user):
         Setting().set('worker.api_url', getApiUrl())
     job = Job().createLocalJob(
         module='dive_tasks.dive_batch_postprocess',
-        function='batchPostProccessingTaskLauncher',
+        function='batchPostProcessingTaskLauncher',
         kwargs={'params': dive_batch_postprocess_task_params, 'url': cherrypy.url()},
         title='Batch process Dive Batch Postprocess',
         type='DIVE Batch Postprocess',
