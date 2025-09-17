@@ -105,6 +105,7 @@ def batch_postprocess_task(baseJob: Task):
                         JobStatus.SUCCESS,
                         JobStatus.ERROR,
                         JobStatus.CANCELED,
+                        JobStatus.INACTIVE,
                     }:
                         # Current job finished, move to next
                         current_job_id = None
@@ -127,13 +128,26 @@ def batch_postprocess_task(baseJob: Task):
                                 progressTotal=total_count,
                                 status=JobStatus.RUNNING,
                             )
-                except Exception:
+                    if current_job and current_job['status'] in {JobStatus.INACTIVE}:
+                        # If the job errored or was canceled, we should move on
+                        Job().cancelJob(current_job)
+                        Job().updateJob(
+                            baseJob,
+                            log='Job became inactive but finished moving on to next job, previous error can be ignored\n',
+                            progressCurrent=processed,
+                            progressTotal=total_count,
+                            status=JobStatus.RUNNING,
+                        )
+                        current_job_id = None
+                        processed += 1
+                except Exception as e:
                     # Job might have been deleted or other error, continue
+                    Job().cancelJob(current_job)
                     current_job_id = None
                     processed += 1
                     Job().updateJob(
                         baseJob,
-                        log=f'Lost track of job for folder {processed} of {total_count}, continuing...\n',
+                        log=f'Lost track of job for folder {processed} of {total_count}, continuing...\n Error: {str(e)}\n',
                         progressCurrent=processed,
                         progressTotal=total_count,
                         status=JobStatus.RUNNING,
