@@ -1,14 +1,11 @@
-import copy
 import threading
 import time
-from typing import Dict, List, Union
+from typing import List
 
-import cherrypy
 from girder.models.token import Token
 from girder.models.user import User
 from girder_client import GirderClient
 from girder_jobs.models.job import Job
-from girder_worker.app import app
 from girder_worker.task import Task
 from girder_worker.utils import JobStatus
 
