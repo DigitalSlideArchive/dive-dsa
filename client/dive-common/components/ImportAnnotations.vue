@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { defineComponent, Ref, ref } from 'vue';
 import { useApi } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useHandler } from 'vue-media-annotator/provides';
@@ -37,6 +37,8 @@ export default defineComponent({
     const menuOpen = ref(false);
     const additive = ref(false);
     const additivePrepend = ref('');
+    const maskActions = ref(['replace', 'merge']);
+    const maskActionSelection: Ref<'replace' | 'merge'> = ref('merge');
     const openUpload = async () => {
       try {
         const ret = await openFromDisk('annotation');
@@ -52,6 +54,7 @@ export default defineComponent({
               ret.fileList[0],
               additive.value,
               additivePrepend.value,
+              maskActionSelection.value,
             );
           } else {
             importFile = await importAnnotationFile(
@@ -60,6 +63,7 @@ export default defineComponent({
               undefined,
               additive.value,
               additivePrepend.value,
+              maskActionSelection.value,
             );
           }
 
@@ -91,6 +95,8 @@ export default defineComponent({
       menuOpen,
       additive,
       additivePrepend,
+      maskActionSelection,
+      maskActions,
 
     };
   },
@@ -183,6 +189,14 @@ export default defineComponent({
                 clearable
               />
             </div>
+            <v-row>
+              <v-select
+                v-model="maskActionSelection"
+                :items="maskActions"
+                label="Mask Import Action"
+                hide-details
+              />
+            </v-row>
           </v-col>
         </v-container>
       </v-card>

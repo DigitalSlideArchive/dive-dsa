@@ -170,7 +170,7 @@ interface Api {
   openFromDisk(datasetType: DatasetType | 'calibration' | 'annotation' | 'text' | 'zip', directory?: boolean):
     Promise<{canceled?: boolean; filePaths: string[]; fileList?: File[]; root?: string}>;
     importAnnotationFile(id: string, path: string, file?: File,
-      additive?: boolean, additivePrepend?: string): Promise<boolean>;
+      additive?: boolean, additivePrepend?: string, maskLogic?: 'replace' | 'merge'): Promise<boolean>;
   }
 const ApiSymbol = Symbol('api');
 
