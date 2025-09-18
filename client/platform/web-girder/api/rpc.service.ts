@@ -1,10 +1,10 @@
 import girderRest from 'platform/web-girder/plugins/girder';
 import type { GirderJob } from '@girder/components/src';
 
-function postProcess(folderId: string, skipJobs = false, skipTranscoding = false, additive = false, additivePrepend = '') {
+function postProcess(folderId: string, skipJobs = false, skipTranscoding = false, additive = false, additivePrepend = '', maskLogic: 'replace' | 'merge' = 'merge') {
   return girderRest.post(`dive_rpc/postprocess/${folderId}`, null, {
     params: {
-      skipJobs, skipTranscoding, additive, additivePrepend,
+      skipJobs, skipTranscoding, additive, additivePrepend, maskLogic,
     },
   });
 }
