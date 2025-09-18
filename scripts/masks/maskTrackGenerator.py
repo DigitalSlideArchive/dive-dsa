@@ -1,3 +1,15 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "click",
+#     "girder-client",
+#     "numpy",
+#     "pillow",
+#     "pycocotools",
+#     "scikit-image",
+#     "setuptools"
+# ]
+# ///
 import json
 import random
 import numpy as np
@@ -19,9 +31,9 @@ IMAGE_SIZE = (1024, 1280)  # height, width of image
 SHAPE_SIZE = (100, 100)  # width, height of shape
 
 CONFIG = [
-    {'track_number': 0, 'num_frames': 500, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 1, 'num_frames': 300, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 2, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 2, 'num_frames': 500, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 3, 'num_frames': 300, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 4, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
 ]
 
 
@@ -99,10 +111,10 @@ def bouncing_motion(num_frames, img_size, shape_size):
 @click.option('--upload', is_flag=True, help='Upload generated masks to Girder.')
 def generate_tracks(upload):
     output_masks_exist = os.path.exists('outputMasks')
-    rle_json_exist = os.path.exists('RLEMask.json')
+    rle_json_exist = os.path.exists('RLE_MASKS.json')
 
     if output_masks_exist and rle_json_exist:
-        print("Found existing outputMasks folder and RLEMask.json. Skipping generation.")
+        print("Found existing outputMasks folder and RLE_MASKS.json. Skipping generation.")
     else:
         print("Generating new masks and JSON files...")
 
@@ -173,7 +185,7 @@ def generate_tracks(upload):
                 }
 
                 if OUTPUT_MASKS:
-                    output_dir = os.path.join('outputMasks', f'{track_id}')
+                    output_dir = os.path.join('outputMasks/masks', f'{track_id}')
                     os.makedirs(output_dir, exist_ok=True)
 
                     alpha_channel = (mask > 0).astype(np.uint8) * 255
@@ -187,18 +199,22 @@ def generate_tracks(upload):
 
             track_data['tracks'][str(track_id)] = track
 
-        with open('trackJSON.json', 'w') as f:
+        with open('TrackJSON.json', 'w') as f:
             json.dump(track_data, f, indent=2)
 
-        with open('RLEMask.json', 'w') as f:
-            json.dump(mask_data, f, indent=2)
 
         with open('RLE_MASKS.json', 'w') as f:
             json.dump(rle_masks_json, f, indent=2)
 
-        print('Generated trackJSON.json, RLEMask.json, RLE_MASKS.json', end='')
+        print('Generated TrackJSON.json, RLE_MASKS.json', end='')
         if OUTPUT_MASKS:
             print(', and PNG masks in outputMasks/')
+            with open('outputMasks/masks/TrackJSON.json', 'w') as f:
+                json.dump(track_data, f, indent=2)
+
+            with open('outputMasks/masks/RLE_MASKS.json', 'w') as f:
+                json.dump(rle_masks_json, f, indent=2)
+
         else:
             print('.')
 
