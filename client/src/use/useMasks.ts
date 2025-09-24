@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable guard-for-in */
 /* eslint-disable no-restricted-syntax */
 import {
@@ -16,7 +17,7 @@ import { createRLEPreloader } from './usePreloadWorkers';
 const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
 const rleWorker = RLEWorker();
 
-const ENABLE_TIMING_LOGS = true;
+const ENABLE_TIMING_LOGS = false;
 const { preloadRLEMasks, terminate } = createRLEPreloader(
   RLEWorker,
   { batchSize: 50, enableTimingLogs: ENABLE_TIMING_LOGS },

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RLEFrameData } from 'platform/web-girder/api/annotation.service';
 

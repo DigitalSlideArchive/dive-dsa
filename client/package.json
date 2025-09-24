@@ -18,7 +18,9 @@
     "lint:templates": "vtc --workspace . --srcDir src/",
     "test": "vue-cli-service test:unit src/ dive-common/ platform/"
   },
-  "resolutions": {},
+  "resolutions": {
+    "@types/babel__traverse": "7.18.2"
+  },
   "files": [
     "/dist"
   ],

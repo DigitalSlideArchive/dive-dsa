@@ -611,12 +611,11 @@ def run_inference(
     rle_mask_items = list(gc.listItem(mask_folder['_id'], name='RLE_MASKS.json'))
     if len(rle_mask_items) > 0:
         base_rle_mask_path = working_directory / 'RLE_MASKS/RLE_MASKS.json'
-        gc.downloadItem(rle_mask_items[0]['_id'], working_directory, name="RLE_MASKS" )
+        gc.downloadItem(rle_mask_items[0]['_id'], working_directory, name="RLE_MASKS")
         with open(base_rle_mask_path, 'r') as f:
             rle_masks = json.load(f)
         # Delete the existing RLE_MASKS.json file
         gc.delete(f"item/{rle_mask_items[0]['_id']}")
-
 
     # Target directory you want to link to
     GlobalHydra.instance().clear()
