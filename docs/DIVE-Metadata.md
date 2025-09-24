@@ -191,3 +191,41 @@ Content-Type: application/json
 | `key` | Query Parameter | The metadata key to remove. |
 | `removeValues` | Query Parameter | Whether to remove all associated values from datasets (true/false). |
 
+
+## Bulk Updating DIVE Metadata
+
+There are two endpoitns that can be used to bulk update DIVE Metadata.  One is a direct Endpoint that takes in JSON data:
+
+**POST** `/dive_metadata/bulk_update_metadata/{rootId}`
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `rootId` | Path Parameter | The root metadata folder ID. |
+| `updates` | Body Parameter | An array of metadata key/value pairs to update |
+
+This system requires that either `DIVEDataset` or `Filename` be in each object to match up the correct Metadata Item.  Additionally if there are multiple `Filename` matches within the dataset it requires that `DIVE_Path` also be included in upload.  It will attempt to use `DIVEDataset` first followed by `Filename` and `DIVE_Path`.
+This creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
+
+### Example
+
+```json
+{
+  "DIVEDataset": "68b833ac1394856d5124dbbf",
+  "Filename": "VideoFile.mp4",
+  "VideoCategory": "sample",
+  "VideoRating": 5,
+}
+```
+
+## Bulk Update File Upload
+
+In addition to the Direct POSTing of JSON metadata there is another endpoint that will process an uploaded folder in the RootId.
+
+**POST** `/dive_metadata/bulk_update_file/{rootId}`
+
+Once a file is uploaded to the DIVEMetadata Root Folder hitting this endpoint will process this file to update the metadata.
+Similar to the JSON format this file can be either JSON, NDJSON or CSV.  With CSV it requires columns that have `DIVEDataset`, `Filename`, `DIVE_Path` if required.
+Similar to the POST endpoint with JSON this creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
+

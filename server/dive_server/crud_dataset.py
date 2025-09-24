@@ -144,10 +144,7 @@ def get_task_defaults(
                 filename=videoItem['name'],
                 fileId=foundFileId,
             )
-            if (
-                sourceVideoItem
-                and str(sourceVideoItem['_id']) != str(videoItem['_id'])
-            ):
+            if sourceVideoItem and str(sourceVideoItem['_id']) != str(videoItem['_id']):
                 foundFile = File().findOne({'itemId': videoItem['_id']})
                 foundFileId = None
                 if foundFile:
@@ -254,10 +251,7 @@ def get_media(
                     'meta.source_video': {'$in': [True, 'true', 'True']},
                 }
             )
-            if (
-                sourceVideoItem
-                and str(sourceVideoItem['_id']) != str(videoItem['_id'])
-            ):
+            if sourceVideoItem and str(sourceVideoItem['_id']) != str(videoItem['_id']):
                 sourceVideoResource = models.MediaResource(
                     id=str(sourceVideoItem['_id']),
                     url=get_url(dsFolder, sourceVideoItem),

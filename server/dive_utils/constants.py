@@ -90,6 +90,7 @@ OverlayVideoItemMarker = "overlayVideoItem"
 OverlayMetadataMarker = "overlayMetadata"
 DIVEMetadataMarker = "DIVEMetadata"
 DIVEMetadataFilter = "DIVEMetadataFilter"
+DIVEMetadataHistoryMarker = "DIVEMetadataHistory"
 DIVEMetadataClonedFilter = "DIVEMetadataClonedFilter"
 DIVEMetadataClonedFilterBase = "DIVEMetadataClonedFilterBase"
 # Other constants

@@ -129,6 +129,9 @@ type ReadOnylModeType = Readonly<Ref<boolean>>;
 const ImageEnhancementsSymbol = Symbol('imageEnhancements');
 type ImageEnhancementsType = Readonly<Ref<ImageEnhancements>>;
 
+const DiveMetadataRootIdSymbol = Symbol('diveMetadataRootId');
+type DiveMetadataRootIdType = Readonly<Ref<string | null>>;
+
 /** Class-based symbols */
 const CameraStoreSymbol = Symbol('cameraStore');
 
@@ -220,6 +223,9 @@ export interface Handler {
     shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}, user?: string): void;
   seekFrame(frame: number): void;
   toggleKeyFrame(selectedTrack?: number): void;
+  setDiveMetadataRootId(id: string | null): void;
+  getDiveMetadataRootId(): string | null;
+  setMetadataKeyValue(datasetId: string, key: string, value: string): void;
 }
 const HandlerSymbol = Symbol('handler');
 
@@ -262,6 +268,9 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     processAction(...args) { handle('processAction', args); },
     seekFrame(...args) { handle('seekFrame', args); },
     toggleKeyFrame(...args) { handle('toggleKeyFrame', args); },
+    setDiveMetadataRootId(...args) { handle('setDiveMetadataRootId', args); },
+    getDiveMetadataRootId(...args) { handle('getDiveMetadataRootId', args); return ''; },
+    setMetadataKeyValue(...args) { handle('setMetadataKeyValue', args); },
   };
 }
 
@@ -298,6 +307,7 @@ export interface State {
   visibleModes: VisibleModesType;
   readOnlyMode: ReadOnylModeType;
   imageEnhancements: ImageEnhancementsType;
+  diveMetadataRootId: DiveMetadataRootIdType;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -403,6 +413,7 @@ function dummyState(): State {
     visibleModes: ref(['rectangle', 'text'] as VisibleAnnotationTypes[]),
     readOnlyMode: ref(false),
     imageEnhancements: ref({}),
+    diveMetadataRootId: ref(null),
   };
 }
 
@@ -567,6 +578,10 @@ function useImageEnhancements() {
   return use<ImageEnhancementsType>(ImageEnhancementsSymbol);
 }
 
+function useDiveMetadataRootId() {
+  return use<DiveMetadataRootIdType>(DiveMetadataRootIdSymbol);
+}
+
 export {
   dummyHandler,
   dummyState,
@@ -590,6 +605,7 @@ export {
   useTrackFilters,
   useTrackStyleManager,
   useSelectedCamera,
+  useDiveMetadataRootId,
   useSelectedKey,
   useSelectedTrackId,
   useEditingGroupId,

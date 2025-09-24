@@ -19,6 +19,7 @@ import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
 import { CreateFullFrameTrackAction, CreateTrackAction, DIVEAction } from 'dive-common/use/useActions';
+import { setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -107,6 +108,8 @@ export default function useModeManager({
   // Track Multi-select state
   const multiSelectList = ref([] as AnnotationId[]);
   const multiSelectActive = computed(() => multiSelectList.value.length > 0);
+
+  const diveMetadataRootId: Ref<string | null> = ref(null);
 
   const _filteredTracks = computed(
     () => trackFilterControls.filteredAnnotations.value.map((filtered) => filtered.annotation),
@@ -941,6 +944,22 @@ export default function useModeManager({
     }
   }
 
+  function setDiveMetadataRootId(id: string | null) {
+    diveMetadataRootId.value = id;
+  }
+
+  function getDiveMetadataRootId() {
+    return diveMetadataRootId.value;
+  }
+
+  async function setMetadataKeyValue(datasetId: string, key: string, value: string) {
+    if (diveMetadataRootId.value === null) {
+      console.error('Dive metadata root ID is not set');
+    }
+
+    return setDiveDatasetMetadataKey(datasetId, key, value);
+  }
+
   return {
     selectedTrackId,
     editingGroupId,
@@ -956,6 +975,7 @@ export default function useModeManager({
     selectedFeatureHandle,
     selectedKey,
     selectedCamera,
+    diveMetadataRootId,
     selectNextTrack,
     handler: {
       commitMerge: handleCommitMerge,
@@ -983,7 +1003,9 @@ export default function useModeManager({
       addFullFrameTrack,
       seekFrame,
       toggleKeyFrame,
-
+      setMetadataKeyValue,
+      setDiveMetadataRootId,
+      getDiveMetadataRootId,
     },
   };
 }

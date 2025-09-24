@@ -7,11 +7,13 @@ export default function useURLParameters(
   mediaLoaded: Ref<boolean>,
   selectTrack: (trackId: AnnotationId | null, edit: boolean) => void,
   seek: (frame: number) => void,
+  setDiveMetadataRootId: (diveMetadataRootId: string | null) => void,
 ) {
   const enableParams = ref(true);
   const setEnableURLParams = (val: boolean) => {
     enableParams.value = val;
   };
+  const localDiveMetadataRootId: Ref<string | null> = ref(null);
   watch([selectedTrackId, frame], () => {
     // update query parameters based on this value
     if (!enableParams.value) {
@@ -23,6 +25,9 @@ export default function useURLParameters(
     }
     if (frame.value !== 0) {
       values.push(`frame=${frame.value}`);
+    }
+    if (localDiveMetadataRootId.value !== null) {
+      values.push(`diveMetadataRootId=${localDiveMetadataRootId.value}`);
     }
     const currentLocation = window.location.href;
     if (values.length === 0) {
@@ -62,6 +67,11 @@ export default function useURLParameters(
         if (!Number.isNaN(urlFrame)) {
           seek(urlFrame);
         }
+      }
+      if (paramMapping.diveMetadataRootId !== undefined) {
+        const { diveMetadataRootId } = paramMapping;
+        setDiveMetadataRootId(diveMetadataRootId);
+        localDiveMetadataRootId.value = diveMetadataRootId;
       }
     }
   };

@@ -1,14 +1,14 @@
 <script lang="ts">
-import { defineComponent, Ref, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 import { useApi } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
-import { useHandler } from 'vue-media-annotator/provides';
 import { getResponseError } from 'vue-media-annotator/utils';
+import { importMetadataFile } from 'platform/web-girder/api/divemetadata.service';
 
 export default defineComponent({
-  name: 'ImportAnnotations',
+  name: 'DIVEMetadataImport',
   props: {
-    datasetId: {
+    metadataRoot: {
       type: String,
       default: null,
     },
@@ -29,16 +29,13 @@ export default defineComponent({
       default: false,
     },
   },
-  setup(props) {
-    const { openFromDisk, importAnnotationFile } = useApi();
-    const { reloadAnnotations } = useHandler();
+  emits: ['updated'],
+  setup(props, { emit }) {
+    const { openFromDisk } = useApi();
     const { prompt } = usePrompt();
     const processing = ref(false);
     const menuOpen = ref(false);
-    const additive = ref(false);
-    const additivePrepend = ref('');
-    const maskActions = ref(['replace', 'merge']);
-    const maskActionSelection: Ref<'replace' | 'merge'> = ref('merge');
+    const replace = ref(false);
     const openUpload = async () => {
       try {
         const ret = await openFromDisk('annotation');
@@ -48,34 +45,23 @@ export default defineComponent({
           let importFile = false;
           processing.value = true;
           if (ret.fileList?.length) {
-            importFile = await importAnnotationFile(
-              props.datasetId,
+            importFile = await importMetadataFile(
+              props.metadataRoot,
               path,
               ret.fileList[0],
-              additive.value,
-              additivePrepend.value,
-              maskActionSelection.value,
+              replace.value,
             );
           } else {
-            importFile = await importAnnotationFile(
-              props.datasetId,
+            importFile = await importMetadataFile(
+              props.metadataRoot,
               path,
               undefined,
-              additive.value,
-              additivePrepend.value,
-              maskActionSelection.value,
+              replace.value,
             );
-          }
-
-          let reloadAfter = true;
-          if (path.endsWith('.zip')) {
-            reloadAfter = false;
-          }
-          if (importFile && reloadAfter) {
-            await reloadAnnotations();
           }
           if (importFile) {
             processing.value = false;
+            emit('updated');
           }
         }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,10 +79,7 @@ export default defineComponent({
       openUpload,
       processing,
       menuOpen,
-      additive,
-      additivePrepend,
-      maskActionSelection,
-      maskActions,
+      replace,
 
     };
   },
@@ -115,9 +98,9 @@ export default defineComponent({
       <v-tooltip bottom>
         <template #activator="{ on: tooltipOn }">
           <v-btn
-            class="ma-0"
+            class="ma-0 mx-2"
             v-bind="buttonOptions"
-            :disabled="!datasetId || processing"
+            :disabled="processing"
             v-on="{ ...tooltipOn, ...menuOn }"
           >
             <div>
@@ -133,18 +116,11 @@ export default defineComponent({
             </div>
           </v-btn>
         </template>
-        <span> Import Annotation Data </span>
+        <span>Import Metadata</span>
       </v-tooltip>
     </template>
     <template>
-      <v-card v-if="readOnlyMode">
-        <v-card-title> Read only Mode</v-card-title>
-        <v-card-text>
-          This Dataset is in ReadOnly Mode.  You cannot import annotations for this dataset.
-        </v-card-text>
-      </v-card>
       <v-card
-        v-else
         outlined
       >
         <v-card-title>
@@ -153,16 +129,18 @@ export default defineComponent({
         <v-card-text>
           Multiple Data types can be imported:
           <ul>
-            <li> Viame CSV Files </li>
-            <li> DIVE Annotation JSON </li>
-            <li> DIVE Configuation JSON</li>
-            <li> KWCOCO JSON files </li>
-            <li> Masks Zip File </li>
+            <li> Metadata JSON </li>
+            <li> Metadata NDJSON </li>
+            <li> Metadata CSV </li>
           </ul>
-          <a
-            href="https://kitware.github.io/dive/DataFormats/"
-            target="_blank"
-          >Data Format Documentation</a>
+          <p>The Import matching requires that either the key/column 'DIVEDataset' or 'Filename' is present.  If there are multiple 'Filename' matches in the DIVEMetadata it will then rely on the field 'DIVE_Path' to match the path.</p>
+          <v-card-actions>
+            <v-checkbox
+              v-model="replace"
+              label="Replace existing metadata"
+              :disabled="processing || readOnlyMode"
+            />
+          </v-card-actions>
         </v-card-text>
         <v-container>
           <v-col>
@@ -170,32 +148,11 @@ export default defineComponent({
               <v-btn
                 depressed
                 block
-                :disabled="!datasetId || processing"
+                :disabled="processing"
                 @click="openUpload"
               >
                 Import
               </v-btn>
-            </v-row>
-            <v-row>
-              <v-switch
-                v-model="additive"
-                label="Additive"
-              />
-            </v-row>
-            <div v-if="additive">
-              <v-text-field
-                v-model="additivePrepend"
-                label="Prepend to types"
-                clearable
-              />
-            </div>
-            <v-row>
-              <v-select
-                v-model="maskActionSelection"
-                :items="maskActions"
-                label="Mask Import Action"
-                hide-details
-              />
             </v-row>
           </v-col>
         </v-container>
