@@ -1180,29 +1180,32 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "girder"
-version = "3.2.8"
+version = "3.2.11"
 description = "Web-based data management platform"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "girder-3.2.8.tar.gz", hash = "sha256:4121e2190e3402f4bbdcd770064002782f0fea2762dae3669dfccb725ded18cb"},
+    {file = "girder-3.2.11.tar.gz", hash = "sha256:ff80adea77cc905cd988129505f798a5e7a0eada69fc518b5cda0bda01e6039f"},
 ]
 
 [package.dependencies]
+bcrypt = "*"
 boto3 = "*"
 botocore = "*"
+cheroot = "<11"
 CherryPy = "*"
 click = "*"
 click-plugins = "*"
-"dogpile.cache" = "*"
+"dogpile.cache" = "<1.4"
 filelock = "*"
 jsonschema = "*"
 Mako = "*"
-passlib = {version = "*", extras = ["bcrypt", "totp"]}
+packaging = "*"
 psutil = "*"
 pymongo = ">=4"
 pyOpenSSL = "*"
+pyotp = "*"
 python-dateutil = "*"
 pytz = "*"
 PyYAML = "*"
@@ -1214,13 +1217,13 @@ sftp = ["paramiko"]
 
 [[package]]
 name = "girder-client"
-version = "3.2.8"
+version = "3.2.11"
 description = "Python client for interacting with Girder servers"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "girder_client-3.2.8.tar.gz", hash = "sha256:95cf73313ec486014d3f26a21e2a407935c835f6b8f9e9f1fca8840765b35258"},
+    {file = "girder_client-3.2.11.tar.gz", hash = "sha256:1d0b1f646ea61c9ccf4536ae1fbed73ed4ff6c59501364ad5277077887a47047"},
 ]
 
 [package.dependencies]
@@ -1231,13 +1234,13 @@ requests_toolbelt = "*"
 
 [[package]]
 name = "girder-jobs"
-version = "3.2.8"
+version = "3.2.11"
 description = "A general purpose plugin for managing offline jobs."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "girder_jobs-3.2.8.tar.gz", hash = "sha256:16b7a0309e230d7774c9083f76cf97d57b7e13b443aa84a526f0429b6d1a7578"},
+    {file = "girder_jobs-3.2.11.tar.gz", hash = "sha256:1088215d4aab5b72ad19eb7ebcbf389e66b024d8e7045c065adaeb50c806ee4f"},
 ]
 
 [package.dependencies]
@@ -2614,28 +2617,6 @@ test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
 [[package]]
-name = "passlib"
-version = "1.7.4"
-description = "comprehensive password hashing framework supporting over 30 schemes"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "passlib-1.7.4-py2.py3-none-any.whl", hash = "sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1"},
-    {file = "passlib-1.7.4.tar.gz", hash = "sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04"},
-]
-
-[package.dependencies]
-bcrypt = {version = ">=3.1.0", optional = true, markers = "extra == \"bcrypt\""}
-cryptography = {version = "*", optional = true, markers = "extra == \"totp\""}
-
-[package.extras]
-argon2 = ["argon2-cffi (>=18.2.0)"]
-bcrypt = ["bcrypt (>=3.1.0)"]
-build-docs = ["cloud-sptheme (>=1.10.1)", "sphinx (>=1.6)", "sphinxcontrib-fulltoc (>=1.2.0)"]
-totp = ["cryptography"]
-
-[[package]]
 name = "pbr"
 version = "6.1.1"
 description = "Python Build Reasonableness"
@@ -3233,6 +3214,21 @@ typing-extensions = {version = ">=4.9", markers = "python_version < \"3.13\" and
 [package.extras]
 docs = ["sphinx (!=5.2.0,!=5.2.0.post0,!=7.2.5)", "sphinx_rtd_theme"]
 test = ["pretend", "pytest (>=3.0.1)", "pytest-rerunfailures"]
+
+[[package]]
+name = "pyotp"
+version = "2.9.0"
+description = "Python One Time Password Library"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "pyotp-2.9.0-py3-none-any.whl", hash = "sha256:81c2e5865b8ac55e825b0358e496e1d9387c811e85bb40e71a3b29b288963612"},
+    {file = "pyotp-2.9.0.tar.gz", hash = "sha256:346b6642e0dbdde3b4ff5a930b664ca82abfa116356ed48cc42c7d6590d36f63"},
+]
+
+[package.extras]
+test = ["coverage", "mypy", "ruff", "wheel"]
 
 [[package]]
 name = "pyparsing"
@@ -4292,4 +4288,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<=3.12"
-content-hash = "d75c04202909c754522bc9b769aa30a51e4a8ffe739740d3cf30f6892750c8d2"
+content-hash = "7b1778ca3e6c6b07e0de64b4c5f125b54109ce10eacc8902e0004a11434b167b"
