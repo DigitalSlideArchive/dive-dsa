@@ -182,7 +182,7 @@ export default defineComponent({
       removeCamera: removeSaveCamera,
       configurationId,
       setConfigurationId,
-    } = useSave(datasetId, readonlyState);
+    } = useSave(datasetId, readonlyState, undefined);
 
     const {
       imageEnhancements,
@@ -493,6 +493,15 @@ export default defineComponent({
     async function save() {
       // If editing the track, disable editing mode before save
       saveInProgress.value = true;
+      console.log(editingMode.value);
+      if (editingMode.value === 'Mask') {
+        await prompt({
+          title: 'In Mask Editing Mode',
+          text: 'Please exit mask editing mode and save or Cancel before saving your changes.',
+        });
+        saveInProgress.value = false;
+        return;
+      }
       if (editingTrack.value) {
         handler.trackSelect(selectedTrackId.value, false);
       }
