@@ -605,7 +605,9 @@ export default defineComponent({
           {{ item }}
         </p>
         <v-divider />
-        <v-row v-if="actionButtons.length" dense> Action Buttons </v-row>
+        <v-row v-if="actionButtons.length" dense>
+          Action Buttons
+        </v-row>
         <v-row v-if="actionButtons.length" class="my-1">
           <v-col v-for="(button, index) in actionButtons" :key="`action_${index}`">
             <v-tooltip bottom>
@@ -634,7 +636,9 @@ export default defineComponent({
         <p v-if="attributeButtons.length && selectedTrackIdRef === null">
           Attribute Action Buttons are disabled because no track is selected
         </p>
-        <p v-else>Attribute Buttons</p>
+        <p v-else>
+          Attribute Buttons
+        </p>
         <v-row v-for="(attribute, index) in attributeButtons" :key="`attribute_${index}`">
           <v-col cols="12">
             <v-row>

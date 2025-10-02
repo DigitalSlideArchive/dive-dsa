@@ -168,7 +168,7 @@
       "vue/no-unused-components": "off",
       "vue/valid-v-slot": "off",
       "vuejs-accessibility/alt-text": "off",
-      "vue/no-v-text-v-html-on-component": "off",
+      "vue/no-v-text-v-html-on-component": "on",
       "@typescript-eslint/no-unused-vars": "off",
       "vue/no-template-target-blank": "off",
       "vue/no-lone-template": "off",

@@ -6,7 +6,7 @@ import {
 import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
-import { max, uniq } from 'lodash';
+import { uniq } from 'lodash';
 import ButtonShortcutEditor from '../CustomUI/ButtonShortcutEditor.vue';
 
 export default defineComponent({
