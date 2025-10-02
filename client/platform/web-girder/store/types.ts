@@ -12,7 +12,7 @@ import { Store } from 'vuex';
  *  or a simplified id/type pair.
  * These types are mutually exclusive.
  */
-export type RootlessLocationType = GirderModel | { _id: string; _modelType: GirderModelType };
+export type RootlessLocationType = GirderModel | { _id: string; _modelType: GirderModelType, parentId?: string | null };
 export type LocationType = RootlessLocationType | { type: 'collections' | 'users' | 'root' };
 export interface LocationState {
   location: LocationType | null;
