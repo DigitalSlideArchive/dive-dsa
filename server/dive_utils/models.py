@@ -146,6 +146,8 @@ class ShortcutAttributeOptions(BaseModel):
     description: Optional[str]
     segment: Optional[bool]
     segmentEditable: Optional[bool]
+    segmentSize: Optional[float]
+    segmentSizeType: Optional[Literal['frames', 'seconds', 'percent']]
     type: Literal['set', 'dialog', 'remove']
     button: Optional[ButtonShortcut]
 
