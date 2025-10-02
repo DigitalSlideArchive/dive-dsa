@@ -6,7 +6,7 @@ import {
 import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
-import { uniq } from 'lodash';
+import { max, uniq } from 'lodash';
 import ButtonShortcutEditor from '../CustomUI/ButtonShortcutEditor.vue';
 
 export default defineComponent({
@@ -217,6 +217,9 @@ export default defineComponent({
       }
       if ((newVal === 'frames' || newVal === 'seconds') && segmentSize.value < 1) {
         segmentSize.value = 1;
+      }
+      if (newVal === 'percent' && segmentSize.value >= 1) {
+        segmentSize.value = 0.99;
       }
     });
 
@@ -430,6 +433,7 @@ awaitingKeyPress
               v-model.number="segmentSize"
               type="number"
               :step="segmentSizeType === 'percent' ? 0.01 : 1"
+              :max="segmentSizeType === 'percent' ? 1 : undefined"
               :min="segmentSizeType === 'percent' ? 0.01 : 1"
               label="Segment Size"
               class="mr-4"
