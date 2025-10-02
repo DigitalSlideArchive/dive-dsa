@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, ref, watch,
+  defineComponent, ref, watch,
 } from 'vue';
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
 import { useConfiguration, useHandler } from 'vue-media-annotator/provides';
@@ -45,12 +45,16 @@ export default defineComponent({
       router.push({ name: 'viewer', params: { id } });
     };
 
-    const queryStringParams = computed(() => {
+    const queryStringParams = ref('');
+    watch(getDiveMetadataRootId, (newval) => {
+      diveMetadataRootId.value = newval;
       if (diveMetadataRootId.value) {
-        return `?diveMetadataRootId=${diveMetadataRootId.value}`;
+        queryStringParams.value = `?diveMetadataRootId=${diveMetadataRootId.value}`;
+      } else {
+        queryStringParams.value = '';
       }
-      return '';
-    });
+    }, { immediate: true });
+
     return {
       previous,
       next,
