@@ -23,7 +23,7 @@ export default defineComponent({
     const existingMask = ref(false);
 
     const handleMouseScroll = (event: WheelEvent) => {
-      if (!event.ctrlKey || event.metaKey) {
+      if (!event.shiftKey || event.metaKey) {
         return;
       }
       event.preventDefault();

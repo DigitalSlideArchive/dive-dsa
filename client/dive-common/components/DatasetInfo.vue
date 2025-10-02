@@ -134,20 +134,24 @@ export default defineComponent({
           <v-expansion-panel v-if="processedDatasetMetadata" class="border">
             <v-expansion-panel-header>DIVE Metadata</v-expansion-panel-header>
             <v-expansion-panel-content class="pa-0">
-              <v-list-item two-line v-for="(value, name) in processedDatasetMetadata.default" :key="`datasetMetadata_${name}`" dense>
+              <v-list-item v-for="(value, name) in processedDatasetMetadata.default" :key="`datasetMetadata_${name}`" two-line dense>
                 <v-list-item-content>
-                  <v-list-item-title v-html="name" />
-                  <v-list-item-subtitle v-html="value !== undefined ? value.toString() : ''" class="wrap-text" />
+                  <v-list-item-title :name="name" />
+                  <v-list-item-subtitle class="wrap-text">
+                    {{ value !== undefined ? value.toString() : '' }}
+                  </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
               <v-expansion-panels>
                 <v-expansion-panel>
                   <v-expansion-panel-header>Advanced</v-expansion-panel-header>
                   <v-expansion-panel-content class="pa-0">
-                    <v-list-item two-line v-for="(value, name) in processedDatasetMetadata.advanced" :key="`datasetMetadata_${name}`" dense>
+                    <v-list-item v-for="(value, name) in processedDatasetMetadata.advanced" :key="`datasetMetadata_${name}`" two-line dense>
                       <v-list-item-content>
-                        <v-list-item-title v-html="name" />
-                        <v-list-item-subtitle v-html="value !== undefined ? value.toString() : ''" class="wrap-text" />
+                        <v-list-item-title :name="name" />
+                        <v-list-item-subtitle class="wrap-text">
+                          {{ value !== undefined ? value.toString() : '' }}
+                        </v-list-item-subtitle>
                       </v-list-item-content>
                     </v-list-item>
                   </v-expansion-panel-content>

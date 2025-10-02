@@ -261,8 +261,8 @@ export default defineComponent({
               <v-icon
                 small
                 class="ml-1"
-                @click.stop.prevent="openInNewTab(item.DIVEDataset)"
                 style="cursor:pointer;"
+                @click.stop.prevent="openInNewTab(item.DIVEDataset)"
               >
                 mdi-open-in-new
               </v-icon>
