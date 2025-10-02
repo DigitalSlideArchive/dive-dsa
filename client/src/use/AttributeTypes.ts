@@ -68,6 +68,8 @@ export interface AttributeShortcut {
     // segment Means that the adding will add two points and that deletion will delete a segment when inside it
     segment?: boolean; // if this shortcut is for a segment
     segmentEditable?: boolean;
+    segmentSize?: number; // size of segment to add
+    segmentSizeType?: 'frames' | 'seconds' | 'percent';
     description?: string;
     button?: ButtonShortcut;
   }
