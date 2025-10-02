@@ -46,12 +46,12 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10.0,<=3.12"
+python = ">=3.11.0,<=3.12"
 cheroot = ">=8.4.5"
 click = "^8.1.3"
-girder = ">=3.2.8"
-girder_jobs = ">=3.2.8"
-girder_client = ">=3.2.8"
+girder = ">=3.2.11"
+girder_jobs = ">=3.2.11"
+girder_client = ">=3.2.11"
 girder_worker = ">=0.10.3"
 girder_worker_utils = ">=0.9.1"
 girder_large_image = ">=1.30.2"
@@ -65,7 +65,7 @@ poetry-dynamic-versioning = {extras = ["plugin"], version = "^0.21.4"}
 girder-slicer-cli-web = "^1.3.5"
 pycocotools = "^2.0.8"
 pillow = "^11.3.0"
-numpy = "^1.21.4"
+numpy = "^2.3.0"
 torch = "^2.8.0"
 sam2 = "^1.1.0"
 opencv-python-headless = "^4.11.0.86"
@@ -73,7 +73,7 @@ pandas = "^2.3.2"
 
 
 [tool.poetry.group.dev.dependencies]
-numpy = "^1.21.4"
+numpy = "^2.3.0"
 opencv-python = "^4.5.5"
 tox = "^3.25.0"
 
