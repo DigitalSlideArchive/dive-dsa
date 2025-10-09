@@ -204,6 +204,25 @@ export default function useMasks(
     handler.save();
   }
 
+  async function deleteLocalMasks(trackId: number, frameIds: number[]) {
+    if (!useRLE.value) {
+      frameIds.forEach(async (frameId) => {
+        cache.delete(frameKey(frameId, trackId));
+      });
+    } else {
+      frameIds.forEach(async (frameId) => {
+        const key = frameKey(frameId, trackId);
+        rleCache.delete(key);
+        if (rleMasks.value[trackId]) {
+          delete rleMasks.value[trackId][frameId];
+          if (Object.keys(rleMasks.value[trackId]).length === 0) {
+            delete rleMasks.value[trackId];
+          }
+        }
+      });
+    }
+  }
+
   async function deleteMaskFrame(trackId: number) {
     cache.delete(frameKey(frame.value, trackId));
     const result = await deleteMask(datasetId.value, trackId, frame.value);
@@ -443,7 +462,6 @@ export default function useMasks(
   ): { width: number; height: number; data: Uint8Array } | undefined => {
     const key = frameKey(frameId, trackId);
     const cacheFound = rleCache.get(key);
-    console.log('RLE Cache Found:', cacheFound);
     if (cacheFound) {
       return cacheFound;
     }
@@ -457,6 +475,7 @@ export default function useMasks(
     getFolderRLEMasks,
     getRLEMask,
     getRLELuminanceMask,
+    deleteLocalMasks,
     editorOptions: {
       hasMasks,
       toolEnabled,

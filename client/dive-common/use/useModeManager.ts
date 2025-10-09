@@ -168,6 +168,13 @@ export default function useModeManager({
     }
     return 'disabled';
   });
+
+  let deleteLocalMasks: (((trackId: AnnotationId, frameList: number[]) => void) | null) = null;
+
+  function setDeleteLocalMasks(func: (trackId: AnnotationId, frameList: number[]) => void) {
+    deleteLocalMasks = func;
+  }
+
   // which types are currently visible, always including the editingType
   const visibleModes = computed(() => (
     uniq(annotationModes.visible.concat(editingMode.value || []))
@@ -629,6 +636,10 @@ export default function useModeManager({
       }
     }
     trackIds.forEach((trackId) => {
+      const track = cameraStore.getPossibleTrack(trackId, selectedCamera.value);
+      if (track?.hasAnyMask() && deleteLocalMasks) {
+        deleteLocalMasks(trackId, track.getMaskFrameList());
+      }
       cameraStore.remove(trackId, cameraName);
     });
     handleUnstageFromMerge(trackIds);
@@ -977,6 +988,7 @@ export default function useModeManager({
     selectedCamera,
     diveMetadataRootId,
     selectNextTrack,
+    setDeleteLocalMasks,
     handler: {
       commitMerge: handleCommitMerge,
       groupAdd: handleAddGroup,

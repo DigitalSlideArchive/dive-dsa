@@ -295,6 +295,7 @@ export default defineComponent({
       selectedCamera,
       editingTrack,
       diveMetadataRootId,
+      setDeleteLocalMasks,
     } = useModeManager({
       recipes,
       trackFilterControls: trackFilters,
@@ -944,8 +945,9 @@ export default defineComponent({
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
+      deleteLocalMasks,
     } = useMasks(time.frame, time.flick, datasetId, globalHandler);
-
+    setDeleteLocalMasks(deleteLocalMasks);
     const useAttributeFilters = {
       attributeFilters,
       addAttributeFilter,

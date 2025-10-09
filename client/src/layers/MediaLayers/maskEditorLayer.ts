@@ -347,6 +347,15 @@ export default class MaskEditorLayer {
   }
 
   disable() {
+    if (this.canvas && this.ctx) {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    if (this.iconCanvas && this.iconCtx) {
+      this.iconCtx.clearRect(0, 0, this.iconCanvas.width, this.iconCanvas.height);
+    }
+    if (this.editingImage) {
+      this.editingImage.src = '';
+    }
     this.featureLayer.visible(false);
     this.iconLayer.visible(false);
     this.annotator.geoViewerRef.value.interactor().options(this.interactorOptions);
