@@ -1,7 +1,9 @@
 <script lang="ts">
-import { defineComponent, ref, watch } from 'vue';
+import {
+  defineComponent, ref, watch,
+} from 'vue';
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
-import { useConfiguration } from 'vue-media-annotator/provides';
+import { useConfiguration, useHandler } from 'vue-media-annotator/provides';
 import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
@@ -30,6 +32,8 @@ export default defineComponent({
   setup() {
     const configMap = useConfiguration();
     const router = useRouter();
+    const { getDiveMetadataRootId } = useHandler();
+    const diveMetadataRootId = ref(getDiveMetadataRootId());
     const previous = ref(configMap.prevNext.value?.previous);
     const next = ref(configMap.prevNext.value?.next);
     watch(configMap.prevNext, () => {
@@ -40,10 +44,22 @@ export default defineComponent({
     const gotoId = (id: string) => {
       router.push({ name: 'viewer', params: { id } });
     };
+
+    const queryStringParams = ref('');
+    watch(getDiveMetadataRootId, (newval) => {
+      diveMetadataRootId.value = newval;
+      if (diveMetadataRootId.value) {
+        queryStringParams.value = `?diveMetadataRootId=${diveMetadataRootId.value}`;
+      } else {
+        queryStringParams.value = '';
+      }
+    }, { immediate: true });
+
     return {
       previous,
       next,
       gotoId,
+      queryStringParams,
     };
   },
 });
@@ -63,7 +79,7 @@ export default defineComponent({
         :tooltip-text="`Go to Previous Dataset: ${previous.name}`"
         outlined
         tile
-        :to="`/viewer/${previous.id}`"
+        :to="`/viewer/${previous.id}${queryStringParams}`"
       />
     </span>
     <slot name="middle" />
@@ -76,7 +92,7 @@ export default defineComponent({
         :tooltip-text="`Go to Next Dataset: ${next.name}`"
         outlined
         tile
-        :to="`/viewer/${next.id}`"
+        :to="`/viewer/${next.id}${queryStringParams}`"
       />
     </span>
   </v-row>

@@ -29,6 +29,20 @@ export default function useURLParameters(
     if (localDiveMetadataRootId.value !== null) {
       values.push(`diveMetadataRootId=${localDiveMetadataRootId.value}`);
     }
+    if (window.location.href.includes('diveMetadataRootId=')) {
+      // Make sure we add the diveMetadataRootId if it is not already there
+      if (localDiveMetadataRootId.value === null) {
+        const currentLocation = window.location.href;
+        const urlParams = currentLocation.slice(currentLocation.indexOf('?') + 1);
+        const urlSplitParams = urlParams.split('&');
+        urlSplitParams.forEach((item) => {
+          const splits = item.split('=');
+          if (splits.length > 1 && splits[0] === 'diveMetadataRootId') {
+            values.push(`diveMetadataRootId=${splits[1]}`);
+          }
+        });
+      }
+    }
     const currentLocation = window.location.href;
     if (values.length === 0) {
       window.history.replaceState(null, '', currentLocation.replace(/\?.*/, '')); // Override history
