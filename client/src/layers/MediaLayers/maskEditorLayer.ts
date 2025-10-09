@@ -249,7 +249,7 @@ export default class MaskEditorLayer {
     }
   }
 
-  setEditingImage(data: { trackId: number, frameId: number, image: HTMLImageElement | undefined}) {
+  setEditingImage(data: { trackId: number, frameId: number, type: string, image: HTMLImageElement | undefined}) {
     if (this.enabled && this.frameId === data.frameId && this.trackId === data.trackId) {
       return;
     }
@@ -280,7 +280,7 @@ export default class MaskEditorLayer {
 
     this.featureLayer.visible(true);
     this.iconLayer.visible(true);
-    this.featureLayer.node().css('filter', `url(#mask-filter-${data.trackId})`);
+    this.featureLayer.node().css('filter', `url(#mask-filter-${data.type})`);
     this.enabled = true;
     if (this.editorOptionsRef.toolEnabled.value === 'pointer') {
       this.annotator.geoViewerRef.value.interactor().options(this.interactorOptions);

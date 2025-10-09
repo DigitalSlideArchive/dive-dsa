@@ -131,15 +131,15 @@ export default defineComponent({
         colorScaleMatrix: number[],
         id: number;
       }[]> = ref([]);
-    const maskFilters: Ref<Record<number, string>> = ref({});
+    const maskFilters: Ref<Record<string, string>> = ref({});
 
-    const getOrCreateFilter = (trackId: number, hexColor: string) => {
+    const getOrCreateFilter = (type: string, hexColor: string) => {
       const r = parseInt(hexColor.slice(1, 3), 16);
       const g = parseInt(hexColor.slice(3, 5), 16);
       const b = parseInt(hexColor.slice(5, 7), 16);
       const colorString = `rgb(${r}, ${g}, ${b})`;
-      maskFilters.value = { ...maskFilters.value, [trackId]: colorString };
-      return maskFilters.value[trackId];
+      maskFilters.value = { ...maskFilters.value, [type]: colorString };
+      return maskFilters.value[type];
     };
     if (props.overlays && props.overlays.length) {
       for (let i = 0; i < props.overlays.length; i += 1) {
@@ -350,9 +350,9 @@ export default defineComponent({
       }
 
       if (visibleModes.includes('Mask')) {
-        const maskRLEData: {trackId: number, mask: Uint8Array, width: number, height: number}[] = [];
-        const maskImages : {trackId: number, image: HTMLImageElement}[] = [];
-        const maskLuminanceData: {trackId: number, mask: Uint8Array, width: number, height: number}[] = [];
+        const maskRLEData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
+        const maskImages : {trackId: number, type: string, image: HTMLImageElement}[] = [];
+        const maskLuminanceData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         frameData.forEach((track) => {
           if (track.features?.hasMask) {
             if (editorOptions.useRLE.value && !useworker) {
@@ -361,6 +361,7 @@ export default defineComponent({
                 const mask = decode([rle?.rle] as RLEObject[]);
                 maskRLEData.push({
                   trackId: track.track.id,
+                  type: track.styleType[0],
                   mask: mask.data,
                   width: mask.shape[1],
                   height: mask.shape[0],
@@ -371,6 +372,7 @@ export default defineComponent({
               if (rle) {
                 maskLuminanceData.push({
                   trackId: track.track.id,
+                  type: track.styleType[0],
                   mask: rle.data,
                   width: rle.width,
                   height: rle.height,
@@ -381,11 +383,12 @@ export default defineComponent({
               if (image) {
                 maskImages.push({
                   trackId: track.track.id,
+                  type: track.styleType[0],
                   image,
                 });
               }
             }
-            getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
+            getOrCreateFilter(track.styleType[0], typeStylingRef.value.color(track.styleType[0]));
           }
         });
         if (maskRLEData.length && editorOptions.useRLE.value) {
@@ -460,8 +463,13 @@ export default defineComponent({
           } else {
             image = getMask(track.track.id, frame);
           }
-          maskEditorLayer.setEditingImage({ trackId: track.track.id, frameId: frame, image });
-          getOrCreateFilter(track.track.id, typeStylingRef.value.color(track.styleType[0]));
+          maskEditorLayer.setEditingImage({
+            trackId: track.track.id,
+            frameId: frame,
+            image,
+            type: track.styleType[0],
+          });
+          getOrCreateFilter(track.styleType[0], typeStylingRef.value.color(track.styleType[0]));
         } else {
           editAnnotationLayer.disable();
           maskEditorLayer.disable();

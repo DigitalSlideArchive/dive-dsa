@@ -35,16 +35,16 @@ export default class MaskLayer {
     this.height = 0;
   }
 
-  enableTracks(trackIds: number[]) {
-    trackIds.forEach((trackId) => {
-      if (!this.featureLayers[trackId]) {
-        this.featureLayers[trackId] = this.annotator.geoViewerRef.value.createLayer('feature', {
+  enableTracks(tracks: {id: number, type: string}[]) {
+    tracks.forEach((track) => {
+      if (!this.featureLayers[track.id]) {
+        this.featureLayers[track.id] = this.annotator.geoViewerRef.value.createLayer('feature', {
           features: ['quad.image'],
           autoshareRenderer: false,
         });
-        this.featureLayers[trackId].node().css('filter', `url(#mask-filter-${trackId})`);
-        this.quads[trackId] = this.featureLayers[trackId].createFeature('quad');
-        this.featureLayers[trackId].opacity(this.opacity / 100.0);
+        this.featureLayers[track.id].node().css('filter', `url(#mask-filter-${track.type})`);
+        this.quads[track.id] = this.featureLayers[track.id].createFeature('quad');
+        this.featureLayers[track.id].opacity(this.opacity / 100.0);
       }
     });
   }
@@ -71,7 +71,7 @@ export default class MaskLayer {
     });
   }
 
-  setSegmenationImages(data: {trackId: number, image: HTMLImageElement}[]) {
+  setSegmenationImages(data: {trackId: number, image: HTMLImageElement, type: string}[]) {
     const [width, height] = this.annotator.frameSize.value;
     this.disable();
     data.forEach((item) => {
@@ -81,7 +81,7 @@ export default class MaskLayer {
           autoshareRenderer: false,
         });
         this.quads[item.trackId] = this.featureLayers[item.trackId].createFeature('quad');
-        this.featureLayers[item.trackId].node().css('filter', `url(#mask-filter-${item.trackId})`);
+        this.featureLayers[item.trackId].node().css('filter', `url(#mask-filter-${item.type})`);
         this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
@@ -97,7 +97,7 @@ export default class MaskLayer {
     });
   }
 
-  setSegmenationLuminanceRLE(data: {trackId: number, mask: Uint8Array, width: number, height: number}[]) {
+  setSegmenationLuminanceRLE(data: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[]) {
     const [frameWidth, frameHeight] = this.annotator.frameSize.value;
     this.disable();
     data.forEach((item) => {
@@ -107,7 +107,7 @@ export default class MaskLayer {
           autoshareRenderer: false,
         });
         this.quads[item.trackId] = this.featureLayers[item.trackId].createFeature('quad');
-        this.featureLayers[item.trackId].node().css('filter', `url(#mask-filter-${item.trackId})`);
+        this.featureLayers[item.trackId].node().css('filter', `url(#mask-filter-${item.type})`);
         this.featureLayers[item.trackId].opacity(this.opacity / 100.0);
       }
       if (this.featureLayers[item.trackId] && this.quads[item.trackId]) {
@@ -131,7 +131,7 @@ export default class MaskLayer {
     });
   }
 
-  setSegmenationRLE(data: {trackId: number, mask: Uint8Array, width: number, height: number}[]) {
+  setSegmenationRLE(data: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[]) {
     const [frameWidth, frameHeight] = this.annotator.frameSize.value;
     this.disable();
     data.forEach((item) => {
