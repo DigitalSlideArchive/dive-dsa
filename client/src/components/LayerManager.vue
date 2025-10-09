@@ -438,7 +438,7 @@ export default defineComponent({
             track: editTrack,
             groups: cameraStore.lookupGroups(editTrack.id),
             features: (features && features.interpolate) ? features : null,
-            styleType: cameraStore.defaultGroup, // Won't be used
+            styleType: colorBy === 'group' ? cameraStore.defaultGroup : editTrack.getType(0),
           };
           editingTracks.push(trackFrame);
         }
