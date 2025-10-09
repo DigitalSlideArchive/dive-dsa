@@ -108,6 +108,7 @@ export default defineComponent({
         handler.seekFrame(maskUpdate.currentFrame);
       }
     };
+
     girderRest.$on('message:progress', jobTracker);
     girderRest.$on('message:mask_update', ({ data: maskUpdate }: { data: MaskUpdate }) => maskUpdateProcessor(maskUpdate));
     girderRest.$on('message:job_status', ({ data: job }: { data: GirderJob }) => {

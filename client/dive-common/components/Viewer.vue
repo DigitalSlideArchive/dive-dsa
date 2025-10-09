@@ -493,7 +493,6 @@ export default defineComponent({
     async function save() {
       // If editing the track, disable editing mode before save
       saveInProgress.value = true;
-      console.log(editingMode.value);
       if (editingMode.value === 'Mask') {
         await prompt({
           title: 'In Mask Editing Mode',

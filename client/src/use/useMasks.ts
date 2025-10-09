@@ -13,7 +13,7 @@ import {
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
-import { imageToRLEObject } from './rle';
+import { imageToRLEObject, maskToLuminanceAlpha, decode } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 
 // Dynamically import the worker
@@ -189,6 +189,16 @@ export default function useMasks(
       };
       rleMasks.value[trackId] = rleMasks.value[trackId] || {};
       rleMasks.value[trackId][frame.value] = rleData;
+      const binaryMask = maskToLuminanceAlpha(decode([rleObject]).data, rleData.rle.size[1], rleData.rle.size[0]);
+      const rleDecoded = {
+        trackId,
+        frame: frame.value,
+        width: rleData.rle.size[1],
+        height: rleData.rle.size[0],
+        data: binaryMask,
+      };
+      rleCache.set(frameKey(frame.value, trackId), rleDecoded);
+      loadingFrame.value = false;
     }
     handler.trackSelect(trackId, false);
     handler.save();
@@ -433,6 +443,7 @@ export default function useMasks(
   ): { width: number; height: number; data: Uint8Array } | undefined => {
     const key = frameKey(frameId, trackId);
     const cacheFound = rleCache.get(key);
+    console.log('RLE Cache Found:', cacheFound);
     if (cacheFound) {
       return cacheFound;
     }
