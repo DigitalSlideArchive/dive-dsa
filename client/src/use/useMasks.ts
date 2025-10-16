@@ -3,6 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 import {
   ref, watch, Ref, computed,
+  ComputedRef,
 } from 'vue';
 import {
   getRLEMaskData,
@@ -21,8 +22,8 @@ const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.met
 const rleWorker = RLEWorker();
 
 const ENABLE_TIMING_LOGS = false;
-const { preloadRLEMasks, terminate } = createRLEPreloader(RLEWorker, {
-  batchSize: 50,
+const { preloadRLEMasks, clearQueue } = createRLEPreloader(RLEWorker, {
+  batchSize: 20,
   enableTimingLogs: ENABLE_TIMING_LOGS,
 });
 
@@ -35,6 +36,9 @@ export type MaskItem = {
   };
   url: string;
 };
+
+let cacheWindow = { minFrame: 0, maxFrame: 0 };
+let cachedTracks: number[] = [];
 
 export type MaskSAM2UpdateItem = MaskItem & { rleMask: RLEFrameData };
 
@@ -130,8 +134,10 @@ export default function useMasks(
   flick: Readonly<Ref<number>>,
   datasetId: Readonly<Ref<string>>,
   handler: Handler,
+  maskModeEnabled: ComputedRef<boolean>,
+  visibleTracks: Ref<number[]>,
 ) {
-  const frameRate = ref(30);
+  const frameRate = ref(60);
   const masks = ref<MaskItem[]>([]);
   const cache = new Map<string, HTMLImageElement>();
   const rleCache = new Map<string, { width: number; height: number; data: Uint8Array }>();
@@ -304,7 +310,7 @@ export default function useMasks(
             if (ENABLE_TIMING_LOGS) {
               console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
             }
-            terminate();
+            clearQueue();
           }
           if (loadingFrame.value === key) {
             loadingFrame.value = false;
@@ -323,13 +329,8 @@ export default function useMasks(
   }
 
   function getFrameWindow(currentFrame: number) {
-    if (!useRLE.value) {
-      const minFrame = Math.max(0, Math.floor(currentFrame - frameRate.value * 2));
-      const maxFrame = Math.floor(currentFrame + frameRate.value * 5);
-      return { minFrame, maxFrame };
-    }
-    const minFrame = Math.max(0, Math.floor(currentFrame - 5));
-    const maxFrame = Math.floor(currentFrame + 10);
+    const minFrame = Math.max(0, Math.floor(currentFrame - frameRate.value * 0.5)); // 2 seconds behind
+    const maxFrame = Math.floor(currentFrame + frameRate.value * 1); // 2 seconds ahead
     return { minFrame, maxFrame };
   }
 
@@ -373,9 +374,8 @@ export default function useMasks(
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function preloadWindow(currentFrame: number) {
-    const { minFrame, maxFrame } = getFrameWindow(currentFrame);
-
     if (!useRLE.value) {
+      const { minFrame, maxFrame } = getFrameWindow(currentFrame);
       clearOutOfWindow(minFrame, maxFrame);
       masks.value.forEach((mask) => {
         if (
@@ -399,17 +399,55 @@ export default function useMasks(
         }
       });
     } else {
+      const { minFrame, maxFrame } = getFrameWindow(currentFrame);
+      if (cacheWindow.minFrame <= currentFrame && cacheWindow.maxFrame > currentFrame) {
+        // If cache is 70% the way through the window, start loading the next window
+        const range = cacheWindow.maxFrame - cacheWindow.minFrame;
+        if (currentFrame >= cacheWindow.minFrame && currentFrame < cacheWindow.maxFrame - range * 0.3) {
+          return; // Still within the cached window
+        }
+      }
+      cacheWindow = { minFrame, maxFrame };
+      cachedTracks = [];
       const startTime = performance.now();
-      preloadRLEMasks(frame.value, rleMasks.value, inFlightWorker, (results) => {
+      const newCachedTracks: number[] = [];
+      const subseMasks: Record<number, Record<number, RLEFrameData>> = {};
+      Object.keys(rleMasks.value).forEach((trackIdStr) => {
+        const trackId = Number(trackIdStr);
+        if (!visibleTracks.value.includes(trackId)) {
+          return;
+        }
+        newCachedTracks.push(trackId);
+        Object.keys(rleMasks.value[trackId]).forEach((frameIdStr) => {
+          const frameId = Number(frameIdStr);
+          if (frameId >= minFrame && frameId <= maxFrame) {
+            if (cachedTracks.includes(trackId) && (rleCache.has(frameKey(frameId, trackId)) || inFlightWorker.has(frameKey(frameId, trackId)))) {
+              return;
+            }
+            subseMasks[trackId] = subseMasks[trackId] || {};
+            subseMasks[trackId][frameId] = rleMasks.value[trackId][frameId];
+          } else if (rleCache.has(frameKey(frameId, trackId))) {
+            rleCache.delete(frameKey(frameId, trackId));
+          }
+        });
+      });
+      cachedTracks = newCachedTracks;
+      if (Object.keys(subseMasks).length === 0) {
+        return;
+      }
+      const subsetSize = Object.keys(subseMasks).reduce((acc, trackId) => acc + Object.keys(subseMasks[Number(trackId)]).length, 0);
+      clearQueue();
+      inFlightWorker.clear();
+      preloadRLEMasks(frame.value, subseMasks, inFlightWorker, (results) => {
         results.forEach(({ trackId, frameId, mask }) => {
           const key = `${frameId}_${trackId}`;
           rleCache.set(key, mask);
-          if (rleCache.size === masks.value.length) {
+          inFlightWorker.delete(key);
+          if (rleCache.size === subsetSize) {
             const endTime = performance.now();
             if (ENABLE_TIMING_LOGS) {
               console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
             }
-            terminate();
           }
           if (loadingFrame.value === key) {
             loadingFrame.value = false;
@@ -442,8 +480,20 @@ export default function useMasks(
   }
 
   watch(frame, (newFrame) => {
-    if (typeof newFrame === 'number') {
+    if (typeof newFrame === 'number' && maskModeEnabled.value) {
       preloadWindow(newFrame);
+    }
+  });
+
+  watch(maskModeEnabled, (newVal) => {
+    if (newVal && typeof frame.value === 'number') {
+      preloadWindow(frame.value);
+    }
+  });
+
+  watch(visibleTracks, () => {
+    if (maskModeEnabled.value && typeof frame.value === 'number') {
+      preloadWindow(frame.value);
     }
   });
 

@@ -75,7 +75,7 @@ export default function useModeManager({
   let creating = false;
   const { prompt, inputValue } = usePrompt();
   const annotationModes = reactive({
-    visible: ['rectangle', 'Polygon', 'LineString', 'text', 'Time', 'Mask'] as VisibleAnnotationTypes[],
+    visible: ['rectangle', 'Polygon', 'LineString', 'text', 'Time'] as VisibleAnnotationTypes[],
     editing: 'rectangle' as EditAnnotationTypes,
   });
   const trackSettings = toRef(clientSettings, 'trackSettings');

@@ -936,6 +936,8 @@ export default defineComponent({
       setConfigurationId,
     };
 
+    const annotationModeVisible = computed(() => visibleModes.value.includes('Mask'));
+    const visibleTrackIds = computed(() => trackFilters.enabledAnnotations.value.map((t) => t.annotation.id));
     const {
       initializeMaskData,
       setFrameRate,
@@ -946,7 +948,7 @@ export default defineComponent({
       editorFunctions,
       editorOptions,
       deleteLocalMasks,
-    } = useMasks(time.frame, time.flick, datasetId, globalHandler);
+    } = useMasks(time.frame, time.flick, datasetId, globalHandler, annotationModeVisible, visibleTrackIds);
     setDeleteLocalMasks(deleteLocalMasks);
     const useAttributeFilters = {
       attributeFilters,

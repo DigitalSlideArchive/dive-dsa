@@ -26,22 +26,22 @@ API_URL = 'localhost'
 DATASET_ID = '68347799959c4322160de6a4'
 PORT = 8010
 
-OUTPUT_MASKS = True  # ✅ Set to True to save masks as PNG images
+OUTPUT_MASKS = True  # Set to True to save masks as PNG images
 IMAGE_SIZE = (720, 1280)  # height, width of image
 SHAPE_SIZE = (100, 100)  # width, height of shape
 
 CONFIG = [
-    {'track_number': 0, 'num_frames': 200, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 1, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 2, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 3, 'num_frames': 200, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 4, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 5, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 6, 'num_frames': 200, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 7, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 8, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 9, 'num_frames': 200, 'mask_type': 'circle', 'motion_type': 'circle'},
-    {'track_number': 10, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 0, 'num_frames': 38000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 1, 'num_frames': 38000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 2, 'num_frames': 38000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 3, 'num_frames': 38000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 4, 'num_frames': 38000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 5, 'num_frames': 38000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 6, 'num_frames': 38000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 7, 'num_frames': 38000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 8, 'num_frames': 38000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 9, 'num_frames': 38000, 'mask_type': 'circle', 'motion_type': 'circle'},
+    {'track_number': 10, 'num_frames': 38000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
 ]
 
 

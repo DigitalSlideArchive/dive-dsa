@@ -47,7 +47,9 @@ export function createRLEPreloader(
     for (let i = 0; i < maxWorkers && pendingBatches.length > 0; i += 1) {
     // Find first free worker
       const workerIndex = workerBusy.findIndex((busy) => !busy);
-      if (workerIndex === -1) return; // no free workers
+      if (workerIndex === -1) {
+        break; // no free workers
+      }
 
       const next = pendingBatches.shift()!;
       const worker = workers[workerIndex];
@@ -67,7 +69,10 @@ export function createRLEPreloader(
     // eslint-disable-next-line no-param-reassign
     worker.onmessage = (event) => {
       workerBusy[index] = false;
-      const { rleLuminanceMasks } = event.data;
+      const { rleLuminanceMasks, status } = event.data;
+      if (status === 'stopped') {
+        return;
+      }
       const callback: LuminanceMaskCallback | undefined = (worker as any)._currentCallback;
       // eslint-disable-next-line no-param-reassign
       delete (worker as any)._currentCallback;
@@ -172,10 +177,21 @@ export function createRLEPreloader(
    */
   function terminate() {
     workers.forEach((w) => w.terminate());
+    workerBusy.fill(false);
+    pendingBatches.length = 0;
+  }
+
+  function clearQueue() {
+    pendingBatches.length = 0;
+    workerBusy.fill(false);
+    workers.forEach((worker) => {
+      worker.postMessage({ command: 'stop' });
+    });
   }
 
   return {
     preloadRLEMasks,
     terminate,
+    clearQueue,
   };
 }
