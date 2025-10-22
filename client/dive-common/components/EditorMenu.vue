@@ -194,7 +194,7 @@ export default defineComponent({
           type: 'Mask',
           active: isVisible('Mask'),
           icon: 'mdi-draw',
-          tooltip: 'Segementation Masks',
+          tooltip: 'Segmentation Masks',
           click: () => toggleVisible('Mask'),
         },
         {
@@ -297,10 +297,17 @@ export default defineComponent({
     const updateMaskOpacity = (event: Event) => {
       const target = event.target as HTMLInputElement;
       const value = Number.parseFloat(target.value);
-      editorFunctions.setEditorOptions({ opactiy: value });
+      editorFunctions.setEditorOptions({ opacity: value });
+    };
+
+    const updateMaskCacheSeconds = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const value = Number.parseFloat(target.value);
+      editorFunctions.setEditorOptions({ maskCacheSeconds: value });
     };
 
     const maskOpacity = computed(() => editorOptions.opacity.value);
+    const maskCacheSeconds = computed(() => editorOptions.maskCacheSeconds.value);
     const loadingFrame = computed(() => editorOptions.loadingFrame.value);
 
     return {
@@ -316,6 +323,8 @@ export default defineComponent({
       modeToolTips,
       updateMaskOpacity,
       maskOpacity,
+      maskCacheSeconds,
+      updateMaskCacheSeconds,
       loadingFrame,
       buttonOptions,
       menuOptions,
@@ -455,6 +464,19 @@ export default defineComponent({
                       max="100"
                       :value="maskOpacity"
                       @input="updateMaskOpacity($event)"
+                    >
+                    <label for="cache-seconds">Cache Seconds: {{ maskCacheSeconds }}</label>
+                    <input
+                      id="cache-seconds"
+                      type="range"
+                      name="cache-seconds"
+                      class="tail-slider-width"
+                      label
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      :value="maskCacheSeconds"
+                      @input="updateMaskCacheSeconds($event)"
                     >
                   </v-card>
                 </v-menu>

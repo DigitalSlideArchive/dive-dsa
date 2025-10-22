@@ -56,6 +56,7 @@ export interface UseMaskInterface {
     maxBrushSize: Ref<number>;
     hasMasks: Ref<boolean>;
     opacity: Ref<number>;
+    maskCacheSeconds: Ref<number>;
     triggerAction: Ref<null | 'save' | 'delete'>; // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>;
     useRLE: Ref<boolean>;
@@ -65,7 +66,8 @@ export interface UseMaskInterface {
       toolEnabled?: MaskEditingTools;
       brushSize?: number;
       maxBrushSize?: number;
-      opactiy?: number;
+      opacity?: number;
+      maskCacheSeconds?: number;
       triggerAction?: MaskTriggerActions;
     }) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
@@ -151,13 +153,15 @@ export default function useMasks(
   const brushSize = ref(20); // Brush size for Painting/Editing
   const triggerAction: Ref<MaskTriggerActions> = ref(null);
   const opacity = ref(50);
+  const maskCacheSeconds = ref(1);
   const maxBrushSize = ref(50);
   const loadingFrame: Ref<string | false> = ref(false);
 
   function setEditorOptions(data: {
     toolEnabled?: MaskEditingTools;
     brushSize?: number;
-    opactiy?: number;
+    opacity?: number;
+    maskCacheSeconds?: number;
     triggerAction?: MaskTriggerActions;
     maxBrushSize?: number;
   }) {
@@ -170,8 +174,11 @@ export default function useMasks(
     if (data.maxBrushSize !== undefined) {
       maxBrushSize.value = data.maxBrushSize;
     }
-    if (data.opactiy !== undefined) {
-      opacity.value = data.opactiy;
+    if (data.opacity !== undefined) {
+      opacity.value = data.opacity;
+    }
+    if (data.maskCacheSeconds !== undefined) {
+      maskCacheSeconds.value = data.maskCacheSeconds;
     }
     if (data.triggerAction !== undefined) {
       triggerAction.value = data.triggerAction;
@@ -246,16 +253,10 @@ export default function useMasks(
 
   async function getFolderRLEMasks(folderId: string) {
     rleMasks.value = (await getRLEMaskData(folderId)).data;
-    if (useRLE.value) {
-      preloadWindow(frame.value);
-    }
   }
 
   function initializeMaskData(maskData: { masks: Readonly<MaskItem[]> }) {
     masks.value = [...maskData.masks];
-    if (!useRLE.value) {
-      preloadWindow(frame.value);
-    }
   }
 
   function updateMaskData(newMaskData: MaskSAM2UpdateItem[]) {
@@ -330,7 +331,7 @@ export default function useMasks(
 
   function getFrameWindow(currentFrame: number) {
     const minFrame = Math.max(0, Math.floor(currentFrame - frameRate.value * 0.5)); // 2 seconds behind
-    const maxFrame = Math.floor(currentFrame + frameRate.value * 1); // 2 seconds ahead
+    const maxFrame = Math.floor(currentFrame + frameRate.value * maskCacheSeconds.value); // 2 seconds ahead
     return { minFrame, maxFrame };
   }
 
@@ -497,6 +498,12 @@ export default function useMasks(
     }
   });
 
+  watch(maskCacheSeconds, () => {
+    if (maskModeEnabled.value && typeof frame.value === 'number') {
+      preloadWindow(frame.value);
+    }
+  });
+
   const hasMasks = computed(() => {
     if (useRLE.value) {
       return Object.keys(rleMasks.value).length > 0;
@@ -532,6 +539,7 @@ export default function useMasks(
       brushSize,
       opacity,
       triggerAction,
+      maskCacheSeconds,
       maxBrushSize,
       loadingFrame,
       useRLE,
