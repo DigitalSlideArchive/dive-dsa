@@ -308,6 +308,7 @@ export default defineComponent({
 
     const maskOpacity = computed(() => editorOptions.opacity.value);
     const maskCacheSeconds = computed(() => editorOptions.maskCacheSeconds.value);
+    const maskLoadingPercent = computed(() => editorOptions.maskLoadingPercent?.value || 0);
     const loadingFrame = computed(() => editorOptions.loadingFrame.value);
 
     return {
@@ -324,6 +325,7 @@ export default defineComponent({
       updateMaskOpacity,
       maskOpacity,
       maskCacheSeconds,
+      maskLoadingPercent,
       updateMaskCacheSeconds,
       loadingFrame,
       buttonOptions,
@@ -453,6 +455,13 @@ export default defineComponent({
                     outlined
                   >
                     <v-card-text>Segementation Masks</v-card-text>
+                    <v-progress-linear
+                      v-if="maskLoadingPercent && maskLoadingPercent < 100"
+                      :value="maskLoadingPercent"
+                      height="10"
+                      class="mb-4"
+                      color="primary"
+                    />
                     <label for="frames-before">Opacity: {{ maskOpacity }}</label>
                     <input
                       id="frames-before"

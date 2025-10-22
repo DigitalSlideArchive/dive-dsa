@@ -386,6 +386,7 @@ function dummyState(): State {
         brushSize: ref(5),
         maxBrushSize: ref(50),
         maskCacheSeconds: ref(1),
+        maskLoadingPercent: ref(0),
         opacity: ref(0.75),
         triggerAction: ref(null),
         loadingFrame: ref(false),

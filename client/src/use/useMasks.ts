@@ -57,6 +57,7 @@ export interface UseMaskInterface {
     hasMasks: Ref<boolean>;
     opacity: Ref<number>;
     maskCacheSeconds: Ref<number>;
+    maskLoadingPercent?: Ref<number>;
     triggerAction: Ref<null | 'save' | 'delete'>; // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>;
     useRLE: Ref<boolean>;
@@ -154,6 +155,7 @@ export default function useMasks(
   const triggerAction: Ref<MaskTriggerActions> = ref(null);
   const opacity = ref(50);
   const maskCacheSeconds = ref(1);
+  const maskLoadingPercent = ref(0);
   const maxBrushSize = ref(50);
   const loadingFrame: Ref<string | false> = ref(false);
 
@@ -439,11 +441,13 @@ export default function useMasks(
       const subsetSize = Object.keys(subseMasks).reduce((acc, trackId) => acc + Object.keys(subseMasks[Number(trackId)]).length, 0);
       clearQueue();
       inFlightWorker.clear();
+      maskLoadingPercent.value = 0;
       preloadRLEMasks(frame.value, subseMasks, inFlightWorker, (results) => {
         results.forEach(({ trackId, frameId, mask }) => {
           const key = `${frameId}_${trackId}`;
           rleCache.set(key, mask);
           inFlightWorker.delete(key);
+          maskLoadingPercent.value = (1 - (inFlightWorker.size / subsetSize)) * 100;
           if (rleCache.size === subsetSize) {
             const endTime = performance.now();
             if (ENABLE_TIMING_LOGS) {
@@ -543,6 +547,7 @@ export default function useMasks(
       maxBrushSize,
       loadingFrame,
       useRLE,
+      maskLoadingPercent,
     },
     editorFunctions: {
       updateMaskData,
