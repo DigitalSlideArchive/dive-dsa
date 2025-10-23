@@ -56,6 +56,7 @@ export default class TrackFilterControls extends BaseFilterControls<Track> {
             annotation,
             context: {
               confidencePairIndex,
+              hasMasks: annotation.hasAnyMask(),
             },
           });
         }

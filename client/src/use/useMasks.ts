@@ -22,6 +22,7 @@ const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.met
 const rleWorker = RLEWorker();
 
 const ENABLE_TIMING_LOGS = false;
+const MAX_TEXTURE_PRELOAD = 1000; // Max number of textures to preload at once
 const { preloadRLEMasks, clearQueue } = createRLEPreloader(RLEWorker, {
   batchSize: 20,
   enableTimingLogs: ENABLE_TIMING_LOGS,
@@ -57,6 +58,8 @@ export interface UseMaskInterface {
     hasMasks: Ref<boolean>;
     opacity: Ref<number>;
     maskCacheSeconds: Ref<number>;
+    maskMaxCacheSeconds: Ref<number>;
+    tooManyMasks: Ref<boolean>;
     maskLoadingPercent?: Ref<number>;
     triggerAction: Ref<null | 'save' | 'delete'>; // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>;
@@ -138,7 +141,7 @@ export default function useMasks(
   datasetId: Readonly<Ref<string>>,
   handler: Handler,
   maskModeEnabled: ComputedRef<boolean>,
-  visibleTracks: Ref<number[]>,
+  visibleMaskIds: Ref<number[]>,
 ) {
   const frameRate = ref(60);
   const masks = ref<MaskItem[]>([]);
@@ -155,6 +158,8 @@ export default function useMasks(
   const triggerAction: Ref<MaskTriggerActions> = ref(null);
   const opacity = ref(50);
   const maskCacheSeconds = ref(1);
+  const maskMaxCacheSeconds = ref(10);
+  const tooManyMasks = ref(false);
   const maskLoadingPercent = ref(0);
   const maxBrushSize = ref(50);
   const loadingFrame: Ref<string | false> = ref(false);
@@ -410,6 +415,7 @@ export default function useMasks(
           return; // Still within the cached window
         }
       }
+      calculateMaxCacheSeconds();
       cacheWindow = { minFrame, maxFrame };
       cachedTracks = [];
       const startTime = performance.now();
@@ -417,7 +423,7 @@ export default function useMasks(
       const subseMasks: Record<number, Record<number, RLEFrameData>> = {};
       Object.keys(rleMasks.value).forEach((trackIdStr) => {
         const trackId = Number(trackIdStr);
-        if (!visibleTracks.value.includes(trackId)) {
+        if (!visibleMaskIds.value.includes(trackId)) {
           return;
         }
         newCachedTracks.push(trackId);
@@ -462,6 +468,47 @@ export default function useMasks(
     }
   }
 
+  function calculateMaxCacheSeconds() {
+    // Check the cache and the visibleMaskIds to determine how many tracks have masks
+    // Calculate for the next 10 seconds
+    const frameMaskCountMap: Record<number, number> = {};
+    visibleMaskIds.value.forEach((trackId) => {
+      if (rleMasks.value[trackId]) {
+        const rleTrackObj = rleMasks.value[trackId];
+        if (rleTrackObj) {
+          for (let i = 0; i < 10 * frameRate.value; i += 1) {
+            const frameId = i;
+            if (rleTrackObj[frameId]) {
+              frameMaskCountMap[frameId] = (frameMaskCountMap[frameId] || 0) + 1;
+            }
+          }
+        }
+      }
+    });
+    // Now calculate how many seconds we can cache without exceeding MAX_TEXTURE_PRELOAD
+    let cumulativeMasks = 0;
+    let maxSeconds = 0;
+    const sortedFrameIds = Object.keys(frameMaskCountMap).map((f) => Number(f)).sort((a, b) => a - b);
+    for (let i = 0; i < sortedFrameIds.length; i += 1) {
+      const frameId = sortedFrameIds[i];
+      cumulativeMasks += frameMaskCountMap[frameId];
+      if (cumulativeMasks > MAX_TEXTURE_PRELOAD) {
+        break;
+      }
+      maxSeconds = frameId / frameRate.value;
+    }
+    // Round to the nearest 0.25 seconds
+    maskMaxCacheSeconds.value = Math.max(0.1, Math.floor(maxSeconds * 4) / 4);
+    if (maskCacheSeconds.value > maskMaxCacheSeconds.value) {
+      maskCacheSeconds.value = maskMaxCacheSeconds.value;
+    }
+    if (maskCacheSeconds.value <= 0.1) {
+      tooManyMasks.value = true;
+    } else {
+      tooManyMasks.value = false;
+    }
+  }
+
   function getMask(trackId: number, frameId: number): HTMLImageElement | undefined {
     const key = frameKey(frameId, trackId);
     const cacheFound = cache.get(key);
@@ -496,11 +543,13 @@ export default function useMasks(
     }
   });
 
-  watch(visibleTracks, () => {
+  watch(visibleMaskIds, () => {
     if (maskModeEnabled.value && typeof frame.value === 'number') {
       preloadWindow(frame.value);
+    } else if (visibleMaskIds.value.length > 0) {
+      calculateMaxCacheSeconds();
     }
-  });
+  }, { immediate: true });
 
   watch(maskCacheSeconds, () => {
     if (maskModeEnabled.value && typeof frame.value === 'number') {
@@ -544,6 +593,8 @@ export default function useMasks(
       opacity,
       triggerAction,
       maskCacheSeconds,
+      maskMaxCacheSeconds,
+      tooManyMasks,
       maxBrushSize,
       loadingFrame,
       useRLE,

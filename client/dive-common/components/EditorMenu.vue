@@ -308,9 +308,35 @@ export default defineComponent({
 
     const maskOpacity = computed(() => editorOptions.opacity.value);
     const maskCacheSeconds = computed(() => editorOptions.maskCacheSeconds.value);
+    const maxCacheSeconds = computed(() => editorOptions.maskMaxCacheSeconds.value);
     const maskLoadingPercent = computed(() => editorOptions.maskLoadingPercent?.value || 0);
+    const tooManyMasks = computed(() => editorOptions.tooManyMasks.value);
     const loadingFrame = computed(() => editorOptions.loadingFrame.value);
 
+    const maskIcon = computed(() => {
+      if (tooManyMasks.value) {
+        return {
+          icon: 'mdi-alert-circle-outline',
+          color: 'error',
+          value: true,
+          content: undefined,
+        };
+      }
+      if (loadingFrame.value) {
+        return {
+          icon: 'mdi-spin mdi-sync',
+          color: 'primary',
+          value: true,
+          content: undefined,
+        };
+      }
+      return {
+        icon: undefined,
+        color: undefined,
+        value: false,
+        content: undefined,
+      };
+    });
     return {
       toolTipForce,
       editButtons,
@@ -325,7 +351,10 @@ export default defineComponent({
       updateMaskOpacity,
       maskOpacity,
       maskCacheSeconds,
+      maxCacheSeconds,
       maskLoadingPercent,
+      tooManyMasks,
+      maskIcon,
       updateMaskCacheSeconds,
       loadingFrame,
       buttonOptions,
@@ -423,10 +452,10 @@ export default defineComponent({
                 v-if="button.id === 'Mask'"
                 overlap
                 bottom
-                :color="loadingFrame ? 'primary' : undefined"
-                :content="!loadingFrame ? '' : undefined"
-                :icon="loadingFrame ? 'mdi-spin mdi-sync' : undefined"
-                :value="loadingFrame ? true : false"
+                :color="maskIcon.color"
+                :content="maskIcon.content"
+                :icon="maskIcon.icon"
+                :value="maskIcon.value"
                 offset-x="25"
                 offset-y="18"
               >
@@ -481,9 +510,9 @@ export default defineComponent({
                       name="cache-seconds"
                       class="tail-slider-width"
                       label
-                      min="1"
-                      max="10"
-                      step="0.5"
+                      min="0.1"
+                      :max="maxCacheSeconds"
+                      step="0.1"
                       :value="maskCacheSeconds"
                       @input="updateMaskCacheSeconds($event)"
                     >
