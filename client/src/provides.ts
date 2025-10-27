@@ -389,6 +389,7 @@ function dummyState(): State {
         maskMaxCacheSeconds: ref(10),
         tooManyMasks: ref(false),
         maskLoadingPercent: ref(0),
+        pauseOnLoading: ref(false),
         opacity: ref(0.75),
         triggerAction: ref(null),
         loadingFrame: ref(false),
@@ -396,7 +397,15 @@ function dummyState(): State {
       },
       editorFunctions: {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opacity?: number, maskCacheSeconds?: number, triggerAction?: MaskTriggerActions }) => {
+        setEditorOptions: (data:
+          { toolEnabled?: MaskEditingTools,
+            brushSize?: number,
+            maxBrushSize?: number,
+            opacity?: number,
+            maskCacheSeconds?: number,
+            triggerAction?: MaskTriggerActions,
+            pauseOnLoading?: boolean,
+          }) => {
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         addUpdateMaskFrame: (trackId: number, image: HTMLImageElement) => new Promise<void>((resolve) => {

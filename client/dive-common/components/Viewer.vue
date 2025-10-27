@@ -948,7 +948,7 @@ export default defineComponent({
       editorFunctions,
       editorOptions,
       deleteLocalMasks,
-    } = useMasks(time.frame, time.flick, datasetId, globalHandler, annotationModeVisible, visibleMaskIds);
+    } = useMasks(time.frame, time.flick, datasetId, globalHandler, annotationModeVisible, visibleMaskIds, aggregateController);
     setDeleteLocalMasks(deleteLocalMasks);
     const useAttributeFilters = {
       attributeFilters,

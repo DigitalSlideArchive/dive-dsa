@@ -312,6 +312,14 @@ export default defineComponent({
     const maskLoadingPercent = computed(() => editorOptions.maskLoadingPercent?.value || 0);
     const tooManyMasks = computed(() => editorOptions.tooManyMasks.value);
     const loadingFrame = computed(() => editorOptions.loadingFrame.value);
+    const pauseOnLoading = computed({
+      get() {
+        return editorOptions.pauseOnLoading.value;
+      },
+      set(val: boolean) {
+        editorFunctions.setEditorOptions({ pauseOnLoading: val });
+      },
+    });
 
     const maskIcon = computed(() => {
       if (tooManyMasks.value) {
@@ -320,6 +328,7 @@ export default defineComponent({
           color: 'error',
           value: true,
           content: undefined,
+          offsetX: 25,
         };
       }
       if (loadingFrame.value) {
@@ -328,6 +337,16 @@ export default defineComponent({
           color: 'primary',
           value: true,
           content: undefined,
+          offsetX: 25,
+        };
+      }
+      if (maskLoadingPercent.value && maskLoadingPercent.value < 100) {
+        return {
+          icon: undefined,
+          color: 'warning',
+          value: maskLoadingPercent.value && maskLoadingPercent.value < 100,
+          content: `${Math.round(maskLoadingPercent.value)}%`,
+          offsetX: 35,
         };
       }
       return {
@@ -335,6 +354,7 @@ export default defineComponent({
         color: undefined,
         value: false,
         content: undefined,
+        offsetX: 25,
       };
     });
     return {
@@ -353,6 +373,7 @@ export default defineComponent({
       maskCacheSeconds,
       maxCacheSeconds,
       maskLoadingPercent,
+      pauseOnLoading,
       tooManyMasks,
       maskIcon,
       updateMaskCacheSeconds,
@@ -456,7 +477,7 @@ export default defineComponent({
                 :content="maskIcon.content"
                 :icon="maskIcon.icon"
                 :value="maskIcon.value"
-                offset-x="25"
+                :offset-x="maskIcon.offsetX"
                 offset-y="18"
               >
 
@@ -516,6 +537,11 @@ export default defineComponent({
                       :value="maskCacheSeconds"
                       @input="updateMaskCacheSeconds($event)"
                     >
+                    <v-checkbox
+                      v-model="pauseOnLoading"
+                      label="Pause on Loading Masks"
+                      hide-details
+                    />
                   </v-card>
                 </v-menu>
               </v-badge>

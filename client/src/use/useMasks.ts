@@ -14,6 +14,8 @@ import {
 } from 'platform/web-girder/api/annotation.service';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
+import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
+import { debounce } from 'lodash';
 import { imageToRLEObject, maskToLuminanceAlpha, decode } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 
@@ -61,6 +63,7 @@ export interface UseMaskInterface {
     maskMaxCacheSeconds: Ref<number>;
     tooManyMasks: Ref<boolean>;
     maskLoadingPercent?: Ref<number>;
+    pauseOnLoading: Ref<boolean>;
     triggerAction: Ref<null | 'save' | 'delete'>; // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>;
     useRLE: Ref<boolean>;
@@ -72,6 +75,7 @@ export interface UseMaskInterface {
       maxBrushSize?: number;
       opacity?: number;
       maskCacheSeconds?: number;
+      pauseOnLoading?: boolean;
       triggerAction?: MaskTriggerActions;
     }) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
@@ -142,6 +146,7 @@ export default function useMasks(
   handler: Handler,
   maskModeEnabled: ComputedRef<boolean>,
   visibleMaskIds: Ref<number[]>,
+  aggregateController: Ref<AggregateMediaController>,
 ) {
   const frameRate = ref(60);
   const masks = ref<MaskItem[]>([]);
@@ -161,6 +166,7 @@ export default function useMasks(
   const maskMaxCacheSeconds = ref(10);
   const tooManyMasks = ref(false);
   const maskLoadingPercent = ref(0);
+  const pauseOnLoading = ref(false);
   const maxBrushSize = ref(50);
   const loadingFrame: Ref<string | false> = ref(false);
 
@@ -171,6 +177,7 @@ export default function useMasks(
     maskCacheSeconds?: number;
     triggerAction?: MaskTriggerActions;
     maxBrushSize?: number;
+    pauseOnLoading?: boolean;
   }) {
     if (data.toolEnabled !== undefined) {
       toolEnabled.value = data.toolEnabled;
@@ -189,6 +196,9 @@ export default function useMasks(
     }
     if (data.triggerAction !== undefined) {
       triggerAction.value = data.triggerAction;
+    }
+    if (data.pauseOnLoading !== undefined) {
+      pauseOnLoading.value = data.pauseOnLoading;
     }
   }
 
@@ -408,6 +418,7 @@ export default function useMasks(
       });
     } else {
       const { minFrame, maxFrame } = getFrameWindow(currentFrame);
+      calculateMaxCacheSeconds();
       if (cacheWindow.minFrame <= currentFrame && cacheWindow.maxFrame > currentFrame) {
         // If cache is 70% the way through the window, start loading the next window
         const range = cacheWindow.maxFrame - cacheWindow.minFrame;
@@ -415,7 +426,6 @@ export default function useMasks(
           return; // Still within the cached window
         }
       }
-      calculateMaxCacheSeconds();
       cacheWindow = { minFrame, maxFrame };
       cachedTracks = [];
       const startTime = performance.now();
@@ -531,9 +541,16 @@ export default function useMasks(
     return undefined;
   }
 
+  const debouncedPreloadWindow = debounce((newFrame: number) => {
+    preloadWindow(newFrame);
+  }, 300);
+
   watch(frame, (newFrame) => {
-    if (typeof newFrame === 'number' && maskModeEnabled.value) {
+    if (typeof newFrame === 'number' && maskModeEnabled.value && aggregateController.value.playing.value) {
       preloadWindow(newFrame);
+    } else if (typeof newFrame === 'number' && maskModeEnabled.value && !aggregateController.value.playing.value) {
+      // Wait until frame is settled for 300ms before preloading
+      debouncedPreloadWindow(newFrame);
     }
   });
 
@@ -562,6 +579,18 @@ export default function useMasks(
       return Object.keys(rleMasks.value).length > 0;
     }
     return masks.value.length > 0;
+  });
+
+  let mediaWasPlaying = false;
+  watch(maskLoadingPercent, (newVal) => {
+    if (newVal === 0 && aggregateController.value.playing.value && pauseOnLoading.value) {
+      mediaWasPlaying = true;
+      aggregateController.value.pause();
+    }
+    if (newVal === 100 && mediaWasPlaying && pauseOnLoading.value) {
+      aggregateController.value.play();
+      mediaWasPlaying = false;
+    }
   });
 
   const getRLEMask = (trackId: number, frameId: number): RLEFrameData | undefined => rleMasks.value[trackId]?.[frameId];
@@ -599,6 +628,7 @@ export default function useMasks(
       loadingFrame,
       useRLE,
       maskLoadingPercent,
+      pauseOnLoading,
     },
     editorFunctions: {
       updateMaskData,
