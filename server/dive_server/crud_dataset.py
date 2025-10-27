@@ -52,6 +52,7 @@ def createSoftClone(
     Folder().save(cloned_folder)
     crud.get_or_create_auxiliary_folder(cloned_folder, owner)
     crud_annotation.clone_annotations(source_folder, cloned_folder, owner, revision)
+    crud_annotation.clone_masks(source_folder, cloned_folder, owner)
     return cloned_folder
 
 

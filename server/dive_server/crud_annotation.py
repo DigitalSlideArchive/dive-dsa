@@ -318,6 +318,76 @@ def clone_annotations(
         description="initialize clone",
     )
 
+def clone_masks(
+    source: types.GirderModel,
+    dest: types.GirderModel,
+    user: types.GirderUserModel,
+):
+    source_mask_folder = get_mask_folder(source)
+    if source_mask_folder is None:
+        return  # No masks to clone
+    dest_mask_folder = get_mask_folder(dest)
+    if dest_mask_folder is None:
+        dest_mask_folder = Folder().createFolder(
+            dest, 'masks', reuseExisting=True, creator=user
+        )
+        Folder().setMetadata(
+            dest_mask_folder,
+            {
+                constants.MASK_MARKER: True,
+            },
+        )
+    # Copy the RLE_MASKS.json file if it exists
+    rle_item = Item().findOne(
+        {
+            'folderId': source_mask_folder['_id'],
+            f'meta.{constants.MASK_RLE_FILE_MARKER}': {'$in': TRUTHY_META_VALUES},
+        }
+    )
+    if rle_item is not None:
+        new_rle_item = Item().createItem(
+            rle_item['name'],
+            creator=user,
+            folder=dest_mask_folder,
+            reuseExisting=True,
+        )
+        Item().setMetadata(
+            new_rle_item,
+            {
+                constants.MASK_RLE_FILE_MARKER: True,
+            },
+        )
+        for file in Item().childFiles(rle_item):
+            File().copyFile(file, user, new_rle_item)
+
+    # Copy all child folders and items from source to destination mask folder
+    for track_folder in Folder().childFolders(source_mask_folder, parentType='folder', user=user):
+        new_track_folder = Folder().createFolder(
+            dest_mask_folder, track_folder['name'], reuseExisting=True, creator=user
+        )
+        Folder().setMetadata(
+            new_track_folder,
+            {
+                constants.MASK_TRACK_MARKER: True,
+            },
+        )
+        for item in Item().childItems(track_folder, user=user):
+            new_item = Item().createItem(
+                item['name'],
+                creator=user,
+                folder=new_track_folder,
+                reuseExisting=True,
+            )
+            Item().setMetadata(
+                new_item,
+                {
+                    constants.MASK_TRACK_FRAME_MARKER: True,
+                    constants.MASK_FRAME_PARENT_TRACK_MARKER: int(track_folder['name']),
+                    constants.MASK_FRAME_VALUE: int(item['name'].split('.')[0]),
+                },
+            )
+            for file in Item().childFiles(item):
+                File().copyFile(file, new_item, user=user)
 
 def get_annotations(dataset: types.GirderModel, revision: Optional[int] = None):
     """Get the DIVE json annotation file as a dict"""
