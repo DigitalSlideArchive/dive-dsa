@@ -37,14 +37,14 @@ export type RLEObject = {
     counts: string;
   };
 
-  type RLE = {
-    h: number;
-    w: number;
-    m: number;
-    cnts: number[];
-  };
+type RLE = {
+  h: number;
+  w: number;
+  m: number;
+  cnts: number[];
+};
 
-  type BB = number[];
+type BB = number[];
 
 function rleInit(R: RLE, h: number, w: number, m: number, cnts: number[]) {
   R.h = h;
@@ -119,6 +119,48 @@ export function decode(rleObjs: RLEObject[]): DataArray {
   return masks.toDataArray();
 }
 
+export function maskToRGBA(maskData: Uint8Array, width: number, height: number) {
+  const rgbaData = new Uint8Array(width * height * 4);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cocoIndex = row + col * height;
+      const value = maskData[cocoIndex] ? 255 : 0;
+      const imgIndex = (row * width + col) * 4;
+      rgbaData[imgIndex + 0] = value;
+      rgbaData[imgIndex + 1] = value;
+      rgbaData[imgIndex + 2] = value;
+      rgbaData[imgIndex + 3] = value;
+    }
+  }
+  return rgbaData;
+}
+
+export function maskToLuminance(maskData: Uint8Array, width: number, height: number) {
+  const luminanceData = new Uint8Array(width * height);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cocoIndex = row + col * height;
+      const value = maskData[cocoIndex] ? 255 : 0;
+      const imgIndex = (row * width + col) * 1;
+      luminanceData[imgIndex] = value;
+    }
+  }
+  return luminanceData;
+}
+
+export function maskToLuminanceAlpha(maskData: Uint8Array, width: number, height: number) {
+  const luminanceAlphaData = new Uint8Array(width * height * 2);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cocoIndex = row + col * height;
+      const value = maskData[cocoIndex] ? 255 : 0;
+      const imgIndex = (row * width + col) * 2;
+      luminanceAlphaData[imgIndex] = value;
+      luminanceAlphaData[imgIndex + 1] = value;
+    }
+  }
+  return luminanceAlphaData;
+}
 export function toBbox(rleObjs: RLEObject[]): BB {
   const Rs = _frString(rleObjs);
   const n = Rs._n;
@@ -313,4 +355,201 @@ function rleFrString(R: RLE, s: string, h: number, w: number): void {
     cnts[m++] = x;
   }
   rleInit(R, h, w, m, cnts);
+}
+
+export function createMaskTexture(
+  gl: WebGL2RenderingContext,
+  maskData: Uint8Array,
+  width: number,
+  height: number,
+): WebGLTexture {
+  const texture = gl.createTexture();
+  if (!texture) throw new Error('Failed to create WebGL texture');
+
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.R8, // ✅ Internal format for 1 channel, 8-bit
+    width,
+    height,
+    0,
+    gl.RED, // ✅ Format for single-channel input
+    gl.UNSIGNED_BYTE,
+    maskData,
+  );
+
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  return texture;
+}
+
+export function downloadMaskImage(maskData: Uint8Array, width: number, height: number, filename = 'mask.png') {
+  // Create a canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return;
+  }
+  // Create image data
+  const imageData = ctx.createImageData(width, height);
+
+  for (let i = 0; i < maskData.length; i++) {
+    const value = maskData[i]; // should be 0–255
+    const j = i * 4;
+    imageData.data[j] = value; // Red
+    imageData.data[j + 1] = value; // Green
+    imageData.data[j + 2] = value; // Blue
+    imageData.data[j + 3] = 255; // Alpha
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // Convert canvas to data URL (PNG)
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href); // Cleanup
+  }, 'image/png');
+}
+
+export function generateDummyMask(width: number, height: number) {
+  const dummy = new Uint8Array(width * height).fill(0); // Black background
+
+  // Define a centered white rectangle
+  const boxWidth = Math.floor(width / 2);
+  const boxHeight = Math.floor(height / 2);
+  const startX = Math.floor((width - boxWidth) / 2);
+  const startY = Math.floor((height - boxHeight) / 2);
+
+  for (let y = startY; y < startY + boxHeight; y++) {
+    for (let x = startX; x < startX + boxWidth; x++) {
+      const i = y * width + x;
+      dummy[i] = 255; // White pixel
+    }
+  }
+
+  return dummy;
+}
+
+export function generateTestTexture(width: number, height: number) {
+  // Create RGBA data (4 bytes per pixel)
+  const data = new Uint8Array(width * height * 4);
+
+  // Generate random background
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.floor(Math.random() * 100); // R (dark background)
+    data[i + 1] = Math.floor(Math.random() * 100); // G
+    data[i + 2] = Math.floor(Math.random() * 100); // B
+    data[i + 3] = 255; // A (fully opaque)
+  }
+
+  // Draw random circles
+  for (let circle = 0; circle < 10; circle++) {
+    const centerX = Math.floor(Math.random() * width);
+    const centerY = Math.floor(Math.random() * height);
+    const radius = Math.floor(Math.random() * 50) + 10;
+    const colorR = Math.floor(Math.random() * 255);
+    const colorG = Math.floor(Math.random() * 255);
+    const colorB = Math.floor(Math.random() * 255);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= radius) {
+          const index = (y * width + x) * 4;
+          data[index] = colorR; // R
+          data[index + 1] = colorG; // G
+          data[index + 2] = colorB; // B
+          data[index + 3] = 255; // A
+        }
+      }
+    }
+  }
+
+  return {
+    data,
+    width,
+    height,
+  };
+}
+
+export function rleObjectToImageSync(rleObj: RLEObject): HTMLImageElement {
+  const [height, width] = rleObj.size;
+
+  // Step 1: Decode the RLE into a DataArray
+  const decoded = decode([rleObj]);
+
+  // Step 2: Convert mask data to RGBA format
+  const rgba = maskToRGBA(decoded.data, width, height);
+
+  // Step 3: Create a canvas and draw the RGBA data
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
+
+  const imageData = new ImageData(new Uint8ClampedArray(rgba), width, height);
+  ctx.putImageData(imageData, 0, 0);
+
+  // Step 4: Convert the canvas to data URL and create an image
+  const img = new Image();
+  img.src = canvas.toDataURL('image/png');
+  return img;
+}
+
+export function imageToRLEObject(img: HTMLImageElement): RLEObject {
+  const width = img.naturalWidth;
+  const height = img.naturalHeight;
+
+  // Step 1: Draw the image to a canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
+
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Step 2: Read image pixel data (RGBA)
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const rgba = imageData.data;
+
+  // Step 3: Convert RGBA to binary mask (1 for white-ish pixels, 0 otherwise)
+  // Convert RGBA to binary mask (thresholded)
+  // Then transpose row-major → column-major
+  const binaryMask = new Uint8Array(width * height);
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const index2D = row * width + col;
+      const r = rgba[index2D * 4];
+      const g = rgba[index2D * 4 + 1];
+      const b = rgba[index2D * 4 + 2];
+      const a = rgba[index2D * 4 + 3];
+      const avg = (r + g + b) / 3;
+
+      const maskValue = a > 0 && avg > 127 ? 1 : 0;
+
+      // COCO-style expects column-major: (col * height + row)
+      const cocoIndex = col * height + row;
+      binaryMask[cocoIndex] = maskValue;
+    }
+  }
+
+  // Step 4: Wrap as DataArray and encode
+  const mask = new DataArray(binaryMask, [height, width, 1]);
+  const rleObjs = encode(mask);
+  return rleObjs[0]; // since we passed n = 1
 }

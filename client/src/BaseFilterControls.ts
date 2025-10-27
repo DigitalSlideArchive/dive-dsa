@@ -17,6 +17,7 @@ export interface AnnotationWithContext<T extends Track | Group> {
   context: {
     // confidencePair index within annotation that makes this annotation a positive filter result
     confidencePairIndex: number;
+    hasMasks?: boolean;
   };
 }
 

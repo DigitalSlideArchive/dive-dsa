@@ -10,6 +10,8 @@ import {
 import { useApi, DatasetMetaMutable, SaveStylingArgs } from 'dive-common/apispec';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
 import Group from 'vue-media-annotator/Group';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { EditAnnotationTypes } from 'vue-media-annotator/layers';
 
 interface ChangeMap {
   upsert: Map<TrackId, Track>;
@@ -72,6 +74,8 @@ export default function useSave(
   const {
     saveDetections, saveMetadata, saveAttributes, saveTimelines, saveFilters, saveSwimlanes, saveStyling,
   } = useApi();
+
+  const { prompt } = usePrompt();
 
   async function save(
     datasetMeta?: DatasetMetaMutable,

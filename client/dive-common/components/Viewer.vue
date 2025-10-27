@@ -182,7 +182,7 @@ export default defineComponent({
       removeCamera: removeSaveCamera,
       configurationId,
       setConfigurationId,
-    } = useSave(datasetId, readonlyState);
+    } = useSave(datasetId, readonlyState, undefined);
 
     const {
       imageEnhancements,
@@ -295,6 +295,7 @@ export default defineComponent({
       selectedCamera,
       editingTrack,
       diveMetadataRootId,
+      setDeleteLocalMasks,
     } = useModeManager({
       recipes,
       trackFilterControls: trackFilters,
@@ -493,6 +494,14 @@ export default defineComponent({
     async function save() {
       // If editing the track, disable editing mode before save
       saveInProgress.value = true;
+      if (editingMode.value === 'Mask') {
+        await prompt({
+          title: 'In Mask Editing Mode',
+          text: 'Please exit mask editing mode and save or Cancel before saving your changes.',
+        });
+        saveInProgress.value = false;
+        return;
+      }
       if (editingTrack.value) {
         handler.trackSelect(selectedTrackId.value, false);
       }
@@ -727,7 +736,9 @@ export default defineComponent({
             setFrameRate(meta.fps);
             initializeMaskData({ masks: mediaMasks.value });
           }
-          getFolderRLEMasks(cameraId);
+          if (editorOptions.useRLE.value) {
+            getFolderRLEMasks(cameraId);
+          }
           // eslint-disable-next-line no-await-in-loop
           const { tracks, groups } = await loadDetections(cameraId, props.revision);
           progress.total = tracks.length + groups.length;
@@ -925,15 +936,20 @@ export default defineComponent({
       setConfigurationId,
     };
 
+    const annotationModeVisible = computed(() => visibleModes.value.includes('Mask'));
+    const visibleMaskIds = computed(() => trackFilters.enabledAnnotations.value.filter((t) => t.context.hasMasks).map((t) => t.annotation.id));
     const {
       initializeMaskData,
       setFrameRate,
       getMask,
+      getRLEMask,
+      getRLELuminanceMask,
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
-    } = useMasks(time.frame, time.flick, datasetId, globalHandler);
-
+      deleteLocalMasks,
+    } = useMasks(time.frame, time.flick, datasetId, globalHandler, annotationModeVisible, visibleMaskIds, aggregateController);
+    setDeleteLocalMasks(deleteLocalMasks);
     const useAttributeFilters = {
       attributeFilters,
       addAttributeFilter,
@@ -986,8 +1002,10 @@ export default defineComponent({
         visibleModes,
         readOnlyMode: readonlyState,
         imageEnhancements,
+        masks: {
+          getMask, getRLEMask, getRLELuminanceMask, editorFunctions, editorOptions,
+        },
         diveMetadataRootId,
-        masks: { getMask, editorFunctions, editorOptions },
       },
       globalHandler,
       useAttributeFilters,

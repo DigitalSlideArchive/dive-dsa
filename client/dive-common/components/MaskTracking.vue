@@ -14,7 +14,7 @@ import type { GirderJob } from '@girder/components/src';
 import girderRest from 'platform/web-girder/plugins/girder';
 import { all } from '@girder/components/src/components/Job/status';
 import Track from 'vue-media-annotator/track';
-import { MaskItem } from 'vue-media-annotator/use/useMasks';
+import { MaskSAM2UpdateItem } from 'vue-media-annotator/use/useMasks';
 
 const JobStatus = all();
 const NonRunningStates = [
@@ -28,7 +28,7 @@ export interface MaskUpdate {
     trackId: number;
     currentFrame: number;
     trackFeatures: Track['features'];
-    masks: MaskItem[];
+    masks: MaskSAM2UpdateItem[];
 }
 
 export default defineComponent({
@@ -108,6 +108,7 @@ export default defineComponent({
         handler.seekFrame(maskUpdate.currentFrame);
       }
     };
+
     girderRest.$on('message:progress', jobTracker);
     girderRest.$on('message:mask_update', ({ data: maskUpdate }: { data: MaskUpdate }) => maskUpdateProcessor(maskUpdate));
     girderRest.$on('message:job_status', ({ data: job }: { data: GirderJob }) => {

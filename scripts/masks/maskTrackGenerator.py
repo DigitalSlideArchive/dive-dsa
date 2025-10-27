@@ -23,18 +23,55 @@ import girder_client
 
 # === GLOBAL CONFIG ===
 API_URL = 'localhost'
-DATASET_ID = '67eecf75e6ee4e673f857aa9'
+DATASET_ID = '68347799959c4322160de6a4'
 PORT = 8010
 
-OUTPUT_MASKS = True  # ✅ Set to True to save masks as PNG images
-IMAGE_SIZE = (1024, 1280)  # height, width of image
+OUTPUT_MASKS = True  # Set to True to save masks as PNG images
+IMAGE_SIZE = (720, 1280)  # height, width of image
 SHAPE_SIZE = (100, 100)  # width, height of shape
 
 CONFIG = [
-    {'track_number': 2, 'num_frames': 500, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 3, 'num_frames': 300, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 4, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 0, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 1, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 2, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 3, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 4, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 5, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 6, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 7, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 8, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 9, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'circle'},
+    {'track_number': 10, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 11, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 12, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 13, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 14, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 15, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 16, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
 ]
+
+def get_non_overlapping_start(track_id, num_tracks, img_size, shape_size):
+    """Compute a roughly unique non-overlapping start position for a given track."""
+    h, w = img_size
+    sh, sw = shape_size
+
+    # Divide the image into a grid based on number of tracks
+    grid_cols = int(np.ceil(np.sqrt(num_tracks)))
+    grid_rows = int(np.ceil(num_tracks / grid_cols))
+
+    cell_w = w // grid_cols
+    cell_h = h // grid_rows
+
+    row = track_id // grid_cols
+    col = track_id % grid_cols
+
+    # Randomize a bit inside the cell
+    margin_x = (cell_w - sw) // 4
+    margin_y = (cell_h - sh) // 4
+    cx = col * cell_w + cell_w // 2 + random.randint(-margin_x, margin_x)
+    cy = row * cell_h + cell_h // 2 + random.randint(-margin_y, margin_y)
+
+    return cx, cy
 
 
 def create_mask(shape_type, bounds, img_size):
@@ -67,34 +104,37 @@ def create_mask(shape_type, bounds, img_size):
     return mask
 
 
-def circular_motion(num_frames, img_size, shape_size):
+def circular_motion(num_frames, img_size, shape_size, track_id=0, num_tracks=1):
     h, w = img_size
     sh, sw = shape_size
 
-    center_x = w // 2
-    center_y = h // 2
-    radius_x = (w - sw) // 2 - 10
-    radius_y = (h - sh) // 2 - 10
+    cx0, cy0 = get_non_overlapping_start(track_id, num_tracks, img_size, shape_size)
+
+    # Reduce radius to avoid leaving the cell area
+    radius_x = min((w - sw) // 4, 200)
+    radius_y = min((h - sh) // 4, 200)
 
     for frame in range(num_frames):
         angle = 2 * np.pi * (frame / num_frames)
-        cx = int(center_x + radius_x * np.cos(angle))
-        cy = int(center_y + radius_y * np.sin(angle))
+        cx = int(cx0 + radius_x * np.cos(angle))
+        cy = int(cy0 + radius_y * np.sin(angle))
         x1, y1 = cx - sw // 2, cy - sh // 2
         x2, y2 = cx + sw // 2, cy + sh // 2
         yield [x1, y1, x2, y2]
 
-
-def bouncing_motion(num_frames, img_size, shape_size):
+def bouncing_motion(num_frames, img_size, shape_size, track_id=0, num_tracks=1):
     h, w = img_size
     sh, sw = shape_size
 
-    x, y = random.randint(0, w - sw), random.randint(0, h - sh)
+    cx, cy = get_non_overlapping_start(track_id, num_tracks, img_size, shape_size)
+    x = max(0, min(w - sw, cx - sw // 2))
+    y = max(0, min(h - sh, cy - sh // 2))
+
     dx, dy = random.choice([-5, 5]), random.choice([-5, 5])
 
     for _ in range(num_frames):
-        x1, y1 = x, y
-        x2, y2 = x + sw, y + sh
+        x1, y1 = int(x), int(y)
+        x2, y2 = x1 + sw, y1 + sh
 
         if x + dx < 0 or x + dx + sw > w:
             dx = -dx
@@ -105,7 +145,6 @@ def bouncing_motion(num_frames, img_size, shape_size):
         y += dy
 
         yield [x1, y1, x2, y2]
-
 
 @click.command()
 @click.option('--upload', is_flag=True, help='Upload generated masks to Girder.')
@@ -145,6 +184,7 @@ def generate_tracks(upload):
                 'end': num_frames - 1,
                 'id': track_id,
                 'confidencePairs': [[mask_type, 1.0]],
+                'hasMask': True,
                 'attributes': {},
                 'meta': {},
                 'features': []
@@ -179,7 +219,7 @@ def generate_tracks(upload):
 
                 rle_masks_json[str(track_id)][str(frame_id)] = {
                     'rle': {
-                        'size': [IMAGE_SIZE[1], IMAGE_SIZE[0]],  # width, height
+                        'size': [IMAGE_SIZE[0], IMAGE_SIZE[1]],  # width, height
                         'counts': rle['counts']
                     }
                 }
@@ -262,6 +302,12 @@ def upload_to_girder():
             'RLE_MASK_FILE': True
         })
         print('Uploaded RLE_MASKS.json to masks folder.')
+
+    # Create a TrackJSON for uploading
+    if os.path.exists('trackJSON.json'):
+        track_item = gc.uploadFileToFolder(DATASET_ID, 'trackJSON.json')
+        gc.sendRestRequest("POST", f"/dive_rpc/postprocess/{DATASET_ID}")
+        print('Uploaded trackJSON.json to masks folder.')
 
 
 if __name__ == '__main__':

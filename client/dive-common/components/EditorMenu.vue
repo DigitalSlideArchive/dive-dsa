@@ -194,7 +194,7 @@ export default defineComponent({
           type: 'Mask',
           active: isVisible('Mask'),
           icon: 'mdi-draw',
-          tooltip: 'Segementation Masks',
+          tooltip: 'Segmentation Masks',
           click: () => toggleVisible('Mask'),
         },
         {
@@ -297,12 +297,66 @@ export default defineComponent({
     const updateMaskOpacity = (event: Event) => {
       const target = event.target as HTMLInputElement;
       const value = Number.parseFloat(target.value);
-      editorFunctions.setEditorOptions({ opactiy: value });
+      editorFunctions.setEditorOptions({ opacity: value });
+    };
+
+    const updateMaskCacheSeconds = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const value = Number.parseFloat(target.value);
+      editorFunctions.setEditorOptions({ maskCacheSeconds: value });
     };
 
     const maskOpacity = computed(() => editorOptions.opacity.value);
+    const maskCacheSeconds = computed(() => editorOptions.maskCacheSeconds.value);
+    const maxCacheSeconds = computed(() => editorOptions.maskMaxCacheSeconds.value);
+    const maskLoadingPercent = computed(() => editorOptions.maskLoadingPercent?.value || 0);
+    const tooManyMasks = computed(() => editorOptions.tooManyMasks.value);
     const loadingFrame = computed(() => editorOptions.loadingFrame.value);
+    const pauseOnLoading = computed({
+      get() {
+        return editorOptions.pauseOnLoading.value;
+      },
+      set(val: boolean) {
+        editorFunctions.setEditorOptions({ pauseOnLoading: val });
+      },
+    });
 
+    const maskIcon = computed(() => {
+      if (tooManyMasks.value) {
+        return {
+          icon: 'mdi-alert-circle-outline',
+          color: 'error',
+          value: true,
+          content: undefined,
+          offsetX: 25,
+        };
+      }
+      if (loadingFrame.value) {
+        return {
+          icon: 'mdi-spin mdi-sync',
+          color: 'primary',
+          value: true,
+          content: undefined,
+          offsetX: 25,
+        };
+      }
+      if (maskLoadingPercent.value && maskLoadingPercent.value < 100) {
+        return {
+          icon: undefined,
+          color: 'warning',
+          value: maskLoadingPercent.value && maskLoadingPercent.value < 100,
+          content: `${Math.round(maskLoadingPercent.value)}%`,
+          offsetX: 35,
+        };
+      }
+      return {
+        icon: undefined,
+        color: undefined,
+        value: false,
+        content: undefined,
+        offsetX: 25,
+      };
+    });
     return {
       toolTipForce,
       editButtons,
@@ -316,6 +370,13 @@ export default defineComponent({
       modeToolTips,
       updateMaskOpacity,
       maskOpacity,
+      maskCacheSeconds,
+      maxCacheSeconds,
+      maskLoadingPercent,
+      pauseOnLoading,
+      tooManyMasks,
+      maskIcon,
+      updateMaskCacheSeconds,
       loadingFrame,
       buttonOptions,
       menuOptions,
@@ -412,11 +473,11 @@ export default defineComponent({
                 v-if="button.id === 'Mask'"
                 overlap
                 bottom
-                :color="loadingFrame ? 'primary' : undefined"
-                :content="!loadingFrame ? '' : undefined"
-                :icon="loadingFrame ? 'mdi-spin mdi-sync' : undefined"
-                :value="loadingFrame ? true : false"
-                offset-x="25"
+                :color="maskIcon.color"
+                :content="maskIcon.content"
+                :icon="maskIcon.icon"
+                :value="maskIcon.value"
+                :offset-x="maskIcon.offsetX"
                 offset-y="18"
               >
 
@@ -444,6 +505,13 @@ export default defineComponent({
                     outlined
                   >
                     <v-card-text>Segementation Masks</v-card-text>
+                    <v-progress-linear
+                      v-if="maskLoadingPercent && maskLoadingPercent < 100"
+                      :value="maskLoadingPercent"
+                      height="10"
+                      class="mb-4"
+                      color="primary"
+                    />
                     <label for="frames-before">Opacity: {{ maskOpacity }}</label>
                     <input
                       id="frames-before"
@@ -456,6 +524,24 @@ export default defineComponent({
                       :value="maskOpacity"
                       @input="updateMaskOpacity($event)"
                     >
+                    <label for="cache-seconds">Cache Seconds: {{ maskCacheSeconds }}</label>
+                    <input
+                      id="cache-seconds"
+                      type="range"
+                      name="cache-seconds"
+                      class="tail-slider-width"
+                      label
+                      min="0.1"
+                      :max="maxCacheSeconds"
+                      step="0.1"
+                      :value="maskCacheSeconds"
+                      @input="updateMaskCacheSeconds($event)"
+                    >
+                    <v-checkbox
+                      v-model="pauseOnLoading"
+                      label="Pause on Loading Masks"
+                      hide-details
+                    />
                   </v-card>
                 </v-menu>
               </v-badge>

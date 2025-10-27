@@ -2,66 +2,62 @@
 /* eslint-disable no-loop-func */
 /* eslint-disable no-restricted-globals */
 /* eslint-disable no-restricted-syntax */
-import { decode } from '../use/rle';
+import { decode, maskToLuminanceAlpha } from '../use/rle';
 
-// Track in-flight promises: key = `${trackId}_${frameId}`
-const inFlightPromises = new Map();
+let shouldStop = false; // control flag
 
 self.onmessage = async (event) => {
-  const { rleMasks } = event.data;
+  const { command, rleMasks } = event.data;
 
-  for (const [trackId, frames] of Object.entries(rleMasks)) {
-    for (const [frameId, rleWrapper] of Object.entries(frames)) {
-      const key = `${trackId}_${frameId}`;
+  if (command === 'stop') {
+    // set stop flag so current processing halts
+    shouldStop = true;
+    return;
+  }
 
-      if (inFlightPromises.has(key)) {
-        // Skip if there's already a pending promise for this key
-        // eslint-disable-next-line no-continue
-        continue;
+  if (command === 'start' || !command) {
+    shouldStop = false;
+    const results = [];
+
+    // Use for...of with await to allow interruption checks
+    for (const item of rleMasks) {
+      if (shouldStop) {
+        break;
       }
-      await processOneMask(trackId, frameId, rleWrapper);
+
+      // Optional: yield control to the event loop occasionally
+      // to stay responsive and allow message handling
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      results.push(processOneMask(item.trackId, item.frameId, item.rleWrapper.rle));
+    }
+
+    if (!shouldStop) {
+      self.postMessage({
+        rleLuminanceMasks: results,
+      });
+    } else {
+      self.postMessage({
+        status: 'stopped',
+      });
     }
   }
 };
-let currentHeight = 0;
-let currentWidth = 0;
-let ctx = null;
-let canvas = null;
 
-async function processOneMask(trackId, frameId, rleWrapper) {
-  const binaryMask = decode([rleWrapper.rle]);
+function processOneMask(trackId, frameId, rleObject) {
+  const binaryMask = maskToLuminanceAlpha(
+    decode([rleObject]).data,
+    rleObject.size[1],
+    rleObject.size[0],
+  );
+  const height = rleObject.size[0];
+  const width = rleObject.size[1];
 
-  const height = rleWrapper.rle.size[0]; // height first
-  const width = rleWrapper.rle.size[1]; // then width
-  if (currentHeight !== height || currentWidth !== width) {
-    // Create a new OffscreenCanvas and context if dimensions have changed
-    currentHeight = height;
-    currentWidth = width;
-    canvas = new OffscreenCanvas(width, height);
-    ctx = canvas.getContext('2d');
-  }
-
-  const imageData = ctx.createImageData(width, height);
-
-  for (let row = 0; row < height; row += 1) {
-    for (let col = 0; col < width; col += 1) {
-      const cocoIndex = row + col * height;
-      const value = binaryMask.data[cocoIndex] ? 255 : 0;
-      const imgIndex = (row * width + col) * 4;
-      imageData.data[imgIndex + 0] = value;
-      imageData.data[imgIndex + 1] = value;
-      imageData.data[imgIndex + 2] = value;
-      imageData.data[imgIndex + 3] = value;
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-  const blob = await canvas.convertToBlob();
-  const objectURL = URL.createObjectURL(blob);
-
-  self.postMessage({
+  return {
     trackId,
     frameId,
-    objectURL,
-  });
+    width,
+    height,
+    data: binaryMask,
+  };
 }
