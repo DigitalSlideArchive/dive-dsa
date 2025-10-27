@@ -318,6 +318,7 @@ def clone_annotations(
         description="initialize clone",
     )
 
+
 def clone_masks(
     source: types.GirderModel,
     dest: types.GirderModel,
@@ -328,9 +329,7 @@ def clone_masks(
         return  # No masks to clone
     dest_mask_folder = get_mask_folder(dest)
     if dest_mask_folder is None:
-        dest_mask_folder = Folder().createFolder(
-            dest, 'masks', reuseExisting=True, creator=user
-        )
+        dest_mask_folder = Folder().createFolder(dest, 'masks', reuseExisting=True, creator=user)
         Folder().setMetadata(
             dest_mask_folder,
             {
@@ -388,6 +387,7 @@ def clone_masks(
             )
             for file in Item().childFiles(item):
                 File().copyFile(file, new_item, user=user)
+
 
 def get_annotations(dataset: types.GirderModel, revision: Optional[int] = None):
     """Get the DIVE json annotation file as a dict"""

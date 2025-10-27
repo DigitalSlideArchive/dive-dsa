@@ -735,7 +735,7 @@ def update_annotation(
     frameId: int,
     track_folder_id: str | None,
     track_data: dict,
-    rle_masks_json: dict
+    rle_masks_json: dict,
 ):
     # find the new mask
     mask_path = output_dir / f'{trackId}' / f'{frameId}.png'
@@ -789,7 +789,9 @@ def update_annotation(
             # Delete the existing RLE_MASKS.json file
             gc.delete(f"item/{rle_masks[0]['_id']}")
 
-        rle_item = gc.uploadFileToFolder(mask_folder['_id'], str(rle_path), filename="RLE_MASKS.json")
+        rle_item = gc.uploadFileToFolder(
+            mask_folder['_id'], str(rle_path), filename="RLE_MASKS.json"
+        )
         gc.addMetadataToItem(
             rle_item['itemId'],
             {
@@ -841,7 +843,7 @@ def update_client(
                     "trackId": track_id,
                 },
                 "url": url,
-                "rleMask": rle_mask
+                "rleMask": rle_mask,
             }
         )
 
