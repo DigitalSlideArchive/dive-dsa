@@ -200,6 +200,11 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
     scheduled = 0
     done = False
     lastSubJob = None
+    baseJob = Job().updateJob(
+        baseJob,
+        log=f'Found {total_count} DIVE datasets to process\n',
+        status=JobStatus.RUNNING,
+    )
 
     try:
         while not done:
@@ -237,7 +242,10 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
     except Exception as exc:
         Job().updateJob(
             baseJob,
-            log=f'Error During DIVEMetadata Slicer CLI Processing Item: {dive_dataset_list[scheduled]}\n',
+            log=f'Error During DIVEMetadata Slicer CLI Processing Item:\n\
+              base Params: {params}\n\
+              Slicer Params: {slicer_params}\n\
+              DIVE Dataset Params: {dive_dataset_list[scheduled]}\n',
             status=JobStatus.ERROR,
         )
         Job().updateJob(baseJob, log='Exception: %r\n' % exc)
