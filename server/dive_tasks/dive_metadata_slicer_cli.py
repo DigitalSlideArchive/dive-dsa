@@ -1,7 +1,7 @@
 import copy
 import threading
-import traceback
 import time
+import traceback
 from typing import Dict, List, Union
 
 import cherrypy
@@ -159,7 +159,7 @@ def create_sub_job(
     dive_params: DiveDatasetList,
     cliItem: CLIItem,
 ):
-    
+
     if not dive_params or not isinstance(dive_params, dict):
         raise ValueError("Invalid or missing dive_params for sub-job")
     if slicer_params is None:
@@ -265,7 +265,7 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
                 Job().updateJob(
                     baseJob,
                     log=f'Scheduling job {scheduled} of {total_count} on dataset: '
-                        f'{dive_dataset_params.get("DIVEDatasetName", "Unknown")}\n',
+                    f'{dive_dataset_params.get("DIVEDatasetName", "Unknown")}\n',
                     progressCurrent=scheduled,
                     progressTotal=total_count,
                     status=JobStatus.RUNNING,
@@ -287,8 +287,7 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
         Job().updateJob(baseJob, log='Exception: %r\n' % exc)
         Job().updateJob(
             baseJob,
-            log=f"Error During DIVEMetadata Slicer CLI Processing:\n"
-                f"{traceback.format_exc()}",
+            log=f"Error During DIVEMetadata Slicer CLI Processing:\n" f"{traceback.format_exc()}",
             status=JobStatus.ERROR,
         )
         return
