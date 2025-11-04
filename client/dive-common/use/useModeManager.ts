@@ -18,7 +18,12 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
-import { CreateFullFrameTrackAction, CreateTrackAction, DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
+import {
+  CreateFullFrameTrackAction,
+  CreateTrackAction,
+  DIVEAction,
+  DIVEMetadataAction,
+} from 'dive-common/use/useActions';
 import { setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
@@ -64,6 +69,7 @@ export default function useModeManager({
   aggregateController,
   readonlyState,
   recipes,
+  datasetId,
 }: {
     cameraStore: CameraStore;
     trackFilterControls: TrackFilterControls;
@@ -71,6 +77,7 @@ export default function useModeManager({
     aggregateController: Ref<AggregateMediaController>;
     readonlyState: Readonly<Ref<boolean>>;
     recipes: Recipe[];
+    datasetId: Ref<string | null>;
 }) {
   let creating = false;
   const { prompt, inputValue } = usePrompt();
@@ -832,9 +839,10 @@ export default function useModeManager({
     shortcut = false,
     data?: {frame?: number; selectedTrack?: number},
     user?: string,
-    datasetId?: string,
   ) {
     const action = cloneDeep(actionRoot);
+    console.log('Processing Action: ', action);
+    console.log(diveMetadataRootId.value);
     if (action.action.type === 'GoToFrame') {
       if (action.action.track) {
         if (shortcut) { //if Frame/is -1 we use currently selected as basis
@@ -938,20 +946,20 @@ export default function useModeManager({
       }
     } else if (action.action.type === 'Metadata') {
       const diveMetadataAction = action.action as DIVEMetadataAction;
-      if (diveMetadataAction.actionType === 'set' && diveMetadataAction.key && diveMetadataRootId.value && datasetId) {
+      if (diveMetadataAction.actionType === 'set' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
         await setDiveDatasetMetadataKey(
-          datasetId,
+          datasetId.value,
           diveMetadataRootId.value,
           diveMetadataAction.key,
           diveMetadataAction.value || '',
         );
-      } else if (diveMetadataAction.actionType === 'remove' && diveMetadataAction.key && diveMetadataRootId.value && datasetId) {
+      } else if (diveMetadataAction.actionType === 'remove' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
         await setDiveDatasetMetadataKey(
-          datasetId,
+          datasetId.value,
           diveMetadataRootId.value,
           diveMetadataAction.key,
         );
-      } else if (diveMetadataAction.actionType === 'dialog' && diveMetadataAction.key && diveMetadataRootId.value && datasetId) {
+      } else if (diveMetadataAction.actionType === 'dialog' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
         const promptTypeMap: Record<string, 'text' | 'number' | 'boolean'> = { string: 'text', number: 'number', boolean: 'boolean' };
         const result = await inputValue({
           title: 'Metadata Value',
@@ -961,7 +969,7 @@ export default function useModeManager({
         });
         if (result !== null) {
           await setDiveDatasetMetadataKey(
-            datasetId,
+            datasetId.value,
             diveMetadataRootId.value,
             diveMetadataAction.key,
             result,

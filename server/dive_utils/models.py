@@ -457,7 +457,7 @@ class DIVEMetadataAction(BaseModel):
     visibility: Optional[Literal['always', 'connected']]
 
 class DIVEActions(BaseModel):
-    action: Union[GoToFrameAction, TrackSelectAction, CreateTrackAction, CreateFullFrameTrackAction]
+    action: Union[GoToFrameAction, TrackSelectAction, CreateTrackAction, CreateFullFrameTrackAction, DIVEMetadataAction]
 
 
 class ShortCut(BaseModel):

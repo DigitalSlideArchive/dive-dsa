@@ -14,7 +14,7 @@ import AttributeSubsection from 'dive-common/components/Attributes/AttributesSub
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
-import { DIVEAction } from 'dive-common/use/useActions';
+import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import context from 'dive-common/store/context';
 
@@ -427,6 +427,18 @@ export default defineComponent({
       if (configMan.configuration.value?.shortcuts) {
         configMan.configuration.value.shortcuts.forEach((item) => {
           if (item.button) {
+            // We need to check if the DIVE Action is of Type Metadata and the visibility check
+            if (item.actions.some((action: DIVEAction) => action.action.type === 'Metadata')) {
+              const diveMetadataAction = item.actions.find((action: DIVEAction) => action.action.type === 'Metadata') as DIVEAction;
+              const metadataAction = diveMetadataAction.action as DIVEMetadataAction;
+              if (metadataAction.visibility === 'connected') {
+                // only show if dataset is connected
+                const datasetId = store.state.Dataset.meta?.id;
+                if (!datasetId) {
+                  return; // skip adding this button
+                }
+              }
+            }
             dataList.push({
               name: item.button.buttonText,
               buttonToolTip: item.button.buttonToolTip,

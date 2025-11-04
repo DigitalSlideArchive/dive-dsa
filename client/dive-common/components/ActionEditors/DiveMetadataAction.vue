@@ -1,11 +1,11 @@
 <script lang="ts">
 import {
-    computed,
+  computed,
   defineComponent, onMounted, PropType, Ref, ref,
   watch,
 } from 'vue';
 import { EditAnnotationTypes } from 'vue-media-annotator/layers/';
-import {  DIVEMetadataAction } from 'dive-common/use/useActions';
+import { DIVEMetadataAction } from 'dive-common/use/useActions';
 import { useHandler } from 'vue-media-annotator/provides';
 import { MetadataFilterKeysItem, getMetadataFilterValues } from 'platform/web-girder/api/divemetadata.service';
 
@@ -72,7 +72,6 @@ export default defineComponent({
       }
     });
 
-
     return {
       localAction,
       selectedKeyCategory,
@@ -80,6 +79,7 @@ export default defineComponent({
       unlockedKeyValues,
       keyDataType,
       actionTypes,
+      visibilityTypes,
       cancel,
       save,
     };
@@ -125,22 +125,31 @@ export default defineComponent({
         />
         <!-- Value Setting-->
         <div v-if="localAction.actionType === 'set'">
-            <v-text-field
-              v-if="keyDataType !== 'boolean'"
-              v-model="localAction.value"
-              :label="`Value (${keyDataType})`"
-              :type="keyDataType === 'number' ? 'number' : 'text'"
-              outlined
-              dense
-              class="mt-2"
-            />
-            <v-checkbox
-              v-else
-              v-model="localAction.value"
-              label="Boolean Value"
-              class="mt-2"
-            />
+          <v-text-field
+            v-if="keyDataType !== 'boolean'"
+            v-model="localAction.value"
+            :label="`Value (${keyDataType})`"
+            :type="keyDataType === 'number' ? 'number' : 'text'"
+            outlined
+            dense
+            class="mt-2"
+          />
+          <v-checkbox
+            v-else
+            v-model="localAction.value"
+            label="Boolean Value"
+            class="mt-2"
+          />
         </div>
+        <!-- Visibility Setting-->
+        <v-select
+          v-model="localAction.visibility"
+          :items="visibilityTypes"
+          label="Visibility"
+          outlined
+          dense
+          class="mt-2"
+        />
 
       </v-card-text>
       <v-card-actions>
