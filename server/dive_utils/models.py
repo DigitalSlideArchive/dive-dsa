@@ -452,7 +452,7 @@ class DIVEMetadataAction(BaseModel):
     type: Literal['Metadata']
     key: str
     value: Optional[Union[str, int, float, bool]]
-    actionType: Literal['set', 'remove', 'increment', 'decrement', 'dialog']
+    actionType: Literal['set', 'remove', 'dialog']
     dataType: Literal['string', 'number', 'boolean']
     visibility: Optional[Literal['always', 'connected']]
 
