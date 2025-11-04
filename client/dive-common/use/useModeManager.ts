@@ -18,7 +18,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
-import { CreateFullFrameTrackAction, CreateTrackAction, DIVEAction } from 'dive-common/use/useActions';
+import { CreateFullFrameTrackAction, CreateTrackAction, DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import { setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
@@ -832,6 +832,7 @@ export default function useModeManager({
     shortcut = false,
     data?: {frame?: number; selectedTrack?: number},
     user?: string,
+    datasetId?: string,
   ) {
     const action = cloneDeep(actionRoot);
     if (action.action.type === 'GoToFrame') {
@@ -933,6 +934,38 @@ export default function useModeManager({
         }
         if (!selectTrackAfter) {
           handleEscapeMode();
+        }
+      }
+    } else if (action.action.type === 'Metadata') {
+      const diveMetadataAction = action.action as DIVEMetadataAction;
+      if (diveMetadataAction.actionType === 'set' && diveMetadataAction.key && diveMetadataRootId.value && datasetId) {
+        await setDiveDatasetMetadataKey(
+          datasetId,
+          diveMetadataRootId.value,
+          diveMetadataAction.key,
+          diveMetadataAction.value || '',
+        );
+      } else if (diveMetadataAction.actionType === 'remove' && diveMetadataAction.key && diveMetadataRootId.value && datasetId) {
+        await setDiveDatasetMetadataKey(
+          datasetId,
+          diveMetadataRootId.value,
+          diveMetadataAction.key,
+        );
+      } else if (diveMetadataAction.actionType === 'dialog' && diveMetadataAction.key && diveMetadataRootId.value && datasetId) {
+        const promptTypeMap: Record<string, 'text' | 'number' | 'boolean'> = { string: 'text', number: 'number', boolean: 'boolean' };
+        const result = await inputValue({
+          title: 'Metadata Value',
+          text: `Enter value for key: ${diveMetadataAction.key}`,
+          positiveButton: 'OK',
+          valueType: promptTypeMap[diveMetadataAction.dataType],
+        });
+        if (result !== null) {
+          await setDiveDatasetMetadataKey(
+            datasetId,
+            diveMetadataRootId.value,
+            diveMetadataAction.key,
+            result,
+          );
         }
       }
     }
