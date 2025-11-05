@@ -92,7 +92,7 @@ export default defineComponent({
     <v-card>
       <v-card-title>Edit: DIVE Metadata Ation</v-card-title>
       <v-card-text>
-        <v-autocomplete
+        <v-combobox
           v-model="localAction.key"
           :items="unlockedKeyValues"
           label="Metadata Key"
@@ -110,12 +110,7 @@ export default defineComponent({
           class="mt-2"
         />
 
-        <!-- Action Type -->
-        <v-alert type="warning" v-if="selectedKeyCategory === null" class="mt-2">
-          Please select a valid Metadata Key to choose an Action Type.
-        </v-alert>
         <v-select
-          v-if="selectedKeyCategory !== null"
           v-model="localAction.actionType"
           :items="actionTypes"
           label="Action Type"

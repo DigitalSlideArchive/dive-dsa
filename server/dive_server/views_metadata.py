@@ -1064,7 +1064,7 @@ class DIVEMetadata(Resource):
             )
             if default_value:
                 DIVE_Metadata().updateKey(
-                    diveDatasetFolder, root, user, key, default_value, force=True
+                    diveDatasetFolder, str(root["_id"]), user, key, default_value, force=True
                 )
 
     @autoDescribeRoute(

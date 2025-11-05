@@ -433,8 +433,8 @@ export default defineComponent({
               const metadataAction = diveMetadataAction.action as DIVEMetadataAction;
               if (metadataAction.visibility === 'connected') {
                 // only show if dataset is connected
-                const datasetId = store.state.Dataset.meta?.id;
-                if (!datasetId) {
+                const rootDatasetId = systemHandler.getDiveMetadataRootId();
+                if (!rootDatasetId) {
                   return; // skip adding this button
                 }
               }

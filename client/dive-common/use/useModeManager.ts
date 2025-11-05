@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-restricted-syntax */
 import {
   computed, Ref, reactive, ref, onBeforeUnmount, toRef,
 } from 'vue';
@@ -24,7 +26,7 @@ import {
   DIVEAction,
   DIVEMetadataAction,
 } from 'dive-common/use/useActions';
-import { setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
+import { deleteDiveDatasetMetadataKey, setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -841,8 +843,6 @@ export default function useModeManager({
     user?: string,
   ) {
     const action = cloneDeep(actionRoot);
-    console.log('Processing Action: ', action);
-    console.log(diveMetadataRootId.value);
     if (action.action.type === 'GoToFrame') {
       if (action.action.track) {
         if (shortcut) { //if Frame/is -1 we use currently selected as basis
@@ -947,18 +947,34 @@ export default function useModeManager({
     } else if (action.action.type === 'Metadata') {
       const diveMetadataAction = action.action as DIVEMetadataAction;
       if (diveMetadataAction.actionType === 'set' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
-        await setDiveDatasetMetadataKey(
-          datasetId.value,
-          diveMetadataRootId.value,
-          diveMetadataAction.key,
-          diveMetadataAction.value || '',
-        );
+        try {
+          await setDiveDatasetMetadataKey(
+            datasetId.value,
+            diveMetadataRootId.value,
+            diveMetadataAction.key,
+            diveMetadataAction.value || '',
+          );
+        } catch (error: any) {
+          prompt({
+            title: 'Metadata Error',
+            text: `Failed to set metadata key: ${diveMetadataAction.key}. Error: ${error?.response?.data?.message || error}`,
+            positiveButton: 'OK',
+          });
+        }
       } else if (diveMetadataAction.actionType === 'remove' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
-        await setDiveDatasetMetadataKey(
-          datasetId.value,
-          diveMetadataRootId.value,
-          diveMetadataAction.key,
-        );
+        try {
+          await deleteDiveDatasetMetadataKey(
+            datasetId.value,
+            diveMetadataRootId.value,
+            diveMetadataAction.key,
+          );
+        } catch (error: any) {
+          prompt({
+            title: 'Metadata Error',
+            text: `Failed to set metadata key: ${diveMetadataAction.key}. Error: ${error?.response?.data?.message || error}`,
+            positiveButton: 'OK',
+          });
+        }
       } else if (diveMetadataAction.actionType === 'dialog' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
         const promptTypeMap: Record<string, 'text' | 'number' | 'boolean'> = { string: 'text', number: 'number', boolean: 'boolean' };
         const result = await inputValue({
@@ -968,12 +984,22 @@ export default function useModeManager({
           valueType: promptTypeMap[diveMetadataAction.dataType],
         });
         if (result !== null) {
-          await setDiveDatasetMetadataKey(
-            datasetId.value,
-            diveMetadataRootId.value,
-            diveMetadataAction.key,
-            result,
-          );
+          const value = result;
+          try {
+            await setDiveDatasetMetadataKey(
+              datasetId.value,
+              diveMetadataRootId.value,
+              diveMetadataAction.key,
+              value,
+
+            );
+          } catch (error: any) {
+            prompt({
+              title: 'Metadata Error',
+              text: `Failed to set metadata key: ${diveMetadataAction.key}. Error: ${error?.response?.data?.message || error}`,
+              positiveButton: 'OK',
+            });
+          }
         }
       }
     }
