@@ -116,7 +116,7 @@ async function updateRLEMasks(folderId: string, trackFrameList?: [number, number
   return uploadMetadata;
 }
 
-async function getRLEMask(folderId: string) {
+async function getRLEMaskData(folderId: string) {
   const response = await girderRest.get<RLETrackFrameData>('dive_annotation/rle_mask', {
     params: {
       folderId,
@@ -153,7 +153,7 @@ export {
   saveDetections,
   uploadMask,
   updateRLEMasks,
-  getRLEMask,
+  getRLEMaskData,
   deleteMask,
 
 };

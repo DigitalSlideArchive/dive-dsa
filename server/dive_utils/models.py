@@ -146,6 +146,8 @@ class ShortcutAttributeOptions(BaseModel):
     description: Optional[str]
     segment: Optional[bool]
     segmentEditable: Optional[bool]
+    segmentSize: Optional[float]
+    segmentSizeType: Optional[Literal['frames', 'seconds', 'percent']]
     type: Literal['set', 'dialog', 'remove']
     button: Optional[ButtonShortcut]
 
@@ -447,8 +449,23 @@ class CreateFullFrameTrackAction(BaseModel):
     type: Literal['CreateFullFrameTrackAction']
 
 
+class DIVEMetadataAction(BaseModel):
+    type: Literal['Metadata']
+    key: str
+    value: Optional[Union[str, int, float, bool]]
+    actionType: Literal['set', 'remove', 'dialog']
+    dataType: Literal['string', 'number', 'boolean']
+    visibility: Optional[Literal['always', 'connected']]
+
+
 class DIVEActions(BaseModel):
-    action: Union[GoToFrameAction, TrackSelectAction, CreateTrackAction, CreateFullFrameTrackAction]
+    action: Union[
+        GoToFrameAction,
+        TrackSelectAction,
+        CreateTrackAction,
+        CreateFullFrameTrackAction,
+        DIVEMetadataAction,
+    ]
 
 
 class ShortCut(BaseModel):

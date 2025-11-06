@@ -8,12 +8,21 @@ import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtua
 import { getFolder } from 'platform/web-girder/api';
 import { useStore } from 'platform/web-girder/store/types';
 import { useHandler } from 'vue-media-annotator/provides';
-import { FilterDisplayConfig, filterDiveMetadata } from 'platform/web-girder/api/divemetadata.service';
+import DIVEMetadataEditKey from 'platform/web-girder/views/DIVEMetadata/DIVEMetadataEditKey.vue';
+import {
+  FilterDisplayConfig,
+  filterDiveMetadata,
+  getMetadataFilterValues,
+  MetadataFilterKeysItem,
+  setDiveDatasetMetadataKey,
+} from 'platform/web-girder/api/divemetadata.service';
+import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 
 export default defineComponent({
   name: 'DatasetInfo',
   components: {
     StackedVirtualSidebarContainer,
+    DIVEMetadataEditKey,
   },
 
   props: {
@@ -25,6 +34,7 @@ export default defineComponent({
 
   setup() {
     const store = useStore();
+    const prompt = usePrompt();
     const { getDiveMetadataRootId } = useHandler();
     const diveMetadataRootId = ref(getDiveMetadataRootId());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +44,7 @@ export default defineComponent({
     const diveMetadataFilter: Ref<FilterDisplayConfig> = ref({
       display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
     });
+    const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const getMetadata = async () => {
       if (store.state.Dataset.meta) {
         const resp = await getFolder(store.state.Dataset.meta?.id);
@@ -62,6 +73,16 @@ export default defineComponent({
             },
           },
         );
+        const filterData = await getMetadataFilterValues(diveMetadataRootId.value);
+        const { unlocked } = filterData.data;
+        unlockedMap.value = {};
+        if (unlocked) {
+          unlocked.forEach((item) => {
+            if (filterData.data.metadataKeys[item]) {
+              unlockedMap.value[item] = filterData.data.metadataKeys[item];
+            }
+          });
+        }
         [datasetMetadata.value] = results.data.pageResults;
       }
     });
@@ -84,12 +105,29 @@ export default defineComponent({
     const datasetInfoLength = computed(() => Object.keys(datasetInfo.value || []).length);
 
     const panels = ref([0, 1]);
+
+    const updateDiveMetadataKeyVal = async (key: string, val: boolean | number | string) => {
+      try {
+        if (!store.state.Dataset.meta?.id) return;
+        if (diveMetadataRootId.value === null) return;
+        await setDiveDatasetMetadataKey(store.state.Dataset.meta?.id, diveMetadataRootId.value, key, val);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        prompt.prompt({
+          title: 'Error Setting Data',
+          text: err.response.data.message,
+        });
+      }
+    };
+
     return {
       datasetInfo,
       datasetMetadata,
       datasetInfoLength,
       processedDatasetMetadata,
       panels,
+      unlockedMap,
+      updateDiveMetadataKeyVal,
     };
   },
 });
@@ -134,20 +172,50 @@ export default defineComponent({
           <v-expansion-panel v-if="processedDatasetMetadata" class="border">
             <v-expansion-panel-header>DIVE Metadata</v-expansion-panel-header>
             <v-expansion-panel-content class="pa-0">
-              <v-list-item two-line v-for="(value, name) in processedDatasetMetadata.default" :key="`datasetMetadata_${name}`" dense>
+              <v-list-item v-for="(value, name) in processedDatasetMetadata.default" :key="`datasetMetadata_${name}`" two-line dense>
                 <v-list-item-content>
-                  <v-list-item-title v-html="name" />
-                  <v-list-item-subtitle v-html="value !== undefined ? value.toString() : ''" class="wrap-text" />
+                  <v-list-item-title>
+                    {{ name }}
+                  </v-list-item-title>
+                  <v-list-item-subtitle class="wrap-text">
+                    <span v-if="unlockedMap[name] !== undefined">
+                      <DIVEMetadataEditKey
+                        :category="unlockedMap[name].category"
+                        :value="value"
+                        :set-values="unlockedMap[name].set || []"
+                        class="pl-2"
+                        @update="updateDiveMetadataKeyVal(name, $event)"
+                      />
+                    </span>
+                    <span v-else>
+                      {{ value !== undefined ? value.toString() : '' }}
+                    </span>
+                  </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
               <v-expansion-panels>
                 <v-expansion-panel>
                   <v-expansion-panel-header>Advanced</v-expansion-panel-header>
                   <v-expansion-panel-content class="pa-0">
-                    <v-list-item two-line v-for="(value, name) in processedDatasetMetadata.advanced" :key="`datasetMetadata_${name}`" dense>
+                    <v-list-item v-for="(value, name) in processedDatasetMetadata.advanced" :key="`datasetMetadata_${name}`" two-line dense>
                       <v-list-item-content>
-                        <v-list-item-title v-html="name" />
-                        <v-list-item-subtitle v-html="value !== undefined ? value.toString() : ''" class="wrap-text" />
+                        <v-list-item-title>
+                          {{ name }}
+                        </v-list-item-title>
+                        <v-list-item-subtitle class="wrap-text">
+                          <span v-if="unlockedMap[name] !== undefined">
+                            <DIVEMetadataEditKey
+                              :category="unlockedMap[name].category"
+                              :value="value"
+                              :set-values="unlockedMap[name].set || []"
+                              class="pl-2"
+                              @update="updateDiveMetadataKeyVal(name, $event)"
+                            />
+                          </span>
+                          <span v-else>
+                            {{ value !== undefined ? value.toString() : '' }}
+                          </span>
+                        </v-list-item-subtitle>
                       </v-list-item-content>
                     </v-list-item>
                   </v-expansion-panel-content>

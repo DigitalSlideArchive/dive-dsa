@@ -5,6 +5,7 @@ import {
 
 import { DIVEAction } from 'dive-common/use/useActions';
 import { UseUINotificationType } from 'platform/web-girder/UIControls';
+import type { RLEFrameData } from 'platform/web-girder/api/annotation.service';
 import type { AnnotatorPreferences as AnnotatorPrefsIface } from './types';
 import StyleManager from './StyleManager';
 import type { EditAnnotationTypes } from './layers/EditAnnotationLayer';
@@ -371,18 +372,40 @@ function dummyState(): State {
       getMask(trackId: number, frameId: number): HTMLImageElement | undefined {
         return undefined;
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      getRLEMask(trackId: number, frameId: number): RLEFrameData | undefined {
+        return undefined;
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      getRLELuminanceMask(trackId: number, frameId: number): { width: number, height: number, data: Uint8Array } | undefined {
+        return undefined;
+      },
       editorOptions: {
         hasMasks: ref(false),
         toolEnabled: ref('pointer'),
         brushSize: ref(5),
         maxBrushSize: ref(50),
+        maskCacheSeconds: ref(1),
+        maskMaxCacheSeconds: ref(10),
+        tooManyMasks: ref(false),
+        maskLoadingPercent: ref(0),
+        pauseOnLoading: ref(false),
         opacity: ref(0.75),
         triggerAction: ref(null),
         loadingFrame: ref(false),
+        useRLE: ref(false),
       },
       editorFunctions: {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        setEditorOptions: (data: { toolEnabled?: MaskEditingTools, brushSize?: number, maxBrushSize?: number, opactiy?: number, triggerAction?: MaskTriggerActions }) => {
+        setEditorOptions: (data:
+          { toolEnabled?: MaskEditingTools,
+            brushSize?: number,
+            maxBrushSize?: number,
+            opacity?: number,
+            maskCacheSeconds?: number,
+            triggerAction?: MaskTriggerActions,
+            pauseOnLoading?: boolean,
+          }) => {
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         addUpdateMaskFrame: (trackId: number, image: HTMLImageElement) => new Promise<void>((resolve) => {

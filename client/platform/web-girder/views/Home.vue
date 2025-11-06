@@ -159,7 +159,7 @@ export default defineComponent({
                 />
                 <CreateDIVEMetadata
                   v-bind="{ buttonOptions, menuOptions }"
-                  :dataset-id="location._id || null"
+                  :dataset-id="location?._id || null"
                 />
 
                 <v-btn

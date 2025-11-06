@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   computed, defineComponent, ref, PropType, Ref,
+  watch,
 } from 'vue';
 import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
@@ -36,6 +37,8 @@ export default defineComponent({
     const selectedShortcutButton: Ref<ButtonShortcut | undefined> = ref(undefined);
     const isSegment = ref(false);
     const segmentEditable = ref(false);
+    const segmentSize = ref(0.01);
+    const segmentSizeType: Ref<'frames' | 'seconds' | 'percent'> = ref('percent');
     const copy = ref(props.value);
     const awaitingKeyPress = ref(false);
     const shortcutError: Ref<{description: string; type: 'System' | 'Custom'}| null> = ref(null);
@@ -81,6 +84,8 @@ export default defineComponent({
       editShortcutDialog.value = true;
       isSegment.value = shortcut.segment || false;
       segmentEditable.value = !shortcut.segment ? false : shortcut.segmentEditable || false;
+      segmentSize.value = shortcut.segmentSize || 0.01;
+      segmentSizeType.value = shortcut.segmentSizeType || 'percent';
     };
 
     const cancel = () => {
@@ -93,6 +98,8 @@ export default defineComponent({
       selectedShortcutKey.value = '';
       isSegment.value = false;
       segmentEditable.value = false;
+      segmentSize.value = 0.01;
+      segmentSizeType.value = 'percent';
     };
     const save = () => {
       editShortcutDialog.value = false;
@@ -105,6 +112,8 @@ export default defineComponent({
         button: selectedShortcutButton.value,
         segment: isSegment.value || undefined,
         segmentEditable: isSegment.value ? (segmentEditable.value || undefined) : undefined,
+        segmentSize: isSegment.value ? segmentSize.value : undefined,
+        segmentSizeType: isSegment.value ? segmentSizeType.value : undefined,
       };
       selectedShortcutButton.value = undefined;
       emit('input', copy.value);
@@ -202,6 +211,18 @@ export default defineComponent({
       window.document.addEventListener('keydown', handleKeyDown);
     };
 
+    watch(segmentSizeType, (newVal) => {
+      if (newVal === 'percent' && segmentSize.value > 1) {
+        segmentSize.value = 0.01;
+      }
+      if ((newVal === 'frames' || newVal === 'seconds') && segmentSize.value < 1) {
+        segmentSize.value = 1;
+      }
+      if (newVal === 'percent' && segmentSize.value >= 1) {
+        segmentSize.value = 0.99;
+      }
+    });
+
     const selectedDisplayKey = computed(() => {
       let base = '';
       if (selectedShortcutModifiers.value.length) {
@@ -219,6 +240,8 @@ export default defineComponent({
       selectedShortcutButton,
       isSegment,
       segmentEditable,
+      segmentSize,
+      segmentSizeType,
       shortcutTypes,
       selectedDisplayKey,
       awaitingKeyPress,
@@ -405,7 +428,22 @@ awaitingKeyPress
               <span>Allows for editing of an entire segment</span>
             </v-tooltip>
           </v-row>
-
+          <v-row v-if="isSegment">
+            <v-text-field
+              v-model.number="segmentSize"
+              type="number"
+              :step="segmentSizeType === 'percent' ? 0.01 : 1"
+              :max="segmentSizeType === 'percent' ? 1 : undefined"
+              :min="segmentSizeType === 'percent' ? 0.01 : 1"
+              label="Segment Size"
+              class="mr-4"
+            />
+            <v-select
+              v-model="segmentSizeType"
+              :items="['frames', 'seconds', 'percent']"
+              label="Segment Size Type"
+            />
+          </v-row>
           <button-shortcut-editor
             v-model="selectedShortcutButton"
           />

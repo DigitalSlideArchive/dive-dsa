@@ -85,27 +85,28 @@ class RpcResource(Resource):
             required=False,
         )
         .param(
-            "logic",
+            "maskLogic",
             "Logic to use when combining annotations using Zip files (specifically masks.zip).   \
             'replace' will replace existing annotations with new ones.  \
-            'merge' will combine existing and new annotations.  \
-            'additive' will add new annotations to existing ones.",
+            'merge' will combine existing and new annotations.",
             paramType="formData",
             dataType="string",
             default='merge',
             required=False,
         )
     )
-    def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend, logic):
-        return crud_rpc.postprocess(
+    def postprocess(self, folder, skipJobs, skipTranscoding, additive, additivePrepend, maskLogic):
+        result = crud_rpc.postprocess(
             self.getCurrentUser(),
             folder,
             skipJobs,
             skipTranscoding,
             additive,
             additivePrepend,
-            logic,
+            maskLogic,
         )
+        # Return the folder for backward compatibility, but also include job_ids
+        return result
 
     @access.user
     @autoDescribeRoute(

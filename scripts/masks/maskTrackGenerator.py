@@ -1,3 +1,15 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "click",
+#     "girder-client",
+#     "numpy",
+#     "pillow",
+#     "pycocotools",
+#     "scikit-image",
+#     "setuptools"
+# ]
+# ///
 import json
 import random
 import numpy as np
@@ -11,18 +23,62 @@ import girder_client
 
 # === GLOBAL CONFIG ===
 API_URL = 'localhost'
-DATASET_ID = '67eecf75e6ee4e673f857aa9'
+DATASET_ID = '68347799959c4322160de6a4'
 PORT = 8010
 
-OUTPUT_MASKS = True  # ✅ Set to True to save masks as PNG images
-IMAGE_SIZE = (1024, 1280)  # height, width of image
+OUTPUT_MASKS = True  # Set to True to save masks as PNG images
+IMAGE_SIZE = (400, 300)  # height, width of image
 SHAPE_SIZE = (100, 100)  # width, height of shape
 
 CONFIG = [
-    {'track_number': 0, 'num_frames': 500, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 1, 'num_frames': 300, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 2, 'num_frames': 200, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 0, 'num_frames': 2000, 'start_frame': 12000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 1, 'num_frames': 2000, 'start_frame': 3000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 2, 'num_frames': 1500, 'start_frame': 6000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+
 ]
+
+# CONFIG = [
+#     {'track_number': 0, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 1, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 2, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 3, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 4, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 5, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 6, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 7, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 8, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 9, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'circle'},
+#     {'track_number': 10, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 11, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 12, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 13, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 14, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 15, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 16, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+# ]
+
+def get_non_overlapping_start(track_id, num_tracks, img_size, shape_size):
+    """Compute a roughly unique non-overlapping start position for a given track."""
+    h, w = img_size
+    sh, sw = shape_size
+
+    # Divide the image into a grid based on number of tracks
+    grid_cols = int(np.ceil(np.sqrt(num_tracks)))
+    grid_rows = int(np.ceil(num_tracks / grid_cols))
+
+    cell_w = w // grid_cols
+    cell_h = h // grid_rows
+
+    row = track_id // grid_cols
+    col = track_id % grid_cols
+
+    # Randomize a bit inside the cell
+    margin_x = (cell_w - sw) // 4
+    margin_y = (cell_h - sh) // 4
+    cx = col * cell_w + cell_w // 2 + random.randint(-margin_x, margin_x)
+    cy = row * cell_h + cell_h // 2 + random.randint(-margin_y, margin_y)
+
+    return cx, cy
 
 
 def create_mask(shape_type, bounds, img_size):
@@ -55,34 +111,37 @@ def create_mask(shape_type, bounds, img_size):
     return mask
 
 
-def circular_motion(num_frames, img_size, shape_size):
+def circular_motion(num_frames, img_size, shape_size, track_id=0, num_tracks=1):
     h, w = img_size
     sh, sw = shape_size
 
-    center_x = w // 2
-    center_y = h // 2
-    radius_x = (w - sw) // 2 - 10
-    radius_y = (h - sh) // 2 - 10
+    cx0, cy0 = get_non_overlapping_start(track_id, num_tracks, img_size, shape_size)
+
+    # Reduce radius to avoid leaving the cell area
+    radius_x = min((w - sw) // 4, 200)
+    radius_y = min((h - sh) // 4, 200)
 
     for frame in range(num_frames):
         angle = 2 * np.pi * (frame / num_frames)
-        cx = int(center_x + radius_x * np.cos(angle))
-        cy = int(center_y + radius_y * np.sin(angle))
+        cx = int(cx0 + radius_x * np.cos(angle))
+        cy = int(cy0 + radius_y * np.sin(angle))
         x1, y1 = cx - sw // 2, cy - sh // 2
         x2, y2 = cx + sw // 2, cy + sh // 2
         yield [x1, y1, x2, y2]
 
-
-def bouncing_motion(num_frames, img_size, shape_size):
+def bouncing_motion(num_frames, img_size, shape_size, track_id=0, num_tracks=1):
     h, w = img_size
     sh, sw = shape_size
 
-    x, y = random.randint(0, w - sw), random.randint(0, h - sh)
+    cx, cy = get_non_overlapping_start(track_id, num_tracks, img_size, shape_size)
+    x = max(0, min(w - sw, cx - sw // 2))
+    y = max(0, min(h - sh, cy - sh // 2))
+
     dx, dy = random.choice([-5, 5]), random.choice([-5, 5])
 
     for _ in range(num_frames):
-        x1, y1 = x, y
-        x2, y2 = x + sw, y + sh
+        x1, y1 = int(x), int(y)
+        x2, y2 = x1 + sw, y1 + sh
 
         if x + dx < 0 or x + dx + sw > w:
             dx = -dx
@@ -94,15 +153,14 @@ def bouncing_motion(num_frames, img_size, shape_size):
 
         yield [x1, y1, x2, y2]
 
-
 @click.command()
 @click.option('--upload', is_flag=True, help='Upload generated masks to Girder.')
 def generate_tracks(upload):
     output_masks_exist = os.path.exists('outputMasks')
-    rle_json_exist = os.path.exists('RLEMask.json')
+    rle_json_exist = os.path.exists('RLE_MASKS.json')
 
     if output_masks_exist and rle_json_exist:
-        print("Found existing outputMasks folder and RLEMask.json. Skipping generation.")
+        print("Found existing outputMasks folder and RLE_MASKS.json. Skipping generation.")
     else:
         print("Generating new masks and JSON files...")
 
@@ -118,6 +176,7 @@ def generate_tracks(upload):
         for config in CONFIG:
             track_id = config['track_number']
             num_frames = config['num_frames']
+            start_frame = config.get('start_frame', 0)  # ✅ Default to 0 if not provided
             mask_type = config['mask_type']
             motion_type = config.get('motion_type', 'circle')
 
@@ -129,10 +188,11 @@ def generate_tracks(upload):
                 raise ValueError(f"Unsupported motion type: {motion_type}")
 
             track = {
-                'begin': 0,
-                'end': num_frames - 1,
+                'begin': start_frame,
+                'end': start_frame + num_frames - 1,
                 'id': track_id,
                 'confidencePairs': [[mask_type, 1.0]],
+                'hasMask': True,
                 'attributes': {},
                 'meta': {},
                 'features': []
@@ -140,7 +200,8 @@ def generate_tracks(upload):
             mask_data[str(track_id)] = {}
             rle_masks_json[str(track_id)] = {}
 
-            for frame_id, bounds in enumerate(motion):
+            for i, bounds in enumerate(motion):
+                frame_id = start_frame + i  # ✅ Shifted frame index
                 mask = create_mask(mask_type, bounds, IMAGE_SIZE)
                 binary_mask = (mask > 0).astype(np.uint8) * 255
 
@@ -167,13 +228,13 @@ def generate_tracks(upload):
 
                 rle_masks_json[str(track_id)][str(frame_id)] = {
                     'rle': {
-                        'size': [IMAGE_SIZE[1], IMAGE_SIZE[0]],  # width, height
+                        'size': [IMAGE_SIZE[0], IMAGE_SIZE[1]],  # width, height
                         'counts': rle['counts']
                     }
                 }
 
                 if OUTPUT_MASKS:
-                    output_dir = os.path.join('outputMasks', f'{track_id}')
+                    output_dir = os.path.join('outputMasks/masks', f'{track_id}')
                     os.makedirs(output_dir, exist_ok=True)
 
                     alpha_channel = (mask > 0).astype(np.uint8) * 255
@@ -187,18 +248,22 @@ def generate_tracks(upload):
 
             track_data['tracks'][str(track_id)] = track
 
-        with open('trackJSON.json', 'w') as f:
+        with open('TrackJSON.json', 'w') as f:
             json.dump(track_data, f, indent=2)
 
-        with open('RLEMask.json', 'w') as f:
-            json.dump(mask_data, f, indent=2)
 
         with open('RLE_MASKS.json', 'w') as f:
             json.dump(rle_masks_json, f, indent=2)
 
-        print('Generated trackJSON.json, RLEMask.json, RLE_MASKS.json', end='')
+        print('Generated TrackJSON.json, RLE_MASKS.json', end='')
         if OUTPUT_MASKS:
             print(', and PNG masks in outputMasks/')
+            with open('outputMasks/masks/TrackJSON.json', 'w') as f:
+                json.dump(track_data, f, indent=2)
+
+            with open('outputMasks/masks/RLE_MASKS.json', 'w') as f:
+                json.dump(rle_masks_json, f, indent=2)
+
         else:
             print('.')
 
@@ -246,6 +311,12 @@ def upload_to_girder():
             'RLE_MASK_FILE': True
         })
         print('Uploaded RLE_MASKS.json to masks folder.')
+
+    # Create a TrackJSON for uploading
+    if os.path.exists('trackJSON.json'):
+        track_item = gc.uploadFileToFolder(DATASET_ID, 'trackJSON.json')
+        gc.sendRestRequest("POST", f"/dive_rpc/postprocess/{DATASET_ID}")
+        print('Uploaded trackJSON.json to masks folder.')
 
 
 if __name__ == '__main__':

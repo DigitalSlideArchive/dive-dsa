@@ -8,3 +8,14 @@ declare module 'geojs' {
   const geojs: any;
   export default geojs;
 }
+
+declare module 'geojs/src/vgl' {
+  export class texture {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    m_textureHandle: any;
+  }
+
+  const vgl: {
+    texture: typeof texture;
+  };
+}

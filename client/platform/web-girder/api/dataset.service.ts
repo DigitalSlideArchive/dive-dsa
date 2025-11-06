@@ -112,7 +112,7 @@ function makeViameFolder({
   );
 }
 
-async function importAnnotationFile(parentId: string, path: string, file?: HTMLFile, additive = false, additivePrepend = '') {
+async function importAnnotationFile(parentId: string, path: string, file?: HTMLFile, additive = false, additivePrepend = '', maskLogic: 'replace' | 'merge' = 'merge') {
   if (file === undefined) {
     return false;
   }
@@ -138,7 +138,7 @@ async function importAnnotationFile(parentId: string, path: string, file?: HTMLF
       if (path.endsWith('.json') || path.endsWith('.csv')) {
         skipJobs = true;
       }
-      const final = await postProcess(parentId, skipJobs, false, additive, additivePrepend);
+      const final = await postProcess(parentId, skipJobs, false, additive, additivePrepend, maskLogic);
       return final.status === 200;
     }
   }

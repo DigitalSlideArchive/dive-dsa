@@ -239,7 +239,7 @@ When processed in Girder (via the DIVE import tool or programmatically):
 Within the TrackJSON any frame that has a mask should have the value `hasMask` set to 'true'
 
 
-### RLE_MASKS.json Format (Optional - Future support to convert to this mode)
+### RLE_MASKS.json Format
 
 The `RLE_MASKS.json` file contains RLE-compressed masks that mirror the PNG mask folder structure. It must be a dictionary with track IDs as keys and frame-indexed masks as values. Example:
 
@@ -247,20 +247,36 @@ The `RLE_MASKS.json` file contains RLE-compressed masks that mirror the PNG mask
 {
   "1": {
     "1": {
-      "size": [720, 1280],
-      "counts": "eW0b00..."
+      "rle": {
+        "size": [720, 1280],
+        "counts": "eW0b00..."
+      }
     },
     "2": {
-      "size": [720, 1280],
-      "counts": "kVcP10..."
+      "rle": {
+        "size": [720, 1280],
+        "counts": "kVcP10..."
+      }
     }
   },
   "2": {
     "5": {
-      "size": [720, 1280],
-      "counts": "YVfQ22..."
+      "rle": {
+        "size": [720, 1280],
+        "counts": "YVfQ22..."
+      }
     }
   }
 }
+```
+
+#### Converting Mask to COCO RLE
+
+The 'counts' above can be created using a pypi package called 'pycocotools'.  If you can get the image into a numpy binary mask array you can use pycocotolls and 'mask_ultils' to convert the array into the counts that are used.
+
+```
+from pycocotolls import mask as mask_utils
+mask_bin = [0, 0 , 1, 1, 0, 0]
+rle_counts = mask_utils.encode(np.asfortranarray(mask_bin))
 ```
 

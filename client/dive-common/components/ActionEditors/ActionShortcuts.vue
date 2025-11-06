@@ -49,7 +49,7 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const attributesList = useAttributes();
     const editingShortcut: Ref<null | DIVEActionShortcut> = ref(null);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction'> = ref('TrackSelection');
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction' | 'Metadata'> = ref('TrackSelection');
     const actionList: Ref<DIVEAction[]> = ref([]);
     const updateActionList = () => {
       actionList.value = editingShortcut.value?.actions || [];

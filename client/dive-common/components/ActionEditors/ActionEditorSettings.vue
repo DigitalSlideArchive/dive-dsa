@@ -4,7 +4,7 @@ import {
   defineComponent, ref, Ref,
 } from 'vue';
 import {
-  DIVEAction, TrackSelectAction,
+  DIVEAction, DIVEMetadataAction, TrackSelectAction,
 } from 'dive-common/use/useActions';
 import {
   useAttributes, useConfiguration, useTrackStyleManager,
@@ -44,7 +44,7 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const attributesList = useAttributes();
     const editingAction: Ref<null | DIVEAction> = ref(null);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction'> = ref('TrackSelection');
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction' | 'Metadata'> = ref('TrackSelection');
     const editAction = (index?: number) => {
       addEditAction.value = true;
       if (index !== undefined) {
@@ -116,6 +116,18 @@ export default defineComponent({
             useExisting: true,
             selectTrackAfter: true,
           },
+        };
+      }
+      if (addEditActionType.value === 'Metadata') {
+        editingAction.value = {
+          action: {
+            type: 'Metadata',
+            key: '',
+            actionType: 'set',
+            dataType: 'string',
+            value: '',
+            visibility: 'connected',
+          } as DIVEMetadataAction,
         };
       }
     };

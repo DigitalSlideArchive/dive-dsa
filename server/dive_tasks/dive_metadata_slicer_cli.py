@@ -1,6 +1,7 @@
 import copy
 import threading
 import time
+import traceback
 from typing import Dict, List, Union
 
 import cherrypy
@@ -158,6 +159,16 @@ def create_sub_job(
     dive_params: DiveDatasetList,
     cliItem: CLIItem,
 ):
+
+    if not dive_params or not isinstance(dive_params, dict):
+        raise ValueError("Invalid or missing dive_params for sub-job")
+    if slicer_params is None:
+        raise ValueError("slicer_params is None")
+
+    required_keys = ['DIVEVideo', 'DIVEDataset', 'DIVEMetadata']
+    for k in required_keys:
+        if k not in dive_params:
+            raise KeyError(f"Missing required key '{k}' in dive_params")
     dataset_params = copy.deepcopy(slicer_params)
     dataset_params['DIVEVideo'] = dive_params['DIVEVideo']
     dataset_params['DIVEDataset'] = dive_params['DIVEDataset']
@@ -166,7 +177,7 @@ def create_sub_job(
     dataset_params['DIVEMetadataRoot'] = base_params['DIVEMetadataRoot']
     dataset_params['girderToken'] = base_params['girderToken']
     dataset_params['girderApiUrl'] = base_params['girderApiUrl']
-    name = dive_params['DIVEDatasetName']
+    name = dive_params.get('DIVEDatasetName', 'Unknown Dataset')
     Token().createToken(user=user)
     subJob = cliSubHandler(cliItem, dataset_params, user, token)
     baseJob = Job().updateJob(
@@ -178,36 +189,58 @@ def create_sub_job(
 
 
 def metadata_filter_slicer_cli_task(baseJob: Task):
-
-    params: DIVEMetadataSlicerCLITaskParams = baseJob['kwargs']['params']
-
-    dive_dataset_list = params['dataset_list']
-    cli_item_id = params['cli_item']
-    slicer_params = params['slicer_params']
-    userId = params['userId']
-    user = User().load(userId, force=True)
-    token = Token().createToken(user=user)
-    # Using the base jobs get the
-    baseJob = Job().updateJob(
-        baseJob,
-        log='Started DiveMetadata processing\n',
-        status=JobStatus.RUNNING,
-    )
-
-    cliItem = CLIItem.find(cli_item_id, user)
-    total_count = len(dive_dataset_list)
-    # try:
-    scheduled = 0
-    done = False
-    lastSubJob = None
-
     try:
+        params: DIVEMetadataSlicerCLITaskParams = baseJob.get('kwargs', {}).get('params')
+        if not params:
+            raise ValueError("Missing or invalid job parameters in baseJob")
+
+        dive_dataset_list = params.get('dataset_list')
+        cli_item_id = params.get('cli_item')
+        slicer_params = params.get('slicer_params')
+        userId = params.get('userId')
+
+        if not dive_dataset_list or not isinstance(dive_dataset_list, list):
+            raise ValueError("Missing or invalid dataset_list")
+        if not cli_item_id:
+            raise ValueError("Missing CLI item ID")
+        if not userId:
+            raise ValueError("Missing userId")
+
+        user = User().load(userId, force=True)
+        if not user:
+            raise ValueError(f"Could not load user {userId}")
+
+        token = Token().createToken(user=user)
+        if not token:
+            raise ValueError("Failed to create token")
+
+        baseJob = Job().updateJob(
+            baseJob, log='Started DiveMetadata processing\n', status=JobStatus.RUNNING
+        )
+
+        cliItem = CLIItem.find(cli_item_id, user)
+        if not cliItem:
+            raise ValueError(f"CLIItem {cli_item_id} not found")
+
+        total_count = len(dive_dataset_list)
+        scheduled = 0
+        lastSubJob = None
+        done = False
+
+        Job().updateJob(
+            baseJob,
+            log=f'Found {total_count} DIVE datasets to process\n',
+            status=JobStatus.RUNNING,
+        )
+
         while not done:
             baseJob = Job().load(id=baseJob['_id'], force=True)
             if lastSubJob:
                 lastSubJob = Job().load(lastSubJob['_id'], force=True)
+
             if not baseJob or baseJob['status'] in {JobStatus.CANCELED, JobStatus.ERROR}:
                 break
+
             if lastSubJob is None or lastSubJob['status'] in {
                 JobStatus.SUCCESS,
                 JobStatus.ERROR,
@@ -216,31 +249,48 @@ def metadata_filter_slicer_cli_task(baseJob: Task):
                 if scheduled >= total_count:
                     done = True
                     break
+
                 dive_dataset_params = dive_dataset_list[scheduled]
-                if not done:
-                    # We are running in a girder context, but girder_worker
-                    # uses cherrypy.request.app to detect this, so we have to
-                    # fake it.
-                    lastSubJob = create_sub_job(
-                        baseJob, user, token, params, slicer_params, dive_dataset_params, cliItem
-                    )
+                if not dive_dataset_params:
                     Job().updateJob(
                         baseJob,
-                        log=f'Scheduling job {scheduled} of {total_count} on dataset: {dive_dataset_list[scheduled]["DIVEDatasetName"]}\n',
-                        progressCurrent=scheduled,
-                        progressTotal=total_count,
-                        status=JobStatus.RUNNING,
+                        log=f'Error: DIVE dataset params None at index {scheduled}\n',
+                        status=JobStatus.ERROR,
                     )
-                    scheduled += 1
-                    continue
+                    break
+
+                lastSubJob = create_sub_job(
+                    baseJob, user, token, params, slicer_params, dive_dataset_params, cliItem
+                )
+                Job().updateJob(
+                    baseJob,
+                    log=f'Scheduling job {scheduled} of {total_count} on dataset: '
+                    f'{dive_dataset_params.get("DIVEDatasetName", "Unknown")}\n',
+                    progressCurrent=scheduled,
+                    progressTotal=total_count,
+                    status=JobStatus.RUNNING,
+                )
+                scheduled += 1
+                continue
+
             time.sleep(0.1)
+
     except Exception as exc:
         Job().updateJob(
             baseJob,
-            log=f'Error During DIVEMetadata Slicer CLI Processing Item: {dive_dataset_list[scheduled]}\n',
+            log=f'Error During DIVEMetadata Slicer CLI Processing Item:\n\
+              base Params: {params}\n\
+              Slicer Params: {slicer_params}\n\
+              DIVE Dataset Params: {dive_dataset_list[scheduled]}\n',
             status=JobStatus.ERROR,
         )
         Job().updateJob(baseJob, log='Exception: %r\n' % exc)
+        Job().updateJob(
+            baseJob,
+            log=f"Error During DIVEMetadata Slicer CLI Processing:\n" f"{traceback.format_exc()}",
+            status=JobStatus.ERROR,
+        )
+        return
 
     Job().updateJob(
         baseJob, log='Finished DIVE Metadata Batch CLI Processing', status=JobStatus.SUCCESS

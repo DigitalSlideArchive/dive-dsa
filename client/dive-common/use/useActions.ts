@@ -62,8 +62,17 @@ export interface CreateFullFrameTrackAction {
   selectTrackAfter: boolean;
 }
 
+export interface DIVEMetadataAction {
+    type: 'Metadata';
+    key: string;
+    value?: string | number | boolean;
+    actionType: 'set' | 'dialog' | 'remove';
+    dataType: 'string' | 'number' | 'boolean';
+    visibility: 'always' | 'connected';
+}
+
 export interface DIVEAction {
-  action: GoToFrameAction | TrackSelectAction | CreateTrackAction | CreateFullFrameTrackAction;
+  action: GoToFrameAction | TrackSelectAction | CreateTrackAction | CreateFullFrameTrackAction | DIVEMetadataAction;
 }
 
 export interface DIVEActionShortcut {

@@ -493,6 +493,20 @@ export default class Track extends BaseAnnotation {
     this.notify('feature', feature);
   }
 
+  hasAnyMask() {
+    return this.features.some((f) => f && f.hasMask);
+  }
+
+  getMaskFrameList() {
+    const frames: number[] = [];
+    this.features.forEach((f) => {
+      if (f && f.hasMask) {
+        frames.push(f.frame);
+      }
+    });
+    return frames;
+  }
+
   /* Condense the sparse array to a dense one */
   condenseFeatures(): Feature[] {
     const features = [] as Feature[];

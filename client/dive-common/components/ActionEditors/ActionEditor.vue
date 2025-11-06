@@ -5,6 +5,7 @@ import {
 } from 'vue';
 import {
   CreateTrackAction, DIVEAction, TrackSelectAction, CreateFullFrameTrackAction,
+  DIVEMetadataAction,
 } from 'dive-common/use/useActions';
 import {
   useAttributes, useTrackStyleManager,
@@ -12,6 +13,7 @@ import {
 import TrackFilter from './TrackFilter.vue';
 import CreateTrackActionEditor from './CreateTrackActionEditor.vue';
 import CreateFullFrameTrackActionEditor from './CreateFullFrameTrackActionEditor.vue';
+import DiveMetadataActionVue from './DiveMetadataAction.vue';
 
 export default defineComponent({
   name: 'ActionEditorSettings',
@@ -19,6 +21,7 @@ export default defineComponent({
     TrackFilter,
     CreateTrackActionEditor,
     CreateFullFrameTrackActionEditor,
+    DiveMetadataActionVue,
   },
   props: {
     value: {
@@ -30,9 +33,9 @@ export default defineComponent({
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const attributesList = useAttributes();
     const editingAction: Ref<DIVEAction> = ref(props.value);
-    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction'> = ref(props.value.action.type);
+    const addEditActionType: Ref<'TrackSelection' | 'GoToFrame' | 'CreateTrackAction' | 'CreateFullFrameTrackAction' | 'Metadata'> = ref(props.value.action.type);
 
-    const saveAction = (action: TrackSelectAction | CreateTrackAction | CreateFullFrameTrackAction, type: DIVEAction['action']['type']) => {
+    const saveAction = (action: TrackSelectAction | CreateTrackAction | CreateFullFrameTrackAction | DIVEMetadataAction, type: DIVEAction['action']['type']) => {
       let diveAction: DIVEAction = {
         action,
       };
@@ -87,6 +90,17 @@ export default defineComponent({
           },
         };
       }
+      if (addEditActionType.value === 'Metadata') {
+        editingAction.value = {
+          action: {
+            type: 'Metadata',
+            key: '',
+            actionType: 'set',
+            dataType: 'string',
+            visibility: 'always',
+          },
+        };
+      }
     };
 
     const getAttributeColor = (item: string) => {
@@ -131,7 +145,7 @@ export default defineComponent({
         <v-row class="pt-4">
           <v-select
             v-model="addEditActionType"
-            :items="['GoToFrame', 'TrackSelection', 'CreateTrackAction', 'CreateFullFrameTrackAction']"
+            :items="['GoToFrame', 'TrackSelection', 'CreateTrackAction', 'CreateFullFrameTrackAction', 'Metadata']"
             label="Action Type"
             @change="changeType"
           />
@@ -161,6 +175,13 @@ export default defineComponent({
         </v-row>
         <v-row v-else-if="addEditActionType === 'CreateFullFrameTrackAction' && editingAction.action.type === 'CreateFullFrameTrackAction'">
           <CreateFullFrameTrackActionEditor
+            :action="editingAction.action"
+            @update:action="saveAction($event, addEditActionType)"
+            @cancel="$emit('cancel')"
+          />
+        </v-row>
+        <v-row v-else-if="addEditActionType === 'Metadata' && editingAction.action.type === 'Metadata'">
+          <DiveMetadataActionVue
             :action="editingAction.action"
             @update:action="saveAction($event, addEditActionType)"
             @cancel="$emit('cancel')"

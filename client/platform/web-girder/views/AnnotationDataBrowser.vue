@@ -9,6 +9,7 @@ import { itemsPerPageOptions } from 'dive-common/constants';
 import { clientSettings } from 'dive-common/store/settings';
 import { getFolder } from 'platform/web-girder/api/girder.service';
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
+import { useHandler } from 'vue-media-annotator/provides';
 import { useStore } from '../store/types';
 
 export default defineComponent({
@@ -26,6 +27,8 @@ export default defineComponent({
   setup(props) {
     const fileManager = ref();
     const store = useStore();
+    const { getDiveMetadataRootId } = useHandler();
+    const localDiveMetadataRootId = ref(getDiveMetadataRootId());
     const locationStore = store.state.Location;
     const { getters } = store;
     const showDialog = ref(false);
@@ -56,6 +59,18 @@ export default defineComponent({
       && !locationStore.selected.length
     ));
 
+    watch(showDialog, () => {
+      localDiveMetadataRootId.value = getDiveMetadataRootId();
+    });
+
+    const queryParams = computed(() => {
+      const params: Record<string, string> = {};
+      if (localDiveMetadataRootId.value !== null && (location.value?._id === (locationStore.location as GirderModel)?._id)) {
+        params.diveMetadataRootId = localDiveMetadataRootId.value;
+      }
+      return params;
+    });
+
     return {
       fileManager,
       locationStore,
@@ -68,6 +83,7 @@ export default defineComponent({
       /* methods */
       isAnnotationFolder,
       setLocation,
+      queryParams,
     };
   },
 });
@@ -129,7 +145,7 @@ export default defineComponent({
                 x-small
                 color="primary"
                 depressed
-                :to="{ name: 'viewer', params: { id: item._id } }"
+                :to="{ name: 'viewer', params: { id: item._id }, query: queryParams }"
               >
                 Launch Annotator
               </v-btn>
