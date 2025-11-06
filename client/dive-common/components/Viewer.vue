@@ -303,6 +303,7 @@ export default defineComponent({
       cameraStore,
       aggregateController,
       readonlyState,
+      datasetId,
     });
 
     const {
@@ -865,19 +866,6 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         globalHandler.setAnnotationState({ visible: ['rectangle', 'Polygon', 'LineString', 'text', 'attributeKey'] });
       }
-      nextTick(() => {
-        useURLParameters(
-          aggregateController.value.frame,
-          selectedTrackId,
-          mediaLoaded,
-          handler.trackSelect,
-          aggregateController.value.seek,
-          handler.setDiveMetadataRootId,
-        );
-        if (!getUISetting('UIContextBarDefaultNotOpen')) {
-          context.toggle();
-        }
-      });
     };
     loadData();
     const reloadAnnotations = async () => {
@@ -1017,6 +1005,19 @@ export default defineComponent({
     const getUISetting = (key: UISettingsKey) => configurationManager.getUISetting(key);
     const mediaLoaded = ref(false);
     const runActions = () => {
+      const { loadURLParams } = useURLParameters(
+        aggregateController.value.frame,
+        selectedTrackId,
+        mediaLoaded,
+        handler.trackSelect,
+        aggregateController.value.seek,
+        handler.setDiveMetadataRootId,
+      );
+      loadURLParams();
+      if (!getUISetting('UIContextBarDefaultNotOpen')) {
+        context.toggle();
+      }
+
       mediaLoaded.value = true;
       if (configurationManager.configuration.value?.actions) {
         const { actions } = configurationManager.configuration.value;

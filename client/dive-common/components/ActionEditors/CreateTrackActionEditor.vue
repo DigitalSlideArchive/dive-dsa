@@ -7,7 +7,7 @@ import { EditAnnotationTypes } from 'vue-media-annotator/layers/';
 import { CreateTrackAction } from 'dive-common/use/useActions';
 
 export default defineComponent({
-  name: 'EditTrackAction',
+  name: 'CreateTrackActionEditor',
   props: {
     action: {
       type: Object as PropType<CreateTrackAction>,

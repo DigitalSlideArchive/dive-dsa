@@ -71,10 +71,10 @@ class DIVE_Metadata(Model):
         return doc
 
     def updateKey(self, folder, root, owner, key, value, categoricalLimit=50, force=False):
-        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root})
         if not existing:
             raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
-        query = {'root': existing['root']}
+        query = {'root': root}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,
         )
@@ -84,6 +84,28 @@ class DIVE_Metadata(Model):
             key not in metadataKeys['unlocked'] and metadataKeys['owner'] != str(owner['_id'])
         ) and force is False:
             raise Exception(f'Key {key} is not unlocked for this metadata and cannot be modified')
+        if metadataKeys['metadataKeys'].get(key, None) is None:
+            all_keys = list(metadataKeys['metadataKeys'].keys())
+            editable_keys = [
+                key
+                for key in all_keys
+                if key
+                not in [
+                    'LastModifiedTime',
+                    'LastModifiedBy',
+                    'DIVEDataset',
+                    'filename',
+                    'DIVE_Path',
+                ]
+                and not key.startswith('DIVE_')
+                and not key.startswith('ffprobe')
+            ]
+            if not editable_keys:
+                raise Exception('No editable keys in the metadata to update')
+
+            raise Exception(
+                f'Key: {key} is not in the metadata only keys: {editable_keys} can be updated'
+            )
         if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
             existing['metadata'][key] = float(value)
         else:
@@ -93,9 +115,9 @@ class DIVE_Metadata(Model):
         DIVE_MetadataKeys().updateKeyValue(existing['root'], owner, key, value, categoricalLimit)
 
     def deleteKey(self, folder, root, owner, key):
-        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
+            return
         query = {'root': existing['root']}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,

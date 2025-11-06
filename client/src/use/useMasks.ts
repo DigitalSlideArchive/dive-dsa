@@ -486,7 +486,7 @@ export default function useMasks(
       if (rleMasks.value[trackId]) {
         const rleTrackObj = rleMasks.value[trackId];
         if (rleTrackObj) {
-          for (let i = 0; i < 10 * frameRate.value; i += 1) {
+          for (let i = frame.value; i < frame.value + (10 * frameRate.value); i += 1) {
             const frameId = i;
             if (rleTrackObj[frameId]) {
               frameMaskCountMap[frameId] = (frameMaskCountMap[frameId] || 0) + 1;
@@ -505,7 +505,10 @@ export default function useMasks(
       if (cumulativeMasks > MAX_TEXTURE_PRELOAD) {
         break;
       }
-      maxSeconds = frameId / frameRate.value;
+      maxSeconds = (frameId - frame.value) / frameRate.value;
+    }
+    if (maxSeconds === 0) {
+      maxSeconds = 10;
     }
     // Round to the nearest 0.25 seconds
     maskMaxCacheSeconds.value = Math.max(0.1, Math.floor(maxSeconds * 4) / 4);

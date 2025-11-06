@@ -6,7 +6,7 @@ import { EditAnnotationTypes } from 'vue-media-annotator/layers/';
 import { CreateFullFrameTrackAction } from 'dive-common/use/useActions';
 
 export default defineComponent({
-  name: 'EditFullFrameTrackAction',
+  name: 'CreateFullFrameTrackAction',
   props: {
     action: {
       type: Object as PropType<CreateFullFrameTrackAction>,

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-restricted-syntax */
 import {
   computed, Ref, reactive, ref, onBeforeUnmount, toRef,
 } from 'vue';
@@ -18,8 +20,13 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { clientSettings } from 'dive-common/store/settings';
 import GroupFilterControls from 'vue-media-annotator/GroupFilterControls';
 import CameraStore from 'vue-media-annotator/CameraStore';
-import { CreateFullFrameTrackAction, CreateTrackAction, DIVEAction } from 'dive-common/use/useActions';
-import { setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
+import {
+  CreateFullFrameTrackAction,
+  CreateTrackAction,
+  DIVEAction,
+  DIVEMetadataAction,
+} from 'dive-common/use/useActions';
+import { deleteDiveDatasetMetadataKey, setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -64,6 +71,7 @@ export default function useModeManager({
   aggregateController,
   readonlyState,
   recipes,
+  datasetId,
 }: {
     cameraStore: CameraStore;
     trackFilterControls: TrackFilterControls;
@@ -71,6 +79,7 @@ export default function useModeManager({
     aggregateController: Ref<AggregateMediaController>;
     readonlyState: Readonly<Ref<boolean>>;
     recipes: Recipe[];
+    datasetId: Ref<string | null>;
 }) {
   let creating = false;
   const { prompt, inputValue } = usePrompt();
@@ -933,6 +942,64 @@ export default function useModeManager({
         }
         if (!selectTrackAfter) {
           handleEscapeMode();
+        }
+      }
+    } else if (action.action.type === 'Metadata') {
+      const diveMetadataAction = action.action as DIVEMetadataAction;
+      if (diveMetadataAction.actionType === 'set' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
+        try {
+          await setDiveDatasetMetadataKey(
+            datasetId.value,
+            diveMetadataRootId.value,
+            diveMetadataAction.key,
+            diveMetadataAction.value || '',
+          );
+        } catch (error: any) {
+          prompt({
+            title: 'Metadata Error',
+            text: `Failed to set metadata key: ${diveMetadataAction.key}. Error: ${error?.response?.data?.message || error}`,
+            positiveButton: 'OK',
+          });
+        }
+      } else if (diveMetadataAction.actionType === 'remove' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
+        try {
+          await deleteDiveDatasetMetadataKey(
+            datasetId.value,
+            diveMetadataRootId.value,
+            diveMetadataAction.key,
+          );
+        } catch (error: any) {
+          prompt({
+            title: 'Metadata Error',
+            text: `Failed to set metadata key: ${diveMetadataAction.key}. Error: ${error?.response?.data?.message || error}`,
+            positiveButton: 'OK',
+          });
+        }
+      } else if (diveMetadataAction.actionType === 'dialog' && diveMetadataAction.key && diveMetadataRootId.value && datasetId.value) {
+        const promptTypeMap: Record<string, 'text' | 'number' | 'boolean'> = { string: 'text', number: 'number', boolean: 'boolean' };
+        const result = await inputValue({
+          title: 'Metadata Value',
+          text: `Enter value for key: ${diveMetadataAction.key}`,
+          positiveButton: 'OK',
+          valueType: promptTypeMap[diveMetadataAction.dataType],
+        });
+        if (result !== null) {
+          const value = result;
+          try {
+            await setDiveDatasetMetadataKey(
+              datasetId.value,
+              diveMetadataRootId.value,
+              diveMetadataAction.key,
+              value,
+
+            );
+          } catch (error: any) {
+            prompt({
+              title: 'Metadata Error',
+              text: `Failed to set metadata key: ${diveMetadataAction.key}. Error: ${error?.response?.data?.message || error}`,
+              positiveButton: 'OK',
+            });
+          }
         }
       }
     }

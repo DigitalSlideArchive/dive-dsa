@@ -247,18 +247,24 @@ The `RLE_MASKS.json` file contains RLE-compressed masks that mirror the PNG mask
 {
   "1": {
     "1": {
-      "size": [720, 1280],
-      "counts": "eW0b00..."
+      "rle": {
+        "size": [720, 1280],
+        "counts": "eW0b00..."
+      }
     },
     "2": {
-      "size": [720, 1280],
-      "counts": "kVcP10..."
+      "rle": {
+        "size": [720, 1280],
+        "counts": "kVcP10..."
+      }
     }
   },
   "2": {
     "5": {
-      "size": [720, 1280],
-      "counts": "YVfQ22..."
+      "rle": {
+        "size": [720, 1280],
+        "counts": "YVfQ22..."
+      }
     }
   }
 }
