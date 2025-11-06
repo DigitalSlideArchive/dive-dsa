@@ -448,6 +448,7 @@ class CreateFullFrameTrackAction(BaseModel):
     selectTrackAfter: bool
     type: Literal['CreateFullFrameTrackAction']
 
+
 class DIVEMetadataAction(BaseModel):
     type: Literal['Metadata']
     key: str
@@ -456,8 +457,15 @@ class DIVEMetadataAction(BaseModel):
     dataType: Literal['string', 'number', 'boolean']
     visibility: Optional[Literal['always', 'connected']]
 
+
 class DIVEActions(BaseModel):
-    action: Union[GoToFrameAction, TrackSelectAction, CreateTrackAction, CreateFullFrameTrackAction, DIVEMetadataAction]
+    action: Union[
+        GoToFrameAction,
+        TrackSelectAction,
+        CreateTrackAction,
+        CreateFullFrameTrackAction,
+        DIVEMetadataAction,
+    ]
 
 
 class ShortCut(BaseModel):

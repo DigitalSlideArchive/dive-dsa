@@ -90,14 +90,22 @@ class DIVE_Metadata(Model):
                 key
                 for key in all_keys
                 if key
-                not in ['LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path']
+                not in [
+                    'LastModifiedTime',
+                    'LastModifiedBy',
+                    'DIVEDataset',
+                    'filename',
+                    'DIVE_Path',
+                ]
                 and not key.startswith('DIVE_')
                 and not key.startswith('ffprobe')
             ]
             if not editable_keys:
                 raise Exception('No editable keys in the metadata to update')
-            
-            raise Exception(f'Key: {key} is not in the metadata only keys: {editable_keys} can be updated')
+
+            raise Exception(
+                f'Key: {key} is not in the metadata only keys: {editable_keys} can be updated'
+            )
         if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
             existing['metadata'][key] = float(value)
         else:
