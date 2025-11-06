@@ -27,28 +27,35 @@ DATASET_ID = '68347799959c4322160de6a4'
 PORT = 8010
 
 OUTPUT_MASKS = True  # Set to True to save masks as PNG images
-IMAGE_SIZE = (720, 1280)  # height, width of image
+IMAGE_SIZE = (400, 300)  # height, width of image
 SHAPE_SIZE = (100, 100)  # width, height of shape
 
 CONFIG = [
-    {'track_number': 0, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 1, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 2, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 3, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 4, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 5, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 6, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 7, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 8, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 9, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'circle'},
-    {'track_number': 10, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 11, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 12, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 13, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
-    {'track_number': 14, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
-    {'track_number': 15, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
-    {'track_number': 16, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+    {'track_number': 0, 'num_frames': 2000, 'start_frame': 12000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+    {'track_number': 1, 'num_frames': 2000, 'start_frame': 3000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+    {'track_number': 2, 'num_frames': 1500, 'start_frame': 6000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+
 ]
+
+# CONFIG = [
+#     {'track_number': 0, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 1, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 2, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 3, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 4, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 5, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 6, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 7, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 8, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 9, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'circle'},
+#     {'track_number': 10, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 11, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 12, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 13, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+#     {'track_number': 14, 'num_frames': 2000, 'mask_type': 'pentagon', 'motion_type': 'circle'},
+#     {'track_number': 15, 'num_frames': 2000, 'mask_type': 'circle', 'motion_type': 'bounce'},
+#     {'track_number': 16, 'num_frames': 2000, 'mask_type': 'rectangle', 'motion_type': 'circle'},
+# ]
 
 def get_non_overlapping_start(track_id, num_tracks, img_size, shape_size):
     """Compute a roughly unique non-overlapping start position for a given track."""
@@ -169,6 +176,7 @@ def generate_tracks(upload):
         for config in CONFIG:
             track_id = config['track_number']
             num_frames = config['num_frames']
+            start_frame = config.get('start_frame', 0)  # ✅ Default to 0 if not provided
             mask_type = config['mask_type']
             motion_type = config.get('motion_type', 'circle')
 
@@ -180,8 +188,8 @@ def generate_tracks(upload):
                 raise ValueError(f"Unsupported motion type: {motion_type}")
 
             track = {
-                'begin': 0,
-                'end': num_frames - 1,
+                'begin': start_frame,
+                'end': start_frame + num_frames - 1,
                 'id': track_id,
                 'confidencePairs': [[mask_type, 1.0]],
                 'hasMask': True,
@@ -192,7 +200,8 @@ def generate_tracks(upload):
             mask_data[str(track_id)] = {}
             rle_masks_json[str(track_id)] = {}
 
-            for frame_id, bounds in enumerate(motion):
+            for i, bounds in enumerate(motion):
+                frame_id = start_frame + i  # ✅ Shifted frame index
                 mask = create_mask(mask_type, bounds, IMAGE_SIZE)
                 binary_mask = (mask > 0).astype(np.uint8) * 255
 
