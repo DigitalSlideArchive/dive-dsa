@@ -507,8 +507,6 @@ export default function useMasks(
       }
       maxSeconds = (frameId - frame.value) / frameRate.value;
     }
-    console.log(maxSeconds);
-    console.log(cumulativeMasks);
     if (maxSeconds === 0) {
       maxSeconds = 10;
     }
