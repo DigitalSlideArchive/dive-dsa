@@ -109,7 +109,7 @@ class DIVE_Metadata(Model):
     def deleteKey(self, folder, root, owner, key):
         existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
+            return
         query = {'root': existing['root']}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,
