@@ -26,7 +26,8 @@ export default defineComponent({
     const format: Ref<'json' | 'csv'> = ref('json');
     const exportMetadata = async () => {
       processing.value = true;
-      await exportDiveMetadata(props.metadataRoot, props.filters, format.value);
+      const baseURL = window.location.origin;
+      await exportDiveMetadata(props.metadataRoot, props.filters, format.value, baseURL);
       processing.value = false;
     };
     return {
