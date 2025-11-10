@@ -1294,8 +1294,14 @@ class DIVEMetadata(Resource):
             required=True,
             enum=["json", "csv"],
         )
+        .param(
+            "baseURL",
+            "Base URL to prepend to dataset links in the export",
+            required=False,
+            default="",
+        )
     )
-    def export_metadata(self, folder, filters, format):
+    def export_metadata(self, folder, filters, format, baseURL):
         if folder['meta'].get(DIVEMetadataMarker, False) is False:
             raise RestException('Folder is not a DIVE Metadata folder', code=404)
 
@@ -1315,6 +1321,7 @@ class DIVEMetadata(Resource):
             )
             headers.insert(0, 'DIVEDataset')  # Add DIVEDataset as first column
             headers.insert(1, 'Filename')  # Add filename as second column
+            headers.insert(2, 'DIVE_URL')  # Add DIVE_URL as third column
             writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
             writer.writeheader()
             for item in metadata_items:
@@ -1322,6 +1329,16 @@ class DIVEMetadata(Resource):
                 row = {key: item.get('metadata', {}).get(key, '') for key in headers}
                 row['DIVEDataset'] = str(item['DIVEDataset'])
                 row['Filename'] = item.get('filename', '')
+                # generate the url for the dive metadata it should be of the format like
+                # base_url/#/viewer/{dataset_id}?diveMetadataRootId={metadata_root_id}
+                if baseURL:
+                    row['DIVE_URL'] = (
+                        f"{baseURL.rstrip('/')}/#/viewer/{item['DIVEDataset']}?"
+                        f"diveMetadataRootId={item['root']}"
+                    )
+                else:
+                    tempBaseURL = getApiUrl().replace('/api/v1', '')
+                    row['DIVE_URL'] = f"{tempBaseURL}/#/viewer/{item['DIVEDataset']}?diveMetadataRootId={item['root']}"
                 writer.writerow(row)
 
             csv_output = output.getvalue()
@@ -1339,6 +1356,16 @@ class DIVEMetadata(Resource):
                 export_item['DIVEDataset'] = str(item['DIVEDataset'])
                 export_item['Filename'] = item.get('filename', '')
                 export_data.append(export_item)
+                # generate the url for the dive metadata it should be of the format like
+                # base_url/#/viewer/{dataset_id}?diveMetadataRootId={metadata_root_id}
+                if baseURL:
+                    export_item['DIVE_URL'] = (
+                        f"{baseURL.rstrip('/')}/#/viewer/{item['DIVEDataset']}?"
+                        f"diveMetadataRootId={item['root']}"
+                    )
+                else:
+                    tempBaseURL = getApiUrl().replace('/api/v1', '')
+                    export_item['DIVE_URL'] = f"{tempBaseURL}/#/viewer/{item['DIVEDataset']}?diveMetadataRootId={item['root']}"
             setContentDisposition(filename, mime='application/json')
             setRawResponse()
 
