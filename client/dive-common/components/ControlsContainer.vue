@@ -65,8 +65,9 @@ export default defineComponent({
     } = useAttributesFilters();
 
     const timelineHeight = computed(() => {
-      if (configMan.configuration.value?.timelineConfigs?.maxHeight) {
-        let max = configMan.configuration.value?.timelineConfigs?.maxHeight;
+      const activeConfig = configMan.getActiveTimelineConfig();
+      if (activeConfig?.maxHeight) {
+        let max = activeConfig.maxHeight;
         dismissedHeights.value.forEach((item) => {
           max -= item.height;
         });

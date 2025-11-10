@@ -120,10 +120,14 @@ export default defineComponent({
     watch(() => configMan.configuration.value?.timelineConfigs, () => {
       nudge.value += 1;
     }, { deep: true });
+    watch(() => configMan.activeTimelineConfigIndex.value, () => {
+      nudge.value += 1;
+    });
     const timelineList = computed(() => {
       const list: TimelineDisplay[] = [];
-      if (nudge.value !== null && configMan.configuration.value?.timelineConfigs?.timelines) {
-        configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
+      const activeConfig = configMan.getActiveTimelineConfig();
+      if (nudge.value !== null && activeConfig?.timelines) {
+        activeConfig.timelines.forEach((item) => {
           if (checkTimelineEnabled(item)) {
             list.push(item);
           }

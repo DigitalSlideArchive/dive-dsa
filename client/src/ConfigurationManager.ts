@@ -128,6 +128,7 @@ export interface TimelineDisplay {
 }
 
 export interface TimelineConfiguration {
+  name?: string;
   maxHeight: number;
   timelines: TimelineDisplay[];
 }
@@ -149,7 +150,7 @@ export interface Configuration {
   actions?: DIVEAction[];
   shortcuts?: DIVEActionShortcut[];
   filterTimelines?: FilterTimeline[];
-  timelineConfigs?: TimelineConfiguration;
+  timelineConfigs?: TimelineConfiguration[];
   customUI?: CustomUISettings;
 }
 
@@ -198,6 +199,8 @@ export default class ConfigurationManager {
     groups: {name: string; id: string}[];
   }>>;
 
+  activeTimelineConfigIndex: Ref<number>;
+
   constructor(
     {
       configurationId,
@@ -219,6 +222,7 @@ export default class ConfigurationManager {
     this.configuration = ref(null);
     this.prevNext = ref(null);
     this.configOwners = ref({ users: [], groups: [] });
+    this.activeTimelineConfigIndex = ref(-1); // Start with no selection
   }
 
   async saveConfiguration(id: string, config?: Configuration) {
@@ -243,7 +247,118 @@ export default class ConfigurationManager {
 
   setConfiguration(data?: DiveConfiguration['metadata']['configuration']) {
     if (data) {
-      this.configuration.value = data;
+      // Convert timelineConfigs from single object to list for backward compatibility
+      const normalizedData = { ...data };
+      if (normalizedData.timelineConfigs !== undefined && !isArray(normalizedData.timelineConfigs)) {
+        normalizedData.timelineConfigs = [normalizedData.timelineConfigs];
+      }
+      // Ensure timeline configs have names (default to 'Timeline' if only one, otherwise index)
+      if (normalizedData.timelineConfigs) {
+        const configCount = normalizedData.timelineConfigs.length;
+        normalizedData.timelineConfigs = normalizedData.timelineConfigs.map((config, index) => ({
+          ...config,
+          name: config.name || (configCount === 1 ? 'Timeline' : `${index}`),
+        }));
+      }
+      // If no timeline configs exist, create a default one
+      if (!normalizedData.timelineConfigs || normalizedData.timelineConfigs.length === 0) {
+        normalizedData.timelineConfigs = [{
+          name: 'Timeline',
+          maxHeight: 300,
+          timelines: [],
+        }];
+      }
+      // Ensure active index is valid (but allow -1 for no selection)
+      if (this.activeTimelineConfigIndex.value >= (normalizedData.timelineConfigs?.length || 0)) {
+        this.activeTimelineConfigIndex.value = -1; // Reset to no selection if invalid
+      }
+      this.configuration.value = normalizedData;
+    }
+  }
+
+  getActiveTimelineConfig(): TimelineConfiguration | null {
+    const configs = this.configuration.value?.timelineConfigs;
+    if (!configs || configs.length === 0) {
+      return null;
+    }
+    const index = this.activeTimelineConfigIndex.value;
+    // Return null if index is -1 (no selection)
+    if (index === -1) {
+      return null;
+    }
+    if (index >= 0 && index < configs.length) {
+      return configs[index];
+    }
+    return null;
+  }
+
+  setActiveTimelineConfigIndex(index: number) {
+    const configs = this.configuration.value?.timelineConfigs;
+    // Allow -1 to deselect
+    if (index === -1) {
+      this.activeTimelineConfigIndex.value = -1;
+    } else if (configs && index >= 0 && index < configs.length) {
+      this.activeTimelineConfigIndex.value = index;
+    }
+  }
+
+  addTimelineConfig(name?: string): number {
+    if (!this.configuration.value) {
+      this.configuration.value = {};
+    }
+    if (!this.configuration.value.timelineConfigs) {
+      this.configuration.value.timelineConfigs = [];
+    }
+    const configs = this.configuration.value.timelineConfigs;
+    const newIndex = configs.length;
+    // If this is the first config and no name provided, use 'Timeline'
+    // Otherwise use index or provided name
+    const configName = name || (newIndex === 0 ? 'Timeline' : `${newIndex}`);
+    configs.push({
+      name: configName,
+      maxHeight: 300,
+      timelines: [],
+    });
+    // If this was the first config and it didn't have a name, update it
+    if (newIndex === 0 && !name && configs[0].name !== 'Timeline') {
+      configs[0].name = 'Timeline';
+    }
+    // If we now have only one config, ensure it's named 'Timeline'
+    if (configs.length === 1 && !name) {
+      configs[0].name = 'Timeline';
+    }
+    this.activeTimelineConfigIndex.value = newIndex;
+    return newIndex;
+  }
+
+  removeTimelineConfig(index: number) {
+    const configs = this.configuration.value?.timelineConfigs;
+    if (configs && index >= 0 && index < configs.length) {
+      configs.splice(index, 1);
+      // Ensure we have at least one config
+      if (configs.length === 0) {
+        configs.push({
+          name: 'Timeline',
+          maxHeight: 300,
+          timelines: [],
+        });
+      } else if (configs.length === 1 && !configs[0].name) {
+        // If only one config remains and it has no name, set it to 'Timeline'
+        configs[0].name = 'Timeline';
+      }
+      // Adjust active index if needed
+      if (this.activeTimelineConfigIndex.value >= configs.length) {
+        this.activeTimelineConfigIndex.value = Math.max(0, configs.length - 1);
+      } else if (this.activeTimelineConfigIndex.value > index) {
+        this.activeTimelineConfigIndex.value -= 1;
+      }
+    }
+  }
+
+  updateTimelineConfigName(index: number, name: string) {
+    const configs = this.configuration.value?.timelineConfigs;
+    if (configs && index >= 0 && index < configs.length) {
+      configs[index].name = name;
     }
   }
 
@@ -437,42 +552,61 @@ export default class ConfigurationManager {
   }
 
   updateTimelineDisplay(val: TimelineDisplay, index: number) {
-    if (this.configuration.value && !this.configuration.value?.timelineConfigs) {
-      this.configuration.value.timelineConfigs = {
+    const activeConfig = this.getActiveTimelineConfig();
+    if (!activeConfig) {
+      // Create default config if none exists
+      if (!this.configuration.value) {
+        this.configuration.value = {};
+      }
+      if (!this.configuration.value.timelineConfigs) {
+        this.configuration.value.timelineConfigs = [{
+          name: 'Timeline',
+          maxHeight: 300,
+          timelines: [],
+        }];
+        this.activeTimelineConfigIndex.value = 0;
+      }
+    }
+    const configs = this.configuration.value?.timelineConfigs;
+    if (configs) {
+      const activeIndex = this.activeTimelineConfigIndex.value;
+      const timelineConfig = configs[activeIndex] || {
+        name: configs.length === 1 ? 'Timeline' : `${activeIndex}`,
         maxHeight: 300,
         timelines: [],
       };
-      this.configuration.value.timelineConfigs.timelines = [];
-    }
-    if (this.configuration.value?.timelineConfigs) {
-      const { timelines } = this.configuration.value.timelineConfigs;
+      const { timelines } = timelineConfig;
       if (timelines && timelines[index]) {
         timelines[index] = val;
       } else {
         timelines.push(val);
       }
-      const timelineBase = this.configuration.value.timelineConfigs;
-      timelineBase.timelines = timelines;
-      this.configuration.value = { ...this.configuration.value, timelineConfigs: timelineBase };
+      timelineConfig.timelines = timelines;
+      configs[activeIndex] = timelineConfig;
+      this.configuration.value = { ...this.configuration.value };
     }
   }
 
   removeTimelineDisplay(index: number) {
-    if (this.configuration.value && !this.configuration.value?.timelineConfigs) {
-      this.configuration.value.timelineConfigs = {
-        maxHeight: 300,
-        timelines: [],
-      };
-      this.configuration.value.timelineConfigs.timelines = [];
+    const configs = this.configuration.value?.timelineConfigs;
+    if (!configs || configs.length === 0) {
+      return;
     }
-    if (this.configuration.value?.timelineConfigs) {
-      const { timelines } = this.configuration.value.timelineConfigs;
-      if (timelines.length === 1) {
-        this.configuration.value.timelineConfigs.timelines = [];
-        this.configuration.value.timelineConfigs.maxHeight = 175;
-      } else if (timelines[index]) {
-        timelines.splice(index, 1);
-      }
+    const activeIndex = this.activeTimelineConfigIndex.value;
+    const timelineConfig = configs[activeIndex] || {
+      name: configs.length === 1 ? 'Timeline' : `${activeIndex}`,
+      maxHeight: 300,
+      timelines: [],
+    };
+    const { timelines } = timelineConfig;
+    if (timelines.length === 1) {
+      timelineConfig.timelines = [];
+      timelineConfig.maxHeight = 175;
+    } else if (timelines[index]) {
+      timelines.splice(index, 1);
+      timelineConfig.timelines = timelines;
     }
+    configs[activeIndex] = timelineConfig;
+    this.configuration.value = { ...this.configuration.value };
   }
 }

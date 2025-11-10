@@ -1,16 +1,22 @@
 <!-- eslint-disable max-len -->
 <script lang="ts">
 import {
-  defineComponent, ref, computed, Ref, PropType,
+  defineComponent,
+  ref,
+  computed,
+  PropType,
 } from 'vue';
-import { TimelineConfiguration, TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import {
-  useAttributesFilters, useCameraStore, useConfiguration, useSelectedCamera, useTimelineFilters,
+  useAttributesFilters,
+  useCameraStore,
+  useConfiguration,
+  useSelectedCamera,
+  useTimelineFilters,
 } from '../../provides';
 
 export default defineComponent({
-  components: {
-  },
+  components: {},
   props: {
     dismissedButtons: {
       type: Array as PropType<string[]>,
@@ -27,32 +33,42 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const configMan = useConfiguration();
-    const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+    const getUISetting = (key: UISettingsKey) => configMan.getUISetting(key);
     const cameraStore = useCameraStore();
     const multiCam = ref(cameraStore.camMap.value.size > 1);
     const selectedCamera = useSelectedCamera();
-    const hasGroups = computed(
-      () => !!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length,
-    );
-    const {
-      timelineEnabled, swimlaneEnabled,
-    } = useAttributesFilters();
+    const hasGroups = computed(() => (!!cameraStore.camMap.value.get(selectedCamera.value)?.groupStore.sorted.value.length));
+    const { timelineEnabled, swimlaneEnabled } = useAttributesFilters();
     const { enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
 
-    const timelineConfig: Ref<TimelineConfiguration | null> = ref(configMan.configuration.value?.timelineConfigs || null);
+    const timelineConfigsList = computed(() => (configMan.configuration.value?.timelineConfigs || []));
 
-    const hasTimelineConfig = computed(() => (configMan.configuration.value?.timelineConfigs?.timelines?.length || 0) > 0);
+    const activeConfigIndex = computed(() => configMan.activeTimelineConfigIndex.value);
+
+    const activeTimelineConfig = computed(() => configMan.getActiveTimelineConfig());
+
+    const hasTimelineConfig = computed(() => (activeTimelineConfig.value?.timelines?.length || 0) > 0);
+
     const timelineListBtns = computed(() => {
-      const list: {name: string; type: TimelineDisplay['type']; dismissed: boolean}[] = [];
-      if (configMan.configuration.value?.timelineConfigs?.timelines) {
-        configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
-          list.push({ name: item.name, type: item.type, dismissed: props.dismissedButtons.includes(item.name) });
+      const list: { name: string; type: TimelineDisplay['type']; dismissed: boolean }[] = [];
+      const config = activeTimelineConfig.value;
+      if (config?.timelines) {
+        config.timelines.forEach((item) => {
+          list.push({
+            name: item.name,
+            type: item.type,
+            dismissed: props.dismissedButtons.includes(item.name),
+          });
         });
       }
       return list;
     });
+
+    const switchTimelineConfig = (index: number) => {
+      configMan.setActiveTimelineConfigIndex(index);
+    };
     const timelineBtns = computed(() => {
-      const timelines: {name: string; type: TimelineDisplay['type']}[] = [];
+      const timelines: { name: string; type: TimelineDisplay['type'] }[] = [];
       if (getUISetting('UIDetections')) {
         timelines.push({ name: 'Detections', type: 'detections' });
       }
@@ -115,7 +131,10 @@ export default defineComponent({
       timelineBtns,
       iconMap,
       currentViewType,
-      timelineConfig,
+      timelineConfigsList,
+      activeConfigIndex,
+      activeTimelineConfig,
+      switchTimelineConfig,
       timelineListBtns,
       hasTimelineConfig,
     };
@@ -124,9 +143,12 @@ export default defineComponent({
 </script>
 
 <template>
-  <span v-if="(!collapsed)">
-    <span v-if="hasTimelineConfig || timelineListBtns.length > 3">
+  <span v-if="!collapsed">
+    <!-- Timeline Config Selector - Single button with conditional dropdown -->
+    <span v-if="hasTimelineConfig && timelineConfigsList.length > 0">
+      <!-- Multiple timeline configs - show dropdown -->
       <v-menu
+        v-if="timelineConfigsList.length > 1"
         :close-on-content-click="true"
         top
         offset-y
@@ -137,128 +159,145 @@ export default defineComponent({
         rounded="lg"
       >
         <template #activator="{ on }">
-          <v-btn
-            depressed
-            x-small
-            outlined
-            class="mr-1"
-            v-on="on"
-          >
-            Timelines
-            <v-icon
-              class="pa-0 pl-2"
-              x-small
-            >mdi-chevron-down-box</v-icon>
+          <v-btn depressed x-small outlined class="mr-1" v-on="on">
+            {{ activeTimelineConfig?.name || `${activeConfigIndex}` }}
+            <v-icon class="pa-0 pl-2" x-small>mdi-chevron-down-box</v-icon>
           </v-btn>
         </template>
         <v-card outlined>
           <v-list dense>
             <v-list-item
-              v-for="item in timelineListBtns"
-              :key="item.name"
-              style="align-items:center"
-              @click="toggleView(item.name)"
+              v-for="(config, index) in timelineConfigsList"
+              :key="index"
+              :class="{ 'v-list-item--active': index === activeConfigIndex }"
+              @click="switchTimelineConfig(index)"
             >
               <v-list-item-content>
                 <v-list-item-title>
-                  <v-icon
-                    v-if="iconMap[item.type]"
-                    x-small
-                    class="mr-1"
-                  >
-                    {{ iconMap[item.type] }}
-                  </v-icon>{{ item.name }}
-                  <v-btn
-                    v-if="item.dismissed"
-                    small
-                    color="success"
-                    class="mx-2"
-                    @click="$emit('enable', item.name)"
-                  > Enable</v-btn>
-
+                  {{ config.name || `${index}` }}
                 </v-list-item-title>
               </v-list-item-content>
             </v-list-item>
           </v-list>
         </v-card>
       </v-menu>
-
-    </span>
-    <span v-else-if="timelineBtns.length <= 3">
-      <v-btn
-        v-for="item in timelineBtns"
-        :key="item.name"
-        class="ml-1"
-        :class="{ 'timeline-button': currentView !== item.name || collapsed }"
-        depressed
-        :outlined="currentView === item.name && !collapsed"
-        x-small
-        tab-index="-1"
-        @click="toggleView(item.name)"
-      >
-        <v-icon
-          v-if="iconMap[item.type]"
-          x-small
-        >
-          {{ iconMap[item.type] }}
-        </v-icon>{{ item.name }}
+      <!-- Single timeline config - show name only, no dropdown -->
+      <v-btn v-else depressed x-small outlined class="mr-1">
+        {{ activeTimelineConfig?.name || "Timeline" }}
       </v-btn>
     </span>
-    <span v-else-if="timelineBtns.length > 3">
-      <v-menu
-        :close-on-content-click="true"
-        top
-        offset-y
-        nudge-left="3"
-        open-on-hover
-        close-delay="500"
-        open-delay="250"
-        rounded="lg"
-      >
-        <template #activator="{ on }">
-          <v-btn
-            depressed
-            x-small
-            :outlined="timelineBtns.map((item) => item.name).includes(currentView)"
-            class="mr-1"
-            v-on="on"
-          >
-            <v-icon
-              v-if="iconMap[currentViewType]"
+    <!-- No timeline configs - show default timeline dropdown behavior -->
+    <template v-else>
+      <span v-if="timelineListBtns.length > 3">
+        <v-menu
+          :close-on-content-click="true"
+          top
+          offset-y
+          nudge-left="3"
+          open-on-hover
+          close-delay="500"
+          open-delay="250"
+          rounded="lg"
+        >
+          <template #activator="{ on }">
+            <v-btn depressed x-small outlined class="mr-1" v-on="on">
+              Timelines
+              <v-icon class="pa-0 pl-2" x-small>mdi-chevron-down-box</v-icon>
+            </v-btn>
+          </template>
+          <v-card outlined>
+            <v-list dense>
+              <v-list-item
+                v-for="item in timelineListBtns"
+                :key="item.name"
+                style="align-items: center"
+                @click="toggleView(item.name)"
+              >
+                <v-list-item-content>
+                  <v-list-item-title>
+                    <v-icon v-if="iconMap[item.type]" x-small class="mr-1">
+                      {{ iconMap[item.type] }} </v-icon
+                    >{{ item.name }}
+                    <v-btn
+                      v-if="item.dismissed"
+                      small
+                      color="success"
+                      class="mx-2"
+                      @click="$emit('enable', item.name)"
+                    >
+                      Enable</v-btn
+                    >
+                  </v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-menu>
+      </span>
+      <span v-else-if="timelineBtns.length <= 3">
+        <v-btn
+          v-for="item in timelineBtns"
+          :key="item.name"
+          class="ml-1"
+          :class="{ 'timeline-button': currentView !== item.name || collapsed }"
+          depressed
+          :outlined="currentView === item.name && !collapsed"
+          x-small
+          tab-index="-1"
+          @click="toggleView(item.name)"
+        >
+          <v-icon v-if="iconMap[item.type]" x-small>
+            {{ iconMap[item.type] }} </v-icon
+          >{{ item.name }}
+        </v-btn>
+      </span>
+      <span v-else-if="timelineBtns.length > 3">
+        <v-menu
+          :close-on-content-click="true"
+          top
+          offset-y
+          nudge-left="3"
+          open-on-hover
+          close-delay="500"
+          open-delay="250"
+          rounded="lg"
+        >
+          <template #activator="{ on }">
+            <v-btn
+              depressed
               x-small
-            >{{ iconMap[currentViewType] }}</v-icon>
-            {{ currentView }}
-            <v-icon
-              class="pa-0 pl-2"
-              x-small
-            >mdi-chevron-down-box</v-icon>
-          </v-btn>
-        </template>
-        <v-card outlined>
-          <v-list dense>
-            <v-list-item
-              v-for="item in timelineBtns"
-              :key="item.name"
-              style="align-items:center"
-              @click="toggleView(item.name)"
+              :outlined="timelineBtns.map((item) => item.name).includes(currentView)"
+              class="mr-1"
+              v-on="on"
             >
-              <v-list-item-content>
-                <v-list-item-title>
-                  <v-icon
-                    v-if="iconMap[item.type]"
-                    x-small
-                    class="mr-1"
-                  >
-                    {{ iconMap[item.type] }}
-                  </v-icon>{{ item.name }}
-
-                </v-list-item-title>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-menu>
-    </span>
+              <v-icon v-if="iconMap[currentViewType]" x-small>{{
+                iconMap[currentViewType]
+              }}</v-icon>
+              {{ currentView }}
+              <v-icon class="pa-0 pl-2" x-small>mdi-chevron-down-box</v-icon>
+            </v-btn>
+          </template>
+          <v-card outlined>
+            <v-list dense>
+              <v-list-item
+                v-for="item in timelineBtns"
+                :key="item.name"
+                style="align-items: center"
+                @click="toggleView(item.name)"
+              >
+                <v-list-item-content>
+                  <v-list-item-title>
+                    <v-icon v-if="iconMap[item.type]" x-small class="mr-1">
+                      {{ iconMap[item.type] }} </v-icon
+                    >{{ item.name }}
+                  </v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-menu>
+      </span>
+    </template>
   </span>
 </template>
 
