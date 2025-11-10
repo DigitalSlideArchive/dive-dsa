@@ -12,7 +12,6 @@ import {
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
-import TimelineButtons from './TimelineButtons.vue';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId, useTimelineFilters,
 } from '../../provides';
@@ -23,7 +22,6 @@ export default defineComponent({
     LineChart,
     Timeline,
     AttributeSwimlaneGraph,
-    TimelineButtons,
     TooltipBtn,
   },
   props: {

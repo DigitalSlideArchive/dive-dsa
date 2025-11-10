@@ -47,7 +47,7 @@ export default defineComponent({
 
     const activeTimelineConfig = computed(() => configMan.getActiveTimelineConfig());
 
-    const hasTimelineConfig = computed(() => (activeTimelineConfig.value?.timelines?.length || 0) > 0);
+    const hasTimelineConfig = computed(() => (timelineConfigsList.value.length && timelineConfigsList.value[activeConfigIndex.value]?.timelines?.length > 0));
 
     const timelineListBtns = computed(() => {
       const list: { name: string; type: TimelineDisplay['type']; dismissed: boolean }[] = [];

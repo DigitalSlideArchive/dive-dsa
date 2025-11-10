@@ -259,6 +259,7 @@ export default class ConfigurationManager {
           ...config,
           name: config.name || (configCount === 1 ? 'Timeline' : `${index}`),
         }));
+        this.activeTimelineConfigIndex.value = 0;
       }
       // If no timeline configs exist, create a default one
       if (!normalizedData.timelineConfigs || normalizedData.timelineConfigs.length === 0) {

@@ -11,11 +11,12 @@ import {
   Timeline,
   TimelineKey,
 } from 'vue-media-annotator/components';
-import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
+import { TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import TimelineCharts from 'vue-media-annotator/components/controls/TimelineCharts.vue';
 import TimelineButtons from 'vue-media-annotator/components/controls/TimelineButtons.vue';
 import {
   useAttributesFilters, useConfiguration,
+  useTimelineFilters,
 } from '../../src/provides';
 
 export default defineComponent({
@@ -53,9 +54,31 @@ export default defineComponent({
     const currentView = ref('Detections');
     const ticks = ref([0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0]);
     const configMan = useConfiguration();
+    const attributesFilter = useAttributesFilters();
+    const { enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     if (getUISetting('UIDetections') === false && getUISetting('UIEvents')) {
       currentView.value = 'Events';
+    }
+    if (getUISetting('UIDetections') === false && getUISetting('UIEvents') === false) {
+      // Current view should be the first item in the list
+      const timelines: { name: string; type: TimelineDisplay['type'] }[] = [];
+      Object.entries(attributesFilter.timelineEnabled.value).forEach(([key, enabled]) => {
+        if (enabled) {
+          timelines.push({ name: key, type: 'graph' });
+        }
+      });
+      Object.entries(attributesFilter.swimlaneEnabled.value).forEach(([key, enabled]) => {
+        if (enabled) {
+          timelines.push({ name: key, type: 'swimlane' });
+        }
+      });
+      enabledFilterTimelines.value.forEach((item) => {
+        timelines.push({ name: item.name, type: 'filter' });
+      });
+      if (timelines.length > 0) {
+        currentView.value = timelines[0].name;
+      }
     }
     const enabledKey = ref(false);
     const dismissedButtons: Ref<string[]> = ref([]); // buttons that have been dismissed from the timelineConfig;
