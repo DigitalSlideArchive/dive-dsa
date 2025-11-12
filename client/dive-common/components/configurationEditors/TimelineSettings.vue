@@ -35,7 +35,7 @@ export default defineComponent({
 
     const timelineConfigsList = computed(() => (configMan.configuration.value?.timelineConfigs || []));
 
-    const activeConfigIndex = computed(() => (configMan.activeTimelineConfigIndex.value));
+    const selectedConfigIndex = ref(-1); // Local selection, starts with no selection
 
     const updateFilterList = () => {
       if (configMan.configuration.value?.filterTimelines) {
@@ -48,10 +48,17 @@ export default defineComponent({
     };
     updateFilterList();
     const updateTimelineList = () => {
-      const activeConfig = configMan.getActiveTimelineConfig();
-      if (activeConfig) {
-        timelineConfig.value = cloneDeep(activeConfig);
-        editingConfigName.value = activeConfig.name || '';
+      if (selectedConfigIndex.value >= 0) {
+        const selectedConfig = configMan.getTimelineConfigByIndex(selectedConfigIndex.value);
+        if (selectedConfig) {
+          timelineConfig.value = cloneDeep(selectedConfig);
+          editingConfigName.value = selectedConfig.name || '';
+        } else {
+          // Config was removed, clear selection
+          timelineConfig.value = { maxHeight: 300, timelines: [] };
+          editingConfigName.value = '';
+          selectedConfigIndex.value = -1;
+        }
       } else {
         // No timeline selected - clear the editing config
         timelineConfig.value = { maxHeight: 300, timelines: [] };
@@ -61,41 +68,51 @@ export default defineComponent({
     // Don't auto-select on load - start with no selection
     // updateTimelineList();
 
-    // Watch for changes in active timeline config
-    watch(() => configMan.activeTimelineConfigIndex.value, () => {
-      updateTimelineList();
-    });
+    // Watch for changes in timeline configs list
     watch(() => configMan.configuration.value?.timelineConfigs, () => {
+      // If selected config index is out of bounds, reset selection
+      if (selectedConfigIndex.value >= 0 && selectedConfigIndex.value >= (timelineConfigsList.value.length || 0)) {
+        selectedConfigIndex.value = -1;
+      }
       updateTimelineList();
     }, { deep: true });
 
     const switchTimelineConfig = (index: number) => {
       // If clicking the same index, deselect it
-      if (activeConfigIndex.value === index) {
-        configMan.setActiveTimelineConfigIndex(-1);
+      if (selectedConfigIndex.value === index) {
+        selectedConfigIndex.value = -1;
         updateTimelineList();
         return;
       }
-      configMan.setActiveTimelineConfigIndex(index);
+      selectedConfigIndex.value = index;
       updateTimelineList();
     };
 
     const addNewTimelineConfig = () => {
       const newIndex = configMan.addTimelineConfig();
-      switchTimelineConfig(newIndex);
+      // Don't auto-select the new config - let user select it manually
+      // But if they want to edit it immediately, we can select it
+      selectedConfigIndex.value = newIndex;
+      updateTimelineList();
     };
 
     const removeTimelineConfig = (index: number) => {
-      if (timelineConfigsList.value.length > 1) {
-        configMan.removeTimelineConfig(index);
-        updateTimelineList();
+      configMan.removeTimelineConfig(index);
+      // Adjust selected index if needed
+      if (selectedConfigIndex.value === index) {
+        // If we removed the selected config, deselect
+        selectedConfigIndex.value = -1;
+      } else if (selectedConfigIndex.value > index) {
+        // If we removed a config before the selected one, adjust index
+        selectedConfigIndex.value -= 1;
       }
+      updateTimelineList();
     };
 
     const updateConfigName = (index: number, name: string) => {
       if (index >= 0) {
         configMan.updateTimelineConfigName(index, name);
-        if (index === activeConfigIndex.value) {
+        if (index === selectedConfigIndex.value) {
           editingConfigName.value = name;
         }
       }
@@ -105,11 +122,11 @@ export default defineComponent({
       const configs = configMan.configuration.value?.timelineConfigs;
       if (configs && index > 0) {
         [configs[index - 1], configs[index]] = [configs[index], configs[index - 1]];
-        // Update active index if needed
-        if (activeConfigIndex.value === index) {
-          configMan.setActiveTimelineConfigIndex(index - 1);
-        } else if (activeConfigIndex.value === index - 1) {
-          configMan.setActiveTimelineConfigIndex(index);
+        // Update selected index if needed
+        if (selectedConfigIndex.value === index) {
+          selectedConfigIndex.value = index - 1;
+        } else if (selectedConfigIndex.value === index - 1) {
+          selectedConfigIndex.value = index;
         }
         updateTimelineList();
       }
@@ -119,11 +136,11 @@ export default defineComponent({
       const configs = configMan.configuration.value?.timelineConfigs;
       if (configs && index < configs.length - 1) {
         [configs[index], configs[index + 1]] = [configs[index + 1], configs[index]];
-        // Update active index if needed
-        if (activeConfigIndex.value === index) {
-          configMan.setActiveTimelineConfigIndex(index + 1);
-        } else if (activeConfigIndex.value === index + 1) {
-          configMan.setActiveTimelineConfigIndex(index);
+        // Update selected index if needed
+        if (selectedConfigIndex.value === index) {
+          selectedConfigIndex.value = index + 1;
+        } else if (selectedConfigIndex.value === index + 1) {
+          selectedConfigIndex.value = index;
         }
         updateTimelineList();
       }
@@ -163,6 +180,9 @@ export default defineComponent({
     };
 
     const addTimelineConfig = ({ name, type }: {name: string; type: TimelineDisplay['type']}) => {
+      if (selectedConfigIndex.value < 0) {
+        return; // Can't add timeline if no config is selected
+      }
       const index = timelineConfig.value.timelines.length;
       const newConfig: TimelineDisplay = {
         name,
@@ -171,7 +191,7 @@ export default defineComponent({
         dismissable: false,
         order: 0,
       };
-      configMan.updateTimelineDisplay(newConfig, index);
+      configMan.updateTimelineDisplay(newConfig, index, selectedConfigIndex.value);
       updateTimelineList();
     };
     const saveChanges = (leaveOpen = false) => {
@@ -187,21 +207,30 @@ export default defineComponent({
     };
 
     const updateTimelineConfig = ({ index, data }: {index: number; data: TimelineDisplay}) => {
-      configMan.updateTimelineDisplay(data, index);
+      if (selectedConfigIndex.value < 0) {
+        return; // Can't update timeline if no config is selected
+      }
+      configMan.updateTimelineDisplay(data, index, selectedConfigIndex.value);
       updateTimelineList();
     };
     const deleteTimelineConfig = (index: number) => {
-      configMan.removeTimelineDisplay(index);
+      if (selectedConfigIndex.value < 0) {
+        return; // Can't delete timeline if no config is selected
+      }
+      configMan.removeTimelineDisplay(index, selectedConfigIndex.value);
       updateTimelineList();
     };
 
     const updateTimelineHeight = (height: number) => {
-      const activeConfig = configMan.getActiveTimelineConfig();
-      if (activeConfig) {
-        activeConfig.maxHeight = height;
+      if (selectedConfigIndex.value < 0) {
+        return; // Can't update height if no config is selected
+      }
+      const selectedConfig = configMan.getTimelineConfigByIndex(selectedConfigIndex.value);
+      if (selectedConfig) {
+        selectedConfig.maxHeight = height;
         const configs = configMan.configuration.value?.timelineConfigs;
-        if (configs) {
-          configs[activeConfigIndex.value] = activeConfig;
+        if (configs && selectedConfigIndex.value >= 0 && selectedConfigIndex.value < configs.length) {
+          configs[selectedConfigIndex.value] = selectedConfig;
         }
       }
       saveChanges(true);
@@ -220,12 +249,20 @@ export default defineComponent({
       },
     ]));
 
+    const tableTimelineConfigList = computed(() => (timelineConfigsList.value.map((config, index) => ({
+      index,
+      name: config.name || `${index}`,
+      timelineCount: config.timelines?.length || 0,
+      maxHeight: config.maxHeight,
+      isActive: index === selectedConfigIndex.value,
+    }))));
+
     return {
       currentTab,
       timelineFilters,
       timelineConfig,
       timelineConfigsList,
-      activeConfigIndex,
+      selectedConfigIndex,
       editingConfigName,
       updateTimelineFilter,
       deleteTimelineFilter,
@@ -242,6 +279,7 @@ export default defineComponent({
       moveConfigDown,
       editConfigName,
       generalDialog,
+      tableTimelineConfigList,
       launchEditor,
       saveChanges,
       configMan,
@@ -300,13 +338,7 @@ export default defineComponent({
               <div class="mb-4">
                 <v-data-table
                   :headers="headers"
-                  :items="timelineConfigsList.map((config, index) => ({
-                    index,
-                    name: config.name || `${index}`,
-                    timelineCount: config.timelines?.length || 0,
-                    maxHeight: config.maxHeight,
-                    isActive: index === activeConfigIndex,
-                  }))"
+                  :items="tableTimelineConfigList"
                   :item-class="(item) => item.isActive ? 'active-timeline-row' : ''"
                   :items-per-page="-1"
                   hide-default-footer
@@ -417,7 +449,6 @@ export default defineComponent({
                             x-small
                             v-bind="attrs"
                             v-on="on"
-                            :disabled="timelineConfigsList.length <= 1"
                             color="error"
                             @click="removeTimelineConfig(item.index)"
                           >
@@ -430,14 +461,22 @@ export default defineComponent({
                   </template>
                 </v-data-table>
               </div>
-              <div v-if="activeConfigIndex >= 0">
+              <v-alert
+                v-if="selectedConfigIndex < 0"
+                type="info"
+                outlined
+                class="mt-4"
+              >
+                Please select a timeline configuration from the table above to edit.
+              </v-alert>
+              <div v-else>
                 <v-text-field
                   :value="editingConfigName"
                   label="Configuration Name"
                   outlined
                   dense
                   class="mb-4"
-                  @input="updateConfigName(activeConfigIndex, $event)"
+                  @input="updateConfigName(selectedConfigIndex, $event)"
                 />
                 <timeline-configuration-vue
                   :timeline-config="timelineConfig"
@@ -447,14 +486,6 @@ export default defineComponent({
                   @update-height="updateTimelineHeight($event)"
                 />
               </div>
-              <v-alert
-                v-else
-                type="info"
-                outlined
-                class="mt-4"
-              >
-                Please select a timeline configuration from the table above to edit.
-              </v-alert>
             </v-tab-item>
             <v-tab-item>
               <timeline-filter-settings
