@@ -15,6 +15,10 @@ export default defineComponent({
       type: Object as PropType<TimelineConfiguration>,
       required: true,
     },
+    configName: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { emit }) {
     const baseHeight = ref(props.timelineConfig.maxHeight || 300);
@@ -115,6 +119,16 @@ export default defineComponent({
   <v-card>
     <h2>Custom Timeline List</h2>
     <v-card-text>
+      <v-row dense>
+        <v-text-field
+          :value="configName"
+          label="Configuration Name"
+          outlined
+          dense
+          class="mr-2"
+          @input="$emit('update-config-name', $event)"
+        />
+      </v-row>
       <v-row dense>
         <v-select
           v-model="addTimeline"

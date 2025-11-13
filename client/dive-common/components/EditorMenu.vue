@@ -96,6 +96,10 @@ export default defineComponent({
       },
     };
 
+    const editBlackColorScale = ref(false);
+    const editWhiteColorScale = ref(false);
+    const editTransparentcolor = ref(false);
+
     const editButtons = computed((): ButtonData[] => {
       const buttons: ButtonData[] = [{
         id: 'rectangle',
@@ -380,6 +384,9 @@ export default defineComponent({
       loadingFrame,
       buttonOptions,
       menuOptions,
+      editWhiteColorScale,
+      editBlackColorScale,
+      editTransparentcolor,
     };
   },
 });
