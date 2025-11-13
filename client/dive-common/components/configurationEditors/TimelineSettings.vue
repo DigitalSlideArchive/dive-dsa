@@ -146,16 +146,6 @@ export default defineComponent({
       }
     };
 
-    const editConfigName = (index: number) => {
-      const configs = configMan.configuration.value?.timelineConfigs;
-      if (configs && configs[index]) {
-        const newName = prompt('Enter new name:', configs[index].name || `${index}`);
-        if (newName !== null && newName.trim() !== '') {
-          updateConfigName(index, newName.trim());
-        }
-      }
-    };
-
     const addTimelineFilter = () => {
       const index = timelineFilters.value.length - 1;
       const newTimeline: FilterTimeline = {
@@ -277,7 +267,6 @@ export default defineComponent({
       updateConfigName,
       moveConfigUp,
       moveConfigDown,
-      editConfigName,
       generalDialog,
       tableTimelineConfigList,
       launchEditor,
@@ -405,20 +394,6 @@ export default defineComponent({
                             x-small
                             v-bind="attrs"
                             v-on="on"
-                            @click="editConfigName(item.index)"
-                          >
-                            <v-icon x-small>mdi-rename-box</v-icon>
-                          </v-btn>
-                        </template>
-                        <span>Rename</span>
-                      </v-tooltip>
-                      <v-tooltip bottom>
-                        <template #activator="{ on, attrs }">
-                          <v-btn
-                            icon
-                            x-small
-                            v-bind="attrs"
-                            v-on="on"
                             :disabled="item.index === 0"
                             @click="moveConfigUp(item.index)"
                           >
@@ -470,20 +445,14 @@ export default defineComponent({
                 Please select a timeline configuration from the table above to edit.
               </v-alert>
               <div v-else>
-                <v-text-field
-                  :value="editingConfigName"
-                  label="Configuration Name"
-                  outlined
-                  dense
-                  class="mb-4"
-                  @input="updateConfigName(selectedConfigIndex, $event)"
-                />
                 <timeline-configuration-vue
                   :timeline-config="timelineConfig"
+                  :config-name="editingConfigName"
                   @update-timeline="updateTimelineConfig($event)"
                   @delete-timeline="deleteTimelineConfig($event)"
                   @add-timeline="addTimelineConfig($event)"
                   @update-height="updateTimelineHeight($event)"
+                  @update-config-name="updateConfigName(selectedConfigIndex, $event)"
                 />
               </div>
             </v-tab-item>

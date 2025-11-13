@@ -524,7 +524,6 @@ class DIVEConfiguration(BaseModel):
     shortcuts: Optional[List[DIVEShortcut]]
     filterTimelines: Optional[List[FilterTimeline]]
     timelineConfigs: Optional[List[TimelineConfiguration]]
-    multiTimelineConfigs: Optional[List[TimelineConfiguration]]
     customUI: Optional[CustomUISettings]
 
     @validator('timelineConfigs', pre=True)
