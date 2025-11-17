@@ -33,6 +33,7 @@ if [[ -S /var/run/docker.sock ]]; then
     groupadd -g "${DOCKER_GID}" docker
   fi
   usermod -aG "${DOCKER_GID}" "$(id -nu ${USER_ID})" || true
+  usermod -aG dive "$(id -nu ${USER_ID})" || true
   chmod 777 /var/run/docker.sock || true
 fi
 
@@ -47,9 +48,10 @@ fi
 if [[ -n "${WORKER_CONCURRENCY:-}" ]]; then
     CONCURRENCY_ARGUMENT="--concurrency $WORKER_CONCURRENCY"
 fi
+chown -R ${USER_ID}:${GROUP_ID} /opt/dive/local/venv
 
 # Sanity checks for required tools
 command -v uv >/dev/null 2>&1 || { echo "Error: 'uv' not found in PATH"; exit 1; }
-command -v python >/dev/null 2>&1 || { echo "Error: 'python' not found in PATH"; exit 1; }
+command -v uv run python >/dev/null 2>&1 || { echo "Error: 'python' not found in PATH"; exit 1; }
 
 su $(id -nu ${DSA_USER%%:*}) -c "GW_DIRECT_PATHS=true uv run python -m dive_tasks -l info --without-gossip --without-mingle $QUEUE_ARGUMENT $CONCURRENCY_ARGUMENT -Ofair --prefetch-multiplier=1"

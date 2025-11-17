@@ -68,8 +68,11 @@ RUN uv sync --frozen --no-install-project --no-dev --extra cu128
 COPY server/ /opt/dive/src/
 # Install dependencies with CUDA-enabled PyTorch
 RUN uv sync --frozen --no-dev --extra cu128
+RUN chmod -R a+rX /opt/dive/local/venv
+
 COPY --chown=dive:dive docker/entrypoint_worker_gpu.sh /
 
+RUN chmod -R a+rX /entrypoint_worker_gpu.sh
 
 ENTRYPOINT ["/tini", "--"]
 CMD ["/entrypoint_worker_gpu.sh"]
