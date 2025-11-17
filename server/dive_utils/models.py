@@ -506,6 +506,7 @@ class TimelineDisplay(BaseModel):
 
 
 class TimelineConfiguration(BaseModel):
+    name: Optional[str] = None
     maxHeight: float
     timelines: List[TimelineDisplay]
 
@@ -522,8 +523,22 @@ class DIVEConfiguration(BaseModel):
     actions: Optional[List[DIVEActions]]
     shortcuts: Optional[List[DIVEShortcut]]
     filterTimelines: Optional[List[FilterTimeline]]
-    timelineConfigs: Optional[TimelineConfiguration]
+    timelineConfigs: Optional[List[TimelineConfiguration]]
     customUI: Optional[CustomUISettings]
+
+    @validator('timelineConfigs', pre=True)
+    @classmethod
+    def convert_timeline_configs_to_list(cls, v):
+        """
+        Convert single TimelineConfiguration object to list for backward
+        compatibility.
+        """
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return v
+        # If it's a dict or TimelineConfiguration object, wrap it in a list
+        return [v]
 
 
 class DIVEStyling(BaseModel):

@@ -72,8 +72,9 @@ export default defineComponent({
 
     const timelineList = computed(() => {
       const list: TimelineDisplay[] = [];
-      if (configMan.configuration.value?.timelineConfigs?.timelines) {
-        configMan.configuration.value.timelineConfigs.timelines.forEach((item) => {
+      const activeConfig = configMan.getActiveTimelineConfig();
+      if (activeConfig?.timelines) {
+        activeConfig.timelines.forEach((item) => {
           list.push(item);
         });
       } else if (props.currentView !== '') {

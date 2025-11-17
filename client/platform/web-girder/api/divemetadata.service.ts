@@ -182,9 +182,9 @@ async function runSlicerMetadataTask(rootId: string, taskId: string, filters: DI
   return girderRest.post<JobResponse>(`dive_metadata/${rootId}/slicer-cli-task`, { taskId, filterParams: { filters, params } }, { params: { taskId, filterParams: { filters, params } } });
 }
 
-async function exportDiveMetadata(folderId: string, filters: DIVEMetadataFilter, format: 'csv' | 'json') {
+async function exportDiveMetadata(folderId: string, filters: DIVEMetadataFilter, format: 'csv' | 'json', baseUrl?: string) {
   const response = await girderRest.post(`dive_metadata/${folderId}/export`, null, {
-    params: { format, filters },
+    params: { format, filters, baseURL: baseUrl },
     responseType: 'blob',
   });
 
