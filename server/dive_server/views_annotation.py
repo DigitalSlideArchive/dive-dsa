@@ -155,7 +155,7 @@ class AnnotationResource(Resource):
     @access.user
     @autoDescribeRoute(
         Description("Get RLE mask annotations").modelParam(
-            "folderId", **DatasetModelParam, level=AccessType.WRITE
+            "folderId", **DatasetModelParam, level=AccessType.READ
         )
     )
     def get_rle_mask(self, folder):

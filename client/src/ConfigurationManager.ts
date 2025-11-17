@@ -225,9 +225,11 @@ export default class ConfigurationManager {
     this.activeTimelineConfigIndex = ref(-1); // Start with no selection
   }
 
-  async saveConfiguration(id: string, config?: Configuration) {
+  async saveConfiguration(id: string, config?: Configuration, serverSave = true) {
     const updateConfig = { ...this.configuration.value, ...config };
-    this._saveConfiguration(id, updateConfig);
+    if (serverSave) {
+      await this._saveConfiguration(id, updateConfig);
+    }
   }
 
   setHierarchy(data: DiveConfiguration['hierarchy']) {
