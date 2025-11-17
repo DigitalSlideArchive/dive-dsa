@@ -9,7 +9,6 @@ from urllib import request
 from urllib.parse import urlparse
 
 from PIL import Image
-import cv2
 from girder_client import GirderClient
 from girder_worker.app import app
 from girder_worker.task import Task
@@ -331,7 +330,10 @@ def save_and_record_mask(
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
     rgba[..., 0:3] = 255
     rgba[..., 3] = alpha
-    cv2.imwrite(str(path), rgba)
+
+    # Use PIL instead of cv2 to save RGBA image
+    pil_image = Image.fromarray(rgba, 'RGBA')
+    pil_image.save(str(path))
 
     rle = mask_utils.encode(np.asfortranarray(mask_bin))
     if isinstance(rle['counts'], bytes):

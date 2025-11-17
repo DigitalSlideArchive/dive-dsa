@@ -21,5 +21,5 @@ chmod 777 /var/run/docker.sock 2>/dev/null || true
 
 
 set -e
-python /server_setup.py
-exec girder serve --host 0.0.0.0 $@
+uv run python /server_setup.py
+exec uv run girder serve --host 0.0.0.0 $@

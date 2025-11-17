@@ -7,6 +7,7 @@ from girder.utility import setting_utilities
 from girder_jobs.models.job import Job
 
 from dive_server import crud
+# Import Celery app for task scheduling
 from dive_tasks.sam_tasks import download_sam_models
 from dive_utils import constants, models
 
@@ -100,6 +101,7 @@ class ConfigurationResource(Resource):
         }
         base_config['celeryQueue'] = base_queue
         Setting().set(constants.DIVE_CONFIG, base_config)
+
         newjob = download_sam_models.apply_async(
             queue=base_queue,
             kwargs=dict(
