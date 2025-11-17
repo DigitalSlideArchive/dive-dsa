@@ -663,7 +663,7 @@ export default defineComponent({
         let { meta, configMeta } = initializeConfig(config);
         // Sets a configuration if it isn't initialized and reloads it
         if (!configurationManager.configuration.value) {
-          configurationManager.saveConfiguration(datasetId.value, configMeta.configuration);
+          configurationManager.saveConfiguration(datasetId.value, configMeta.configuration, false);
           config = await loadMetadata(datasetId.value);
           const initResults = initializeConfig(config);
           meta = initResults.meta;
