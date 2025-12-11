@@ -146,7 +146,7 @@ def get_task_defaults(
                 fileId=foundFileId,
             )
             if sourceVideoItem and str(sourceVideoItem['_id']) != str(videoItem['_id']):
-                foundFile = File().findOne({'itemId': videoItem['_id']})
+                foundFile = File().findOne({'itemId': sourceVideoItem['_id']})
                 foundFileId = None
                 if foundFile:
                     foundFileId = str(foundFile['_id'])
