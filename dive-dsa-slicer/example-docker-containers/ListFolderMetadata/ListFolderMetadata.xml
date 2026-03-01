@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>DIVE</category>
+  <title>List Folder Metadata</title>
+  <description>Lists all metadata for folders inside a given parent folderId</description>
+  <version>0.1.0</version>
+  <documentation-url></documentation-url>
+  <license>Apache 2.0</license>
+  <contributor>Bryon Lewis</contributor>
+  <acknowledgements>This work is part of the DIVE project.</acknowledgements>
+  <parameters>
+    <label>Input Parameters</label>
+    <description>Input parameters</description>
+    <string>
+      <name>folderId</name>
+      <longflag>folderId</longflag>
+      <label>Parent Folder ID</label>
+      <description><![CDATA[The folder ID of the parent folder to list child folders and their metadata from]]></description>
+      <default></default>
+    </string>
+    <string>
+      <name>metadataRootId</name>
+      <longflag>metadataRootId</longflag>
+      <label>Metadata Root ID</label>
+      <description><![CDATA[Optional: The metadata root folder ID to query metadata from. If not provided, will list folder information without metadata.]]></description>
+      <default></default>
+    </string>
+    <file>
+      <name>outputFile</name>
+      <longflag>outputFile</longflag>
+      <label>Output File</label>
+      <description><![CDATA[Optional: Path to save the results JSON file. If not provided, results will be printed to stdout.]]></description>
+      <channel>output</channel>
+      <default></default>
+    </file>
+  </parameters>
+  <parameters advanced="true">
+    <label>Girder API URL and Token</label>
+    <description>A Girder API URL and token for Girder client, automatically populated in DIVE</description>
+    <string>
+      <name>girderApiUrl</name>
+      <longflag>api-url</longflag>
+      <label>Girder API URL</label>
+      <description>A Girder API URL (e.g., https://girder.example.com:443/api/v1)</description>
+      <default></default>
+    </string>
+    <string>
+      <name>girderToken</name>
+      <longflag>girder-token</longflag>
+      <label>Girder Token</label>
+      <description>A Girder token</description>
+      <default></default>
+    </string>
+  </parameters>
+</executable>
+

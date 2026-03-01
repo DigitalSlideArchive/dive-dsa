@@ -11,13 +11,13 @@
   "DIVEUINotifications": {
     "type": "python"
   },
-  "MultipleFullFrameDatasets": {
-    "type": "python"
-  },
   "MultipleFullFrameMetadata": {
     "type": "python"
   },
   "SAM2Demo": {
+    "type": "python"
+  },
+  "ListFolderMetadata": {
     "type": "python"
   }
 }
