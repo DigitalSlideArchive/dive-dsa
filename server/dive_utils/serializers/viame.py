@@ -250,6 +250,20 @@ def load_json_as_track_and_attributes(
     metadata_attributes: Dict[str, Dict[str, Any]] = {}
     test_vals: Dict[str, Dict[str, int]] = {}
     tracks = json_data['tracks']
+    seen_ids = set()
+    duplicate_ids = set()
+    for track in tracks.values():
+        track_id = track.get('id')
+        if track_id in seen_ids:
+            duplicate_ids.add(track_id)
+        else:
+            seen_ids.add(track_id)
+    duplicate_ids = sorted(duplicate_ids)
+    if duplicate_ids:
+        raise ValueError(
+            'Duplicate track id values found in tracks payload: '
+            f'{duplicate_ids}. Track keys must map to unique track.id values.'
+        )
     # Get Attribute Maps to values
     for key, track in tracks.items():
         track_attributes = {}
