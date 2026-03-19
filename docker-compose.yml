@@ -107,6 +107,8 @@ services:
       - "CELERY_BROKER_URL=${CELERY_BROKER_URL:-amqp://guest:guest@rabbit/default}"
       - "TMPDIR="
   girder_worker_gpu:
+    profiles:
+      - gpu
     ipc: host
     platform: 'linux/amd64'
     deploy:

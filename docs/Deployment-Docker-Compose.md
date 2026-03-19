@@ -94,7 +94,7 @@ It's possible to split your web server and task runner between multiple nodes.  
 docker-compose -f docker-compose.yml up -d girder rabbit
 
 ## On the GPU server(s)
-docker-compose -f docker-compose.yml up -d --no-deps girder_worker_default
+docker-compose -f docker-compose.yml --profile gpu up -d --no-deps girder_worker_gpu
 ```
 
 In order to run any jobs (video transcoding) the worker server will need to be running.

@@ -2,6 +2,9 @@ import sys
 
 from girder_worker.app import app
 
+# Import tasks to ensure they are registered
+from dive_tasks import tasks  # noqa: F401
+
 
 def main():
     """

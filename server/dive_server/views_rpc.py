@@ -8,13 +8,16 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.notification import Notification
 from girder.models.token import Token
+from girder.models.setting import Setting
 from girder_jobs.models.job import Job
+from girder.exceptions import RestException
 
 from dive_tasks.sam_tasks import run_sam2_inference
 from dive_utils import asbool, fromMeta
 from dive_utils.constants import (
     DatasetMarker,
     FPSMarker,
+    DIVE_CONFIG,
     MarkForPostProcess,
     TypeMarker,
 )
@@ -339,6 +342,18 @@ class RpcResource(Resource):
     def sam2_mask_track(
         self, datasetId, queue, trackId, frameId, frameCount, SAMModel, batchSize, notifyPercent
     ):
+        dive_config = Setting().get(DIVE_CONFIG) or {}
+        sam2_enabled = asbool(
+            dive_config.get('EnabledFeatures', {})
+            .get('annotator', {})
+            .get('sam2MaskTracking', False)
+        )
+        if not sam2_enabled or dive_config.get('SAM2Config') is None:
+            raise RestException(
+                'SAM2 Mask Tracking is not enabled/configured in the DIVE configuration.',
+                code=400,
+            )
+
         token = Token().createToken(user=self.getCurrentUser(), days=1)
         newjob = run_sam2_inference.apply_async(
             queue=queue,
