@@ -4,26 +4,36 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-from typing import Literal, Optional, Tuple, Union
+from typing import Any, Literal, Optional, Tuple, Union
 from urllib import request
 from urllib.parse import urlparse
 
 from PIL import Image
-import cv2
 from girder_client import GirderClient
 from girder_worker.app import app
 from girder_worker.task import Task
 from girder_worker.utils import JobManager, JobStatus
-from hydra import initialize
-from hydra.core.global_hydra import GlobalHydra
 import numpy as np
 from pycocotools import mask as mask_utils
-from sam2.build_sam import build_sam2_video_predictor
-import torch
 
 from dive_tasks import utils
 from dive_tasks.manager import patch_manager
-from dive_utils import constants
+from dive_utils import asbool, constants
+
+
+def _sam2_mask_tracking_enabled(dive_config: dict) -> bool:
+    """
+    SAM2 should only be usable when the DIVE configuration enables it.
+
+    This is intentionally lightweight so SAM2-heavy imports can be deferred.
+    """
+    enabled = asbool(
+        dive_config.get('EnabledFeatures', {})
+        .get('annotator', {})
+        .get('sam2MaskTracking', False)
+    )
+    # "SAM2 settings" includes the SAM2Config block being present in DIVE config.
+    return enabled and dive_config.get('SAM2Config') is not None
 
 
 def get_filename_from_url(url):
@@ -128,6 +138,11 @@ def run_sam2_inference(
         manager.updateStatus(JobStatus.CANCELED)
         return
     gc: GirderClient = self.girder_client
+    dive_config = gc.get('dive_configuration/dive_config') or {}
+    if not _sam2_mask_tracking_enabled(dive_config):
+        manager.write('SAM2 Mask Tracking is not enabled/configured; cancelling job\n')
+        manager.updateStatus(JobStatus.CANCELED)
+        return
 
     with tempfile.TemporaryDirectory() as working_directory:
         working_dir_path = Path(working_directory)
@@ -283,13 +298,15 @@ def extract_frames(
     return frame_dir
 
 
-def load_png_mask_as_tensor(filename: Union[str, Path]) -> torch.Tensor:
+def load_png_mask_as_tensor(filename: Union[str, Path]):
     """
     Converts an RGBA PNG mask file into a binary PyTorch tensor.
 
     Returns:
         Tensor with shape matching image size, containing binary mask.
     """
+    import torch
+
     img = Image.open(filename).convert("RGBA")
     alpha = np.array(img)[:, :, 3]
     binary_mask = (alpha > 0).astype(np.uint8)
@@ -308,7 +325,7 @@ def list_directory_contents(path: Path):
 
 
 def save_and_record_mask(
-    mask: torch.Tensor,
+    mask: Any,
     output_dir: Path,
     obj_id: str,
     frame_idx: int,
@@ -319,6 +336,8 @@ def save_and_record_mask(
     """
     Saves mask as PNG and records metadata for RLE encoding and track annotation.
     """
+    import cv2
+
     obj_dir = output_dir / str(obj_id)
     obj_dir.mkdir(parents=True, exist_ok=True)
     path = obj_dir / f"{frame_idx}.png"
@@ -589,6 +608,20 @@ def run_inference(
     batch_size: Optional[int] = 300,
     notify_percent: float = 0.1,
 ) -> Path:
+    # Heavy SAM2 dependencies are imported here so the worker can start without them.
+    try:
+        import torch
+        from hydra import initialize
+        from hydra.core.global_hydra import GlobalHydra
+        from sam2.build_sam import build_sam2_video_predictor
+    except ImportError as e:
+        manager.write(
+            "SAM2 worker dependencies are not installed. "
+            "Rebuild this worker image with the Poetry group `sam2`.\n"
+        )
+        manager.updateStatus(JobStatus.ERROR)
+        raise RuntimeError("Missing SAM2 dependencies for SAM tracking") from e
+
     device = (
         torch.device("cuda")
         if torch.cuda.is_available()

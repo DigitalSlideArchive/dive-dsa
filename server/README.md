@@ -15,11 +15,11 @@ Set up your system as described in the [Basic Deployment](https://kitware.github
 
 In development, the server and client are run in separate processes.  In production, the client is built and bundled as static files into the server image.
 
-This python project uses [Poetry](https://python-poetry.org/).
+This python project uses [uv](https://astral.sh/uv) for dependency management.
 
 ```bash
 # Optional, for intellisense or whatever.  Not required for docker-compose
-poetry install
+uv sync
 ```
 
 ### Running in development with docker
@@ -54,45 +54,45 @@ To work on the Vue client, see development instructions in `../client`.
 
 ## Unit Testing and Static Checks
 
-Automation is done with [Tox](https://pypi.org/project/tox/), installed by poetry above.
+Automation is done with [Tox](https://pypi.org/project/tox/) with tox-uv plugin.
 
 ```bash
 # run only lint checks
-poetry run tox -e check
+uv run tox -e lint
 
 # run only type checks
-poetry run tox -e type
+uv run tox -e type
 
 # run only unit tests
-poetry run tox -e testunit
+uv run tox -e testunit
 
 # run only a particular test
-poetry run tox -e testunit -- -k test_image_sort
+uv run tox -e testunit -- -k test_image_sort
 
-# run all three tests above
-poetry run tox
+# run all tests
+uv run tox
 
 # automatically format all code to comply to linting checks
-poetry run tox -e format
+uv run tox -e format
 
 # run mkdocs and serve the documentation page
-poetry run tox -e docs
+uv run tox -e docs
 
 # creates docs in the /site folder for eventual deployment
-poetry run tox -e builddocs
+uv run tox -e builddocs
 ```
 
 ## Debug utils and command line tools
 
 ``` bash
-# Requires a local poetry installation
-poetry install
+# Requires a local uv installation
+uv sync
 
 # show options
-poetry run dive --help
+uv run dive --help
 
 # build the standalone executable into ./dist
-poetry run tox -e buildcli
+uv run tox -e buildcli
 ```
 
 ## Metadata properties
