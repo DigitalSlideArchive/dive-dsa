@@ -1,5 +1,5 @@
 import Vue, { getCurrentInstance } from 'vue';
-import Vuetify from 'vuetify/lib';
+import Vuetify from 'vuetify';
 import colors from 'vuetify/lib/util/colors';
 import { merge } from 'lodash';
 

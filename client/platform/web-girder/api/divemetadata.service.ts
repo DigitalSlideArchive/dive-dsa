@@ -1,7 +1,7 @@
 import girderRest from 'platform/web-girder/plugins/girder';
-import { JobResponse } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
-import { GirderModelBase } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
-import { XMLBaseValue } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
+import type { JobResponse } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
+import type { GirderModelBase } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
+import type { XMLBaseValue } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
 export interface MetadataFilterItem {

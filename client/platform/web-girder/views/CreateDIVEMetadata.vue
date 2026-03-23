@@ -9,7 +9,7 @@ import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { getFolder } from 'platform/web-girder/api';
 import { useRouter } from 'vue-router/composables';
 import { createDiveMetadataFolder } from 'platform/web-girder/api/divemetadata.service';
-import { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
+import type { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
 
 export default defineComponent({
   components: { GirderFileManager },
