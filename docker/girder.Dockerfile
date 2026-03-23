@@ -6,12 +6,12 @@ WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
 # Install dependencies
-COPY client/package.json client/yarn.lock /app/
-RUN yarn install --frozen-lockfile --network-timeout 300000
+COPY client/package.json client/package-lock.json /app/
+RUN npm ci --no-audit --no-fund
 # Build
 COPY .git/ /app/.git/
 COPY client/ /app/
-RUN yarn build:web
+RUN npm run build:web
 
 # ========================
 # == SERVER BUILD STAGE ==
