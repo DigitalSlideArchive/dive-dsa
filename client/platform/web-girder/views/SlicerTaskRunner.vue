@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineComponent, ref, Ref } from 'vue';
 import { GirderSlicerTasksIntegrated } from 'vue-girder-slicer-cli-ui';
-import { XMLParameters } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
+import type { XMLParameters } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { cloneDeep } from 'lodash';
 import { getTaskDefaults } from 'platform/web-girder/api/dataset.service';
 import {
@@ -12,7 +12,7 @@ import {
 } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
-import { JobResponse, SlicerTask } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
+import type { JobResponse, SlicerTask } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
 import { GirderJob } from '@girder/components/src';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { all } from '@girder/components/src/components/Job/status';

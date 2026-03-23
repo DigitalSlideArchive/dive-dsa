@@ -1,5 +1,4 @@
 import Vue from 'vue';
-import VueGtag from 'vue-gtag';
 
 import registerNotifications from 'vue-media-annotator/notificatonBus';
 import promptService from 'dive-common/vue-utilities/prompt-service';
@@ -11,19 +10,11 @@ import girderRest from './plugins/girder';
 import App from './App.vue';
 import router from './router';
 import store from './store';
+import 'vuetify/dist/vuetify.min.css';
 import 'vue-girder-slicer-cli-ui/dist/vue-girder-slicer-cli-ui.css';
 
 Vue.config.productionTip = false;
 Vue.use(vMousetrap);
-
-if (
-  process.env.NODE_ENV === 'production'
-  && window.location.hostname !== 'localhost'
-) {
-  Vue.use(VueGtag, {
-    config: { id: process.env.VUE_APP_GTAG },
-  }, router);
-}
 
 Promise.all([
   store.dispatch('Brand/loadBrand'),

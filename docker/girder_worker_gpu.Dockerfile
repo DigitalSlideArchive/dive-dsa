@@ -14,7 +14,7 @@ RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
 # =================
 # == DIST WORKER ==
 # =================
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04 AS server
+FROM nvidia/cuda:12.8.1-base-ubuntu24.04 AS server
 
 # Install only runtime dependencies
 RUN apt-get update && \
@@ -62,14 +62,16 @@ COPY server/pyproject.toml /opt/dive/src/
 COPY server/uv.lock /opt/dive/src/
 # Create virtual environment
 RUN uv venv /opt/dive/local/venv
-# Install dependencies with SAM
-RUN uv sync --frozen --no-install-project --no-dev --extra sam
+# Install dependencies with SAM (disable cache to reduce layer size)
+RUN uv sync --frozen --no-cache --no-install-project --no-dev --extra sam && \
+    rm -rf /root/.cache/uv /root/.cache/pip
 
 
 # Copy source and install project
 COPY server/ /opt/dive/src/
 # Install dependencies with SAM
-RUN uv sync --frozen --no-dev --extra sam
+RUN uv sync --frozen --no-cache --no-dev --extra sam && \
+    rm -rf /root/.cache/uv /root/.cache/pip
 RUN chmod -R a+rX /opt/dive/local/venv
 
 COPY --chown=dive:dive docker/entrypoint_worker_gpu.sh /

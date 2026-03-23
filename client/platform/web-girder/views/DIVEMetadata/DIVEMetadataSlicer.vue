@@ -6,10 +6,10 @@ import {
   ref,
 } from 'vue';
 import { GirderSlicerTasksIntegrated } from 'vue-girder-slicer-cli-ui';
-import { XMLBaseValue } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
+import type { XMLBaseValue } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
-import { SlicerTask } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
+import type { SlicerTask } from 'vue-girder-slicer-cli-ui/dist/api/girderSlicerApi';
 import { GirderJob } from '@girder/components/src';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { all, Status } from '@girder/components/src/components/Job/status';
