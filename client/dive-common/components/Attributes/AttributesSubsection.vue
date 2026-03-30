@@ -26,6 +26,7 @@ import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 
 export default defineComponent({
   components: {
@@ -65,6 +66,7 @@ export default defineComponent({
       timelineEnabled, swimlaneEnabled,
     } = useAttributesFilters();
     const handler = useHandler();
+    const { updateAttributeMetadataLink } = useMetadataLinkUpdater();
     const timelineActive = computed(
       () => (Object.values(timelineEnabled.value).filter((item) => item).length),
     );
@@ -131,7 +133,7 @@ export default defineComponent({
       activeSettings.value = !activeSettings.value;
     }
 
-    function updateAttribute(
+    async function updateAttribute(
       { name, value }: { name: string; value: unknown },
       attribute: Attribute,
     ) {
@@ -149,6 +151,7 @@ export default defineComponent({
             tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value, user));
           }
         }
+        await updateAttributeMetadataLink(attribute, value);
       }
     }
 

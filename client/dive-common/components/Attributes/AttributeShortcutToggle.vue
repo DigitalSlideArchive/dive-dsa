@@ -11,6 +11,7 @@ import {
   useAttributes, useCameraStore, useConfiguration, useHandler, useSelectedTrackId, useTime,
   useUINotifications,
 } from 'vue-media-annotator/provides';
+import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 
 interface MouseTrapInterface {
   bind: string;
@@ -35,6 +36,7 @@ export default defineComponent({
     const { inputValue } = usePrompt();
     const shortcutsOn = ref(true);
     const attributes = useAttributes();
+    const { updateAttributeMetadataLink } = useMetadataLinkUpdater();
     const selectedTrackIdRef = useSelectedTrackId();
     const cameraStore = useCameraStore();
     const { frame: frameRef } = useTime();
@@ -151,6 +153,7 @@ export default defineComponent({
     }
 
     function updateAttribute({ name, value, belongs }: { name: string; value: unknown; belongs: 'track' | 'detection' }) {
+      const sourceAttribute = attributes.value.find((item) => item.name === name && item.belongs === belongs);
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
@@ -162,6 +165,9 @@ export default defineComponent({
             tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value, user));
           }
         }
+      }
+      if (sourceAttribute) {
+        updateAttributeMetadataLink(sourceAttribute, value);
       }
     }
 

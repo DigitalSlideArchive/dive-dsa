@@ -216,8 +216,7 @@ export default defineComponent({
                 <v-list-item-content>
                   <v-list-item-title>
                     <v-icon v-if="iconMap[item.type]" x-small class="mr-1">
-                      {{ iconMap[item.type] }} </v-icon
-                    >{{ item.name }}
+                      {{ iconMap[item.type] }} </v-icon>{{ item.name }}
                     <v-btn
                       v-if="item.dismissed"
                       small
@@ -225,8 +224,7 @@ export default defineComponent({
                       class="mx-2"
                       @click="$emit('enable', item.name)"
                     >
-                      Enable</v-btn
-                    >
+                      Enable</v-btn>
                   </v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
@@ -247,8 +245,7 @@ export default defineComponent({
           @click="toggleView(item.name)"
         >
           <v-icon v-if="iconMap[item.type]" x-small>
-            {{ iconMap[item.type] }} </v-icon
-          >{{ item.name }}
+            {{ iconMap[item.type] }} </v-icon>{{ item.name }}
         </v-btn>
       </span>
       <span v-else-if="timelineBtns.length > 3">
@@ -288,8 +285,7 @@ export default defineComponent({
                 <v-list-item-content>
                   <v-list-item-title>
                     <v-icon v-if="iconMap[item.type]" x-small class="mr-1">
-                      {{ iconMap[item.type] }} </v-icon
-                    >{{ item.name }}
+                      {{ iconMap[item.type] }} </v-icon>{{ item.name }}
                   </v-list-item-title>
                 </v-list-item-content>
               </v-list-item>

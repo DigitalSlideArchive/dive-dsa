@@ -200,6 +200,11 @@ class DisplayTrackFilterSettings(BaseModel):
     minSegmentSize: Optional[int]
 
 
+class MetadataLinkSettings(BaseModel):
+    key: str
+    updateValue: bool
+
+
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
     datatype: Literal['text', 'number', 'boolean']
@@ -220,6 +225,7 @@ class Attribute(BaseModel):
     colorKeySettings: Optional[DisplayTrackFilterSettings]
     valueOrder: Optional[Dict[str, int]]
     displayText: Optional[str]
+    metadataLink: Optional[MetadataLinkSettings]
 
 
 class AttributeNumberFilter(BaseModel):

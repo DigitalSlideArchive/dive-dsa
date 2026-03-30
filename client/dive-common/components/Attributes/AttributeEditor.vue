@@ -3,7 +3,7 @@ import {
   computed, defineComponent, PropType, Ref, ref, watch,
 } from 'vue';
 import {
-  Attribute, AttributeShortcut, NumericAttributeEditorOptions, StringAttributeEditorOptions,
+  Attribute, AttributeShortcut, MetadataLinkOptions, NumericAttributeEditorOptions, StringAttributeEditorOptions,
 } from 'vue-media-annotator/use/AttributeTypes';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
@@ -11,6 +11,7 @@ import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
 import AttributeValueColors from './AttributeValueColors.vue';
 import AttributeNumberValueColors from './AttributeNumberColors.vue';
+import AttributeMetadataLink from './AttributeMetadataLink.vue';
 
 export default defineComponent({
   name: 'AttributeSettings',
@@ -19,6 +20,7 @@ export default defineComponent({
     AttributeRendering,
     AttributeValueColors,
     AttributeNumberValueColors,
+    AttributeMetadataLink,
   },
   props: {
     selectedAttribute: {
@@ -53,6 +55,10 @@ export default defineComponent({
     const editor: Ref<
       undefined | StringAttributeEditorOptions | NumericAttributeEditorOptions
     > = ref(props.selectedAttribute.editor);
+    const metadataLink: Ref<MetadataLinkOptions> = ref({
+      key: props.selectedAttribute.metadataLink?.key || '',
+      updateValue: props.selectedAttribute.metadataLink?.updateValue || false,
+    });
     let values: string[] = props.selectedAttribute.values ? props.selectedAttribute.values : [];
     let addNew = !props.selectedAttribute.key.length;
     const shortcuts: Ref<AttributeShortcut[]> = ref(props.selectedAttribute.shortcuts || []);
@@ -81,6 +87,7 @@ export default defineComponent({
       belongs.value = 'track';
       datatype.value = 'number';
       values = [];
+      metadataLink.value = { key: '', updateValue: false };
     }
     function add() {
       setDefaultValue();
@@ -123,6 +130,13 @@ export default defineComponent({
       data.noneColor = noneColor.value;
       if (colorKeySettings.value) {
         data.colorKeySettings = colorKeySettings.value;
+      }
+      const metadataLinkValue: MetadataLinkOptions = {
+        key: metadataLink.value.key.trim(),
+        updateValue: metadataLink.value.updateValue,
+      };
+      if (metadataLinkValue.key.length || metadataLinkValue.updateValue) {
+        data.metadataLink = metadataLinkValue;
       }
       if (addNew) {
         emit('save', { data, close });
@@ -268,6 +282,7 @@ export default defineComponent({
       numericChange,
       launchColorEditor,
       saveAttributeValueColors,
+      metadataLink,
     };
   },
 });
@@ -283,6 +298,7 @@ export default defineComponent({
             <v-tab> Main </v-tab>
             <v-tab> Shortcuts </v-tab>
             <v-tab> Rendering </v-tab>
+            <v-tab> MetadataLink </v-tab>
             <v-tab v-if="datatype === 'text' || datatype === 'number'">
               Value Colors
             </v-tab>
@@ -484,6 +500,12 @@ export default defineComponent({
               v-if="attributeRendering && renderingVals !== undefined"
               v-model="renderingVals"
               :attribute="selectedAttribute"
+            />
+          </v-tab-item>
+          <v-tab-item>
+            <attribute-metadata-link
+              v-model="metadataLink"
+              :belongs="belongs"
             />
           </v-tab-item>
           <v-tab-item v-if="datatype === 'text'">

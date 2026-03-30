@@ -102,6 +102,11 @@ export interface AttributeRendering {
     };
   }
 
+export interface MetadataLinkOptions {
+    key: string;
+    updateValue: boolean;
+  }
+
 export interface Attribute {
     belongs: 'track' | 'detection';
     datatype: 'text' | 'number' | 'boolean';
@@ -122,6 +127,7 @@ export interface Attribute {
     colorKey?: boolean;
     colorKeySettings?: {display: 'static' | 'selected'; trackFilter: string[] };
     noneColor?: false | string;
+    metadataLink?: MetadataLinkOptions;
   }
 
 export type Attributes = Record<string, Attribute>;

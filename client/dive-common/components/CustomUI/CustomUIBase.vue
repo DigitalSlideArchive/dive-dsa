@@ -15,6 +15,7 @@ import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
+import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import context from 'dive-common/store/context';
 
@@ -77,6 +78,7 @@ export default defineComponent({
     const cameraStore = useCameraStore();
     const selectedTrackIdRef = useSelectedTrackId();
     const systemHandler = useHandler();
+    const { updateAttributeMetadataLink } = useMetadataLinkUpdater();
     const panelExpanded: Ref<Record<string, number | undefined>> = ref({});
     const trackPercentSize = 0.01; // 5% of the track length is used for segment creation
 
@@ -156,6 +158,7 @@ export default defineComponent({
       name, value, belongs, frame,
     }: { name: string; value: unknown; belongs: 'track' | 'detection', frame?: number }) {
       const frameVal = frame || frameRef.value;
+      const sourceAttribute = attributes.value.find((item) => item.name === name && item.belongs === belongs);
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
@@ -167,6 +170,9 @@ export default defineComponent({
             tracks.forEach((track) => track.setFeatureAttribute(frameVal, name, value, user));
           }
         }
+      }
+      if (sourceAttribute) {
+        updateAttributeMetadataLink(sourceAttribute, value);
       }
     }
 
