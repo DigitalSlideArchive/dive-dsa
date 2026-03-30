@@ -55,6 +55,25 @@ def python_to_javascript_type(py_type):
     return type_mapping.get(py_type, "unknown")
 
 
+def _normalize_metadata_config(config, default_config):
+    if isinstance(config, dict):
+        normalized = dict(default_config)
+        normalized.update(config)
+        return normalized
+
+    if isinstance(config, str):
+        try:
+            parsed = json.loads(config)
+            if isinstance(parsed, dict):
+                normalized = dict(default_config)
+                normalized.update(parsed)
+                return normalized
+        except json.JSONDecodeError:
+            pass
+
+    return dict(default_config)
+
+
 def remove_before_folder(path, folder_name):
     index = path.find(folder_name)
     if index != -1:
@@ -615,6 +634,20 @@ class DIVEMetadata(Resource):
             level=AccessType.WRITE,
             user=user,
             force=True,
+        )
+        displayConfig = _normalize_metadata_config(
+            displayConfig,
+            {
+                "display": ['DIVE_DatasetId', 'DIVE_Name'],
+                "hide": [""],
+            },
+        )
+        ffprobeMetadata = _normalize_metadata_config(
+            ffprobeMetadata,
+            {
+                "import": True,
+                "keys": ["width", "height", "display_aspect_ratio", "nb_frames", "duration"],
+            },
         )
         crud_dataset.get_recursive_datasets(rootFolder, user, datasetList)
 
