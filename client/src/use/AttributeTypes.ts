@@ -102,10 +102,15 @@ export interface AttributeRendering {
     };
   }
 
+/**
+ * When `updateValue` is true, detection attribute edits sync to linked DIVEMetadata.
+ * `key` is the DIVEMetadata field name to update — it may differ from the attribute's
+ * internal `key` (`{belongs}_{name}`).
+ */
 export interface MetadataLinkOptions {
     key: string;
     updateValue: boolean;
-  }
+}
 
 export interface Attribute {
     belongs: 'track' | 'detection';
