@@ -6,6 +6,7 @@ import {
   Attribute,
   MetadataLinkNumberConditions,
   MetadataLinkOptions,
+  StringAttributeEditorOptions,
 } from 'vue-media-annotator/use/AttributeTypes';
 import { useHandler } from 'vue-media-annotator/provides';
 import {
@@ -25,6 +26,18 @@ function metadataCategoryForAttribute(datatype: Attribute['datatype']): 'numeric
   return 'search';
 }
 
+function isLockedTextDetection(attr: Attribute, excludeKey: string): boolean {
+  if (attr.belongs !== 'detection' || attr.datatype !== 'text') {
+    return false;
+  }
+  if (excludeKey && attr.key === excludeKey) {
+    return false;
+  }
+  const ed = attr.editor as StringAttributeEditorOptions | undefined;
+  const editorLocked = ed?.type === 'locked';
+  return !!(attr.lockedValues || editorLocked);
+}
+
 export default defineComponent({
   name: 'AttributeMetadataLink',
   props: {
@@ -42,6 +55,14 @@ export default defineComponent({
     datatype: {
       type: String as PropType<Attribute['datatype']>,
       required: true,
+    },
+    allAttributes: {
+      type: Array as PropType<Attribute[]>,
+      default: () => [],
+    },
+    currentAttributeKey: {
+      type: String,
+      default: '',
     },
   },
   setup(props, { emit }) {
@@ -149,9 +170,90 @@ export default defineComponent({
       },
     });
 
+    const useDynamicKeyModel = computed({
+      get: () => !!props.value?.useDynamicKeyFromAttribute,
+      set: (enabled: boolean) => {
+        if (!enabled) {
+          mergeEmit({ useDynamicKeyFromAttribute: false });
+          return;
+        }
+        mergeEmit({ useDynamicKeyFromAttribute: true });
+      },
+    });
+
+    const dynamicKeyAttributeKeyModel = computed({
+      get: () => props.value?.dynamicKeyAttributeKey || '',
+      set: (newVal: string | null) => {
+        mergeEmit({
+          dynamicKeyAttributeKey: newVal != null ? String(newVal) : '',
+        });
+      },
+    });
+
+    const dynamicKeyPickerItems = computed(() => props.allAttributes
+      .filter((a) => isLockedTextDetection(a, props.currentAttributeKey))
+      .map((a) => ({
+        text: a.displayText || a.name,
+        value: a.key,
+      })));
+
+    const selectedDynamicKeySource = computed((): Attribute | null => {
+      const k = props.value?.dynamicKeyAttributeKey;
+      if (!k) {
+        return null;
+      }
+      return props.allAttributes.find((a) => a.key === k) || null;
+    });
+
+    const uniqueCandidateMetadataKeys = computed(() => {
+      const vals = selectedDynamicKeySource.value?.values;
+      if (!vals?.length) {
+        return [] as string[];
+      }
+      const seen = new Set<string>();
+      const out: string[] = [];
+      vals.forEach((v) => {
+        const t = String(v).trim();
+        if (t && !seen.has(t)) {
+          seen.add(t);
+          out.push(t);
+        }
+      });
+      out.sort((a, b) => a.localeCompare(b));
+      return out;
+    });
+
+    const dynamicUnknownKeys = computed(() => {
+      if (keysLoadState.value !== 'ready') {
+        return [] as string[];
+      }
+      return uniqueCandidateMetadataKeys.value.filter(
+        (k) => !allMetadataKeys.value.includes(k),
+      );
+    });
+
+    const dynamicLockedKeys = computed(() => {
+      if (keysLoadState.value !== 'ready') {
+        return [] as string[];
+      }
+      return uniqueCandidateMetadataKeys.value.filter(
+        (k) => allMetadataKeys.value.includes(k) && !editableMetadataKeys.value.includes(k),
+      );
+    });
+
     const showMetadataLinkFields = computed(
       () => props.belongs === 'detection' && updateValueModel.value,
     );
+
+    const showDynamicCreateSection = computed(() => {
+      if (!showMetadataLinkFields.value || !isMetadataConnected.value) return false;
+      if (!isMetadataRootOwnerAdmin.value) return false;
+      if (keysLoadState.value !== 'ready') return false;
+      if (!props.value?.useDynamicKeyFromAttribute) return false;
+      if (!selectedDynamicKeySource.value) return false;
+      if (!uniqueCandidateMetadataKeys.value.length) return false;
+      return dynamicUnknownKeys.value.length > 0 || dynamicLockedKeys.value.length > 0;
+    });
 
     const showConditionalSection = computed(
       () => showMetadataLinkFields.value
@@ -232,6 +334,9 @@ export default defineComponent({
     );
 
     const showUnknownKeyWarning = computed(() => {
+      if (props.value?.useDynamicKeyFromAttribute) {
+        return false;
+      }
       if (!showMetadataLinkFields.value || !isMetadataConnected.value) {
         return false;
       }
@@ -242,6 +347,9 @@ export default defineComponent({
     });
 
     const showLockedKeyWarning = computed(() => {
+      if (props.value?.useDynamicKeyFromAttribute) {
+        return false;
+      }
       if (!showMetadataLinkFields.value || !isMetadataConnected.value) {
         return false;
       }
@@ -263,6 +371,7 @@ export default defineComponent({
     });
 
     const showCreateOrUnlockButton = computed(() => {
+      if (props.value?.useDynamicKeyFromAttribute) return false;
       if (!showMetadataLinkFields.value || !isMetadataConnected.value) return false;
       if (!isMetadataRootOwnerAdmin.value) return false;
       if (keysLoadState.value !== 'ready') return false;
@@ -304,13 +413,55 @@ export default defineComponent({
       }
     };
 
-    watch(() => props.value?.key, () => {
+    const fixAllDynamicMetadataKeys = async () => {
+      const rootId = getDiveMetadataRootId();
+      const keys = uniqueCandidateMetadataKeys.value;
+      if (!rootId || !keys.length) return;
       operationError.value = '';
-    });
+      creatingOrUnlocking.value = true;
+      const cat = metadataCategoryForAttribute(props.datatype);
+      try {
+        await keys.reduce<Promise<void>>(async (prev, key) => {
+          await prev;
+          const unknown = !allMetadataKeys.value.includes(key);
+          const locked = allMetadataKeys.value.includes(key)
+            && !editableMetadataKeys.value.includes(key);
+          if (unknown) {
+            await addDiveMetadataKey(rootId, key, cat, true, []);
+          } else if (locked) {
+            await modifyDiveMetadataPermission(rootId, key, true);
+          }
+          if (makeKeyVisible.value) {
+            await updateDiveMetadataDisplay(rootId, key, 'display');
+          }
+        }, Promise.resolve());
+        await loadKnownKeys();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        operationError.value = err?.response?.data?.message || String(err);
+      } finally {
+        creatingOrUnlocking.value = false;
+      }
+    };
+
+    watch(
+      () => [props.value?.key, props.value?.dynamicKeyAttributeKey],
+      () => {
+        operationError.value = '';
+      },
+    );
 
     return {
       updateValueModel,
       metadataKeyModel,
+      useDynamicKeyModel,
+      dynamicKeyAttributeKeyModel,
+      dynamicKeyPickerItems,
+      selectedDynamicKeySource,
+      uniqueCandidateMetadataKeys,
+      dynamicUnknownKeys,
+      dynamicLockedKeys,
+      showDynamicCreateSection,
       showMetadataLinkFields,
       showUnlinkedWarning,
       showUnknownKeyWarning,
@@ -331,6 +482,7 @@ export default defineComponent({
       creatingOrUnlocking,
       operationError,
       fixMetadataKey,
+      fixAllDynamicMetadataKeys,
     };
   },
 });
@@ -359,62 +511,166 @@ export default defineComponent({
       >
         No DIVEMetadata link in this session — key suggestions would appear here if the viewer were opened with a metadata root (for example <code>diveMetadataRootId</code> in the URL).
       </v-alert>
-      <v-combobox
-        v-model="metadataKeyModel"
-        :items="comboboxItems"
-        label="DIVEMetadata key name"
-        hint="Suggestions list editable (unlocked) keys only; you can still type another key name."
-        persistent-hint
-        outlined
+      <v-switch
+        v-model="useDynamicKeyModel"
         dense
-        clearable
-        hide-no-data
+        class="mt-2"
+        label="Use another detection attribute's value as the DIVEMetadata key name"
       />
-      <v-alert
-        v-if="showUnknownKeyWarning"
-        type="warning"
-        dense
-        class="mt-2"
-      >
-        This key is not present in the linked DIVEMetadata yet. Create it in DIVEMetadata before relying on updates to succeed.
-      </v-alert>
-      <v-alert
-        v-if="showLockedKeyWarning"
-        type="warning"
-        dense
-        class="mt-2"
-      >
-        This key exists in DIVEMetadata but is not editable (locked). Ask a metadata owner to unlock it or choose an unlocked key.
-      </v-alert>
-      <div
-        v-if="showCreateOrUnlockButton"
-        class="mt-3"
-      >
-        <v-switch
-          v-model="makeKeyVisible"
-          dense
-          hide-details
-          class="mt-0 pt-0"
-          label="Add key to default visible columns"
-        />
-        <v-btn
-          color="primary"
-          small
-          class="mt-1"
-          :loading="creatingOrUnlocking"
-          @click="fixMetadataKey"
-        >
-          {{ isUnknownMetadataKey ? 'Create key and unlock' : 'Unlock key' }}
-        </v-btn>
+      <template v-if="useDynamicKeyModel">
         <v-alert
-          v-if="operationError"
-          type="error"
+          type="info"
           dense
+          outlined
           class="mt-2 mb-0"
         >
-          {{ operationError }}
+          Only <strong>text</strong> detection attributes with <strong>locked predefined values</strong> are listed. Each predefined value should be the exact name of a DIVEMetadata field to update.
         </v-alert>
-      </div>
+        <v-select
+          v-model="dynamicKeyAttributeKeyModel"
+          class="mt-3"
+          :items="dynamicKeyPickerItems"
+          item-text="text"
+          item-value="value"
+          label="Key source attribute"
+          hint="The current value of this attribute on the detection picks which metadata field receives updates."
+          persistent-hint
+          outlined
+          dense
+          clearable
+          hide-details="auto"
+        />
+        <v-alert
+          v-if="useDynamicKeyModel && !dynamicKeyPickerItems.length"
+          type="warning"
+          dense
+          class="mt-2"
+        >
+          No qualifying attributes found. Add another detection attribute that is text with locked values, or turn off this option and enter a fixed key.
+        </v-alert>
+        <v-alert
+          v-else-if="useDynamicKeyModel && !dynamicKeyAttributeKeyModel"
+          type="info"
+          dense
+          class="mt-2"
+        >
+          Select which attribute supplies the metadata key name.
+        </v-alert>
+        <v-alert
+          v-else-if="selectedDynamicKeySource && !uniqueCandidateMetadataKeys.length"
+          type="warning"
+          dense
+          class="mt-2"
+        >
+          The selected attribute has no predefined values. Add values to that attribute so each can name a metadata key.
+        </v-alert>
+        <v-alert
+          v-if="dynamicUnknownKeys.length"
+          type="warning"
+          dense
+          class="mt-2"
+        >
+          These metadata keys are not in the linked DIVEMetadata yet:
+          <code>{{ dynamicUnknownKeys.join(', ') }}</code>
+        </v-alert>
+        <v-alert
+          v-if="dynamicLockedKeys.length"
+          type="warning"
+          dense
+          class="mt-2"
+        >
+          These keys exist but are not editable:
+          <code>{{ dynamicLockedKeys.join(', ') }}</code>
+        </v-alert>
+        <div
+          v-if="showDynamicCreateSection"
+          class="mt-3"
+        >
+          <v-switch
+            v-model="makeKeyVisible"
+            dense
+            hide-details
+            class="mt-0 pt-0"
+            label="Add keys to default visible columns"
+          />
+          <v-btn
+            color="primary"
+            small
+            class="mt-1"
+            :loading="creatingOrUnlocking"
+            @click="fixAllDynamicMetadataKeys"
+          >
+            Create missing keys and unlock
+          </v-btn>
+          <v-alert
+            v-if="operationError"
+            type="error"
+            dense
+            class="mt-2 mb-0"
+          >
+            {{ operationError }}
+          </v-alert>
+        </div>
+      </template>
+      <template v-else>
+        <v-combobox
+          v-model="metadataKeyModel"
+          class="mt-2"
+          :items="comboboxItems"
+          label="DIVEMetadata key name"
+          hint="Suggestions list editable (unlocked) keys only; you can still type another key name."
+          persistent-hint
+          outlined
+          dense
+          clearable
+          hide-no-data
+        />
+        <v-alert
+          v-if="showUnknownKeyWarning"
+          type="warning"
+          dense
+          class="mt-2"
+        >
+          This key is not present in the linked DIVEMetadata yet. Create it in DIVEMetadata before relying on updates to succeed.
+        </v-alert>
+        <v-alert
+          v-if="showLockedKeyWarning"
+          type="warning"
+          dense
+          class="mt-2"
+        >
+          This key exists in DIVEMetadata but is not editable (locked). Ask a metadata owner to unlock it or choose an unlocked key.
+        </v-alert>
+        <div
+          v-if="showCreateOrUnlockButton"
+          class="mt-3"
+        >
+          <v-switch
+            v-model="makeKeyVisible"
+            dense
+            hide-details
+            class="mt-0 pt-0"
+            label="Add key to default visible columns"
+          />
+          <v-btn
+            color="primary"
+            small
+            class="mt-1"
+            :loading="creatingOrUnlocking"
+            @click="fixMetadataKey"
+          >
+            {{ isUnknownMetadataKey ? 'Create key and unlock' : 'Unlock key' }}
+          </v-btn>
+          <v-alert
+            v-if="operationError"
+            type="error"
+            dense
+            class="mt-2 mb-0"
+          >
+            {{ operationError }}
+          </v-alert>
+        </div>
+      </template>
       <v-alert
         v-if="keysLoadState === 'error' && isMetadataConnected"
         type="info"

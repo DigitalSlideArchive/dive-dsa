@@ -1,5 +1,7 @@
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
-import { useHandler } from 'vue-media-annotator/provides';
+import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import type Track from 'vue-media-annotator/track';
+import { useHandler, useAttributes } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import {
@@ -10,17 +12,143 @@ import shouldApplyMetadataLinkUpdate, {
   parseMetadataFieldAsNumber,
 } from 'dive-common/use/metadataLinkConditionals';
 
+export interface MetadataLinkUpdateContext {
+  featureAttributes?: StringKeyObject & { userAttributes?: StringKeyObject };
+  userLogin?: string | null;
+  /** Current frame; with `track`, enables dynamic key from segment keyframes. */
+  frame?: number;
+  track?: Track;
+}
+
+function readAttributeValueFromFeature(
+  attrs: MetadataLinkUpdateContext['featureAttributes'],
+  src: Attribute,
+  userLogin: string | null | undefined,
+): unknown {
+  if (!attrs) {
+    return undefined;
+  }
+  if (src.user && userLogin && attrs.userAttributes?.[userLogin]) {
+    return (attrs.userAttributes[userLogin] as StringKeyObject)[src.name];
+  }
+  return (attrs as StringKeyObject)[src.name];
+}
+
+/**
+ * Resolves the metadata key name from the key-source attribute only when that attribute has a
+ * real stored value that matches one of its predefined (locked) options.
+ */
+function dynamicKeyFromSourceValue(src: Attribute, raw: unknown): string | null {
+  if (raw === undefined || raw === null) {
+    return null;
+  }
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!src.values?.length) {
+    return null;
+  }
+  const matchesPredefined = src.values.some((v) => String(v).trim() === trimmed);
+  return matchesPredefined ? trimmed : null;
+}
+
+function dynamicKeySourceUsesSegments(src: Attribute): boolean {
+  return !!src.shortcuts?.some((s) => s.segment);
+}
+
+/** Start frame of the segment containing `frame`, or null. Ranges are [start,end] pairs from keyframes. */
+function segmentStartFrameIfInside(
+  track: Track,
+  attrName: string,
+  frame: number,
+  userForRanges: string | null,
+): number | null {
+  const rangeVals = track.getFrameAttributeRanges([attrName], userForRanges);
+  const ranges = rangeVals[attrName];
+  if (!ranges?.length) {
+    return null;
+  }
+  for (let i = 0; i < ranges.length; i += 2) {
+    const start = ranges[i];
+    const end = ranges[i + 1];
+    if (frame >= start && frame <= end) {
+      return start;
+    }
+  }
+  return null;
+}
+
+/**
+ * Value of the dynamic-key source attribute, including segment keyframes: between detection
+ * keyframes `getFeature` is interpolated without attributes, so we read from the segment start
+ * when that attribute uses segment shortcuts and the current frame lies inside a segment.
+ */
+function resolveDynamicKeySourceRaw(
+  src: Attribute,
+  context: MetadataLinkUpdateContext | undefined,
+): unknown {
+  const userLogin = context?.userLogin ?? null;
+  const rawFromContext = readAttributeValueFromFeature(
+    context?.featureAttributes,
+    src,
+    userLogin,
+  );
+  if (dynamicKeyFromSourceValue(src, rawFromContext) !== null) {
+    return rawFromContext;
+  }
+  if (
+    !dynamicKeySourceUsesSegments(src)
+    || !context?.track
+    || context.frame === undefined
+  ) {
+    return rawFromContext;
+  }
+  const userForRanges = src.user ? userLogin : null;
+  const segmentStart = segmentStartFrameIfInside(
+    context.track,
+    src.name,
+    context.frame,
+    userForRanges,
+  );
+  if (segmentStart === null) {
+    return rawFromContext;
+  }
+  const [feat] = context.track.getFeature(segmentStart);
+  return readAttributeValueFromFeature(feat?.attributes, src, userLogin);
+}
+
 export default function useMetadataLinkUpdater() {
   const { prompt } = usePrompt();
   const store = useStore();
   const handler = useHandler();
+  const attributes = useAttributes();
 
-  const updateAttributeMetadataLink = async (attribute: Attribute, value: unknown) => {
+  const updateAttributeMetadataLink = async (
+    attribute: Attribute,
+    value: unknown,
+    context?: MetadataLinkUpdateContext,
+  ) => {
     if (attribute.belongs !== 'detection' || !attribute.metadataLink?.updateValue) {
       return;
     }
     const link = attribute.metadataLink;
-    const metadataKey = link.key?.trim();
+    let metadataKey = link.key?.trim() || '';
+    if (link.useDynamicKeyFromAttribute && link.dynamicKeyAttributeKey) {
+      const src = attributes.value.find((a) => a.key === link.dynamicKeyAttributeKey);
+      if (!src || src.belongs !== 'detection') {
+        return;
+      }
+      const raw = resolveDynamicKeySourceRaw(src, context);
+      const resolved = dynamicKeyFromSourceValue(src, raw);
+      if (!resolved) {
+        return;
+      }
+      metadataKey = resolved;
+    }
     if (!metadataKey) {
       return;
     }

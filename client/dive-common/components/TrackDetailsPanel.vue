@@ -544,6 +544,7 @@ export default defineComponent({
       <attribute-editor
         v-if="editingAttribute != null"
         :selected-attribute="editingAttribute"
+        :all-attributes="attributes"
         :error="editingError"
         @close="closeEditor"
         @save="saveAttributeHandler"

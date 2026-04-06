@@ -27,6 +27,7 @@ import { useStore } from 'platform/web-girder/store/types';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
+import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
 
 export default defineComponent({
   components: {
@@ -151,7 +152,22 @@ export default defineComponent({
             tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value, user));
           }
         }
-        await updateAttributeMetadataLink(attribute, value);
+        let metaCtx: MetadataLinkUpdateContext | undefined;
+        if (
+          props.mode === 'Detection'
+          && frameRef.value !== undefined
+          && selectedTrackIdRef.value !== null
+        ) {
+          const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+          const [feat] = track?.getFeature(frameRef.value) ?? [null];
+          metaCtx = {
+            featureAttributes: feat?.attributes,
+            userLogin: props.user || store.state.User.user?.login || null,
+            frame: frameRef.value,
+            track: track ?? undefined,
+          };
+        }
+        await updateAttributeMetadataLink(attribute, value, metaCtx);
       }
     }
 

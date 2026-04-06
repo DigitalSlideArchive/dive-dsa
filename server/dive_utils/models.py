@@ -216,6 +216,8 @@ class MetadataLinkSettings(BaseModel):
     useConditionals: Optional[bool] = None
     numberConditions: Optional[MetadataLinkNumberConditions] = None
     stringConditions: Optional[MetadataLinkStringConditions] = None
+    useDynamicKeyFromAttribute: Optional[bool] = None
+    dynamicKeyAttributeKey: Optional[str] = None
 
 
 class Attribute(BaseModel):

@@ -130,6 +130,13 @@ export interface MetadataLinkOptions {
     useConditionals?: boolean;
     numberConditions?: MetadataLinkNumberConditions;
     stringConditions?: MetadataLinkStringConditions;
+    /**
+     * When true, the DIVEMetadata field name is taken from the current value of another detection
+     * attribute (see `dynamicKeyAttributeKey`), not from `key`.
+     */
+    useDynamicKeyFromAttribute?: boolean;
+    /** Other attribute's `key` whose string value names the DIVEMetadata field to update. */
+    dynamicKeyAttributeKey?: string;
 }
 
 export interface Attribute {

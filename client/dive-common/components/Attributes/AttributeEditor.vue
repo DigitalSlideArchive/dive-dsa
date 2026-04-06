@@ -27,6 +27,11 @@ export default defineComponent({
       type: Object as PropType<Attribute>,
       required: true,
     },
+    /** Full attribute list (for metadata-link key picker). */
+    allAttributes: {
+      type: Array as PropType<Attribute[]>,
+      default: () => [],
+    },
     error: {
       type: String,
       default: '',
@@ -70,6 +75,8 @@ export default defineComponent({
         useConditionals: m?.useConditionals,
         numberConditions: normalizeMetadataNumberConditions(m?.numberConditions),
         stringConditions: m?.stringConditions ? { ...m.stringConditions } : undefined,
+        useDynamicKeyFromAttribute: m?.useDynamicKeyFromAttribute,
+        dynamicKeyAttributeKey: m?.dynamicKeyAttributeKey,
       };
     };
 
@@ -111,7 +118,9 @@ export default defineComponent({
       belongs.value = 'track';
       datatype.value = 'number';
       values = [];
-      metadataLink.value = { key: '', updateValue: false };
+      metadataLink.value = {
+        key: '', updateValue: false, useDynamicKeyFromAttribute: false, dynamicKeyAttributeKey: undefined,
+      };
     }
     function add() {
       setDefaultValue();
@@ -155,8 +164,10 @@ export default defineComponent({
       if (colorKeySettings.value) {
         data.colorKeySettings = colorKeySettings.value;
       }
+      const useDyn = !!metadataLink.value.useDynamicKeyFromAttribute
+        && !!metadataLink.value.dynamicKeyAttributeKey?.trim();
       const metadataLinkValue: MetadataLinkOptions = {
-        key: metadataLink.value.key.trim(),
+        key: useDyn ? '' : metadataLink.value.key.trim(),
         updateValue: metadataLink.value.updateValue,
         useConditionals: metadataLink.value.useConditionals,
         numberConditions: normalizeMetadataNumberConditions(
@@ -166,7 +177,11 @@ export default defineComponent({
           ? { ...metadataLink.value.stringConditions }
           : undefined,
       };
-      if (metadataLinkValue.key.length || metadataLinkValue.updateValue) {
+      if (useDyn) {
+        metadataLinkValue.useDynamicKeyFromAttribute = true;
+        metadataLinkValue.dynamicKeyAttributeKey = metadataLink.value.dynamicKeyAttributeKey!.trim();
+      }
+      if (metadataLinkValue.key.length || metadataLinkValue.updateValue || useDyn) {
         data.metadataLink = metadataLinkValue;
       }
       if (addNew) {
@@ -538,6 +553,8 @@ export default defineComponent({
               v-model="metadataLink"
               :belongs="belongs"
               :datatype="datatype"
+              :all-attributes="allAttributes"
+              :current-attribute-key="selectedAttribute.key"
             />
           </v-tab-item>
           <v-tab-item v-if="datatype === 'text'">

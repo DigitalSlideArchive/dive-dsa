@@ -16,6 +16,7 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
+import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import context from 'dive-common/store/context';
 
@@ -172,7 +173,22 @@ export default defineComponent({
         }
       }
       if (sourceAttribute) {
-        updateAttributeMetadataLink(sourceAttribute, value);
+        let metaCtx: MetadataLinkUpdateContext | undefined;
+        if (
+          belongs === 'detection'
+          && frameVal !== undefined
+          && selectedTrackIdRef.value !== null
+        ) {
+          const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+          const [feat] = track?.getFeature(frameVal) ?? [null];
+          metaCtx = {
+            featureAttributes: feat?.attributes,
+            userLogin: store.state.User.user?.login || null,
+            frame: frameVal,
+            track: track ?? undefined,
+          };
+        }
+        updateAttributeMetadataLink(sourceAttribute, value, metaCtx).catch(() => {});
       }
     }
 

@@ -12,6 +12,7 @@ import {
   useUINotifications,
 } from 'vue-media-annotator/provides';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
+import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
 
 interface MouseTrapInterface {
   bind: string;
@@ -167,7 +168,22 @@ export default defineComponent({
         }
       }
       if (sourceAttribute) {
-        updateAttributeMetadataLink(sourceAttribute, value);
+        let metaCtx: MetadataLinkUpdateContext | undefined;
+        if (
+          belongs === 'detection'
+          && frameRef.value !== undefined
+          && selectedTrackIdRef.value !== null
+        ) {
+          const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+          const [feat] = track?.getFeature(frameRef.value) ?? [null];
+          metaCtx = {
+            featureAttributes: feat?.attributes,
+            userLogin: store.state.User.user?.login || null,
+            frame: frameRef.value,
+            track: track ?? undefined,
+          };
+        }
+        updateAttributeMetadataLink(sourceAttribute, value, metaCtx).catch(() => {});
       }
     }
 
