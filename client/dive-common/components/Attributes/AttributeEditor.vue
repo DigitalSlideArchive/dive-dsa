@@ -55,10 +55,34 @@ export default defineComponent({
     const editor: Ref<
       undefined | StringAttributeEditorOptions | NumericAttributeEditorOptions
     > = ref(props.selectedAttribute.editor);
-    const metadataLink: Ref<MetadataLinkOptions> = ref({
-      key: props.selectedAttribute.metadataLink?.key || '',
-      updateValue: props.selectedAttribute.metadataLink?.updateValue || false,
-    });
+    const normalizeMetadataNumberConditions = (
+      nc: MetadataLinkOptions['numberConditions'],
+    ): MetadataLinkOptions['numberConditions'] => {
+      if (!nc) return undefined;
+      return { mode: nc.mode, threshold: nc.threshold };
+    };
+
+    const metadataLinkFromAttribute = (attr: Attribute): MetadataLinkOptions => {
+      const m = attr.metadataLink;
+      return {
+        key: m?.key || '',
+        updateValue: m?.updateValue || false,
+        useConditionals: m?.useConditionals,
+        numberConditions: normalizeMetadataNumberConditions(m?.numberConditions),
+        stringConditions: m?.stringConditions ? { ...m.stringConditions } : undefined,
+      };
+    };
+
+    const metadataLink: Ref<MetadataLinkOptions> = ref(
+      metadataLinkFromAttribute(props.selectedAttribute),
+    );
+
+    watch(
+      () => props.selectedAttribute.key,
+      () => {
+        metadataLink.value = metadataLinkFromAttribute(props.selectedAttribute);
+      },
+    );
     let values: string[] = props.selectedAttribute.values ? props.selectedAttribute.values : [];
     let addNew = !props.selectedAttribute.key.length;
     const shortcuts: Ref<AttributeShortcut[]> = ref(props.selectedAttribute.shortcuts || []);
@@ -134,6 +158,13 @@ export default defineComponent({
       const metadataLinkValue: MetadataLinkOptions = {
         key: metadataLink.value.key.trim(),
         updateValue: metadataLink.value.updateValue,
+        useConditionals: metadataLink.value.useConditionals,
+        numberConditions: normalizeMetadataNumberConditions(
+          metadataLink.value.numberConditions,
+        ),
+        stringConditions: metadataLink.value.stringConditions
+          ? { ...metadataLink.value.stringConditions }
+          : undefined,
       };
       if (metadataLinkValue.key.length || metadataLinkValue.updateValue) {
         data.metadataLink = metadataLinkValue;
@@ -506,6 +537,7 @@ export default defineComponent({
             <attribute-metadata-link
               v-model="metadataLink"
               :belongs="belongs"
+              :datatype="datatype"
             />
           </v-tab-item>
           <v-tab-item v-if="datatype === 'text'">

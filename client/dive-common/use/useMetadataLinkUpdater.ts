@@ -2,7 +2,13 @@ import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 import { useHandler } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
-import { setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
+import {
+  getDiveDatasetMetadataRow,
+  setDiveDatasetMetadataKey,
+} from 'platform/web-girder/api/divemetadata.service';
+import shouldApplyMetadataLinkUpdate, {
+  parseMetadataFieldAsNumber,
+} from 'dive-common/use/metadataLinkConditionals';
 
 export default function useMetadataLinkUpdater() {
   const { prompt } = usePrompt();
@@ -13,7 +19,8 @@ export default function useMetadataLinkUpdater() {
     if (attribute.belongs !== 'detection' || !attribute.metadataLink?.updateValue) {
       return;
     }
-    const metadataKey = attribute.metadataLink.key?.trim();
+    const link = attribute.metadataLink;
+    const metadataKey = link.key?.trim();
     if (!metadataKey) {
       return;
     }
@@ -23,6 +30,25 @@ export default function useMetadataLinkUpdater() {
       return;
     }
     if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      return;
+    }
+
+    let currentStoredNumber: number | undefined;
+    const numMode = link.numberConditions?.mode;
+    if (
+      link.useConditionals
+      && attribute.datatype === 'number'
+      && (numMode === 'min' || numMode === 'max')
+    ) {
+      try {
+        const row = await getDiveDatasetMetadataRow(metadataRootId, datasetId);
+        currentStoredNumber = parseMetadataFieldAsNumber(row?.[metadataKey]);
+      } catch {
+        currentStoredNumber = undefined;
+      }
+    }
+
+    if (!shouldApplyMetadataLinkUpdate(attribute, value, link, { currentStoredNumber })) {
       return;
     }
     try {
