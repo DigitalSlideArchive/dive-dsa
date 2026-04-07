@@ -518,7 +518,11 @@ export default defineComponent({
           latestRevisionId.value = revisions[0].revision;
         }
         if (diveMetadataRootId.value) {
-          putDiveMetadataLastModified(datasetId.value, diveMetadataRootId.value);
+          try {
+            await putDiveMetadataLastModified(datasetId.value, diveMetadataRootId.value);
+          } catch (error) {
+            console.warn('Failed to update LastModified metadata fields.', error);
+          }
         }
       } catch (err) {
         let text = 'Unable to Save Data';

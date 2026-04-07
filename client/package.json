@@ -9,6 +9,7 @@
   "homepage": "https://digitalslidearchive.github.io/dive-dsa/",
   "license": "Apache-2.0",
   "scripts": {
+    "dev": "vite",
     "serve": "vite",
     "build:web": "vite build",
     "build:package": "vue-cli-service build --target lib --name DIVE-DSA platform/web-girder/main.ts",

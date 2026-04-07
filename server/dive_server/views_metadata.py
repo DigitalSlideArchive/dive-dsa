@@ -1573,21 +1573,22 @@ class DIVEMetadata(Resource):
     )
     def set_last_modified(self, divedataset, rootId):
         user = self.getCurrentUser()
+        root_id = str(rootId["_id"])
         query = {
             "DIVEDataset": str(divedataset["_id"]),
-            "root": str(rootId["_id"]),
+            "root": root_id,
         }
         found = DIVE_Metadata().findOne(query=query, user=user, level=AccessType.READ)
         if found:
             DIVE_MetadataKeys().addModifiedKeys(rootId)
-            rootFolder = Folder().load(str(rootId["_id"]), user=user, level=AccessType.WRITE)
+            rootFolder = Folder().load(root_id, user=user, level=AccessType.WRITE)
             categoricalLimit = (
                 rootFolder['meta'].get(DIVEMetadataFilter, {}).get('categoricalLimit', 50)
             )
 
             DIVE_Metadata().updateKey(
                 divedataset,
-                rootId,
+                root_id,
                 user,
                 'LastModifiedTime',
                 datetime.now().isoformat(),
@@ -1596,7 +1597,7 @@ class DIVEMetadata(Resource):
             )
             DIVE_Metadata().updateKey(
                 divedataset,
-                rootId,
+                root_id,
                 user,
                 'LastModifiedBy',
                 user['email'],
