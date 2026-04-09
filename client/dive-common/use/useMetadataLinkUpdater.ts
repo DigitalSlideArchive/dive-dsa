@@ -12,6 +12,64 @@ import shouldApplyMetadataLinkUpdate, {
   parseMetadataFieldAsNumber,
 } from 'dive-common/use/metadataLinkConditionals';
 
+type MetadataWritableValue = string | number | boolean;
+
+const METADATA_LINK_WRITE_DEBOUNCE_MS = 150;
+type PendingMetadataWrite = {
+  value: MetadataWritableValue;
+  timer: ReturnType<typeof setTimeout>;
+  resolves: Array<() => void>;
+  rejects: Array<(error: unknown) => void>;
+};
+const pendingMetadataWrites = new Map<string, PendingMetadataWrite>();
+
+function queueMetadataWrite(
+  datasetId: string,
+  metadataRootId: string,
+  metadataKey: string,
+  value: MetadataWritableValue,
+) {
+  const writeKey = `${datasetId}::${metadataRootId}::${metadataKey}`;
+  let pending = pendingMetadataWrites.get(writeKey);
+  if (pending) {
+    pending.value = value;
+    clearTimeout(pending.timer);
+  } else {
+    pending = {
+      value,
+      timer: setTimeout(() => undefined, 0),
+      resolves: [],
+      rejects: [],
+    };
+    pendingMetadataWrites.set(writeKey, pending);
+  }
+
+  pending.timer = setTimeout(async () => {
+    const current = pendingMetadataWrites.get(writeKey);
+    if (!current) {
+      return;
+    }
+    try {
+      await setDiveDatasetMetadataKey(datasetId, metadataRootId, metadataKey, current.value);
+      current.resolves.forEach((resolve) => resolve());
+    } catch (error) {
+      current.rejects.forEach((reject) => reject(error));
+    } finally {
+      pendingMetadataWrites.delete(writeKey);
+    }
+  }, METADATA_LINK_WRITE_DEBOUNCE_MS);
+
+  return new Promise<void>((resolve, reject) => {
+    const current = pendingMetadataWrites.get(writeKey);
+    if (!current) {
+      resolve();
+      return;
+    }
+    current.resolves.push(resolve);
+    current.rejects.push(reject);
+  });
+}
+
 export interface MetadataLinkUpdateContext {
   featureAttributes?: StringKeyObject & { userAttributes?: StringKeyObject };
   userLogin?: string | null;
@@ -180,13 +238,13 @@ export default function useMetadataLinkUpdater() {
       return;
     }
     try {
-      await setDiveDatasetMetadataKey(datasetId, metadataRootId, metadataKey, value);
+      await queueMetadataWrite(datasetId, metadataRootId, metadataKey, value);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const errorMsg = error?.response?.data?.message || error;
       let promptText = `Failed to update metadata key: ${metadataKey}. Error: ${errorMsg}`;
       if (errorMsg.includes('No editable keys in the metadata to update')) {
-        promptText = `The metadata key: ${metadataKey} is not editable. Please contact the administrator/ownder of the DIVEMetadata to unlock it.`;
+        promptText = `The metadata key: ${metadataKey} is not editable. Please contact the administrator/owner of the DIVEMetadata to unlock it.`;
       }
       await prompt({
         title: 'Metadata Error',

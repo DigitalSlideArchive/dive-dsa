@@ -183,7 +183,9 @@ export default defineComponent({
             track: track ?? undefined,
           };
         }
-        updateAttributeMetadataLink(sourceAttribute, value, metaCtx).catch(() => {});
+        updateAttributeMetadataLink(sourceAttribute, value, metaCtx).catch((error) => {
+          console.warn('Metadata link update failed from attribute shortcut.', error);
+        });
       }
     }
 
