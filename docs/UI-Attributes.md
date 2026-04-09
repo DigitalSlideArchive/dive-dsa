@@ -85,6 +85,46 @@ Click the ==:material-cog:== button next to an existing attribute to edit its de
 * *User Attribute* - This flag will set the attribute so that the storage of data is per user instead of globally.  By defauly attributes are stored on the dataset and are universal for each user that views/edits the dataset.  If this flag is set the attributes will be per user so that different user's when setting attributes will see different values.  This is stored in the TrackJSON structure under 'UserAttributes' key for track and detection attributes.  There is a new Sidebar called User Attribute Review which allows for reviewing of all user attributes.
 * *Color* - Allows specification of a custom color to represent the attribute when filtering or when graphing the attribute value
 
+## Metadata Linking
+
+Metadata linking allows a **detection attribute** to automatically write its value into a DIVEMetadata field whenever that attribute is edited.
+
+### How to configure
+
+1. Open the attribute definition editor (==:material-cog:== next to an attribute).
+1. Enable metadata updates for the attribute.
+1. Choose one of these key modes:
+    1. **Fixed key** - Enter a single DIVEMetadata key name to always update.
+    1. **Dynamic key from another attribute** - Select a different **text detection attribute** that uses **locked predefined values**.  
+       The current value of that source attribute becomes the DIVEMetadata key name.
+
+!!! info
+
+    For dynamic keys, each predefined value should exactly match a DIVEMetadata key.  
+    If a key is missing or locked, updates will be skipped until that key is created and unlocked.
+
+### Conditional metadata updates
+
+When conditionals are disabled, every value change writes to DIVEMetadata.
+
+When conditionals are enabled, behavior depends on datatype:
+
+- **Number attributes**
+    - `min` - update only when the new value is lower than the current stored metadata value.
+    - `max` - update only when the new value is higher than the current stored metadata value.
+    - `greater_than` - update only when the new value is greater than the configured threshold.
+    - `less_than` - update only when the new value is less than the configured threshold.
+- **Text attributes**
+    - `contains` - update only when the text value includes a configured substring.
+- **Boolean attributes**
+    - Always update on change (no conditional rules).
+
+### Requirements and notes
+
+- Metadata linking only writes when the dataset is connected to a DIVEMetadata root.
+- The destination key must be editable (unlocked) in DIVEMetadata.
+- Invalid values (for example, non-numeric values with numeric conditions) do not trigger writes.
+
 ## Attribute Shortcuts
 
 ![Edit Attribute Panel](images/Attributes/attributeShortcut.png)
