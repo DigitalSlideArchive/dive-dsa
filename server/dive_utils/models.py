@@ -200,6 +200,26 @@ class DisplayTrackFilterSettings(BaseModel):
     minSegmentSize: Optional[int]
 
 
+class MetadataLinkNumberConditions(BaseModel):
+    mode: Literal['min', 'max', 'greater_than', 'less_than']
+    threshold: Optional[float] = None
+
+
+class MetadataLinkStringConditions(BaseModel):
+    mode: Literal['contains'] = Field(default='contains')
+    substring: str
+
+
+class MetadataLinkSettings(BaseModel):
+    key: str
+    updateValue: bool
+    useConditionals: Optional[bool] = None
+    numberConditions: Optional[MetadataLinkNumberConditions] = None
+    stringConditions: Optional[MetadataLinkStringConditions] = None
+    useDynamicKeyFromAttribute: Optional[bool] = None
+    dynamicKeyAttributeKey: Optional[str] = None
+
+
 class Attribute(BaseModel):
     belongs: Literal['track', 'detection']
     datatype: Literal['text', 'number', 'boolean']
@@ -220,6 +240,7 @@ class Attribute(BaseModel):
     colorKeySettings: Optional[DisplayTrackFilterSettings]
     valueOrder: Optional[Dict[str, int]]
     displayText: Optional[str]
+    metadataLink: Optional[MetadataLinkSettings]
 
 
 class AttributeNumberFilter(BaseModel):

@@ -250,7 +250,6 @@ export default defineComponent({
           class="mt-2"
         />
         <p><b>connected:</b> Only show button/icons when coming from Metadata Link</p>
-
       </v-card-text>
       <v-card-actions>
         <v-row dense>

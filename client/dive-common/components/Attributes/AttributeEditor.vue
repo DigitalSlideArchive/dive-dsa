@@ -3,7 +3,7 @@ import {
   computed, defineComponent, PropType, Ref, ref, watch,
 } from 'vue';
 import {
-  Attribute, AttributeShortcut, NumericAttributeEditorOptions, StringAttributeEditorOptions,
+  Attribute, AttributeShortcut, MetadataLinkOptions, NumericAttributeEditorOptions, StringAttributeEditorOptions,
 } from 'vue-media-annotator/use/AttributeTypes';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
@@ -11,6 +11,7 @@ import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
 import AttributeValueColors from './AttributeValueColors.vue';
 import AttributeNumberValueColors from './AttributeNumberColors.vue';
+import AttributeMetadataLink from './AttributeMetadataLink.vue';
 
 export default defineComponent({
   name: 'AttributeSettings',
@@ -19,11 +20,17 @@ export default defineComponent({
     AttributeRendering,
     AttributeValueColors,
     AttributeNumberValueColors,
+    AttributeMetadataLink,
   },
   props: {
     selectedAttribute: {
       type: Object as PropType<Attribute>,
       required: true,
+    },
+    /** Full attribute list (for metadata-link key picker). */
+    allAttributes: {
+      type: Array as PropType<Attribute[]>,
+      default: () => [],
     },
     error: {
       type: String,
@@ -53,6 +60,36 @@ export default defineComponent({
     const editor: Ref<
       undefined | StringAttributeEditorOptions | NumericAttributeEditorOptions
     > = ref(props.selectedAttribute.editor);
+    const normalizeMetadataNumberConditions = (
+      nc: MetadataLinkOptions['numberConditions'],
+    ): MetadataLinkOptions['numberConditions'] => {
+      if (!nc) return undefined;
+      return { mode: nc.mode, threshold: nc.threshold };
+    };
+
+    const metadataLinkFromAttribute = (attr: Attribute): MetadataLinkOptions => {
+      const m = attr.metadataLink;
+      return {
+        key: m?.key || '',
+        updateValue: m?.updateValue || false,
+        useConditionals: m?.useConditionals,
+        numberConditions: normalizeMetadataNumberConditions(m?.numberConditions),
+        stringConditions: m?.stringConditions ? { ...m.stringConditions } : undefined,
+        useDynamicKeyFromAttribute: m?.useDynamicKeyFromAttribute,
+        dynamicKeyAttributeKey: m?.dynamicKeyAttributeKey,
+      };
+    };
+
+    const metadataLink: Ref<MetadataLinkOptions> = ref(
+      metadataLinkFromAttribute(props.selectedAttribute),
+    );
+
+    watch(
+      () => props.selectedAttribute.key,
+      () => {
+        metadataLink.value = metadataLinkFromAttribute(props.selectedAttribute);
+      },
+    );
     let values: string[] = props.selectedAttribute.values ? props.selectedAttribute.values : [];
     let addNew = !props.selectedAttribute.key.length;
     const shortcuts: Ref<AttributeShortcut[]> = ref(props.selectedAttribute.shortcuts || []);
@@ -81,6 +118,9 @@ export default defineComponent({
       belongs.value = 'track';
       datatype.value = 'number';
       values = [];
+      metadataLink.value = {
+        key: '', updateValue: false, useDynamicKeyFromAttribute: false, dynamicKeyAttributeKey: undefined,
+      };
     }
     function add() {
       setDefaultValue();
@@ -123,6 +163,26 @@ export default defineComponent({
       data.noneColor = noneColor.value;
       if (colorKeySettings.value) {
         data.colorKeySettings = colorKeySettings.value;
+      }
+      const useDyn = !!metadataLink.value.useDynamicKeyFromAttribute
+        && !!metadataLink.value.dynamicKeyAttributeKey?.trim();
+      const metadataLinkValue: MetadataLinkOptions = {
+        key: useDyn ? '' : metadataLink.value.key.trim(),
+        updateValue: metadataLink.value.updateValue,
+        useConditionals: metadataLink.value.useConditionals,
+        numberConditions: normalizeMetadataNumberConditions(
+          metadataLink.value.numberConditions,
+        ),
+        stringConditions: metadataLink.value.stringConditions
+          ? { ...metadataLink.value.stringConditions }
+          : undefined,
+      };
+      if (useDyn) {
+        metadataLinkValue.useDynamicKeyFromAttribute = true;
+        metadataLinkValue.dynamicKeyAttributeKey = metadataLink.value.dynamicKeyAttributeKey!.trim();
+      }
+      if (metadataLinkValue.key.length || metadataLinkValue.updateValue || useDyn) {
+        data.metadataLink = metadataLinkValue;
       }
       if (addNew) {
         emit('save', { data, close });
@@ -268,6 +328,7 @@ export default defineComponent({
       numericChange,
       launchColorEditor,
       saveAttributeValueColors,
+      metadataLink,
     };
   },
 });
@@ -283,6 +344,7 @@ export default defineComponent({
             <v-tab> Main </v-tab>
             <v-tab> Shortcuts </v-tab>
             <v-tab> Rendering </v-tab>
+            <v-tab> MetadataLink </v-tab>
             <v-tab v-if="datatype === 'text' || datatype === 'number'">
               Value Colors
             </v-tab>
@@ -484,6 +546,15 @@ export default defineComponent({
               v-if="attributeRendering && renderingVals !== undefined"
               v-model="renderingVals"
               :attribute="selectedAttribute"
+            />
+          </v-tab-item>
+          <v-tab-item>
+            <attribute-metadata-link
+              v-model="metadataLink"
+              :belongs="belongs"
+              :datatype="datatype"
+              :all-attributes="allAttributes"
+              :current-attribute-key="selectedAttribute.key"
             />
           </v-tab-item>
           <v-tab-item v-if="datatype === 'text'">

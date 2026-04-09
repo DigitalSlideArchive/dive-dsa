@@ -342,7 +342,9 @@ export default defineComponent({
                         small
                         @click="addNewTimelineConfig"
                       >
-                        <v-icon small class="mr-1">mdi-plus</v-icon>
+                        <v-icon small class="mr-1">
+                          mdi-plus
+                        </v-icon>
                         Add Config
                       </v-btn>
                     </v-toolbar>
@@ -350,8 +352,8 @@ export default defineComponent({
                   <template #item.name="{ item }">
                     <span
                       :class="{ 'font-weight-bold': item.isActive }"
-                      @click="switchTimelineConfig(item.index)"
                       style="cursor: pointer; user-select: none;"
+                      @click="switchTimelineConfig(item.index)"
                     >
                       {{ item.name }}
                       <v-icon
@@ -378,11 +380,13 @@ export default defineComponent({
                             icon
                             x-small
                             v-bind="attrs"
+                            :color="item.isActive ? 'primary' : ''"
                             v-on="on"
                             @click="switchTimelineConfig(item.index)"
-                            :color="item.isActive ? 'primary' : ''"
                           >
-                            <v-icon x-small>mdi-pencil</v-icon>
+                            <v-icon x-small>
+                              mdi-pencil
+                            </v-icon>
                           </v-btn>
                         </template>
                         <span>Edit</span>
@@ -393,11 +397,13 @@ export default defineComponent({
                             icon
                             x-small
                             v-bind="attrs"
-                            v-on="on"
                             :disabled="item.index === 0"
+                            v-on="on"
                             @click="moveConfigUp(item.index)"
                           >
-                            <v-icon x-small>mdi-arrow-up</v-icon>
+                            <v-icon x-small>
+                              mdi-arrow-up
+                            </v-icon>
                           </v-btn>
                         </template>
                         <span>Move Up</span>
@@ -408,11 +414,13 @@ export default defineComponent({
                             icon
                             x-small
                             v-bind="attrs"
-                            v-on="on"
                             :disabled="item.index === timelineConfigsList.length - 1"
+                            v-on="on"
                             @click="moveConfigDown(item.index)"
                           >
-                            <v-icon x-small>mdi-arrow-down</v-icon>
+                            <v-icon x-small>
+                              mdi-arrow-down
+                            </v-icon>
                           </v-btn>
                         </template>
                         <span>Move Down</span>
@@ -423,11 +431,13 @@ export default defineComponent({
                             icon
                             x-small
                             v-bind="attrs"
-                            v-on="on"
                             color="error"
+                            v-on="on"
                             @click="removeTimelineConfig(item.index)"
                           >
-                            <v-icon x-small>mdi-delete</v-icon>
+                            <v-icon x-small>
+                              mdi-delete
+                            </v-icon>
                           </v-btn>
                         </template>
                         <span>Delete</span>

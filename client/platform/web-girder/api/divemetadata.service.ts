@@ -73,6 +73,31 @@ function filterDiveMetadata(folderId: string, filters: DIVEMetadataFilter, offse
   });
 }
 
+/** Metadata fields for the current dataset row under a metadata root (same lookup as DatasetInfo). */
+async function getDiveDatasetMetadataRow(
+  metadataRootId: string,
+  datasetFolderId: string,
+): Promise<StringKeyObject | null> {
+  const { data } = await filterDiveMetadata(
+    metadataRootId,
+    {
+      metadataFilters: {
+        DIVE_DatasetId: {
+          category: 'search',
+          value: datasetFolderId,
+        },
+      },
+    },
+    0,
+    1,
+  );
+  const row = data.pageResults?.[0];
+  if (!row?.metadata) {
+    return null;
+  }
+  return row.metadata;
+}
+
 function createDiveMetadataClone(folder: string, filters: DIVEMetadataFilter, destFolder: string) {
   return girderRest.post<string>(`dive_metadata/${folder}/clone_filter`, null, {
     params: {
@@ -246,6 +271,7 @@ async function importMetadataFile(parentId: string, path: string, file?: HTMLFil
 export {
   getMetadataFilterValues,
   filterDiveMetadata,
+  getDiveDatasetMetadataRow,
   createDiveMetadataClone,
   createDiveMetadataFolder,
   modifyDiveMetadataPermission,

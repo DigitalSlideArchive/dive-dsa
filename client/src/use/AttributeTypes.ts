@@ -102,6 +102,43 @@ export interface AttributeRendering {
     };
   }
 
+/**
+ * When the attribute is a number and `useConditionals` is true.
+ * `min` / `max` compare the new value to the current linked metadata value for this dataset;
+ * `greater_than` / `less_than` compare to `threshold`.
+ */
+export interface MetadataLinkNumberConditions {
+    mode: 'min' | 'max' | 'greater_than' | 'less_than';
+    threshold?: number;
+}
+
+/** When the attribute is text and `useConditionals` is true. */
+export interface MetadataLinkStringConditions {
+    mode: 'contains';
+    substring: string;
+}
+
+/**
+ * When `updateValue` is true, detection attribute edits sync to linked DIVEMetadata.
+ * `key` is the DIVEMetadata field name to update — it may differ from the attribute's
+ * internal `key` (`{belongs}_{name}`).
+ */
+export interface MetadataLinkOptions {
+    key: string;
+    updateValue: boolean;
+    /** If false/undefined, metadata updates on every attribute change. If true, use number/string rules. */
+    useConditionals?: boolean;
+    numberConditions?: MetadataLinkNumberConditions;
+    stringConditions?: MetadataLinkStringConditions;
+    /**
+     * When true, the DIVEMetadata field name is taken from the current value of another detection
+     * attribute (see `dynamicKeyAttributeKey`), not from `key`.
+     */
+    useDynamicKeyFromAttribute?: boolean;
+    /** Other attribute's `key` whose string value names the DIVEMetadata field to update. */
+    dynamicKeyAttributeKey?: string;
+}
+
 export interface Attribute {
     belongs: 'track' | 'detection';
     datatype: 'text' | 'number' | 'boolean';
@@ -122,6 +159,7 @@ export interface Attribute {
     colorKey?: boolean;
     colorKeySettings?: {display: 'static' | 'selected'; trackFilter: string[] };
     noneColor?: false | string;
+    metadataLink?: MetadataLinkOptions;
   }
 
 export type Attributes = Record<string, Attribute>;

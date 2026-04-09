@@ -11,6 +11,8 @@ import {
   useAttributes, useCameraStore, useConfiguration, useHandler, useSelectedTrackId, useTime,
   useUINotifications,
 } from 'vue-media-annotator/provides';
+import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
+import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
 
 interface MouseTrapInterface {
   bind: string;
@@ -35,6 +37,7 @@ export default defineComponent({
     const { inputValue } = usePrompt();
     const shortcutsOn = ref(true);
     const attributes = useAttributes();
+    const { updateAttributeMetadataLink } = useMetadataLinkUpdater();
     const selectedTrackIdRef = useSelectedTrackId();
     const cameraStore = useCameraStore();
     const { frame: frameRef } = useTime();
@@ -151,6 +154,7 @@ export default defineComponent({
     }
 
     function updateAttribute({ name, value, belongs }: { name: string; value: unknown; belongs: 'track' | 'detection' }) {
+      const sourceAttribute = attributes.value.find((item) => item.name === name && item.belongs === belongs);
       if (selectedTrackIdRef.value !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
         const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
@@ -162,6 +166,26 @@ export default defineComponent({
             tracks.forEach((track) => track.setFeatureAttribute(frameRef.value, name, value, user));
           }
         }
+      }
+      if (sourceAttribute) {
+        let metaCtx: MetadataLinkUpdateContext | undefined;
+        if (
+          belongs === 'detection'
+          && frameRef.value !== undefined
+          && selectedTrackIdRef.value !== null
+        ) {
+          const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+          const [feat] = track?.getFeature(frameRef.value) ?? [null];
+          metaCtx = {
+            featureAttributes: feat?.attributes,
+            userLogin: store.state.User.user?.login || null,
+            frame: frameRef.value,
+            track: track ?? undefined,
+          };
+        }
+        updateAttributeMetadataLink(sourceAttribute, value, metaCtx).catch((error) => {
+          console.warn('Metadata link update failed from attribute shortcut.', error);
+        });
       }
     }
 
