@@ -11,8 +11,10 @@ import {
   MetadataFilterKeysItem,
   modifyDiveMetadataPermission,
   updateDiveMetadataDisplay,
+  updateDiveMetadataFilterVisibility,
   updateDiveMetadataKeyDescription,
   updateDiveMetadataSlicerConfig,
+  effectiveFilterLists,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
@@ -30,6 +32,8 @@ interface FormattedMetadataKeys {
     unlocked: boolean,
     visible: boolean,
     hidden: boolean,
+    filterVisible: boolean,
+    filterHidden: boolean,
     description?: string,
 }
 
@@ -80,6 +84,7 @@ export default defineComponent({
       formattedKeys.value = [];
       metadataKeys.value = data.metadataKeys;
       unlocked.value = data.unlocked;
+      const { filterDisplay, filterHide } = effectiveFilterLists(displayConfig.value);
       Object.keys(metadataKeys.value).forEach((key) => {
         if (metadataKeys.value && metadataKeys.value[key]) {
           formattedKeys.value.push({
@@ -91,6 +96,8 @@ export default defineComponent({
             unlocked: unlocked.value.includes(key),
             visible: displayConfig.value.display.includes(key),
             hidden: displayConfig.value.hide.includes(key),
+            filterVisible: filterDisplay.includes(key),
+            filterHidden: filterHide.includes(key),
             description: metadataKeys.value[key].description,
           });
         }
@@ -98,7 +105,8 @@ export default defineComponent({
     };
 
     const metadataHeader = ref([
-      { text: 'State', value: 'visibility', width: '75px' },
+      { text: 'List', value: 'listVisibility', width: '72px' },
+      { text: 'Filter', value: 'filterVisibility', width: '72px' },
       { text: 'Name', value: 'name' },
       { text: 'Category', value: 'category' },
       { text: 'Details', value: 'details' },
@@ -119,7 +127,7 @@ export default defineComponent({
       } catch (err: any) {
         console.warn('Cannot Access Folder assuming not an owner');
       }
-      if (folder.meta.DIVEMetadata) {
+      if (folder.meta.DIVEMetadataFilter) {
         displayConfig.value = folder.meta.DIVEMetadataFilter;
         categoryLimit.value = displayConfig.value.categoricalLimit || 50;
         slicerCLI.value = displayConfig.value.slicerCLI || 'Disabled';
@@ -134,33 +142,52 @@ export default defineComponent({
       await getData();
     });
 
-    const getEyeState = (item: FormattedMetadataKeys) => {
+    const getListEyeState = (item: FormattedMetadataKeys) => {
       if (item.visible) {
-        return { tooltip: 'Item is default visible', icon: 'mdi-eye' };
+        return { tooltip: 'Shown in main list columns', icon: 'mdi-eye' };
       }
       if (item.hidden) {
-        return { tooltip: 'Item is hidden', icon: 'mdi-eye-off' };
+        return { tooltip: 'Hidden from list view', icon: 'mdi-eye-off' };
       }
-      return { tooltip: 'Item is in the advanced view', icon: 'mdi-eye' };
+      return { tooltip: 'Shown only under Advanced on the list', icon: 'mdi-filter-variant' };
     };
-    const toggleVisibility = async (index: number) => {
+    const toggleListVisibility = async (index: number) => {
       const item = formattedKeys.value[index];
+      let val: 'display' | 'hidden' | 'none';
       if (!item.visible && !item.hidden) {
-        item.visible = true;
-      } else if (!item.hidden) {
-        item.visible = false;
-        item.hidden = true;
-      } else {
-        item.visible = false;
-        item.hidden = false;
-      }
-      let val: 'display' | 'hidden' | 'none' = 'none';
-      if (item.visible) {
         val = 'display';
-      } else if (item.hidden) {
+      } else if (item.visible) {
         val = 'hidden';
+      } else {
+        val = 'none';
       }
-      updateDiveMetadataDisplay(props.id, item.name, val);
+      await updateDiveMetadataDisplay(props.id, item.name, val);
+      await getFolderInfo(props.id);
+      await getData();
+    };
+
+    const getFilterEyeState = (item: FormattedMetadataKeys) => {
+      if (item.filterVisible) {
+        return { tooltip: 'Shown in main filters', icon: 'mdi-eye' };
+      }
+      if (item.filterHidden) {
+        return { tooltip: 'Hidden from filters', icon: 'mdi-eye-off' };
+      }
+      return { tooltip: 'Shown only under Advanced Filters', icon: 'mdi-filter-variant' };
+    };
+    const toggleFilterVisibility = async (index: number) => {
+      const item = formattedKeys.value[index];
+      let val: 'display' | 'hidden' | 'none';
+      if (!item.filterVisible && !item.filterHidden) {
+        val = 'display';
+      } else if (item.filterVisible) {
+        val = 'hidden';
+      } else {
+        val = 'none';
+      }
+      await updateDiveMetadataFilterVisibility(props.id, item.name, val);
+      await getFolderInfo(props.id);
+      await getData();
     };
 
     watch(slicerCLI, () => {
@@ -282,8 +309,10 @@ export default defineComponent({
     return {
       metadataHeader,
       formattedKeys,
-      getEyeState,
-      toggleVisibility,
+      getListEyeState,
+      toggleListVisibility,
+      getFilterEyeState,
+      toggleFilterVisibility,
       toggleUnlock,
       deleteMetadata,
       addKeyDialog,
@@ -341,21 +370,38 @@ export default defineComponent({
       <template #item.name="{ item }">
         <MetadataKeyLabel :key-name="item.name" :description="item.description" />
       </template>
-      <template #item.visibility="{ item, index }">
-        <v-icon :color="item.visible ? 'primary' : ''" @click="toggleVisibility(index)">
-          {{ getEyeState(item).icon }}
+      <template #item.listVisibility="{ item, index }">
+        <v-icon :color="item.visible ? 'primary' : ''" @click="toggleListVisibility(index)">
+          {{ getListEyeState(item).icon }}
         </v-icon>
         <v-tooltip
           open-delay="200"
           bottom
-          max-width="200"
+          max-width="220"
         >
           <template #activator="{ on }">
             <v-icon small v-on="on">
               mdi-help
             </v-icon>
           </template>
-          <span>{{ getEyeState(item).tooltip }}</span>
+          <span>{{ getListEyeState(item).tooltip }}</span>
+        </v-tooltip>
+      </template>
+      <template #item.filterVisibility="{ item, index }">
+        <v-icon :color="item.filterVisible ? 'primary' : ''" @click="toggleFilterVisibility(index)">
+          {{ getFilterEyeState(item).icon }}
+        </v-icon>
+        <v-tooltip
+          open-delay="200"
+          bottom
+          max-width="220"
+        >
+          <template #activator="{ on }">
+            <v-icon small v-on="on">
+              mdi-help
+            </v-icon>
+          </template>
+          <span>{{ getFilterEyeState(item).tooltip }}</span>
         </v-tooltip>
       </template>
       <template #item.details="{ item }">

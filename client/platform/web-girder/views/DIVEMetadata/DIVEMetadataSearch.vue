@@ -86,7 +86,7 @@ export default defineComponent({
       } catch (err: any) {
         console.warn('Cannot Access Folder assuming not an owner');
       }
-      if (folder.meta.DIVEMetadata) {
+      if (folder.meta.DIVEMetadataFilter) {
         displayConfig.value = folder.meta.DIVEMetadataFilter;
       }
       if (folder.creatorId === girderRest.user._id || girderRest.user.admin) {

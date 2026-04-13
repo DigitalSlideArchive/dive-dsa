@@ -162,6 +162,18 @@ def _normalize_metadata_config(config, default_config):
     return dict(default_config)
 
 
+def _ensure_filter_lists_in_display_config(display_config):
+    """
+    When saving DIVEMetadataFilter, copy list-view display/hide into filterDisplay/filterHide
+    if those keys are absent so new folders can diverge list vs filter later.
+    """
+    if not isinstance(display_config, dict):
+        return
+    if display_config.get('filterDisplay') is None and display_config.get('filterHide') is None:
+        display_config['filterDisplay'] = list(display_config.get('display', []))
+        display_config['filterHide'] = list(display_config.get('hide', []))
+
+
 def remove_before_folder(path, folder_name):
     index = path.find(folder_name)
     if index != -1:
@@ -659,6 +671,7 @@ class DIVEMetadata(Resource):
             # add metadata to root folder for
             folder['meta'][DIVEMetadataMarker] = True
             displayConfig['categoricalLimit'] = categoricalLimit
+            _ensure_filter_lists_in_display_config(displayConfig)
             folder['meta'][DIVEMetadataFilter] = displayConfig
             Folder().save(folder)
 
@@ -817,6 +830,7 @@ class DIVEMetadata(Resource):
         displayConfig['categoricalLimit'] = categoricalLimit
         if displayConfig.get('hide', False) is False:
             displayConfig['hide'] = [""]
+        _ensure_filter_lists_in_display_config(displayConfig)
         base_folder['meta'][DIVEMetadataFilter] = displayConfig
         Folder().save(base_folder)
 
@@ -1124,10 +1138,16 @@ class DIVEMetadata(Resource):
                     item['DIVEDataset'], level=AccessType.WRITE, user=user, force=True
                 )
                 DIVE_Metadata().deleteKey(diveDatasetFolder, rootId, user, key)
-        display_items = rootId['meta'].get('DIVEMetadataFilter', {}).get('display', False)
-        if display_items and key in display_items:
-            display_items.remove(key)
-            Folder().save(rootId)
+        mf = rootId.get('meta', {}).get('DIVEMetadataFilter')
+        if isinstance(mf, dict):
+            changed_lists = False
+            for list_key in ('display', 'hide', 'filterDisplay', 'filterHide'):
+                lst = mf.get(list_key)
+                if isinstance(lst, list) and key in lst:
+                    lst.remove(key)
+                    changed_lists = True
+            if changed_lists:
+                Folder().save(rootId)
 
     @autoDescribeRoute(
         Description("Add Metadata Key to Metdata Folder")

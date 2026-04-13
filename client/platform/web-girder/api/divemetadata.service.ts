@@ -12,10 +12,27 @@ export interface MetadataFilterItem {
 }
 
 export interface FilterDisplayConfig {
+    /** Keys shown as main columns on the metadata search page (list view). */
     display: string[];
+    /** Keys hidden from the list view Advanced section (and not in main columns). */
     hide: string[];
+    /**
+     * Keys shown in the primary filter row. If omitted, `display` is used (legacy).
+     */
+    filterDisplay?: string[];
+    /**
+     * Keys excluded from the filter UI. If omitted, `hide` is used (legacy).
+     */
+    filterHide?: string[];
     categoricalLimit: number;
     slicerCLI: 'Disabled' | 'Owner' | 'All Users'
+}
+
+export function effectiveFilterLists(config: FilterDisplayConfig): { filterDisplay: string[]; filterHide: string[] } {
+  return {
+    filterDisplay: config.filterDisplay !== undefined ? config.filterDisplay : (config.display || []),
+    filterHide: config.filterHide !== undefined ? config.filterHide : (config.hide || []),
+  };
 }
 
 export interface MetadataFilterKeysItem {
@@ -214,6 +231,37 @@ async function updateDiveMetadataDisplay(folderId: string, key: string, state: '
   }
 }
 
+async function updateDiveMetadataFilterVisibility(folderId: string, key: string, state: 'display' | 'hidden' | 'none') {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
+  if (DIVEMetadataFilter) {
+    let filterDisplay: string[];
+    let filterHide: string[];
+    if (DIVEMetadataFilter.filterDisplay === undefined && DIVEMetadataFilter.filterHide === undefined) {
+      filterDisplay = [...(DIVEMetadataFilter.display || [])];
+      filterHide = [...(DIVEMetadataFilter.hide || [])];
+    } else {
+      filterDisplay = [...(DIVEMetadataFilter.filterDisplay ?? DIVEMetadataFilter.display ?? [])];
+      filterHide = [...(DIVEMetadataFilter.filterHide ?? DIVEMetadataFilter.hide ?? [])];
+    }
+    DIVEMetadataFilter.filterDisplay = filterDisplay;
+    DIVEMetadataFilter.filterHide = filterHide;
+    if (filterDisplay.includes(key)) {
+      filterDisplay.splice(filterDisplay.findIndex((item) => item === key), 1);
+    }
+    if (filterHide.includes(key)) {
+      filterHide.splice(filterHide.findIndex((item) => item === key), 1);
+    }
+    if (state === 'display') {
+      filterDisplay.push(key);
+    }
+    if (state === 'hidden') {
+      filterHide.push(key);
+    }
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
 async function updateDiveMetadataSlicerConfig(folderId:string, value: 'Disabled' | 'Owner' | 'All Users') {
   const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
   const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
@@ -301,6 +349,7 @@ export {
   deleteDiveDatasetMetadataKey,
   setDiveDatasetMetadataKey,
   updateDiveMetadataDisplay,
+  updateDiveMetadataFilterVisibility,
   updateDiveMetadataSlicerConfig,
   runSlicerMetadataTask,
   exportDiveMetadata,

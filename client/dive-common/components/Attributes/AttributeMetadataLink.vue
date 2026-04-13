@@ -14,6 +14,7 @@ import {
   getMetadataFilterValues,
   modifyDiveMetadataPermission,
   updateDiveMetadataDisplay,
+  updateDiveMetadataFilterVisibility,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
@@ -403,6 +404,7 @@ export default defineComponent({
         }
         if (makeKeyVisible.value) {
           await updateDiveMetadataDisplay(rootId, key, 'display');
+          await updateDiveMetadataFilterVisibility(rootId, key, 'display');
         }
         await loadKnownKeys();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -433,6 +435,7 @@ export default defineComponent({
           }
           if (makeKeyVisible.value) {
             await updateDiveMetadataDisplay(rootId, key, 'display');
+            await updateDiveMetadataFilterVisibility(rootId, key, 'display');
           }
         }, Promise.resolve());
         await loadKnownKeys();

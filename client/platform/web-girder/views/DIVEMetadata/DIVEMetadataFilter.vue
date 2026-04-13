@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   DIVEMetadataFilter, MetadataFilterItem, DIVEMetadataFilterValueResults, getMetadataFilterValues, FilterDisplayConfig,
+  effectiveFilterLists,
 } from 'platform/web-girder/api/divemetadata.service';
 import {
   computed, defineComponent, onMounted, PropType, Ref, ref, watch,
@@ -70,10 +71,11 @@ export default defineComponent({
     const splitFilters = computed(() => {
       const advanced: DIVEMetadataFilterValueResults['metadataKeys'] = {};
       const displayed: DIVEMetadataFilterValueResults['metadataKeys'] = {};
+      const { filterDisplay, filterHide } = effectiveFilterLists(props.displayConfig);
       Object.entries(filters.value).forEach(([key, item]) => {
-        if (props.displayConfig.display && props.displayConfig.display.includes(key)) {
+        if (filterDisplay && filterDisplay.includes(key)) {
           displayed[key] = item;
-        } else if (props.displayConfig.hide && !props.displayConfig.hide.includes(key)) {
+        } else if (filterHide && !filterHide.includes(key)) {
           advanced[key] = item;
         }
       });
@@ -110,10 +112,11 @@ export default defineComponent({
         const metadataKeys: string[] = [];
         const advancedKeys: string[] = [];
         await getFilters();
+        const { filterDisplay, filterHide } = effectiveFilterLists(props.displayConfig);
         Object.keys(filters.value).forEach((key) => {
-          if (props.displayConfig.display && props.displayConfig.display.includes(key)) {
+          if (filterDisplay && filterDisplay.includes(key)) {
             metadataKeys.push(key);
-          } else if (props.displayConfig.hide && !props.displayConfig.hide.includes(key)) {
+          } else if (filterHide && !filterHide.includes(key)) {
             advancedKeys.push(key);
           }
         });
