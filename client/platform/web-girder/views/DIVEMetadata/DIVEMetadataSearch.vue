@@ -15,6 +15,7 @@ import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataEditKey from './DIVEMetadataEditKey.vue';
+import MetadataKeyLabel from './MetadataKeyLabel.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataSearch',
@@ -22,6 +23,7 @@ export default defineComponent({
     DIVEMetadataFilterVue,
     DIVEMetadataCloneVue,
     DIVEMetadataEditKey,
+    MetadataKeyLabel,
   },
   props: {
     id: {
@@ -38,6 +40,7 @@ export default defineComponent({
     const folderList: Ref<MetadataResultItem[]> = ref([]);
     const timeString = ref(Date.now());
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
+    const metadataKeysByName: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const loading = ref(true);
     const displayConfig: Ref<FilterDisplayConfig> = ref({
       display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
@@ -152,7 +155,7 @@ export default defineComponent({
     const openClone = ref(false);
 
     const setFilterData = (data: DIVEMetadataFilterValueResults) => {
-      //get unlock fields and their data types:
+      metadataKeysByName.value = data.metadataKeys || {};
       const { unlocked } = data;
       unlockedMap.value = {};
       if (!unlocked) {
@@ -200,6 +203,7 @@ export default defineComponent({
       currentFilter,
       setFilterData,
       unlockedMap,
+      metadataKeysByName,
       updateDiveMetadataKeyVal,
       loading,
       openInNewTab,
@@ -270,7 +274,12 @@ export default defineComponent({
           </div>
         </v-row>
         <v-row v-for="display in displayConfig['display']" :key="`${display}_${timeString}`" class="ma-4" align="center">
-          <b>{{ display }}:</b>
+          <span class="font-weight-bold">
+            <MetadataKeyLabel
+              :key-name="display"
+              :description="metadataKeysByName[display] ? metadataKeysByName[display].description : undefined"
+            />:
+          </span>
           <div v-if="unlockedMap[display] !== undefined">
             <DIVEMetadataEditKey
               :category="unlockedMap[display].category"
@@ -290,7 +299,12 @@ export default defineComponent({
             <v-expansion-panel-content>
               <v-row v-for="(data, dataKey) in getAdvanced(item)" :key="`${dataKey}_${timeString}`" class="border" dense>
                 <v-col cols="2" class="border">
-                  <b>{{ dataKey }}:</b>
+                  <span class="font-weight-bold">
+                    <MetadataKeyLabel
+                      :key-name="dataKey"
+                      :description="metadataKeysByName[dataKey] ? metadataKeysByName[dataKey].description : undefined"
+                    />:
+                  </span>
                 </v-col>
                 <v-col cols="10">
                   <div v-if="unlockedMap[dataKey] !== undefined">

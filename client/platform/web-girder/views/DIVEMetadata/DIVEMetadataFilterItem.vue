@@ -154,12 +154,34 @@ export default defineComponent({
           deletable-chips
           :label="label"
           hide-details
-        />
+        >
+          <template v-if="filterItem.description" #append-outer>
+            <v-tooltip bottom max-width="320" open-delay="200">
+              <template #activator="{ on }">
+                <v-icon small class="mt-2" color="grey lighten-1" v-on="on">
+                  mdi-information
+                </v-icon>
+              </template>
+              <span>{{ filterItem.description }}</span>
+            </v-tooltip>
+          </template>
+        </v-select>
       </v-row>
     </div>
     <div v-else-if="filterItem.category === 'search' || (filterItem.category === 'categorical' && filterItem.unique >= categoricalLimit)">
       <v-row dense class="pt-3">
-        <v-text-field v-model="value" :label="label" hide-details />
+        <v-text-field v-model="value" :label="label" hide-details>
+          <template v-if="filterItem.description" #append-outer>
+            <v-tooltip bottom max-width="320" open-delay="200">
+              <template #activator="{ on }">
+                <v-icon small class="mt-2" color="grey lighten-1" v-on="on">
+                  mdi-information
+                </v-icon>
+              </template>
+              <span>{{ filterItem.description }}</span>
+            </v-tooltip>
+          </template>
+        </v-text-field>
         <v-tooltip
           open-delay="100"
           bottom
@@ -176,7 +198,18 @@ export default defineComponent({
       </v-row>
     </div>
     <div v-else-if="filterItem.category === 'boolean'">
-      <v-checkbox v-model="value" :label="label" />
+      <v-row dense align="center" class="pt-1">
+        <v-checkbox v-model="value" hide-details class="ma-0 pa-0 shrink" />
+        <span class="body-2">{{ label }}</span>
+        <v-tooltip v-if="filterItem.description" bottom max-width="320" open-delay="200">
+          <template #activator="{ on }">
+            <v-icon small class="ml-1" color="grey lighten-1" v-on="on">
+              mdi-information
+            </v-icon>
+          </template>
+          <span>{{ filterItem.description }}</span>
+        </v-tooltip>
+      </v-row>
     </div>
     <div v-else-if="filterItem.category === 'numerical' && filterItem.range">
       <v-row dense align="center" class="mt-2">
@@ -194,6 +227,20 @@ export default defineComponent({
             <v-btn class="mt-5" v-on="on">
               {{ label }}
             </v-btn>
+            <v-tooltip v-if="filterItem.description" bottom max-width="320" open-delay="200">
+              <template #activator="{ on: tipOn }">
+                <v-icon
+                  small
+                  class="mt-5 ml-1"
+                  color="grey lighten-1"
+                  v-on="tipOn"
+                  @click.stop.prevent
+                >
+                  mdi-information
+                </v-icon>
+              </template>
+              <span>{{ filterItem.description }}</span>
+            </v-tooltip>
           </template>
           <v-card>
             <v-list>

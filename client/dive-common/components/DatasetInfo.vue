@@ -9,6 +9,7 @@ import { getFolder } from 'platform/web-girder/api';
 import { useStore } from 'platform/web-girder/store/types';
 import { useHandler } from 'vue-media-annotator/provides';
 import DIVEMetadataEditKey from 'platform/web-girder/views/DIVEMetadata/DIVEMetadataEditKey.vue';
+import MetadataKeyLabel from 'platform/web-girder/views/DIVEMetadata/MetadataKeyLabel.vue';
 import {
   FilterDisplayConfig,
   filterDiveMetadata,
@@ -23,6 +24,7 @@ export default defineComponent({
   components: {
     StackedVirtualSidebarContainer,
     DIVEMetadataEditKey,
+    MetadataKeyLabel,
   },
 
   props: {
@@ -45,6 +47,7 @@ export default defineComponent({
       display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
     });
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
+    const metadataKeysByName: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const getMetadata = async () => {
       if (store.state.Dataset.meta) {
         const resp = await getFolder(store.state.Dataset.meta?.id);
@@ -74,6 +77,7 @@ export default defineComponent({
           },
         );
         const filterData = await getMetadataFilterValues(diveMetadataRootId.value);
+        metadataKeysByName.value = filterData.data.metadataKeys || {};
         const { unlocked } = filterData.data;
         unlockedMap.value = {};
         if (unlocked) {
@@ -127,6 +131,7 @@ export default defineComponent({
       processedDatasetMetadata,
       panels,
       unlockedMap,
+      metadataKeysByName,
       updateDiveMetadataKeyVal,
     };
   },
@@ -175,7 +180,10 @@ export default defineComponent({
               <v-list-item v-for="(value, name) in processedDatasetMetadata.default" :key="`datasetMetadata_${name}`" two-line dense>
                 <v-list-item-content>
                   <v-list-item-title>
-                    {{ name }}
+                    <MetadataKeyLabel
+                      :key-name="name"
+                      :description="metadataKeysByName[name] ? metadataKeysByName[name].description : undefined"
+                    />
                   </v-list-item-title>
                   <v-list-item-subtitle class="wrap-text">
                     <span v-if="unlockedMap[name] !== undefined">
@@ -200,7 +208,10 @@ export default defineComponent({
                     <v-list-item v-for="(value, name) in processedDatasetMetadata.advanced" :key="`datasetMetadata_${name}`" two-line dense>
                       <v-list-item-content>
                         <v-list-item-title>
-                          {{ name }}
+                          <MetadataKeyLabel
+                            :key-name="name"
+                            :description="metadataKeysByName[name] ? metadataKeysByName[name].description : undefined"
+                          />
                         </v-list-item-title>
                         <v-list-item-subtitle class="wrap-text">
                           <span v-if="unlockedMap[name] !== undefined">

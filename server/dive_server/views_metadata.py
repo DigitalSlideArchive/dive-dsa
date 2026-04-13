@@ -55,6 +55,94 @@ def python_to_javascript_type(py_type):
     return type_mapping.get(py_type, "unknown")
 
 
+# Keys we do not attach imported {value, description} schema text to (matchers / system fields).
+_METADATA_IMPORT_DESCRIPTION_EXCLUDE_KEYS = frozenset(
+    {
+        'DIVEDataset',
+        'Filename',
+        'DIVE_Path',
+        'DIVE_DatasetId',
+        'DIVE_Name',
+        'pathMatches',
+        'LastModifiedTime',
+        'LastModifiedBy',
+    }
+)
+
+
+def _metadata_import_description_allowed(key):
+    if key in _METADATA_IMPORT_DESCRIPTION_EXCLUDE_KEYS:
+        return False
+    if key.startswith('ffprobe_') or key.startswith('DIVE_'):
+        return False
+    return True
+
+
+def unwrap_metadata_json_value(raw):
+    """
+    Support JSON fields shaped as {"value": <stored>, "description": "..."}.
+    Only dicts that include a 'value' key are treated as this wrapper (plain dicts are unchanged).
+    Returns (value_for_storage, description_or_none).
+    """
+    if isinstance(raw, dict) and 'value' in raw:
+        desc = raw.get('description')
+        if isinstance(desc, str):
+            desc = desc.strip() or None
+        else:
+            desc = None
+        return raw['value'], desc
+    return raw, None
+
+
+def normalize_metadata_row_for_storage(row):
+    """
+    Flatten wrapped field values for DB storage; collect per-key descriptions.
+
+    Supported shapes:
+    - Per field: ``"MyKey": {"value": <stored>, "description": "..."}``
+    - Per row: ``"DIVEMetadataKeyDescriptions": {"MyKey": "...", "Other": {"description": "..."}}``
+      (this object is not stored on dataset rows).
+    """
+    if not isinstance(row, dict):
+        return row, {}
+    out = {}
+    descriptions = {}
+    schema = row.get('DIVEMetadataKeyDescriptions')
+    if isinstance(schema, dict):
+        for sk, sv in schema.items():
+            if not _metadata_import_description_allowed(sk):
+                continue
+            if isinstance(sv, str) and sv.strip():
+                descriptions[sk] = sv.strip()
+            elif isinstance(sv, dict):
+                t = sv.get('description')
+                if isinstance(t, str) and t.strip():
+                    descriptions[sk] = t.strip()
+    for k, v in row.items():
+        if k == 'DIVEMetadataKeyDescriptions':
+            continue
+        val, desc = unwrap_metadata_json_value(v)
+        out[k] = val
+        if desc and _metadata_import_description_allowed(k):
+            descriptions[k] = desc
+    return out, descriptions
+
+
+def merge_first_metadata_import_descriptions(accum, new_descs):
+    """First non-empty description wins per key (stable across row order for duplicates)."""
+    for k, d in new_descs.items():
+        if d and k not in accum:
+            accum[k] = d
+
+
+def _apply_imported_descriptions_to_metadata_keys(metadata_keys, descriptions):
+    if not descriptions:
+        return
+    for k, desc in descriptions.items():
+        if desc and k in metadata_keys:
+            metadata_keys[k]['description'] = desc
+
+
 def _normalize_metadata_config(config, default_config):
     if isinstance(config, dict):
         normalized = dict(default_config)
@@ -143,9 +231,15 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
     categoricalLimit = (
         rootFolder.get('meta', {}).get('DIVEMetadataFilter', {}).get('categoricalLimit', 50)
     )
+    normalized_updates = []
+    aggregated_descriptions = {}
+    for entry in updates:
+        norm, row_desc = normalize_metadata_row_for_storage(entry)
+        normalized_updates.append(norm)
+        merge_first_metadata_import_descriptions(aggregated_descriptions, row_desc)
     # Helper to infer type/category
     new_keys = {}
-    for _idx, entry in enumerate(updates):
+    for entry in normalized_updates:
         for key, value in entry.items():
             if key not in metadata_keys_doc["metadataKeys"]:
                 if key not in new_keys:
@@ -172,7 +266,7 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
                 "max": max(values),
             }
         DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
-    for _idx, entry in enumerate(updates):
+    for entry in normalized_updates:
         reason = None
         # Try to find by DIVEDataset by the matchers
         dive_metadata = None
@@ -263,6 +357,10 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
                     "error": reason,
                 }
             )
+    if aggregated_descriptions:
+        DIVE_MetadataKeys().mergeImportedKeyDescriptions(
+            rootFolder, user, aggregated_descriptions
+        )
     return results
 
 
@@ -296,6 +394,7 @@ class DIVEMetadata(Resource):
         self.route("DELETE", (':rootId', 'delete_key'), self.delete_metadata_key)
         self.route("PUT", (':root', 'add_key'), self.add_metadata_key)
         self.route("PATCH", (':root', 'modify_key_permission'), self.modify_key_permission)
+        self.route("PATCH", (':root', 'key_description'), self.update_metadata_key_description)
         self.route("PATCH", (':divedataset',), self.set_key_value)
         self.route("DELETE", (':divedataset',), self.delete_key_value)
         self.route(
@@ -429,7 +528,10 @@ class DIVEMetadata(Resource):
         else:
             metadataKeys = {}
             root_name = folder['name']
-            for item in data:
+            key_import_descriptions = {}
+            for raw_row in data:
+                item, row_desc = normalize_metadata_row_for_storage(raw_row)
+                merge_first_metadata_import_descriptions(key_import_descriptions, row_desc)
                 # need to use the matcher to try to find the DIVE dataset that matches the name
 
                 query = {
@@ -552,6 +654,7 @@ class DIVEMetadata(Resource):
                     del metadataKeys[key]['set']
                 else:
                     del metadataKeys[key]['set']
+            _apply_imported_descriptions_to_metadata_keys(metadataKeys, key_import_descriptions)
             DIVE_MetadataKeys().createMetadataKeys(folder, user, metadataKeys)
             # add metadata to root folder for
             folder['meta'][DIVEMetadataMarker] = True
@@ -1066,9 +1169,15 @@ class DIVEMetadata(Resource):
             required=False,
             default=None,
         )
+        .param(
+            "description",
+            "Optional human-readable description of this metadata key",
+            required=False,
+            default=None,
+        )
     )
     def add_metadata_key(
-        self, root, key, category, unlocked, values='', default_value=None  # noqa: B006
+        self, root, key, category, unlocked, values='', default_value=None, description=None  # noqa: B006
     ):
         user = self.getCurrentUser()
         query = {"root": str(root["_id"]), "owner": str(user['_id'])}
@@ -1085,6 +1194,9 @@ class DIVEMetadata(Resource):
                 info['range'] = {'min': float('inf'), 'max': float('-inf')}
             if info.get('set', None) is None:
                 info['set'] = []
+            desc_text = (description or '').strip() if description is not None else ''
+            if desc_text:
+                info['description'] = desc_text
             DIVE_MetadataKeys().addKey(root, user, key, info, unlocked)
             Folder().save(root)
         else:
@@ -1134,6 +1246,41 @@ class DIVEMetadata(Resource):
         else:
             raise RestException(
                 f'Could not find Metadata for FolderId: {root["_id"]} to delete key.'
+            )
+
+    @autoDescribeRoute(
+        Description("Set or clear the optional description for a metadata key")
+        .modelParam(
+            "root",
+            description="Root metadata FolderId",
+            model=Folder,
+            level=AccessType.READ,
+            destName="root",
+        )
+        .param(
+            "key",
+            "Metadata key name",
+            required=True,
+        )
+        .param(
+            "description",
+            "Description text; omit or send empty string to clear",
+            required=False,
+            default=None,
+        )
+    )
+    def update_metadata_key_description(self, root, key, description=None):
+        user = self.getCurrentUser()
+        query = {"root": str(root["_id"])}
+        found = DIVE_MetadataKeys().findOne(query=query, owner=str(user['_id']))
+        if found:
+            if found.get('owner', False) is False:
+                DIVE_MetadataKeys().initialize_updated_data(root, user)
+            DIVE_MetadataKeys().updateKeyDescription(root, user, key, description)
+            Folder().save(root)
+        else:
+            raise RestException(
+                f'Could not find Metadata for FolderId: {root["_id"]} to update key description.'
             )
 
     @access.user

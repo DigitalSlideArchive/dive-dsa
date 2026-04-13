@@ -11,6 +11,7 @@ import {
   MetadataFilterKeysItem,
   modifyDiveMetadataPermission,
   updateDiveMetadataDisplay,
+  updateDiveMetadataKeyDescription,
   updateDiveMetadataSlicerConfig,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
@@ -18,6 +19,7 @@ import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { useRouter } from 'vue-router/composables';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
+import MetadataKeyLabel from './MetadataKeyLabel.vue';
 
 interface FormattedMetadataKeys {
     name: string,
@@ -28,6 +30,7 @@ interface FormattedMetadataKeys {
     unlocked: boolean,
     visible: boolean,
     hidden: boolean,
+    description?: string,
 }
 
 export default defineComponent({
@@ -35,6 +38,7 @@ export default defineComponent({
   components: {
     DIVEMetadataFilterVue,
     DIVEMetadataCloneVue,
+    MetadataKeyLabel,
   },
   props: {
     id: {
@@ -66,7 +70,11 @@ export default defineComponent({
       unlocked: false,
       values: '',
       defaultValue: '',
+      description: '',
     });
+    const descriptionDialog = ref(false);
+    const descriptionEditKey = ref('');
+    const descriptionEditText = ref('');
     const getData = async () => {
       const { data } = await getMetadataFilterValues(props.id);
       formattedKeys.value = [];
@@ -83,6 +91,7 @@ export default defineComponent({
             unlocked: unlocked.value.includes(key),
             visible: displayConfig.value.display.includes(key),
             hidden: displayConfig.value.hide.includes(key),
+            description: metadataKeys.value[key].description,
           });
         }
       });
@@ -192,6 +201,7 @@ export default defineComponent({
         unlocked: false,
         values: '',
         defaultValue: '',
+        description: '',
       };
     };
 
@@ -218,6 +228,7 @@ export default defineComponent({
         addKeyData.value.unlocked,
         values,
         defaultValue,
+        addKeyData.value.description,
       );
       cancelNewKey();
       await getFolderInfo(props.id);
@@ -232,8 +243,36 @@ export default defineComponent({
         unlocked: false,
         values: '',
         defaultValue: '',
+        description: '',
       };
       addKeyDialog.value = true;
+    };
+
+    const openDescriptionDialog = (item: FormattedMetadataKeys) => {
+      descriptionEditKey.value = item.name;
+      descriptionEditText.value = item.description || '';
+      descriptionDialog.value = true;
+    };
+
+    const closeDescriptionDialog = () => {
+      descriptionDialog.value = false;
+      descriptionEditKey.value = '';
+      descriptionEditText.value = '';
+    };
+
+    const saveDescriptionDialog = async () => {
+      processing.value = true;
+      try {
+        await updateDiveMetadataKeyDescription(
+          props.id,
+          descriptionEditKey.value,
+          descriptionEditText.value,
+        );
+        closeDescriptionDialog();
+        await getData();
+      } finally {
+        processing.value = false;
+      }
     };
 
     const returnToMetadata = () => {
@@ -259,6 +298,12 @@ export default defineComponent({
       deleteKey,
       prepDeleteMetadata,
       slicerCLI,
+      descriptionDialog,
+      descriptionEditKey,
+      descriptionEditText,
+      openDescriptionDialog,
+      closeDescriptionDialog,
+      saveDescriptionDialog,
     };
   },
 });
@@ -293,6 +338,9 @@ export default defineComponent({
       :items-per-page="-1"
       hide-default-footer
     >
+      <template #item.name="{ item }">
+        <MetadataKeyLabel :key-name="item.name" :description="item.description" />
+      </template>
       <template #item.visibility="{ item, index }">
         <v-icon :color="item.visible ? 'primary' : ''" @click="toggleVisibility(index)">
           {{ getEyeState(item).icon }}
@@ -323,6 +371,14 @@ export default defineComponent({
 
       <template #item.edit="{ item, index }">
         <v-row>
+          <v-tooltip bottom open-delay="200">
+            <template #activator="{ on }">
+              <v-icon class="mr-1" small v-on="on" @click="openDescriptionDialog(item)">
+                mdi-text-box-outline
+              </v-icon>
+            </template>
+            <span>Edit key description (optional)</span>
+          </v-tooltip>
           <v-icon :color="!item.unlocked ? '' : 'warning'" @click="toggleUnlock(index)">
             {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
           </v-icon>
@@ -371,6 +427,16 @@ export default defineComponent({
             <v-text-field v-model="addKeyData.key" label="Name" />
           </v-row>
           <v-row dense>
+            <v-textarea
+              v-model="addKeyData.description"
+              auto-grow
+              rows="2"
+              label="Description (optional)"
+              hint="Shown as a tooltip next to the key name in metadata views"
+              persistent-hint
+            />
+          </v-row>
+          <v-row dense>
             <v-select v-model="addKeyData.category" :items="['numerical', 'categorical', 'search', 'boolean']" label="Category" />
           </v-row>
           <v-row dense>
@@ -402,6 +468,31 @@ export default defineComponent({
               Save
             </v-btn>
           </v-row>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="descriptionDialog" width="560" @click:outside="closeDescriptionDialog">
+      <v-card>
+        <v-card-title>Description: {{ descriptionEditKey }}</v-card-title>
+        <v-card-text>
+          <v-textarea
+            v-model="descriptionEditText"
+            auto-grow
+            rows="3"
+            label="Description"
+            hint="Leave empty to remove the description. Shown on hover next to the key name."
+            persistent-hint
+            outlined
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text :disabled="processing" @click="closeDescriptionDialog">
+            Cancel
+          </v-btn>
+          <v-btn color="primary" :disabled="processing" @click="saveDescriptionDialog">
+            Save
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

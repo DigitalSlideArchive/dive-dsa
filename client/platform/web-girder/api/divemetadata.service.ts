@@ -28,6 +28,8 @@ export interface MetadataFilterKeysItem {
         min: number,
         max: number;
     };
+    /** Optional human-readable explanation of this metadata field. */
+    description?: string;
 
 }
 
@@ -142,11 +144,29 @@ function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, u
   });
 }
 
-function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, valueList: string[] = [], defaultValue?: number | string | boolean) {
+function addDiveMetadataKey(
+  rootMetadataFolder: string,
+  key: string,
+  category: 'numerical' | 'categorical' | 'search' | 'boolean',
+  unlocked = false,
+  valueList: string[] = [],
+  defaultValue?: number | string | boolean,
+  description?: string,
+) {
   const values = valueList.length ? valueList.join(',') : undefined;
+  const desc = description?.trim();
   return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
     params: {
-      key, category, unlocked, values, default_value: defaultValue,
+      key, category, unlocked, values, default_value: defaultValue, description: desc || undefined,
+    },
+  });
+}
+
+function updateDiveMetadataKeyDescription(rootMetadataFolder: string, key: string, description: string) {
+  return girderRest.patch(`dive_metadata/${rootMetadataFolder}/key_description`, null, {
+    params: {
+      key,
+      description: description.trim(),
     },
   });
 }
@@ -276,6 +296,7 @@ export {
   createDiveMetadataFolder,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
+  updateDiveMetadataKeyDescription,
   deleteDiveMetadataKey,
   deleteDiveDatasetMetadataKey,
   setDiveDatasetMetadataKey,
