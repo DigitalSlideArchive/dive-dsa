@@ -274,6 +274,44 @@ This creates a Folder within the Root folder called `DIVEMetadataHistory` that w
 }
 ```
 
+### Optional `value` + `description` Field Wrapper
+
+For any metadata key, you may also provide an object wrapper of the form:
+
+```json
+{
+  "value": "<stored-value>",
+  "description": "Human-readable key description"
+}
+```
+
+When this wrapper is used:
+
+- `value` is stored as the metadata value for that key on the dataset.
+- `description` (if non-empty) is saved as the metadata key description.
+- Additional keys on the wrapper object are ignored.
+
+### Example With Descriptions
+
+```json
+[
+  {
+    "DIVEDataset": "68b833ac1394856d5124dbbf",
+    "VideoCategory": {
+      "value": "sample",
+      "description": "Grouping label used for report-level filtering"
+    },
+    "VideoRating": {
+      "value": 5,
+      "description": "Quality score from 1 to 5",
+      "unit": "stars"
+    }
+  }
+]
+```
+
+In the example above, `unit` is ignored during import.
+
 ## Bulk Update File Upload
 
 In addition to the Direct POSTing of JSON metadata there is another endpoint that will process an uploaded folder in the RootId.
