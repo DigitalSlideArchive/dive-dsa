@@ -9,8 +9,10 @@ import {
   deleteDiveMetadataKey,
   FilterDisplayConfig,
   getMetadataFilterValues,
+  MetadataKeyGroup,
   MetadataFilterKeysItem,
   modifyDiveMetadataPermission,
+  partitionMetadataKeys,
   updateDiveMetadataDisplay,
   updateDiveMetadataFilterVisibility,
   updateDiveMetadataKeyDescription,
@@ -40,6 +42,13 @@ interface FormattedMetadataKeys {
     description?: string,
 }
 
+interface FormattedMetadataGroup {
+  id: string;
+  name: string;
+  description?: string;
+  keys: FormattedMetadataKeys[];
+}
+
 export default defineComponent({
   name: 'DIVEMetadataSearch',
   components: {
@@ -56,7 +65,7 @@ export default defineComponent({
   },
   setup(props) {
     const displayConfig: Ref<FilterDisplayConfig> = ref({
-      display: [], hide: [], order: [], categoricalLimit: 50, slicerCLI: 'Disabled',
+      display: [], hide: [], order: [], groups: [], categoricalLimit: 50, slicerCLI: 'Disabled',
     });
 
     const girderRest = useGirderRest();
@@ -70,7 +79,8 @@ export default defineComponent({
     const isOwnerAdmin = ref(false);
     const unlocked: Ref<string[]> = ref([]);
     const metadataKeys: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
-    const formattedKeys: Ref<FormattedMetadataKeys[]> = ref([]);
+    const ungroupedKeys: Ref<FormattedMetadataKeys[]> = ref([]);
+    const groupedKeys: Ref<FormattedMetadataGroup[]> = ref([]);
     const addKeyDialog = ref(false);
     const addKeyData = ref({
       key: 'New Key Name',
@@ -83,16 +93,35 @@ export default defineComponent({
     const descriptionDialog = ref(false);
     const descriptionEditKey = ref('');
     const descriptionEditText = ref('');
+    const groupDialog = ref(false);
+    const groupName = ref('');
+    const groupDescription = ref('');
+    const editingGroupId = ref('');
+
+    const persistLayout = async () => {
+      const order = [
+        ...groupedKeys.value.flatMap((group) => group.keys.map((item) => item.name)),
+        ...ungroupedKeys.value.map((item) => item.name),
+      ];
+      const groups: MetadataKeyGroup[] = groupedKeys.value.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        keys: group.keys.map((item) => item.name),
+      }));
+      await updateDiveMetadataOrder(props.id, order, groups);
+    };
+
     const getData = async () => {
       const { data } = await getMetadataFilterValues(props.id);
-      formattedKeys.value = [];
       metadataKeys.value = data.metadataKeys;
       unlocked.value = data.unlocked;
       const { filterDisplay, filterHide } = effectiveFilterLists(displayConfig.value);
       const orderedKeys = orderMetadataKeys(Object.keys(metadataKeys.value), displayConfig.value);
+      const allKeys: FormattedMetadataKeys[] = [];
       orderedKeys.forEach((key) => {
         if (metadataKeys.value && metadataKeys.value[key]) {
-          formattedKeys.value.push({
+          allKeys.push({
             name: key,
             category: metadataKeys.value[key].category,
             count: metadataKeys.value[key].count,
@@ -107,34 +136,31 @@ export default defineComponent({
           });
         }
       });
+      const keyMap = allKeys.reduce<Record<string, FormattedMetadataKeys>>((acc, item) => {
+        acc[item.name] = item;
+        return acc;
+      }, {});
+      const partitioned = partitionMetadataKeys(Object.keys(keyMap), displayConfig.value);
+      groupedKeys.value = partitioned.groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        keys: group.keys.map((key) => keyMap[key]).filter((item) => !!item),
+      }));
+      ungroupedKeys.value = partitioned.ungrouped.map((key) => keyMap[key]).filter((item) => !!item);
     };
 
-    const metadataHeader = ref([
-      { text: 'Drag', value: 'dragHandle', width: '72px', sortable: false },
-      { text: 'List', value: 'listVisibility', width: '72px', sortable: false },
-      { text: 'Filter', value: 'filterVisibility', width: '72px', sortable: false },
-      { text: 'Name', value: 'name', sortable: false },
-      { text: 'Category', value: 'category', sortable: false },
-      { text: 'Details', value: 'details', sortable: false },
-      { text: 'Edit', value: 'edit', sortable: false },
-    ]);
     const saveOrder = async () => {
       processing.value = true;
       try {
-        await updateDiveMetadataOrder(
-          props.id,
-          formattedKeys.value.map((item) => item.name),
-        );
+        await persistLayout();
         await getFolderInfo(props.id);
         await getData();
       } finally {
         processing.value = false;
       }
     };
-    const onDragEnd = async ({ oldIndex, newIndex }: { oldIndex?: number; newIndex?: number }) => {
-      if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
-        return;
-      }
+    const onDragEnd = async () => {
       await saveOrder();
     };
     const getFolderInfo = async (id: string) => {
@@ -176,8 +202,7 @@ export default defineComponent({
       }
       return { tooltip: 'Shown only under Advanced on the list', icon: 'mdi-filter-variant' };
     };
-    const toggleListVisibility = async (index: number) => {
-      const item = formattedKeys.value[index];
+    const toggleListVisibility = async (item: FormattedMetadataKeys) => {
       let val: 'display' | 'hidden' | 'none';
       if (!item.visible && !item.hidden) {
         val = 'display';
@@ -200,8 +225,13 @@ export default defineComponent({
       }
       return { tooltip: 'Shown only under Advanced Filters', icon: 'mdi-filter-variant' };
     };
-    const toggleFilterVisibility = async (index: number) => {
-      const item = formattedKeys.value[index];
+    const getDetailsText = (item: FormattedMetadataKeys) => {
+      if (item.category === 'numerical' && item.range) {
+        return `Min: ${item.range.min} | Max: ${item.range.max}`;
+      }
+      return `Count: ${item.count} | Unique: ${item.unique ?? 0}`;
+    };
+    const toggleFilterVisibility = async (item: FormattedMetadataKeys) => {
       let val: 'display' | 'hidden' | 'none';
       if (!item.filterVisible && !item.filterHidden) {
         val = 'display';
@@ -219,8 +249,7 @@ export default defineComponent({
       updateDiveMetadataSlicerConfig(props.id, slicerCLI.value);
     });
 
-    const toggleUnlock = async (index: number) => {
-      const item = formattedKeys.value[index];
+    const toggleUnlock = async (item: FormattedMetadataKeys) => {
       if (item) {
         item.unlocked = !item.unlocked;
         modifyDiveMetadataPermission(props.id, item.name, item.unlocked);
@@ -239,8 +268,7 @@ export default defineComponent({
       }
     };
 
-    const prepDeleteMetadata = (index: number) => {
-      const item = formattedKeys.value[index];
+    const prepDeleteMetadata = (item: FormattedMetadataKeys) => {
       deleteKey.value = item.name;
       deleteDialog.value = true;
     };
@@ -300,6 +328,48 @@ export default defineComponent({
       addKeyDialog.value = true;
     };
 
+    const initializeNewGroup = () => {
+      editingGroupId.value = '';
+      groupName.value = '';
+      groupDescription.value = '';
+      groupDialog.value = true;
+    };
+
+    const editGroup = (group: FormattedMetadataGroup) => {
+      editingGroupId.value = group.id;
+      groupName.value = group.name;
+      groupDescription.value = group.description || '';
+      groupDialog.value = true;
+    };
+
+    const saveGroup = async () => {
+      if (!groupName.value.trim()) {
+        return;
+      }
+      if (editingGroupId.value) {
+        const existing = groupedKeys.value.find((group) => group.id === editingGroupId.value);
+        if (existing) {
+          existing.name = groupName.value.trim();
+          existing.description = groupDescription.value.trim() || undefined;
+        }
+      } else {
+        groupedKeys.value.push({
+          id: `group_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+          name: groupName.value.trim(),
+          description: groupDescription.value.trim() || undefined,
+          keys: [],
+        });
+      }
+      groupDialog.value = false;
+      await saveOrder();
+    };
+
+    const removeGroup = async (group: FormattedMetadataGroup) => {
+      ungroupedKeys.value.push(...group.keys);
+      groupedKeys.value = groupedKeys.value.filter((item) => item.id !== group.id);
+      await saveOrder();
+    };
+
     const openDescriptionDialog = (item: FormattedMetadataKeys) => {
       descriptionEditKey.value = item.name;
       descriptionEditText.value = item.description || '';
@@ -332,12 +402,13 @@ export default defineComponent({
     };
 
     return {
-      metadataHeader,
       onDragEnd,
-      formattedKeys,
+      ungroupedKeys,
+      groupedKeys,
       getListEyeState,
       toggleListVisibility,
       getFilterEyeState,
+      getDetailsText,
       toggleFilterVisibility,
       toggleUnlock,
       deleteMetadata,
@@ -359,6 +430,14 @@ export default defineComponent({
       openDescriptionDialog,
       closeDescriptionDialog,
       saveDescriptionDialog,
+      groupDialog,
+      groupName,
+      groupDescription,
+      editingGroupId,
+      initializeNewGroup,
+      editGroup,
+      saveGroup,
+      removeGroup,
     };
   },
 });
@@ -385,99 +464,169 @@ export default defineComponent({
       <v-btn color="success" @click="initializeNewKey()">
         Add Metadata Field
       </v-btn>
+      <v-btn color="primary" class="ml-2" @click="initializeNewGroup()">
+        Add Group
+      </v-btn>
     </v-row>
-    <v-data-table
-      :headers="metadataHeader"
-      :items="formattedKeys"
-      item-key="name"
-      :items-per-page="-1"
-      hide-default-footer
-    >
-      <template #body>
-        <draggable
-          tag="tbody"
-          :list="formattedKeys"
-          handle=".drag-handle"
-          @end="onDragEnd"
-        >
-          <tr v-for="(item, index) in formattedKeys" :key="item.name">
-            <td>
+    <v-card class="pa-3 mb-4">
+      <div class="text-subtitle-1 mb-2">
+        Ungrouped Metadata Keys
+      </div>
+      <v-row dense class="px-2 pb-2 font-weight-bold text-caption">
+        <v-col cols="1">Drag</v-col>
+        <v-col cols="2">List/Filter</v-col>
+        <v-col cols="3">Name</v-col>
+        <v-col cols="1">Category</v-col>
+        <v-col cols="2">Details</v-col>
+        <v-col cols="3">Edit</v-col>
+      </v-row>
+      <draggable :list="ungroupedKeys" :group="{ name: 'metadata-keys' }" handle=".drag-handle" @end="onDragEnd">
+        <v-card v-for="item in ungroupedKeys" :key="item.name" outlined class="mb-2 pa-2">
+          <v-row align="center" dense>
+            <v-col cols="1">
               <v-icon class="drag-handle" :disabled="processing">
                 mdi-drag
               </v-icon>
-            </td>
-            <td>
-              <v-icon :color="item.visible ? 'primary' : ''" @click="toggleListVisibility(index)">
-                {{ getListEyeState(item).icon }}
-              </v-icon>
-              <v-tooltip
-                open-delay="200"
-                bottom
-                max-width="220"
-              >
+            </v-col>
+            <v-col cols="2">
+              <v-tooltip bottom open-delay="200">
                 <template #activator="{ on }">
-                  <v-icon small v-on="on">
-                    mdi-help
+                  <v-icon :color="item.visible ? 'primary' : ''" v-on="on" @click="toggleListVisibility(item)">
+                    {{ getListEyeState(item).icon }}
                   </v-icon>
                 </template>
                 <span>{{ getListEyeState(item).tooltip }}</span>
               </v-tooltip>
-            </td>
-            <td>
-              <v-icon :color="item.filterVisible ? 'primary' : ''" @click="toggleFilterVisibility(index)">
-                {{ getFilterEyeState(item).icon }}
-              </v-icon>
-              <v-tooltip
-                open-delay="200"
-                bottom
-                max-width="220"
-              >
+              <v-tooltip bottom open-delay="200">
                 <template #activator="{ on }">
-                  <v-icon small v-on="on">
-                    mdi-help
+                  <v-icon :color="item.filterVisible ? 'primary' : ''" class="ml-2" v-on="on" @click="toggleFilterVisibility(item)">
+                    {{ getFilterEyeState(item).icon }}
                   </v-icon>
                 </template>
                 <span>{{ getFilterEyeState(item).tooltip }}</span>
               </v-tooltip>
-            </td>
-            <td>
+            </v-col>
+            <v-col cols="3">
               <MetadataKeyLabel :key-name="item.name" :description="item.description" />
-            </td>
-            <td>
+            </v-col>
+            <v-col cols="1">
               {{ item.category }}
-            </td>
-            <td>
-              <div v-if="item.category !== 'numerical'">
-                <div><span>Count:</span><span class="ml-2">{{ item.count }}</span></div>
-                <div><span>Unique:</span><span class="ml-2">{{ item.unique }}</span></div>
-              </div>
-              <div v-else-if="item.category === 'numerical' && item.range">
-                <div><span>Min:</span><span class="ml-2">{{ item.range.min }}</span></div>
-                <div><span>Max:</span><span class="ml-2">{{ item.range.max }}</span></div>
-              </div>
-            </td>
-            <td>
-              <v-row>
+            </v-col>
+            <v-col cols="2" class="text-caption">
+              {{ getDetailsText(item) }}
+            </v-col>
+            <v-col cols="3">
+              <v-row dense no-gutters class="edit-actions-row align-center">
                 <v-tooltip bottom open-delay="200">
                   <template #activator="{ on }">
                     <v-icon class="mr-1" small v-on="on" @click="openDescriptionDialog(item)">
                       mdi-text-box-outline
                     </v-icon>
                   </template>
-                  <span>Edit key description (optional)</span>
+                  <span>Edit metadata key description</span>
                 </v-tooltip>
-                <v-icon :color="!item.unlocked ? '' : 'warning'" @click="toggleUnlock(index)">
-                  {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
-                </v-icon>
-                <v-icon color="error" @click="prepDeleteMetadata(index)">
+                <v-tooltip bottom open-delay="200">
+                  <template #activator="{ on }">
+                    <v-icon :color="!item.unlocked ? '' : 'warning'" v-on="on" @click="toggleUnlock(item)">
+                      {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
+                    </v-icon>
+                  </template>
+                  <span>{{ item.unlocked ? 'Field is unlocked for editing' : 'Field is locked from editing' }}</span>
+                </v-tooltip>
+                <v-icon color="error" @click="prepDeleteMetadata(item)">
                   mdi-delete
                 </v-icon>
               </v-row>
-            </td>
-          </tr>
-        </draggable>
-      </template>
-    </v-data-table>
+            </v-col>
+          </v-row>
+        </v-card>
+      </draggable>
+    </v-card>
+
+    <v-card v-for="group in groupedKeys" :key="group.id" class="pa-3 mb-4">
+      <v-row align="center" dense>
+        <v-col cols="8">
+          <MetadataKeyLabel :key-name="group.name" :description="group.description" />
+        </v-col>
+        <v-col cols="4" class="text-right">
+          <v-btn icon small @click="editGroup(group)">
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn icon small color="error" @click="removeGroup(group)">
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
+        </v-col>
+      </v-row>
+      <v-row dense class="px-2 pb-2 font-weight-bold text-caption">
+        <v-col cols="1">Drag</v-col>
+        <v-col cols="2">List/Filter</v-col>
+        <v-col cols="3">Name</v-col>
+        <v-col cols="1">Category</v-col>
+        <v-col cols="2">Details</v-col>
+        <v-col cols="3">Edit</v-col>
+      </v-row>
+      <draggable :list="group.keys" :group="{ name: 'metadata-keys' }" handle=".drag-handle" @end="onDragEnd">
+        <v-card v-for="item in group.keys" :key="item.name" outlined class="mb-2 pa-2">
+          <v-row align="center" dense>
+            <v-col cols="1">
+              <v-icon class="drag-handle" :disabled="processing">
+                mdi-drag
+              </v-icon>
+            </v-col>
+            <v-col cols="2">
+              <v-tooltip bottom open-delay="200">
+                <template #activator="{ on }">
+                  <v-icon :color="item.visible ? 'primary' : ''" v-on="on" @click="toggleListVisibility(item)">
+                    {{ getListEyeState(item).icon }}
+                  </v-icon>
+                </template>
+                <span>{{ getListEyeState(item).tooltip }}</span>
+              </v-tooltip>
+              <v-tooltip bottom open-delay="200">
+                <template #activator="{ on }">
+                  <v-icon :color="item.filterVisible ? 'primary' : ''" class="ml-2" v-on="on" @click="toggleFilterVisibility(item)">
+                    {{ getFilterEyeState(item).icon }}
+                  </v-icon>
+                </template>
+                <span>{{ getFilterEyeState(item).tooltip }}</span>
+              </v-tooltip>
+            </v-col>
+            <v-col cols="3">
+              <MetadataKeyLabel :key-name="item.name" :description="item.description" />
+            </v-col>
+            <v-col cols="1">
+              {{ item.category }}
+            </v-col>
+            <v-col cols="2" class="text-caption">
+              {{ getDetailsText(item) }}
+            </v-col>
+            <v-col cols="3">
+              <v-row dense no-gutters class="edit-actions-row align-center">
+                <v-tooltip bottom open-delay="200">
+                  <template #activator="{ on }">
+                    <v-icon class="mr-1" small v-on="on" @click="openDescriptionDialog(item)">
+                      mdi-text-box-outline
+                    </v-icon>
+                  </template>
+                  <span>Edit metadata key description</span>
+                </v-tooltip>
+                <v-tooltip bottom open-delay="200">
+                  <template #activator="{ on }">
+                    <v-icon :color="!item.unlocked ? '' : 'warning'" v-on="on" @click="toggleUnlock(item)">
+                      {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
+                    </v-icon>
+                  </template>
+                  <span>{{ item.unlocked ? 'Field is unlocked for editing' : 'Field is locked from editing' }}</span>
+                </v-tooltip>
+                <v-icon color="error" @click="prepDeleteMetadata(item)">
+                  mdi-delete
+                </v-icon>
+              </v-row>
+            </v-col>
+          </v-row>
+        </v-card>
+      </draggable>
+    </v-card>
     <v-dialog v-model="deleteDialog" width="600">
       <v-card>
         <v-card-title>Delete Metadata Key: {{ deleteKey }}</v-card-title>
@@ -586,6 +735,33 @@ export default defineComponent({
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <v-dialog v-model="groupDialog" width="520">
+      <v-card>
+        <v-card-title>
+          {{ groupName && editingGroupId ? 'Edit Group' : 'Add Group' }}
+        </v-card-title>
+        <v-card-text>
+          <v-text-field v-model="groupName" label="Group name" />
+          <v-textarea
+            v-model="groupDescription"
+            auto-grow
+            rows="3"
+            label="Group description (optional)"
+            hint="Shown as a tooltip info icon in metadata views."
+            persistent-hint
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="groupDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="primary" :disabled="!groupName.trim()" @click="saveGroup">
+            Save
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
   <v-container v-else>
     <v-alert color="warning">
@@ -595,4 +771,8 @@ export default defineComponent({
 </template>
 
 <style scoped>
+.edit-actions-row {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
 </style>

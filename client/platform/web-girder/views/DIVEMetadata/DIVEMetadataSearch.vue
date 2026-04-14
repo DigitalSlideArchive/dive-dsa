@@ -5,8 +5,9 @@ import {
 import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
   DIVEMetadataFilterValueResults,
+  MetadataKeyGroup,
   MetadataFilterKeysItem,
-  orderMetadataKeys,
+  partitionMetadataKeys,
   setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
@@ -37,6 +38,13 @@ export default defineComponent({
     },
   },
   setup(props) {
+    interface GroupedKeySection {
+      id: string;
+      name: string;
+      description?: string;
+      keys: string[];
+    }
+
     const router = useRouter();
     const folderList: Ref<MetadataResultItem[]> = ref([]);
     const timeString = ref(Date.now());
@@ -44,7 +52,7 @@ export default defineComponent({
     const metadataKeysByName: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const loading = ref(true);
     const displayConfig: Ref<FilterDisplayConfig> = ref({
-      display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
+      display: [], hide: [], groups: [], categoricalLimit: 50, slicerCLI: 'Disabled',
     });
     const totalPages = ref(0);
     const currentPage = ref(0);
@@ -143,15 +151,31 @@ export default defineComponent({
       await updateFilter({ filter: currentFilter.value, sortVal: storedSortVal.value, sortDir: storedSortDir.value });
     };
 
-    const getDisplayedKeys = (item: MetadataResultItem) => {
+    const toGroupedSections = (groups: MetadataKeyGroup[]): GroupedKeySection[] => groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      keys: group.keys,
+    }));
+    const getDisplayedSections = (item: MetadataResultItem) => {
       const keys = displayConfig.value.display.filter((key) => item.metadata[key] !== undefined);
-      return orderMetadataKeys(keys, displayConfig.value);
+      const partitioned = partitionMetadataKeys(keys, displayConfig.value);
+      return {
+        ungrouped: partitioned.ungrouped,
+        groups: toGroupedSections(partitioned.groups),
+      };
     };
-    const getAdvanced = (item: MetadataResultItem) => {
+    const getAdvancedSections = (item: MetadataResultItem) => {
       const keys = Object.keys(item.metadata)
         .filter((key) => !displayConfig.value.hide.includes(key) && !displayConfig.value.display.includes(key));
-      return orderMetadataKeys(keys, displayConfig.value)
-        .map((key) => ({ key, value: item.metadata[key] }));
+      const partitioned = partitionMetadataKeys(keys, displayConfig.value);
+      return {
+        ungrouped: partitioned.ungrouped.map((key) => ({ key, value: item.metadata[key] })),
+        groups: toGroupedSections(partitioned.groups).map((group) => ({
+          ...group,
+          keys: group.keys,
+        })),
+      };
     };
     const openClone = ref(false);
 
@@ -184,6 +208,17 @@ export default defineComponent({
       const route = router.resolve({ name: 'viewer', params: { id }, query: { diveMetadataRootId: props.id } });
       window.open(route.href, '_blank');
     };
+    const getEditableValue = (item: MetadataResultItem, key: string): string | number | boolean | null => {
+      const value = item.metadata[key];
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return value;
+      }
+      return null;
+    };
+    const getEditableSetValues = (key: string): string[] => {
+      const values = unlockedMap.value[key]?.set || [];
+      return values.filter((value): value is string => typeof value === 'string');
+    };
 
     return {
       totalPages,
@@ -196,8 +231,8 @@ export default defineComponent({
       folderList,
       timeString,
       displayConfig,
-      getDisplayedKeys,
-      getAdvanced,
+      getDisplayedSections,
+      getAdvancedSections,
       filters,
       isOwnerAdmin,
       //Cloning
@@ -209,6 +244,8 @@ export default defineComponent({
       updateDiveMetadataKeyVal,
       loading,
       openInNewTab,
+      getEditableValue,
+      getEditableSetValues,
     };
   },
 });
@@ -275,7 +312,7 @@ export default defineComponent({
             </v-btn>
           </div>
         </v-row>
-        <v-row v-for="display in getDisplayedKeys(item)" :key="`${display}_${timeString}`" class="ma-4" align="center">
+        <v-row v-for="display in getDisplayedSections(item).ungrouped" :key="`${display}_${timeString}`" class="ma-4" align="center">
           <span class="font-weight-bold">
             <MetadataKeyLabel
               :key-name="display"
@@ -285,8 +322,8 @@ export default defineComponent({
           <div v-if="unlockedMap[display] !== undefined">
             <DIVEMetadataEditKey
               :category="unlockedMap[display].category"
-              :value="item.metadata[display]"
-              :set-values="unlockedMap[display].set || []"
+              :value="getEditableValue(item, display)"
+              :set-values="getEditableSetValues(display)"
               class="pl-2"
               @update="updateDiveMetadataKeyVal(item.DIVEDataset, display, $event)"
             />
@@ -296,10 +333,49 @@ export default defineComponent({
           </div>
         </v-row>
         <v-expansion-panels>
+          <v-expansion-panel v-for="group in getDisplayedSections(item).groups" :key="`${group.id}_${item.DIVEDataset}`" class="border">
+            <v-expansion-panel-header>
+              <span class="font-weight-bold d-inline-flex align-center">
+                {{ group.name }}
+                <v-tooltip v-if="group.description" bottom max-width="360" open-delay="200">
+                  <template #activator="{ on }">
+                    <v-icon small class="ml-1" color="grey lighten-1" v-on="on">
+                      mdi-information
+                    </v-icon>
+                  </template>
+                  <span>{{ group.description }}</span>
+                </v-tooltip>
+              </span>
+            </v-expansion-panel-header>
+            <v-expansion-panel-content>
+              <v-row v-for="display in group.keys" :key="`${group.id}_${display}_${timeString}`" class="ma-2" align="center">
+                <span class="font-weight-bold">
+                  <MetadataKeyLabel
+                    :key-name="display"
+                    :description="metadataKeysByName[display] ? metadataKeysByName[display].description : undefined"
+                  />:
+                </span>
+                <div v-if="unlockedMap[display] !== undefined">
+                  <DIVEMetadataEditKey
+                    :category="unlockedMap[display].category"
+                    :value="getEditableValue(item, display)"
+                    :set-values="getEditableSetValues(display)"
+                    class="pl-2"
+                    @update="updateDiveMetadataKeyVal(item.DIVEDataset, display, $event)"
+                  />
+                </div>
+                <div v-else class="mx-2">
+                  {{ item.metadata[display] }}
+                </div>
+              </v-row>
+            </v-expansion-panel-content>
+          </v-expansion-panel>
+        </v-expansion-panels>
+        <v-expansion-panels>
           <v-expansion-panel class="border">
             <v-expansion-panel-header>Advanced</v-expansion-panel-header>
             <v-expansion-panel-content>
-              <v-row v-for="advanced in getAdvanced(item)" :key="`${advanced.key}_${timeString}`" class="border" dense>
+              <v-row v-for="advanced in getAdvancedSections(item).ungrouped" :key="`${advanced.key}_${timeString}`" class="border" dense>
                 <v-col cols="2" class="border">
                   <span class="font-weight-bold">
                     <MetadataKeyLabel
@@ -312,8 +388,8 @@ export default defineComponent({
                   <div v-if="unlockedMap[advanced.key] !== undefined">
                     <DIVEMetadataEditKey
                       :category="unlockedMap[advanced.key].category"
-                      :value="advanced.value"
-                      :set-values="unlockedMap[advanced.key].set || []"
+                      :value="getEditableValue(item, advanced.key)"
+                      :set-values="getEditableSetValues(advanced.key)"
                       @update="updateDiveMetadataKeyVal(item.DIVEDataset, advanced.key, $event)"
                     />
                   </div>
@@ -323,6 +399,48 @@ export default defineComponent({
                 </v-col>
                 <v-spacer />
               </v-row>
+              <v-expansion-panels>
+                <v-expansion-panel v-for="group in getAdvancedSections(item).groups" :key="`advanced_${group.id}_${item.DIVEDataset}`" class="border mt-2">
+                  <v-expansion-panel-header>
+                    <span class="font-weight-bold d-inline-flex align-center">
+                      {{ group.name }}
+                      <v-tooltip v-if="group.description" bottom max-width="360" open-delay="200">
+                        <template #activator="{ on }">
+                          <v-icon small class="ml-1" color="grey lighten-1" v-on="on">
+                            mdi-information
+                          </v-icon>
+                        </template>
+                        <span>{{ group.description }}</span>
+                      </v-tooltip>
+                    </span>
+                  </v-expansion-panel-header>
+                  <v-expansion-panel-content>
+                    <v-row v-for="groupKey in group.keys" :key="`${group.id}_${groupKey}_${timeString}`" class="border" dense>
+                      <v-col cols="2" class="border">
+                        <span class="font-weight-bold">
+                          <MetadataKeyLabel
+                            :key-name="groupKey"
+                            :description="metadataKeysByName[groupKey] ? metadataKeysByName[groupKey].description : undefined"
+                          />:
+                        </span>
+                      </v-col>
+                      <v-col cols="10">
+                        <div v-if="unlockedMap[groupKey] !== undefined">
+                          <DIVEMetadataEditKey
+                            :category="unlockedMap[groupKey].category"
+                            :value="getEditableValue(item, groupKey)"
+                            :set-values="getEditableSetValues(groupKey)"
+                            @update="updateDiveMetadataKeyVal(item.DIVEDataset, groupKey, $event)"
+                          />
+                        </div>
+                        <div v-else class="mx-2">
+                          {{ item.metadata[groupKey] }}
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </v-expansion-panel-content>
+                </v-expansion-panel>
+              </v-expansion-panels>
             </v-expansion-panel-content>
           </v-expansion-panel>
         </v-expansion-panels>

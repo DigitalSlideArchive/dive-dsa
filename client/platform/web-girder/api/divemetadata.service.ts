@@ -18,6 +18,8 @@ export interface FilterDisplayConfig {
     hide: string[];
     /** Preferred display order for metadata keys across metadata UIs. */
     order?: string[];
+    /** Optional key groups used to organize metadata fields in UI. */
+    groups?: MetadataKeyGroup[];
     /**
      * Keys shown in the primary filter row. If omitted, `display` is used (legacy).
      */
@@ -28,6 +30,13 @@ export interface FilterDisplayConfig {
     filterHide?: string[];
     categoricalLimit: number;
     slicerCLI: 'Disabled' | 'Owner' | 'All Users'
+}
+
+export interface MetadataKeyGroup {
+  id: string;
+  name: string;
+  description?: string;
+  keys: string[];
 }
 
 export function effectiveFilterLists(config: FilterDisplayConfig): { filterDisplay: string[]; filterHide: string[] } {
@@ -52,6 +61,34 @@ export function orderMetadataKeys(keys: string[], config: FilterDisplayConfig): 
     }
   });
   return orderedKeys;
+}
+
+export function partitionMetadataKeys(
+  keys: string[],
+  config: FilterDisplayConfig,
+): { groups: MetadataKeyGroup[]; ungrouped: string[] } {
+  const orderedKeys = orderMetadataKeys(keys, config);
+  const orderedKeySet = new Set(orderedKeys);
+  const assigned = new Set<string>();
+  const grouped = (config.groups || [])
+    .map((group) => {
+      const groupKeySet = new Set(group.keys || []);
+      const groupKeys = orderedKeys.filter((key) => (
+        orderedKeySet.has(key)
+        && groupKeySet.has(key)
+        && !assigned.has(key)
+      ));
+      groupKeys.forEach((key) => assigned.add(key));
+      return {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        keys: groupKeys,
+      };
+    })
+    .filter((group) => group.keys.length > 0);
+  const ungrouped = orderedKeys.filter((key) => !assigned.has(key));
+  return { groups: grouped, ungrouped };
 }
 
 export interface MetadataFilterKeysItem {
@@ -290,11 +327,14 @@ async function updateDiveMetadataSlicerConfig(folderId:string, value: 'Disabled'
   }
 }
 
-async function updateDiveMetadataOrder(folderId: string, order: string[]) {
+async function updateDiveMetadataOrder(folderId: string, order: string[], groups?: MetadataKeyGroup[]) {
   const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
   const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
   if (DIVEMetadataFilter) {
     DIVEMetadataFilter.order = order;
+    if (groups !== undefined) {
+      DIVEMetadataFilter.groups = groups;
+    }
     await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
   }
 }
