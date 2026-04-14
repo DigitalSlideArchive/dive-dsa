@@ -6,6 +6,7 @@ import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
   DIVEMetadataFilterValueResults,
   MetadataFilterKeysItem,
+  orderMetadataKeys,
   setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
@@ -142,15 +143,15 @@ export default defineComponent({
       await updateFilter({ filter: currentFilter.value, sortVal: storedSortVal.value, sortDir: storedSortDir.value });
     };
 
+    const getDisplayedKeys = (item: MetadataResultItem) => {
+      const keys = displayConfig.value.display.filter((key) => item.metadata[key] !== undefined);
+      return orderMetadataKeys(keys, displayConfig.value);
+    };
     const getAdvanced = (item: MetadataResultItem) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const advancedList: Record<string, any> = {};
-      Object.entries(item.metadata).forEach(([key, value]) => {
-        if (!displayConfig.value.hide.includes(key)) {
-          advancedList[key] = value;
-        }
-      });
-      return advancedList;
+      const keys = Object.keys(item.metadata)
+        .filter((key) => !displayConfig.value.hide.includes(key) && !displayConfig.value.display.includes(key));
+      return orderMetadataKeys(keys, displayConfig.value)
+        .map((key) => ({ key, value: item.metadata[key] }));
     };
     const openClone = ref(false);
 
@@ -195,6 +196,7 @@ export default defineComponent({
       folderList,
       timeString,
       displayConfig,
+      getDisplayedKeys,
       getAdvanced,
       filters,
       isOwnerAdmin,
@@ -273,7 +275,7 @@ export default defineComponent({
             </v-btn>
           </div>
         </v-row>
-        <v-row v-for="display in displayConfig['display']" :key="`${display}_${timeString}`" class="ma-4" align="center">
+        <v-row v-for="display in getDisplayedKeys(item)" :key="`${display}_${timeString}`" class="ma-4" align="center">
           <span class="font-weight-bold">
             <MetadataKeyLabel
               :key-name="display"
@@ -297,26 +299,26 @@ export default defineComponent({
           <v-expansion-panel class="border">
             <v-expansion-panel-header>Advanced</v-expansion-panel-header>
             <v-expansion-panel-content>
-              <v-row v-for="(data, dataKey) in getAdvanced(item)" :key="`${dataKey}_${timeString}`" class="border" dense>
+              <v-row v-for="advanced in getAdvanced(item)" :key="`${advanced.key}_${timeString}`" class="border" dense>
                 <v-col cols="2" class="border">
                   <span class="font-weight-bold">
                     <MetadataKeyLabel
-                      :key-name="dataKey"
-                      :description="metadataKeysByName[dataKey] ? metadataKeysByName[dataKey].description : undefined"
+                      :key-name="advanced.key"
+                      :description="metadataKeysByName[advanced.key] ? metadataKeysByName[advanced.key].description : undefined"
                     />:
                   </span>
                 </v-col>
                 <v-col cols="10">
-                  <div v-if="unlockedMap[dataKey] !== undefined">
+                  <div v-if="unlockedMap[advanced.key] !== undefined">
                     <DIVEMetadataEditKey
-                      :category="unlockedMap[dataKey].category"
-                      :value="data"
-                      :set-values="unlockedMap[dataKey].set || []"
-                      @update="updateDiveMetadataKeyVal(item.DIVEDataset, dataKey, $event)"
+                      :category="unlockedMap[advanced.key].category"
+                      :value="advanced.value"
+                      :set-values="unlockedMap[advanced.key].set || []"
+                      @update="updateDiveMetadataKeyVal(item.DIVEDataset, advanced.key, $event)"
                     />
                   </div>
                   <div v-else class="mx-2">
-                    {{ data }}
+                    {{ advanced.value }}
                   </div>
                 </v-col>
                 <v-spacer />

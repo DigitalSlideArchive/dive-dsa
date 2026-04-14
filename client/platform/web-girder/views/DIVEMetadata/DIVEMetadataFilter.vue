@@ -2,6 +2,7 @@
 import {
   DIVEMetadataFilter, MetadataFilterItem, DIVEMetadataFilterValueResults, getMetadataFilterValues, FilterDisplayConfig,
   effectiveFilterLists,
+  orderMetadataKeys,
 } from 'platform/web-girder/api/divemetadata.service';
 import {
   computed, defineComponent, onMounted, PropType, Ref, ref, watch,
@@ -69,14 +70,19 @@ export default defineComponent({
     const regEx: Ref<undefined | boolean> = ref(props.rootFilter.searchRegEx);
     const filters: Ref<DIVEMetadataFilterValueResults['metadataKeys']> = ref({});
     const splitFilters = computed(() => {
-      const advanced: DIVEMetadataFilterValueResults['metadataKeys'] = {};
-      const displayed: DIVEMetadataFilterValueResults['metadataKeys'] = {};
+      const advanced: { key: string; item: DIVEMetadataFilterValueResults['metadataKeys'][string] }[] = [];
+      const displayed: { key: string; item: DIVEMetadataFilterValueResults['metadataKeys'][string] }[] = [];
       const { filterDisplay, filterHide } = effectiveFilterLists(props.displayConfig);
-      Object.entries(filters.value).forEach(([key, item]) => {
+      const orderedKeys = orderMetadataKeys(Object.keys(filters.value), props.displayConfig);
+      orderedKeys.forEach((key) => {
+        const item = filters.value[key];
+        if (!item) {
+          return;
+        }
         if (filterDisplay && filterDisplay.includes(key)) {
-          displayed[key] = item;
+          displayed.push({ key, item });
         } else if (filterHide && !filterHide.includes(key)) {
-          advanced[key] = item;
+          advanced.push({ key, item });
         }
       });
       return { advanced, displayed };
@@ -86,7 +92,11 @@ export default defineComponent({
     const currentFilter: Ref<DIVEMetadataFilter> = ref({});
     const sortParams = computed(() => {
       if (splitFilters.value) {
-        return ['filename', ...Object.keys(splitFilters.value.displayed), ...Object.keys(splitFilters.value.advanced)];
+        return [
+          'filename',
+          ...splitFilters.value.displayed.map((entry) => entry.key),
+          ...splitFilters.value.advanced.map((entry) => entry.key),
+        ];
       }
       return ['filename'];
     });
@@ -113,7 +123,8 @@ export default defineComponent({
         const advancedKeys: string[] = [];
         await getFilters();
         const { filterDisplay, filterHide } = effectiveFilterLists(props.displayConfig);
-        Object.keys(filters.value).forEach((key) => {
+        const orderedKeys = orderMetadataKeys(Object.keys(filters.value), props.displayConfig);
+        orderedKeys.forEach((key) => {
           if (filterDisplay && filterDisplay.includes(key)) {
             metadataKeys.push(key);
           } else if (filterHide && !filterHide.includes(key)) {
@@ -153,7 +164,7 @@ export default defineComponent({
     watch(filtersOn, (newVal, oldVal) => {
       if (!newVal && oldVal) {
         // We remove all of the old filters then
-        Object.keys(splitFilters.value.advanced).forEach((key) => {
+        splitFilters.value.advanced.forEach(({ key }) => {
           if (currentFilter.value && currentFilter.value.metadataFilters && currentFilter.value.metadataFilters[key]) {
             delete currentFilter.value.metadataFilters[key];
           }
@@ -391,16 +402,16 @@ export default defineComponent({
         :class="{ 'mb-4': !filtersOn }"
       >
         <v-spacer />
-        <div v-for="(filterItem, key) in splitFilters.displayed" :key="`filterItem_${key}`">
+        <div v-for="filterEntry in splitFilters.displayed" :key="`filterItem_${filterEntry.key}`">
           <DIVEMetadataFilterItemVue
-            :label="key"
-            :default-value="getDefaultValue(key)"
-            :reg-ex-value="getRegExVal(key)"
-            :filter-item="filterItem"
-            :default-enabled="defaultEnabledKeys.includes(key)"
+            :label="filterEntry.key"
+            :default-value="getDefaultValue(filterEntry.key)"
+            :reg-ex-value="getRegExVal(filterEntry.key)"
+            :filter-item="filterEntry.item"
+            :default-enabled="defaultEnabledKeys.includes(filterEntry.key)"
             :categorical-limit="categoricalLimit"
-            @update-value="updateFilter(key, $event)"
-            @clear-filter="clearFilter(key)"
+            @update-value="updateFilter(filterEntry.key, $event)"
+            @clear-filter="clearFilter(filterEntry.key)"
           />
         </div>
         <v-spacer />
@@ -411,16 +422,16 @@ export default defineComponent({
         class="mt-3 mb-4"
       >
         <v-spacer />
-        <div v-for="(filterItem, key) in splitFilters.advanced" :key="`filterItem_${key}`">
+        <div v-for="filterEntry in splitFilters.advanced" :key="`filterItem_${filterEntry.key}`">
           <DIVEMetadataFilterItemVue
-            :label="key"
-            :default-value="getDefaultValue(key)"
-            :reg-ex-value="getRegExVal(key)"
-            :filter-item="filterItem"
-            :default-enabled="defaultEnabledKeys.includes(key)"
+            :label="filterEntry.key"
+            :default-value="getDefaultValue(filterEntry.key)"
+            :reg-ex-value="getRegExVal(filterEntry.key)"
+            :filter-item="filterEntry.item"
+            :default-enabled="defaultEnabledKeys.includes(filterEntry.key)"
             :categorical-limit="categoricalLimit"
-            @update-value="updateFilter(key, $event)"
-            @clear-filter="clearFilter(key)"
+            @update-value="updateFilter(filterEntry.key, $event)"
+            @clear-filter="clearFilter(filterEntry.key)"
           />
         </div>
         <v-spacer />

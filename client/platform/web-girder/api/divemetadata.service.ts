@@ -16,6 +16,8 @@ export interface FilterDisplayConfig {
     display: string[];
     /** Keys hidden from the list view Advanced section (and not in main columns). */
     hide: string[];
+    /** Preferred display order for metadata keys across metadata UIs. */
+    order?: string[];
     /**
      * Keys shown in the primary filter row. If omitted, `display` is used (legacy).
      */
@@ -33,6 +35,23 @@ export function effectiveFilterLists(config: FilterDisplayConfig): { filterDispl
     filterDisplay: config.filterDisplay !== undefined ? config.filterDisplay : (config.display || []),
     filterHide: config.filterHide !== undefined ? config.filterHide : (config.hide || []),
   };
+}
+
+export function orderMetadataKeys(keys: string[], config: FilterDisplayConfig): string[] {
+  const uniqueKeys = Array.from(new Set(keys));
+  const preferredOrder = config.order || [];
+  const orderedKeys: string[] = [];
+  preferredOrder.forEach((key) => {
+    if (uniqueKeys.includes(key)) {
+      orderedKeys.push(key);
+    }
+  });
+  uniqueKeys.forEach((key) => {
+    if (!orderedKeys.includes(key)) {
+      orderedKeys.push(key);
+    }
+  });
+  return orderedKeys;
 }
 
 export interface MetadataFilterKeysItem {
@@ -271,6 +290,15 @@ async function updateDiveMetadataSlicerConfig(folderId:string, value: 'Disabled'
   }
 }
 
+async function updateDiveMetadataOrder(folderId: string, order: string[]) {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
+  if (DIVEMetadataFilter) {
+    DIVEMetadataFilter.order = order;
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
 async function runSlicerMetadataTask(rootId: string, taskId: string, filters: DIVEMetadataFilter, params: Record<string, XMLBaseValue>) {
   return girderRest.post<JobResponse>(`dive_metadata/${rootId}/slicer-cli-task`, { taskId, filterParams: { filters, params } }, { params: { taskId, filterParams: { filters, params } } });
 }
@@ -351,6 +379,7 @@ export {
   updateDiveMetadataDisplay,
   updateDiveMetadataFilterVisibility,
   updateDiveMetadataSlicerConfig,
+  updateDiveMetadataOrder,
   runSlicerMetadataTask,
   exportDiveMetadata,
   putDiveMetadataLastModified,

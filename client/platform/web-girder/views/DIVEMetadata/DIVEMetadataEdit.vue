@@ -3,6 +3,7 @@ import {
   defineComponent, onMounted, ref, Ref,
   watch,
 } from 'vue';
+import draggable from 'vuedraggable';
 import {
   addDiveMetadataKey,
   deleteDiveMetadataKey,
@@ -13,8 +14,10 @@ import {
   updateDiveMetadataDisplay,
   updateDiveMetadataFilterVisibility,
   updateDiveMetadataKeyDescription,
+  updateDiveMetadataOrder,
   updateDiveMetadataSlicerConfig,
   effectiveFilterLists,
+  orderMetadataKeys,
 } from 'platform/web-girder/api/divemetadata.service';
 import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/girder.service';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
@@ -43,6 +46,7 @@ export default defineComponent({
     DIVEMetadataFilterVue,
     DIVEMetadataCloneVue,
     MetadataKeyLabel,
+    draggable,
   },
   props: {
     id: {
@@ -52,7 +56,7 @@ export default defineComponent({
   },
   setup(props) {
     const displayConfig: Ref<FilterDisplayConfig> = ref({
-      display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
+      display: [], hide: [], order: [], categoricalLimit: 50, slicerCLI: 'Disabled',
     });
 
     const girderRest = useGirderRest();
@@ -85,7 +89,8 @@ export default defineComponent({
       metadataKeys.value = data.metadataKeys;
       unlocked.value = data.unlocked;
       const { filterDisplay, filterHide } = effectiveFilterLists(displayConfig.value);
-      Object.keys(metadataKeys.value).forEach((key) => {
+      const orderedKeys = orderMetadataKeys(Object.keys(metadataKeys.value), displayConfig.value);
+      orderedKeys.forEach((key) => {
         if (metadataKeys.value && metadataKeys.value[key]) {
           formattedKeys.value.push({
             name: key,
@@ -105,13 +110,33 @@ export default defineComponent({
     };
 
     const metadataHeader = ref([
-      { text: 'List', value: 'listVisibility', width: '72px' },
-      { text: 'Filter', value: 'filterVisibility', width: '72px' },
-      { text: 'Name', value: 'name' },
-      { text: 'Category', value: 'category' },
-      { text: 'Details', value: 'details' },
-      { text: 'Edit', value: 'edit' },
+      { text: 'Drag', value: 'dragHandle', width: '72px', sortable: false },
+      { text: 'List', value: 'listVisibility', width: '72px', sortable: false },
+      { text: 'Filter', value: 'filterVisibility', width: '72px', sortable: false },
+      { text: 'Name', value: 'name', sortable: false },
+      { text: 'Category', value: 'category', sortable: false },
+      { text: 'Details', value: 'details', sortable: false },
+      { text: 'Edit', value: 'edit', sortable: false },
     ]);
+    const saveOrder = async () => {
+      processing.value = true;
+      try {
+        await updateDiveMetadataOrder(
+          props.id,
+          formattedKeys.value.map((item) => item.name),
+        );
+        await getFolderInfo(props.id);
+        await getData();
+      } finally {
+        processing.value = false;
+      }
+    };
+    const onDragEnd = async ({ oldIndex, newIndex }: { oldIndex?: number; newIndex?: number }) => {
+      if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) {
+        return;
+      }
+      await saveOrder();
+    };
     const getFolderInfo = async (id: string) => {
       const folder = (await getFolder(id)).data;
       try {
@@ -308,6 +333,7 @@ export default defineComponent({
 
     return {
       metadataHeader,
+      onDragEnd,
       formattedKeys,
       getListEyeState,
       toggleListVisibility,
@@ -367,71 +393,89 @@ export default defineComponent({
       :items-per-page="-1"
       hide-default-footer
     >
-      <template #item.name="{ item }">
-        <MetadataKeyLabel :key-name="item.name" :description="item.description" />
-      </template>
-      <template #item.listVisibility="{ item, index }">
-        <v-icon :color="item.visible ? 'primary' : ''" @click="toggleListVisibility(index)">
-          {{ getListEyeState(item).icon }}
-        </v-icon>
-        <v-tooltip
-          open-delay="200"
-          bottom
-          max-width="220"
+      <template #body>
+        <draggable
+          tag="tbody"
+          :list="formattedKeys"
+          handle=".drag-handle"
+          @end="onDragEnd"
         >
-          <template #activator="{ on }">
-            <v-icon small v-on="on">
-              mdi-help
-            </v-icon>
-          </template>
-          <span>{{ getListEyeState(item).tooltip }}</span>
-        </v-tooltip>
-      </template>
-      <template #item.filterVisibility="{ item, index }">
-        <v-icon :color="item.filterVisible ? 'primary' : ''" @click="toggleFilterVisibility(index)">
-          {{ getFilterEyeState(item).icon }}
-        </v-icon>
-        <v-tooltip
-          open-delay="200"
-          bottom
-          max-width="220"
-        >
-          <template #activator="{ on }">
-            <v-icon small v-on="on">
-              mdi-help
-            </v-icon>
-          </template>
-          <span>{{ getFilterEyeState(item).tooltip }}</span>
-        </v-tooltip>
-      </template>
-      <template #item.details="{ item }">
-        <div v-if="item.category !== 'numerical'">
-          <div><span>Count:</span><span class="ml-2">{{ item.count }}</span></div>
-          <div><span>Unique:</span><span class="ml-2">{{ item.unique }}</span></div>
-        </div>
-        <div v-else-if="item.category === 'numerical' && item.range">
-          <div><span>Min:</span><span class="ml-2">{{ item.range.min }}</span></div>
-          <div><span>Max:</span><span class="ml-2">{{ item.range.max }}</span></div>
-        </div>
-      </template>
-
-      <template #item.edit="{ item, index }">
-        <v-row>
-          <v-tooltip bottom open-delay="200">
-            <template #activator="{ on }">
-              <v-icon class="mr-1" small v-on="on" @click="openDescriptionDialog(item)">
-                mdi-text-box-outline
+          <tr v-for="(item, index) in formattedKeys" :key="item.name">
+            <td>
+              <v-icon class="drag-handle" :disabled="processing">
+                mdi-drag
               </v-icon>
-            </template>
-            <span>Edit key description (optional)</span>
-          </v-tooltip>
-          <v-icon :color="!item.unlocked ? '' : 'warning'" @click="toggleUnlock(index)">
-            {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
-          </v-icon>
-          <v-icon color="error" @click="prepDeleteMetadata(index)">
-            mdi-delete
-          </v-icon>
-        </v-row>
+            </td>
+            <td>
+              <v-icon :color="item.visible ? 'primary' : ''" @click="toggleListVisibility(index)">
+                {{ getListEyeState(item).icon }}
+              </v-icon>
+              <v-tooltip
+                open-delay="200"
+                bottom
+                max-width="220"
+              >
+                <template #activator="{ on }">
+                  <v-icon small v-on="on">
+                    mdi-help
+                  </v-icon>
+                </template>
+                <span>{{ getListEyeState(item).tooltip }}</span>
+              </v-tooltip>
+            </td>
+            <td>
+              <v-icon :color="item.filterVisible ? 'primary' : ''" @click="toggleFilterVisibility(index)">
+                {{ getFilterEyeState(item).icon }}
+              </v-icon>
+              <v-tooltip
+                open-delay="200"
+                bottom
+                max-width="220"
+              >
+                <template #activator="{ on }">
+                  <v-icon small v-on="on">
+                    mdi-help
+                  </v-icon>
+                </template>
+                <span>{{ getFilterEyeState(item).tooltip }}</span>
+              </v-tooltip>
+            </td>
+            <td>
+              <MetadataKeyLabel :key-name="item.name" :description="item.description" />
+            </td>
+            <td>
+              {{ item.category }}
+            </td>
+            <td>
+              <div v-if="item.category !== 'numerical'">
+                <div><span>Count:</span><span class="ml-2">{{ item.count }}</span></div>
+                <div><span>Unique:</span><span class="ml-2">{{ item.unique }}</span></div>
+              </div>
+              <div v-else-if="item.category === 'numerical' && item.range">
+                <div><span>Min:</span><span class="ml-2">{{ item.range.min }}</span></div>
+                <div><span>Max:</span><span class="ml-2">{{ item.range.max }}</span></div>
+              </div>
+            </td>
+            <td>
+              <v-row>
+                <v-tooltip bottom open-delay="200">
+                  <template #activator="{ on }">
+                    <v-icon class="mr-1" small v-on="on" @click="openDescriptionDialog(item)">
+                      mdi-text-box-outline
+                    </v-icon>
+                  </template>
+                  <span>Edit key description (optional)</span>
+                </v-tooltip>
+                <v-icon :color="!item.unlocked ? '' : 'warning'" @click="toggleUnlock(index)">
+                  {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
+                </v-icon>
+                <v-icon color="error" @click="prepDeleteMetadata(index)">
+                  mdi-delete
+                </v-icon>
+              </v-row>
+            </td>
+          </tr>
+        </draggable>
       </template>
     </v-data-table>
     <v-dialog v-model="deleteDialog" width="600">
