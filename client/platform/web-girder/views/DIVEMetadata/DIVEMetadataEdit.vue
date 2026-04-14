@@ -99,9 +99,9 @@ export default defineComponent({
     const editingGroupId = ref('');
 
     const persistLayout = async () => {
-      const order = [
-        ...groupedKeys.value.flatMap((group) => group.keys.map((item) => item.name)),
+      const arrangedOrder = [
         ...ungroupedKeys.value.map((item) => item.name),
+        ...groupedKeys.value.flatMap((group) => group.keys.map((item) => item.name)),
       ];
       const groups: MetadataKeyGroup[] = groupedKeys.value.map((group) => ({
         id: group.id,
@@ -109,7 +109,15 @@ export default defineComponent({
         description: group.description,
         keys: group.keys.map((item) => item.name),
       }));
-      await updateDiveMetadataOrder(props.id, order, groups);
+      const normalizedOrder = orderMetadataKeys(
+        Object.keys(metadataKeys.value),
+        {
+          ...displayConfig.value,
+          order: arrangedOrder,
+          groups,
+        },
+      );
+      await updateDiveMetadataOrder(props.id, normalizedOrder, groups);
     };
 
     const getData = async () => {
@@ -140,7 +148,11 @@ export default defineComponent({
         acc[item.name] = item;
         return acc;
       }, {});
-      const partitioned = partitionMetadataKeys(Object.keys(keyMap), displayConfig.value);
+      const partitioned = partitionMetadataKeys(
+        Object.keys(keyMap),
+        displayConfig.value,
+        { includeEmptyGroups: true },
+      );
       groupedKeys.value = partitioned.groups.map((group) => ({
         id: group.id,
         name: group.name,

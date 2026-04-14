@@ -66,7 +66,9 @@ export function orderMetadataKeys(keys: string[], config: FilterDisplayConfig): 
 export function partitionMetadataKeys(
   keys: string[],
   config: FilterDisplayConfig,
+  options?: { includeEmptyGroups?: boolean },
 ): { groups: MetadataKeyGroup[]; ungrouped: string[] } {
+  const includeEmptyGroups = options?.includeEmptyGroups || false;
   const orderedKeys = orderMetadataKeys(keys, config);
   const orderedKeySet = new Set(orderedKeys);
   const assigned = new Set<string>();
@@ -86,7 +88,7 @@ export function partitionMetadataKeys(
         keys: groupKeys,
       };
     })
-    .filter((group) => group.keys.length > 0);
+    .filter((group) => includeEmptyGroups || group.keys.length > 0);
   const ungrouped = orderedKeys.filter((key) => !assigned.has(key));
   return { groups: grouped, ungrouped };
 }
