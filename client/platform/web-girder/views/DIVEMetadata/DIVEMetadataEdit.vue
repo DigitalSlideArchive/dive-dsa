@@ -231,6 +231,42 @@ export default defineComponent({
       }
       return `Count: ${item.count} | Unique: ${item.unique ?? 0}`;
     };
+    const nonUnlockableKeys = new Set([
+      'DIVE_DatasetId',
+      'DatasetId',
+      'DIVEPath',
+      'DIVE_Path',
+      'DIVE_URL',
+      'DIVE_Name',
+      'LastModifiedBy',
+      'LastModifiedTime',
+      'LastModfiiedTime',
+    ]);
+    const ffprobeKeys = new Set([
+      'width',
+      'height',
+      'display_aspect_ratio',
+      'nb_frames',
+      'duration',
+    ]);
+    const getUnlockRestrictionReason = (keyName: string) => {
+      if (nonUnlockableKeys.has(keyName)) {
+        return 'This system metadata field cannot be unlocked for editing.';
+      }
+      if (ffprobeKeys.has(keyName) || keyName.startsWith('ffprobe_')) {
+        return 'This ffprobe-derived field cannot be unlocked for editing.';
+      }
+      return '';
+    };
+    const getDeleteRestrictionReason = (keyName: string) => {
+      if (nonUnlockableKeys.has(keyName)) {
+        return 'This system metadata field cannot be deleted.';
+      }
+      if (ffprobeKeys.has(keyName) || keyName.startsWith('ffprobe_')) {
+        return 'This ffprobe-derived field cannot be deleted.';
+      }
+      return '';
+    };
     const toggleFilterVisibility = async (item: FormattedMetadataKeys) => {
       let val: 'display' | 'hidden' | 'none';
       if (!item.filterVisible && !item.filterHidden) {
@@ -251,13 +287,20 @@ export default defineComponent({
 
     const toggleUnlock = async (item: FormattedMetadataKeys) => {
       if (item) {
-        item.unlocked = !item.unlocked;
-        modifyDiveMetadataPermission(props.id, item.name, item.unlocked);
+        if (getUnlockRestrictionReason(item.name)) {
+          return;
+        }
+        const nextUnlocked = !item.unlocked;
+        await modifyDiveMetadataPermission(props.id, item.name, nextUnlocked);
+        await getData();
       }
     };
 
     const deleteMetadata = async (name: string, purge = false) => {
       if (name) {
+        if (getDeleteRestrictionReason(name)) {
+          return;
+        }
         processing.value = true;
         await deleteDiveMetadataKey(props.id, name, purge);
         getFolderInfo(props.id);
@@ -269,6 +312,9 @@ export default defineComponent({
     };
 
     const prepDeleteMetadata = (item: FormattedMetadataKeys) => {
+      if (getDeleteRestrictionReason(item.name)) {
+        return;
+      }
       deleteKey.value = item.name;
       deleteDialog.value = true;
     };
@@ -409,6 +455,8 @@ export default defineComponent({
       toggleListVisibility,
       getFilterEyeState,
       getDetailsText,
+      getUnlockRestrictionReason,
+      getDeleteRestrictionReason,
       toggleFilterVisibility,
       toggleUnlock,
       deleteMetadata,
@@ -473,12 +521,24 @@ export default defineComponent({
         Ungrouped Metadata Keys
       </div>
       <v-row dense class="px-2 pb-2 font-weight-bold text-caption">
-        <v-col cols="1">Drag</v-col>
-        <v-col cols="2">List/Filter</v-col>
-        <v-col cols="3">Name</v-col>
-        <v-col cols="1">Category</v-col>
-        <v-col cols="2">Details</v-col>
-        <v-col cols="3">Edit</v-col>
+        <v-col cols="1">
+          Drag
+        </v-col>
+        <v-col cols="2">
+          List/Filter
+        </v-col>
+        <v-col cols="3">
+          Name
+        </v-col>
+        <v-col cols="1">
+          Category
+        </v-col>
+        <v-col cols="2">
+          Details
+        </v-col>
+        <v-col cols="3">
+          Edit
+        </v-col>
       </v-row>
       <draggable :list="ungroupedKeys" :group="{ name: 'metadata-keys' }" handle=".drag-handle" @end="onDragEnd">
         <v-card v-for="item in ungroupedKeys" :key="item.name" outlined class="mb-2 pa-2">
@@ -526,16 +586,31 @@ export default defineComponent({
                   <span>Edit metadata key description</span>
                 </v-tooltip>
                 <v-tooltip bottom open-delay="200">
-                  <template #activator="{ on }">
+                  <template v-if="getUnlockRestrictionReason(item.name)" #activator="{ on }">
+                    <v-icon color="error" v-on="on">
+                      mdi-lock-alert
+                    </v-icon>
+                  </template>
+                  <template v-else #activator="{ on }">
                     <v-icon :color="!item.unlocked ? '' : 'warning'" v-on="on" @click="toggleUnlock(item)">
                       {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
                     </v-icon>
                   </template>
-                  <span>{{ item.unlocked ? 'Field is unlocked for editing' : 'Field is locked from editing' }}</span>
+                  <span>{{ getUnlockRestrictionReason(item.name) || (item.unlocked ? 'Field is unlocked for editing' : 'Field is locked from editing') }}</span>
                 </v-tooltip>
-                <v-icon color="error" @click="prepDeleteMetadata(item)">
-                  mdi-delete
-                </v-icon>
+                <v-tooltip bottom open-delay="200">
+                  <template v-if="getDeleteRestrictionReason(item.name)" #activator="{ on }">
+                    <v-icon color="error" v-on="on">
+                      mdi-delete-off
+                    </v-icon>
+                  </template>
+                  <template v-else #activator="{ on }">
+                    <v-icon color="error" v-on="on" @click="prepDeleteMetadata(item)">
+                      mdi-delete
+                    </v-icon>
+                  </template>
+                  <span>{{ getDeleteRestrictionReason(item.name) || 'Delete this metadata field' }}</span>
+                </v-tooltip>
               </v-row>
             </v-col>
           </v-row>
@@ -558,12 +633,24 @@ export default defineComponent({
         </v-col>
       </v-row>
       <v-row dense class="px-2 pb-2 font-weight-bold text-caption">
-        <v-col cols="1">Drag</v-col>
-        <v-col cols="2">List/Filter</v-col>
-        <v-col cols="3">Name</v-col>
-        <v-col cols="1">Category</v-col>
-        <v-col cols="2">Details</v-col>
-        <v-col cols="3">Edit</v-col>
+        <v-col cols="1">
+          Drag
+        </v-col>
+        <v-col cols="2">
+          List/Filter
+        </v-col>
+        <v-col cols="3">
+          Name
+        </v-col>
+        <v-col cols="1">
+          Category
+        </v-col>
+        <v-col cols="2">
+          Details
+        </v-col>
+        <v-col cols="3">
+          Edit
+        </v-col>
       </v-row>
       <draggable :list="group.keys" :group="{ name: 'metadata-keys' }" handle=".drag-handle" @end="onDragEnd">
         <v-card v-for="item in group.keys" :key="item.name" outlined class="mb-2 pa-2">
@@ -611,16 +698,31 @@ export default defineComponent({
                   <span>Edit metadata key description</span>
                 </v-tooltip>
                 <v-tooltip bottom open-delay="200">
-                  <template #activator="{ on }">
+                  <template v-if="getUnlockRestrictionReason(item.name)" #activator="{ on }">
+                    <v-icon color="error" v-on="on">
+                      mdi-lock-alert
+                    </v-icon>
+                  </template>
+                  <template v-else #activator="{ on }">
                     <v-icon :color="!item.unlocked ? '' : 'warning'" v-on="on" @click="toggleUnlock(item)">
                       {{ item.unlocked ? 'mdi-lock-open' : 'mdi-lock' }}
                     </v-icon>
                   </template>
-                  <span>{{ item.unlocked ? 'Field is unlocked for editing' : 'Field is locked from editing' }}</span>
+                  <span>{{ getUnlockRestrictionReason(item.name) || (item.unlocked ? 'Field is unlocked for editing' : 'Field is locked from editing') }}</span>
                 </v-tooltip>
-                <v-icon color="error" @click="prepDeleteMetadata(item)">
-                  mdi-delete
-                </v-icon>
+                <v-tooltip bottom open-delay="200">
+                  <template v-if="getDeleteRestrictionReason(item.name)" #activator="{ on }">
+                    <v-icon color="error" v-on="on">
+                      mdi-delete-off
+                    </v-icon>
+                  </template>
+                  <template v-else #activator="{ on }">
+                    <v-icon color="error" v-on="on" @click="prepDeleteMetadata(item)">
+                      mdi-delete
+                    </v-icon>
+                  </template>
+                  <span>{{ getDeleteRestrictionReason(item.name) || 'Delete this metadata field' }}</span>
+                </v-tooltip>
               </v-row>
             </v-col>
           </v-row>
