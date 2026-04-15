@@ -9,11 +9,13 @@ import { getFolder } from 'platform/web-girder/api';
 import { useStore } from 'platform/web-girder/store/types';
 import { useHandler } from 'vue-media-annotator/provides';
 import DIVEMetadataEditKey from 'platform/web-girder/views/DIVEMetadata/DIVEMetadataEditKey.vue';
+import MetadataKeyLabel from 'platform/web-girder/views/DIVEMetadata/MetadataKeyLabel.vue';
 import {
   FilterDisplayConfig,
   filterDiveMetadata,
   getMetadataFilterValues,
   MetadataFilterKeysItem,
+  partitionMetadataKeys,
   setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
@@ -23,6 +25,7 @@ export default defineComponent({
   components: {
     StackedVirtualSidebarContainer,
     DIVEMetadataEditKey,
+    MetadataKeyLabel,
   },
 
   props: {
@@ -45,6 +48,7 @@ export default defineComponent({
       display: [], hide: [], categoricalLimit: 50, slicerCLI: 'Disabled',
     });
     const unlockedMap: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
+    const metadataKeysByName: Ref<Record<string, MetadataFilterKeysItem>> = ref({});
     const getMetadata = async () => {
       if (store.state.Dataset.meta) {
         const resp = await getFolder(store.state.Dataset.meta?.id);
@@ -74,6 +78,7 @@ export default defineComponent({
           },
         );
         const filterData = await getMetadataFilterValues(diveMetadataRootId.value);
+        metadataKeysByName.value = filterData.data.metadataKeys || {};
         const { unlocked } = filterData.data;
         unlockedMap.value = {};
         if (unlocked) {
@@ -89,17 +94,52 @@ export default defineComponent({
 
     const processedDatasetMetadata = computed(() => {
       if (!datasetMetadata.value || !diveMetadataFilter.value) return null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const display: { default: Record<string, any>, advanced: Record<string, any>} = { default: {}, advanced: {} };
-      display.default.FileName = datasetMetadata.value.filename || 'N/A';
-      Object.keys(datasetMetadata.value.metadata).forEach((field) => {
-        if (datasetMetadata.value === null) return;
-        if (diveMetadataFilter.value.display.includes(field)) {
-          display.default[field] = datasetMetadata.value.metadata[field];
-        } else if (!diveMetadataFilter.value.hide.includes(field)) {
-          display.advanced[field] = datasetMetadata.value.metadata[field];
-        }
-      });
+      type MetadataField = { name: string; value: unknown };
+      type MetadataGroup = { id: string; name: string; description?: string; items: MetadataField[] };
+      const display: {
+        default: MetadataField[];
+        defaultGroups: MetadataGroup[];
+        advanced: MetadataField[];
+        advancedGroups: MetadataGroup[];
+      } = {
+        default: [{ name: 'FileName', value: datasetMetadata.value.filename || 'N/A' }],
+        defaultGroups: [],
+        advanced: [],
+        advancedGroups: [],
+      };
+      const allKeys = Object.keys(datasetMetadata.value.metadata);
+      const defaultKeys = allKeys.filter((field) => diveMetadataFilter.value.display.includes(field));
+      const advancedKeys = allKeys.filter((field) => !diveMetadataFilter.value.display.includes(field) && !diveMetadataFilter.value.hide.includes(field));
+
+      const defaultPartition = partitionMetadataKeys(defaultKeys, diveMetadataFilter.value);
+      display.default.push(...defaultPartition.ungrouped.map((name) => ({
+        name,
+        value: datasetMetadata.value?.metadata[name],
+      })));
+      display.defaultGroups = defaultPartition.groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        items: group.keys.map((name) => ({
+          name,
+          value: datasetMetadata.value?.metadata[name],
+        })),
+      }));
+
+      const advancedPartition = partitionMetadataKeys(advancedKeys, diveMetadataFilter.value);
+      display.advanced = advancedPartition.ungrouped.map((name) => ({
+        name,
+        value: datasetMetadata.value?.metadata[name],
+      }));
+      display.advancedGroups = advancedPartition.groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        items: group.keys.map((name) => ({
+          name,
+          value: datasetMetadata.value?.metadata[name],
+        })),
+      }));
       return display;
     });
     const datasetInfoLength = computed(() => Object.keys(datasetInfo.value || []).length);
@@ -119,6 +159,16 @@ export default defineComponent({
         });
       }
     };
+    const getEditableValue = (value: unknown): string | number | boolean | null => {
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return value;
+      }
+      return null;
+    };
+    const getEditableSetValues = (key: string): string[] => {
+      const values = unlockedMap.value[key]?.set || [];
+      return values.filter((value): value is string => typeof value === 'string');
+    };
 
     return {
       datasetInfo,
@@ -127,7 +177,10 @@ export default defineComponent({
       processedDatasetMetadata,
       panels,
       unlockedMap,
+      metadataKeysByName,
       updateDiveMetadataKeyVal,
+      getEditableValue,
+      getEditableSetValues,
     };
   },
 });
@@ -172,52 +225,150 @@ export default defineComponent({
           <v-expansion-panel v-if="processedDatasetMetadata" class="border">
             <v-expansion-panel-header>DIVE Metadata</v-expansion-panel-header>
             <v-expansion-panel-content class="pa-0">
-              <v-list-item v-for="(value, name) in processedDatasetMetadata.default" :key="`datasetMetadata_${name}`" two-line dense>
+              <v-list-item v-for="item in processedDatasetMetadata.default" :key="`datasetMetadata_${item.name}`" two-line dense>
                 <v-list-item-content>
                   <v-list-item-title>
-                    {{ name }}
+                    <MetadataKeyLabel
+                      :key-name="item.name"
+                      :description="metadataKeysByName[item.name] ? metadataKeysByName[item.name].description : undefined"
+                    />
                   </v-list-item-title>
                   <v-list-item-subtitle class="wrap-text">
-                    <span v-if="unlockedMap[name] !== undefined">
+                    <span v-if="unlockedMap[item.name] !== undefined">
                       <DIVEMetadataEditKey
-                        :category="unlockedMap[name].category"
-                        :value="value"
-                        :set-values="unlockedMap[name].set || []"
+                        :category="unlockedMap[item.name].category"
+                        :value="getEditableValue(item.value)"
+                        :set-values="getEditableSetValues(item.name)"
                         class="pl-2"
-                        @update="updateDiveMetadataKeyVal(name, $event)"
+                        @update="updateDiveMetadataKeyVal(item.name, $event)"
                       />
                     </span>
                     <span v-else>
-                      {{ value !== undefined ? value.toString() : '' }}
+                      {{ item.value !== undefined ? item.value.toString() : '' }}
                     </span>
                   </v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
               <v-expansion-panels>
-                <v-expansion-panel>
-                  <v-expansion-panel-header>Advanced</v-expansion-panel-header>
+                <v-expansion-panel
+                  v-for="group in processedDatasetMetadata.defaultGroups"
+                  :key="`datasetMetadata_default_group_${group.id}`"
+                >
+                  <v-expansion-panel-header>
+                    <span class="d-inline-flex align-center">
+                      {{ group.name }}
+                      <v-tooltip v-if="group.description" bottom max-width="320" open-delay="200">
+                        <template #activator="{ on }">
+                          <v-icon small class="ml-1" color="grey lighten-1" v-on="on">
+                            mdi-information
+                          </v-icon>
+                        </template>
+                        <span>{{ group.description }}</span>
+                      </v-tooltip>
+                    </span>
+                  </v-expansion-panel-header>
                   <v-expansion-panel-content class="pa-0">
-                    <v-list-item v-for="(value, name) in processedDatasetMetadata.advanced" :key="`datasetMetadata_${name}`" two-line dense>
+                    <v-list-item v-for="item in group.items" :key="`datasetMetadata_${group.id}_${item.name}`" two-line dense>
                       <v-list-item-content>
                         <v-list-item-title>
-                          {{ name }}
+                          <MetadataKeyLabel
+                            :key-name="item.name"
+                            :description="metadataKeysByName[item.name] ? metadataKeysByName[item.name].description : undefined"
+                          />
                         </v-list-item-title>
                         <v-list-item-subtitle class="wrap-text">
-                          <span v-if="unlockedMap[name] !== undefined">
+                          <span v-if="unlockedMap[item.name] !== undefined">
                             <DIVEMetadataEditKey
-                              :category="unlockedMap[name].category"
-                              :value="value"
-                              :set-values="unlockedMap[name].set || []"
+                              :category="unlockedMap[item.name].category"
+                              :value="getEditableValue(item.value)"
+                              :set-values="getEditableSetValues(item.name)"
                               class="pl-2"
-                              @update="updateDiveMetadataKeyVal(name, $event)"
+                              @update="updateDiveMetadataKeyVal(item.name, $event)"
                             />
                           </span>
                           <span v-else>
-                            {{ value !== undefined ? value.toString() : '' }}
+                            {{ item.value !== undefined ? item.value.toString() : '' }}
                           </span>
                         </v-list-item-subtitle>
                       </v-list-item-content>
                     </v-list-item>
+                  </v-expansion-panel-content>
+                </v-expansion-panel>
+              </v-expansion-panels>
+              <v-expansion-panels>
+                <v-expansion-panel>
+                  <v-expansion-panel-header>Advanced</v-expansion-panel-header>
+                  <v-expansion-panel-content class="pa-0">
+                    <v-list-item v-for="item in processedDatasetMetadata.advanced" :key="`datasetMetadata_${item.name}`" two-line dense>
+                      <v-list-item-content>
+                        <v-list-item-title>
+                          <MetadataKeyLabel
+                            :key-name="item.name"
+                            :description="metadataKeysByName[item.name] ? metadataKeysByName[item.name].description : undefined"
+                          />
+                        </v-list-item-title>
+                        <v-list-item-subtitle class="wrap-text">
+                          <span v-if="unlockedMap[item.name] !== undefined">
+                            <DIVEMetadataEditKey
+                              :category="unlockedMap[item.name].category"
+                              :value="getEditableValue(item.value)"
+                              :set-values="getEditableSetValues(item.name)"
+                              class="pl-2"
+                              @update="updateDiveMetadataKeyVal(item.name, $event)"
+                            />
+                          </span>
+                          <span v-else>
+                            {{ item.value !== undefined ? item.value.toString() : '' }}
+                          </span>
+                        </v-list-item-subtitle>
+                      </v-list-item-content>
+                    </v-list-item>
+                    <v-expansion-panels>
+                      <v-expansion-panel
+                        v-for="group in processedDatasetMetadata.advancedGroups"
+                        :key="`datasetMetadata_advanced_group_${group.id}`"
+                      >
+                        <v-expansion-panel-header>
+                          <span class="d-inline-flex align-center">
+                            {{ group.name }}
+                            <v-tooltip v-if="group.description" bottom max-width="320" open-delay="200">
+                              <template #activator="{ on }">
+                                <v-icon small class="ml-1" color="grey lighten-1" v-on="on">
+                                  mdi-information
+                                </v-icon>
+                              </template>
+                              <span>{{ group.description }}</span>
+                            </v-tooltip>
+                          </span>
+                        </v-expansion-panel-header>
+                        <v-expansion-panel-content class="pa-0">
+                          <v-list-item v-for="item in group.items" :key="`datasetMetadata_${group.id}_${item.name}`" two-line dense>
+                            <v-list-item-content>
+                              <v-list-item-title>
+                                <MetadataKeyLabel
+                                  :key-name="item.name"
+                                  :description="metadataKeysByName[item.name] ? metadataKeysByName[item.name].description : undefined"
+                                />
+                              </v-list-item-title>
+                              <v-list-item-subtitle class="wrap-text">
+                                <span v-if="unlockedMap[item.name] !== undefined">
+                                  <DIVEMetadataEditKey
+                                    :category="unlockedMap[item.name].category"
+                                    :value="getEditableValue(item.value)"
+                                    :set-values="getEditableSetValues(item.name)"
+                                    class="pl-2"
+                                    @update="updateDiveMetadataKeyVal(item.name, $event)"
+                                  />
+                                </span>
+                                <span v-else>
+                                  {{ item.value !== undefined ? item.value.toString() : '' }}
+                                </span>
+                              </v-list-item-subtitle>
+                            </v-list-item-content>
+                          </v-list-item>
+                        </v-expansion-panel-content>
+                      </v-expansion-panel>
+                    </v-expansion-panels>
                   </v-expansion-panel-content>
                 </v-expansion-panel>
               </v-expansion-panels>

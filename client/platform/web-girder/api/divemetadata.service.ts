@@ -12,10 +12,85 @@ export interface MetadataFilterItem {
 }
 
 export interface FilterDisplayConfig {
+    /** Keys shown as main columns on the metadata search page (list view). */
     display: string[];
+    /** Keys hidden from the list view Advanced section (and not in main columns). */
     hide: string[];
+    /** Preferred display order for metadata keys across metadata UIs. */
+    order?: string[];
+    /** Optional key groups used to organize metadata fields in UI. */
+    groups?: MetadataKeyGroup[];
+    /**
+     * Keys shown in the primary filter row. If omitted, `display` is used (legacy).
+     */
+    filterDisplay?: string[];
+    /**
+     * Keys excluded from the filter UI. If omitted, `hide` is used (legacy).
+     */
+    filterHide?: string[];
     categoricalLimit: number;
     slicerCLI: 'Disabled' | 'Owner' | 'All Users'
+}
+
+export interface MetadataKeyGroup {
+  id: string;
+  name: string;
+  description?: string;
+  keys: string[];
+}
+
+export function effectiveFilterLists(config: FilterDisplayConfig): { filterDisplay: string[]; filterHide: string[] } {
+  return {
+    filterDisplay: config.filterDisplay !== undefined ? config.filterDisplay : (config.display || []),
+    filterHide: config.filterHide !== undefined ? config.filterHide : (config.hide || []),
+  };
+}
+
+export function orderMetadataKeys(keys: string[], config: FilterDisplayConfig): string[] {
+  const uniqueKeys = Array.from(new Set(keys));
+  const preferredOrder = config.order || [];
+  const orderedKeys: string[] = [];
+  preferredOrder.forEach((key) => {
+    if (uniqueKeys.includes(key)) {
+      orderedKeys.push(key);
+    }
+  });
+  uniqueKeys.forEach((key) => {
+    if (!orderedKeys.includes(key)) {
+      orderedKeys.push(key);
+    }
+  });
+  return orderedKeys;
+}
+
+export function partitionMetadataKeys(
+  keys: string[],
+  config: FilterDisplayConfig,
+  options?: { includeEmptyGroups?: boolean },
+): { groups: MetadataKeyGroup[]; ungrouped: string[] } {
+  const includeEmptyGroups = options?.includeEmptyGroups || false;
+  const orderedKeys = orderMetadataKeys(keys, config);
+  const orderedKeySet = new Set(orderedKeys);
+  const assigned = new Set<string>();
+  const grouped = (config.groups || [])
+    .map((group) => {
+      const groupKeySet = new Set(group.keys || []);
+      const groupKeys = orderedKeys.filter((key) => (
+        orderedKeySet.has(key)
+        && groupKeySet.has(key)
+        && !assigned.has(key)
+      ));
+      groupKeys.forEach((key) => assigned.add(key));
+      return {
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        keys: groupKeys,
+      };
+    })
+    .filter((group) => includeEmptyGroups || group.keys.length > 0);
+  const ungrouped = orderedKeys.filter((key) => !assigned.has(key));
+  return { groups: grouped, ungrouped };
 }
 
 export interface MetadataFilterKeysItem {
@@ -28,6 +103,8 @@ export interface MetadataFilterKeysItem {
         min: number,
         max: number;
     };
+    /** Optional human-readable explanation of this metadata field. */
+    description?: string;
 
 }
 
@@ -142,11 +219,29 @@ function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, u
   });
 }
 
-function addDiveMetadataKey(rootMetadataFolder: string, key: string, category: 'numerical' | 'categorical' | 'search' | 'boolean', unlocked = false, valueList: string[] = [], defaultValue?: number | string | boolean) {
+function addDiveMetadataKey(
+  rootMetadataFolder: string,
+  key: string,
+  category: 'numerical' | 'categorical' | 'search' | 'boolean',
+  unlocked = false,
+  valueList: string[] = [],
+  defaultValue?: number | string | boolean,
+  description?: string,
+) {
   const values = valueList.length ? valueList.join(',') : undefined;
+  const desc = description?.trim();
   return girderRest.put(`dive_metadata/${rootMetadataFolder}/add_key`, null, {
     params: {
-      key, category, unlocked, values, default_value: defaultValue,
+      key, category, unlocked, values, default_value: defaultValue, description: desc || undefined,
+    },
+  });
+}
+
+function updateDiveMetadataKeyDescription(rootMetadataFolder: string, key: string, description: string) {
+  return girderRest.patch(`dive_metadata/${rootMetadataFolder}/key_description`, null, {
+    params: {
+      key,
+      description: description.trim(),
     },
   });
 }
@@ -194,11 +289,54 @@ async function updateDiveMetadataDisplay(folderId: string, key: string, state: '
   }
 }
 
+async function updateDiveMetadataFilterVisibility(folderId: string, key: string, state: 'display' | 'hidden' | 'none') {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
+  if (DIVEMetadataFilter) {
+    let filterDisplay: string[];
+    let filterHide: string[];
+    if (DIVEMetadataFilter.filterDisplay === undefined && DIVEMetadataFilter.filterHide === undefined) {
+      filterDisplay = [...(DIVEMetadataFilter.display || [])];
+      filterHide = [...(DIVEMetadataFilter.hide || [])];
+    } else {
+      filterDisplay = [...(DIVEMetadataFilter.filterDisplay ?? DIVEMetadataFilter.display ?? [])];
+      filterHide = [...(DIVEMetadataFilter.filterHide ?? DIVEMetadataFilter.hide ?? [])];
+    }
+    DIVEMetadataFilter.filterDisplay = filterDisplay;
+    DIVEMetadataFilter.filterHide = filterHide;
+    if (filterDisplay.includes(key)) {
+      filterDisplay.splice(filterDisplay.findIndex((item) => item === key), 1);
+    }
+    if (filterHide.includes(key)) {
+      filterHide.splice(filterHide.findIndex((item) => item === key), 1);
+    }
+    if (state === 'display') {
+      filterDisplay.push(key);
+    }
+    if (state === 'hidden') {
+      filterHide.push(key);
+    }
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
 async function updateDiveMetadataSlicerConfig(folderId:string, value: 'Disabled' | 'Owner' | 'All Users') {
   const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
   const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
   if (DIVEMetadataFilter) {
     DIVEMetadataFilter.slicerCLI = value;
+    await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
+  }
+}
+
+async function updateDiveMetadataOrder(folderId: string, order: string[], groups?: MetadataKeyGroup[]) {
+  const resp = await girderRest.get<GirderModelBase>(`folder/${folderId}`);
+  const DIVEMetadataFilter = resp.data.meta.DIVEMetadataFilter as FilterDisplayConfig;
+  if (DIVEMetadataFilter) {
+    DIVEMetadataFilter.order = order;
+    if (groups !== undefined) {
+      DIVEMetadataFilter.groups = groups;
+    }
     await girderRest.put(`folder/${folderId}/metadata`, { DIVEMetadataFilter });
   }
 }
@@ -276,11 +414,14 @@ export {
   createDiveMetadataFolder,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
+  updateDiveMetadataKeyDescription,
   deleteDiveMetadataKey,
   deleteDiveDatasetMetadataKey,
   setDiveDatasetMetadataKey,
   updateDiveMetadataDisplay,
+  updateDiveMetadataFilterVisibility,
   updateDiveMetadataSlicerConfig,
+  updateDiveMetadataOrder,
   runSlicerMetadataTask,
   exportDiveMetadata,
   putDiveMetadataLastModified,

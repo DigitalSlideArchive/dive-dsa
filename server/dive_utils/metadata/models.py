@@ -236,6 +236,47 @@ class DIVE_MetadataKeys(Model):
             raise ValidationException('owner must be a string')
         return doc
 
+    def updateKeyDescription(self, folder, owner, key, description):
+        existing = self.findOne({'root': str(folder['_id'])})
+        if not existing:
+            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
+        if owner['_id'] and existing['owner'] != str(owner['_id']):
+            raise Exception('Only the Owner can modify key descriptions')
+        if key not in existing['metadataKeys'].keys():
+            raise Exception(f'Key: {key} not in the metadata keys')
+        key_data = existing['metadataKeys'][key]
+        text = (description or '').strip()
+        if text:
+            key_data['description'] = text
+        else:
+            key_data.pop('description', None)
+        existing['metadataKeys'][key] = key_data
+        self.save(existing)
+
+    def mergeImportedKeyDescriptions(self, folder, owner, descriptions):
+        """Apply descriptions from JSON/bulk import to existing metadata key definitions (one save)."""
+        if not descriptions:
+            return
+        existing = self.findOne({'root': str(folder['_id'])})
+        if not existing:
+            return
+        if owner['_id'] and existing['owner'] != str(owner['_id']):
+            raise Exception('Only the Owner can modify key descriptions')
+        changed = False
+        for key, text in descriptions.items():
+            if key not in existing['metadataKeys']:
+                continue
+            t = (text or '').strip()
+            if not t:
+                continue
+            key_data = existing['metadataKeys'][key]
+            if key_data.get('description') != t:
+                key_data['description'] = t
+                existing['metadataKeys'][key] = key_data
+                changed = True
+        if changed:
+            self.save(existing)
+
     def modifyKeyPermission(self, folder, owner, key, unlocked):
         existing = self.findOne({'root': str(folder['_id'])})
         if not existing:
