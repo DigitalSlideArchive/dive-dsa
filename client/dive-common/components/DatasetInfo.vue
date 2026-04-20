@@ -19,6 +19,7 @@ import {
   setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import DatasetInfoAttributes from './DatasetInfoAttributes.vue';
 
 export default defineComponent({
   name: 'DatasetInfo',
@@ -26,6 +27,7 @@ export default defineComponent({
     StackedVirtualSidebarContainer,
     DIVEMetadataEditKey,
     MetadataKeyLabel,
+    DatasetInfoAttributes,
   },
 
   props: {
@@ -244,7 +246,7 @@ export default defineComponent({
                       />
                     </span>
                     <span v-else>
-                      {{ item.value !== undefined ? item.value.toString() : '' }}
+                      {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                     </span>
                   </v-list-item-subtitle>
                 </v-list-item-content>
@@ -287,7 +289,7 @@ export default defineComponent({
                             />
                           </span>
                           <span v-else>
-                            {{ item.value !== undefined ? item.value.toString() : '' }}
+                            {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                           </span>
                         </v-list-item-subtitle>
                       </v-list-item-content>
@@ -318,7 +320,7 @@ export default defineComponent({
                             />
                           </span>
                           <span v-else>
-                            {{ item.value !== undefined ? item.value.toString() : '' }}
+                            {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                           </span>
                         </v-list-item-subtitle>
                       </v-list-item-content>
@@ -361,7 +363,7 @@ export default defineComponent({
                                   />
                                 </span>
                                 <span v-else>
-                                  {{ item.value !== undefined ? item.value.toString() : '' }}
+                                  {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                                 </span>
                               </v-list-item-subtitle>
                             </v-list-item-content>
@@ -374,6 +376,7 @@ export default defineComponent({
               </v-expansion-panels>
             </v-expansion-panel-content>
           </v-expansion-panel>
+          <DatasetInfoAttributes />
         </v-expansion-panels>
       </v-container>
     </template>
@@ -385,4 +388,5 @@ export default defineComponent({
   white-space: normal !important;
   word-break: break-word;
 }
+
 </style>
