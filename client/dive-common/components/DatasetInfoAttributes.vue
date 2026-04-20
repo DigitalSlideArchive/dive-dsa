@@ -84,6 +84,11 @@ export default defineComponent({
       const value = getDisplayValue(attribute);
       return value === undefined ? 'N/A' : String(value);
     };
+    const shouldShowPredefinedValues = (attribute: Attribute) => (
+      attribute.datatype === 'text'
+      && !!attribute.values
+      && attribute.values.length > 0
+    );
     watch(
       detectionAttributes,
       (newAttributes) => {
@@ -103,6 +108,7 @@ export default defineComponent({
       stickyDetectionEnabled,
       getDisplayValue,
       getDisplayString,
+      shouldShowPredefinedValues,
     };
   },
 });
@@ -137,7 +143,7 @@ export default defineComponent({
                         <div>
                           <strong>Type:</strong> {{ attribute.datatype }}
                         </div>
-                        <template v-if="attribute.values && attribute.values.length">
+                        <template v-if="shouldShowPredefinedValues(attribute)">
                           <div class="mt-1">
                             <strong>Predefined values:</strong>
                           </div>
@@ -147,9 +153,6 @@ export default defineComponent({
                             </li>
                           </ul>
                         </template>
-                        <div v-else class="mt-1">
-                          <strong>Predefined values:</strong> None
-                        </div>
                       </div>
                     </v-tooltip>
                   </div>
@@ -234,7 +237,7 @@ export default defineComponent({
                         <div>
                           <strong>Type:</strong> {{ attribute.datatype }}
                         </div>
-                        <template v-if="attribute.values && attribute.values.length">
+                        <template v-if="shouldShowPredefinedValues(attribute)">
                           <div class="mt-1">
                             <strong>Predefined values:</strong>
                           </div>
@@ -244,9 +247,6 @@ export default defineComponent({
                             </li>
                           </ul>
                         </template>
-                        <div v-else class="mt-1">
-                          <strong>Predefined values:</strong> None
-                        </div>
                       </div>
                     </v-tooltip>
                   </div>
