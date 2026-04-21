@@ -29,7 +29,7 @@
   "types": "lib/types/index.d.ts",
   "dependencies": {
     "@flatten-js/interval-tree": "^1.0.11",
-    "@girder/components": "^3.2.0",
+    "@girder/components": "^4.0.1",
     "@mdi/font": "^6.2.95",
     "@mdi/js": "^7.4.47",
     "axios": "^1.6.7",
