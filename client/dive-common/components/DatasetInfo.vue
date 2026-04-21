@@ -196,7 +196,7 @@ export default defineComponent({
     <template #default>
       <v-container>
         <v-expansion-panels v-model="panels" multiple>
-          <v-expansion-panel v-if="datasetInfoLength">
+          <v-expansion-panel v-if="datasetInfoLength" class="border">
             <v-expansion-panel-header>Folder Info</v-expansion-panel-header>
             <v-expansion-panel-content>
               <v-simple-table dark>
@@ -255,6 +255,7 @@ export default defineComponent({
                 <v-expansion-panel
                   v-for="group in processedDatasetMetadata.defaultGroups"
                   :key="`datasetMetadata_default_group_${group.id}`"
+                  class="border"
                 >
                   <v-expansion-panel-header>
                     <span class="d-inline-flex align-center">
@@ -298,7 +299,7 @@ export default defineComponent({
                 </v-expansion-panel>
               </v-expansion-panels>
               <v-expansion-panels>
-                <v-expansion-panel>
+                <v-expansion-panel class="border">
                   <v-expansion-panel-header>Advanced</v-expansion-panel-header>
                   <v-expansion-panel-content class="pa-0">
                     <v-list-item v-for="item in processedDatasetMetadata.advanced" :key="`datasetMetadata_${item.name}`" two-line dense>
@@ -329,6 +330,7 @@ export default defineComponent({
                       <v-expansion-panel
                         v-for="group in processedDatasetMetadata.advancedGroups"
                         :key="`datasetMetadata_advanced_group_${group.id}`"
+                        class="border"
                       >
                         <v-expansion-panel-header>
                           <span class="d-inline-flex align-center">

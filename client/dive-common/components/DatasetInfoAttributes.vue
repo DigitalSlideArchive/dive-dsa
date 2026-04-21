@@ -9,6 +9,8 @@ import {
 import type { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 
+const STICKY_DETECTION_STORAGE_KEY = 'dive.datasetInfoAttributes.stickyDetectionEnabled';
+
 export default defineComponent({
   name: 'DatasetInfoAttributes',
   setup() {
@@ -19,6 +21,20 @@ export default defineComponent({
     const time = useTime();
     const stickyDetectionEnabled = ref(false);
     const hasInitializedStickyDetection = ref(false);
+    const getStoredStickyPreference = () => {
+      if (typeof window === 'undefined') {
+        return undefined;
+      }
+      try {
+        const storedValue = window.localStorage.getItem(STICKY_DETECTION_STORAGE_KEY);
+        if (storedValue === null) {
+          return undefined;
+        }
+        return storedValue === 'true';
+      } catch (error) {
+        return undefined;
+      }
+    };
     const detectionAttributes = computed(() => attributes.value.filter((attribute) => attribute.belongs === 'detection'));
     const trackAttributes = computed(() => attributes.value.filter((attribute) => attribute.belongs === 'track'));
     const hasAttributeInfo = computed(() => detectionAttributes.value.length > 0 || trackAttributes.value.length > 0);
@@ -39,10 +55,10 @@ export default defineComponent({
       }
       return source;
     };
-    const getDetectionValue = (attribute: Attribute, sticky = false) => {
+    const getDetectionValueInfo = (attribute: Attribute, sticky = false) => {
       const track = selectedTrack.value;
       if (!track) {
-        return undefined;
+        return { value: undefined, inherited: false };
       }
       const [feature] = track.getFeature(time.frame.value);
       let value: unknown;
@@ -50,7 +66,7 @@ export default defineComponent({
         value = getAttributeUserMap(feature.attributes, attribute)?.[attribute.name];
       }
       if (!sticky || (value !== undefined && value !== '')) {
-        return value;
+        return { value, inherited: false };
       }
       let previousFrame = time.frame.value;
       while (previousFrame >= 0) {
@@ -61,11 +77,11 @@ export default defineComponent({
         const [previousFeature] = track.getFeature(previousKeyframe);
         value = getAttributeUserMap(previousFeature?.attributes, attribute)?.[attribute.name];
         if (value !== undefined && value !== '') {
-          return value;
+          return { value, inherited: true };
         }
         previousFrame = previousKeyframe - 1;
       }
-      return undefined;
+      return { value: undefined, inherited: false };
     };
     const getTrackValue = (attribute: Attribute) => {
       const track = selectedTrack.value;
@@ -74,15 +90,22 @@ export default defineComponent({
       }
       return getAttributeUserMap(track.attributes, attribute)?.[attribute.name];
     };
-    const getDisplayValue = (attribute: Attribute) => {
+    const getDisplayInfo = (attribute: Attribute) => {
       if (attribute.belongs === 'detection') {
-        return getDetectionValue(attribute, stickyDetectionEnabled.value);
+        return getDetectionValueInfo(attribute, stickyDetectionEnabled.value);
       }
-      return getTrackValue(attribute);
+      return { value: getTrackValue(attribute), inherited: false };
     };
     const getDisplayString = (attribute: Attribute) => {
-      const value = getDisplayValue(attribute);
+      const { value } = getDisplayInfo(attribute);
       return value === undefined ? 'N/A' : String(value);
+    };
+    const isDisplayValueInherited = (attribute: Attribute) => getDisplayInfo(attribute).inherited;
+    const getDisplayValueTooltip = (attribute: Attribute) => {
+      const value = getDisplayString(attribute);
+      return isDisplayValueInherited(attribute)
+        ? `${value} (inherited from previous keyframe)`
+        : value;
     };
     const shouldShowPredefinedValues = (attribute: Attribute) => (
       attribute.datatype === 'text'
@@ -93,11 +116,29 @@ export default defineComponent({
       detectionAttributes,
       (newAttributes) => {
         if (!hasInitializedStickyDetection.value) {
-          stickyDetectionEnabled.value = newAttributes.some((attribute) => !!attribute.render?.sticky);
+          const storedStickyPreference = getStoredStickyPreference();
+          if (storedStickyPreference !== undefined) {
+            stickyDetectionEnabled.value = storedStickyPreference;
+          } else {
+            stickyDetectionEnabled.value = newAttributes.some((attribute) => !!attribute.render?.sticky);
+          }
           hasInitializedStickyDetection.value = true;
         }
       },
       { immediate: true },
+    );
+    watch(
+      stickyDetectionEnabled,
+      (enabled) => {
+        if (!hasInitializedStickyDetection.value || typeof window === 'undefined') {
+          return;
+        }
+        try {
+          window.localStorage.setItem(STICKY_DETECTION_STORAGE_KEY, String(enabled));
+        } catch (error) {
+          // Ignore storage failures so UI behavior remains usable.
+        }
+      },
     );
 
     return {
@@ -106,8 +147,9 @@ export default defineComponent({
       detectionAttributes,
       trackAttributes,
       stickyDetectionEnabled,
-      getDisplayValue,
       getDisplayString,
+      getDisplayValueTooltip,
+      isDisplayValueInherited,
       shouldShowPredefinedValues,
     };
   },
@@ -115,11 +157,14 @@ export default defineComponent({
 </script>
 
 <template>
-  <v-expansion-panel v-if="shouldShowAttributes">
+  <v-expansion-panel v-if="shouldShowAttributes" class="border">
     <v-expansion-panel-header>Attributes</v-expansion-panel-header>
     <v-expansion-panel-content class="pa-0">
       <v-expansion-panels multiple flat class="attribute-sections pa-0">
-        <v-expansion-panel class="attribute-section-panel">
+        <v-expansion-panel
+          v-if="trackAttributes.length"
+          class="attribute-section-panel border"
+        >
           <v-expansion-panel-header class="subtitle-2 py-2 attribute-section-header">
             Track Attributes
           </v-expansion-panel-header>
@@ -156,16 +201,26 @@ export default defineComponent({
                       </div>
                     </v-tooltip>
                   </div>
-                  <div class="attribute-value">
-                    {{ getDisplayString(attribute) }}
-                  </div>
+                  <v-tooltip bottom max-width="420" open-delay="200">
+                    <template #activator="{ on }">
+                      <div class="attribute-value d-inline-flex align-center" v-on="on">
+                        <span class="attribute-value-text">
+                          {{ getDisplayString(attribute) }}
+                        </span>
+                      </div>
+                    </template>
+                    <span>{{ getDisplayValueTooltip(attribute) }}</span>
+                  </v-tooltip>
                 </div>
               </v-list-item-content>
             </v-list-item>
           </v-expansion-panel-content>
         </v-expansion-panel>
 
-        <v-expansion-panel class="attribute-section-panel">
+        <v-expansion-panel
+          v-if="detectionAttributes.length"
+          class="attribute-section-panel border"
+        >
           <v-expansion-panel-header class="subtitle-2 py-2 attribute-section-header">
             <span>Detection Attributes</span>
             <v-menu left offset-y @click.stop>
@@ -176,6 +231,7 @@ export default defineComponent({
                   class="ml-2"
                   v-bind="attrs"
                   v-on="on"
+                  aria-label="Detection attribute settings"
                   @click.stop
                 >
                   <v-icon small>
@@ -194,6 +250,7 @@ export default defineComponent({
                             small
                             class="ml-1"
                             color="grey lighten-1"
+                            aria-label="Stickiness information"
                             v-on="infoOn"
                           >
                             mdi-information
@@ -250,9 +307,16 @@ export default defineComponent({
                       </div>
                     </v-tooltip>
                   </div>
-                  <div class="attribute-value">
-                    {{ getDisplayString(attribute) }}
-                  </div>
+                  <v-tooltip bottom max-width="420" open-delay="200">
+                    <template #activator="{ on }">
+                      <div class="attribute-value d-inline-flex align-center" v-on="on">
+                        <span class="attribute-value-text">
+                          {{ getDisplayString(attribute) }}
+                        </span>
+                      </div>
+                    </template>
+                    <span>{{ getDisplayValueTooltip(attribute) }}</span>
+                  </v-tooltip>
                 </div>
               </v-list-item-content>
             </v-list-item>
@@ -286,10 +350,18 @@ export default defineComponent({
 }
 
 .attribute-value {
-  flex: 0 0 auto;
+  flex: 0 1 46%;
   text-align: right;
-  white-space: normal;
-  word-break: break-word;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.attribute-value-text {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .attribute-sections {
