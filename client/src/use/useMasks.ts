@@ -66,6 +66,7 @@ export interface UseMaskInterface {
     pauseOnLoading: Ref<boolean>;
     triggerAction: Ref<null | 'save' | 'delete'>; // Used to communicate with the MaskEditorLayer
     loadingFrame: Ref<string | false>;
+    maskWarningMessage: Ref<string | null>;
     useRLE: Ref<boolean>;
   };
   editorFunctions: {
@@ -169,6 +170,23 @@ export default function useMasks(
   const pauseOnLoading = ref(false);
   const maxBrushSize = ref(50);
   const loadingFrame: Ref<string | false> = ref(false);
+  const maskWarningMessage = ref<string | null>(null);
+
+  function tracksHaveMasksConfigured() {
+    return visibleMaskIds.value.length > 0;
+  }
+
+  function setMaskWarning(message: string) {
+    if (!tracksHaveMasksConfigured()) {
+      return;
+    }
+    maskWarningMessage.value = message;
+    loadingFrame.value = false;
+  }
+
+  function clearMaskWarning() {
+    maskWarningMessage.value = null;
+  }
 
   function setEditorOptions(data: {
     toolEnabled?: MaskEditingTools;
@@ -270,6 +288,11 @@ export default function useMasks(
 
   async function getFolderRLEMasks(folderId: string) {
     rleMasks.value = (await getRLEMaskData(folderId)).data;
+    if (tracksHaveMasksConfigured() && Object.keys(rleMasks.value).length === 0) {
+      setMaskWarning('Mask metadata is enabled, but rlemasks.json is empty or missing data.');
+    } else {
+      clearMaskWarning();
+    }
   }
 
   function initializeMaskData(maskData: { masks: Readonly<MaskItem[]> }) {
@@ -323,6 +346,7 @@ export default function useMasks(
         results.forEach(({ trackId, frameId, mask }) => {
           const key = `${frameId}_${trackId}`;
           rleCache.set(key, mask);
+          clearMaskWarning();
           if (rleCache.size === masks.value.length) {
             const endTime = performance.now();
             if (ENABLE_TIMING_LOGS) {
@@ -463,6 +487,7 @@ export default function useMasks(
           const key = `${frameId}_${trackId}`;
           rleCache.set(key, mask);
           inFlightWorker.delete(key);
+          clearMaskWarning();
           maskLoadingPercent.value = (1 - (inFlightWorker.size / subsetSize)) * 100;
           if (rleCache.size === subsetSize) {
             const endTime = performance.now();
@@ -498,11 +523,13 @@ export default function useMasks(
     // Now calculate how many seconds we can cache without exceeding MAX_TEXTURE_PRELOAD
     let cumulativeMasks = 0;
     let maxSeconds = 0;
+    let exceededTextureLimit = false;
     const sortedFrameIds = Object.keys(frameMaskCountMap).map((f) => Number(f)).sort((a, b) => a - b);
     for (let i = 0; i < sortedFrameIds.length; i += 1) {
       const frameId = sortedFrameIds[i];
       cumulativeMasks += frameMaskCountMap[frameId];
       if (cumulativeMasks > MAX_TEXTURE_PRELOAD) {
+        exceededTextureLimit = true;
         break;
       }
       maxSeconds = (frameId - frame.value) / frameRate.value;
@@ -515,7 +542,8 @@ export default function useMasks(
     if (maskCacheSeconds.value > maskMaxCacheSeconds.value) {
       maskCacheSeconds.value = maskMaxCacheSeconds.value;
     }
-    if (maskCacheSeconds.value <= 0.1) {
+    // Only show "too many masks" when we actually hit the texture preload limit.
+    if (exceededTextureLimit && maskMaxCacheSeconds.value <= 0.1) {
       tooManyMasks.value = true;
     } else {
       tooManyMasks.value = false;
@@ -526,6 +554,7 @@ export default function useMasks(
     const key = frameKey(frameId, trackId);
     const cacheFound = cache.get(key);
     if (cacheFound) {
+      clearMaskWarning();
       return cacheFound;
     }
     if (useRLE.value) {
@@ -534,11 +563,20 @@ export default function useMasks(
         loadingFrame.value = key;
         return undefined;
       }
+      if (!mask) {
+        setMaskWarning(`Missing RLE mask for track ${trackId}, frame ${frameId}. Check rlemasks.json mapping.`);
+      }
     } else {
       const key = frameKey(frameId, trackId);
       if (inFlightRequests.has(key)) {
         loadingFrame.value = key;
         return undefined;
+      }
+      const hasMaskFile = masks.value.some((item) => (
+        item.metadata?.trackId === trackId && Number(item.metadata?.frameId) === frameId
+      ));
+      if (!hasMaskFile) {
+        setMaskWarning(`Missing mask file for track ${trackId}, frame ${frameId}.`);
       }
     }
     return undefined;
@@ -564,6 +602,9 @@ export default function useMasks(
   });
 
   watch(visibleMaskIds, () => {
+    if (!tracksHaveMasksConfigured()) {
+      clearMaskWarning();
+    }
     if (maskModeEnabled.value && typeof frame.value === 'number') {
       preloadWindow(frame.value);
     } else if (visibleMaskIds.value.length > 0) {
@@ -605,9 +646,24 @@ export default function useMasks(
     const key = frameKey(frameId, trackId);
     const cacheFound = rleCache.get(key);
     if (cacheFound) {
+      clearMaskWarning();
       return cacheFound;
     }
-    loadingFrame.value = key;
+    if (inFlightWorker.has(key)) {
+      loadingFrame.value = key;
+      return undefined;
+    }
+    const hasRLEMask = Boolean(rleMasks.value[trackId]?.[frameId]);
+    if (!hasRLEMask) {
+      setMaskWarning(`Missing RLE mask for track ${trackId}, frame ${frameId}. Check rlemasks.json mapping.`);
+      return undefined;
+    }
+    preloadWindow(frame.value);
+    if (inFlightWorker.has(key)) {
+      loadingFrame.value = key;
+    } else {
+      setMaskWarning(`Unable to load RLE mask for track ${trackId}, frame ${frameId}.`);
+    }
     return undefined;
   };
   return {
@@ -629,6 +685,7 @@ export default function useMasks(
       tooManyMasks,
       maxBrushSize,
       loadingFrame,
+      maskWarningMessage,
       useRLE,
       maskLoadingPercent,
       pauseOnLoading,
