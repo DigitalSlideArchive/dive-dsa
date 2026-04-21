@@ -393,6 +393,7 @@ function dummyState(): State {
         opacity: ref(0.75),
         triggerAction: ref(null),
         loadingFrame: ref(false),
+        maskWarningMessage: ref(null),
         useRLE: ref(false),
       },
       editorFunctions: {

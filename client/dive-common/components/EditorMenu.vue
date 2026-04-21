@@ -316,6 +316,7 @@ export default defineComponent({
     const maskLoadingPercent = computed(() => editorOptions.maskLoadingPercent?.value || 0);
     const tooManyMasks = computed(() => editorOptions.tooManyMasks.value);
     const loadingFrame = computed(() => editorOptions.loadingFrame.value);
+    const maskWarningMessage = computed(() => editorOptions.maskWarningMessage.value);
     const pauseOnLoading = computed({
       get() {
         return editorOptions.pauseOnLoading.value;
@@ -330,6 +331,15 @@ export default defineComponent({
         return {
           icon: 'mdi-alert-circle-outline',
           color: 'error',
+          value: true,
+          content: undefined,
+          offsetX: 25,
+        };
+      }
+      if (maskWarningMessage.value) {
+        return {
+          icon: 'mdi-alert-circle-outline',
+          color: 'warning',
           value: true,
           content: undefined,
           offsetX: 25,
@@ -382,6 +392,7 @@ export default defineComponent({
       maskIcon,
       updateMaskCacheSeconds,
       loadingFrame,
+      maskWarningMessage,
       buttonOptions,
       menuOptions,
       editWhiteColorScale,
@@ -475,7 +486,7 @@ export default defineComponent({
             v-if="button.tooltip
               && (getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index])"
           >
-            <template #activator="{ on }">
+            <template #activator="{ on: tooltipOn }">
               <v-badge
                 v-if="button.id === 'Mask'"
                 overlap
@@ -494,14 +505,14 @@ export default defineComponent({
                   offset-y
                   :close-on-content-click="false"
                 >
-                  <template #activator="{ on, attrs }">
+                  <template #activator="{ on: menuOn, attrs }">
                     <v-btn
                       v-if="getUISetting('Masks')"
                       v-bind="attrs"
                       :color="isVisible('Mask') ? 'grey darken-2' : ''"
                       class="mx-1 mode-button"
                       small
-                      v-on="on"
+                      v-on="{ ...tooltipOn, ...menuOn }"
                       @click="button.click"
                     >
                       <v-icon>{{ button.icon }}</v-icon>
@@ -512,6 +523,15 @@ export default defineComponent({
                     outlined
                   >
                     <v-card-text>Segementation Masks</v-card-text>
+                    <v-alert
+                      v-if="maskWarningMessage"
+                      dense
+                      text
+                      type="warning"
+                      class="mb-2"
+                    >
+                      {{ maskWarningMessage }}
+                    </v-alert>
                     <v-progress-linear
                       v-if="maskLoadingPercent && maskLoadingPercent < 100"
                       :value="maskLoadingPercent"
@@ -557,13 +577,19 @@ export default defineComponent({
                 :color="button.active ? 'grey darken-2' : ''"
                 class="mx-1 mode-button"
                 small
-                v-on="on"
+                v-on="tooltipOn"
                 @click="button.click"
               >
                 <v-icon>{{ button.icon }}</v-icon>
               </v-btn>
             </template>
-            <span> {{ button.tooltip }}</span>
+            <span v-if="button.id === 'Mask' && tooManyMasks">
+              Too many masks in the current cache window.
+            </span>
+            <span v-else-if="button.id === 'Mask' && maskWarningMessage">
+              {{ maskWarningMessage }}
+            </span>
+            <span v-else> {{ button.tooltip }}</span>
           </v-tooltip>
           <v-btn
             v-else-if="getUISetting('UIVisibility') === true || getUISetting('UIVisibility')[index]"
