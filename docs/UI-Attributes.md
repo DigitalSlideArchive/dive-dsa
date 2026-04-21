@@ -152,6 +152,17 @@ Attributes that are of type text can have their colors preset and saved in the c
 
 These colors can be used in the Attribute Rendering or the Swimlane views for attributes to properly render the system.
 
+For text attributes, color selection follows this order:
+
+1. If the value is missing (`undefined`/`null`) or empty (`''`), use **None Color** when enabled.
+1. If the value is empty (`''`) and a color is set for the empty string key in Value Colors, that color can be used when None Color is not set.
+1. If **Static Color** is enabled, all non-empty text values use the attribute base color.
+1. Otherwise, per-value color mappings are used.
+
+!!! info
+
+    Empty/missing aliases like `NA`, `N/A`, or `__EMPTY__` are not used for automatic empty handling. Use **None Color** and/or the empty string (`''`) value key.
+
 ![Edit Attribute Value Number Colors](images/Attributes/AttributeValueNumberColors.png)
 
 Added the capability to create color gradients for Attribute Values.  This will allow numerical values to have custom color gradients which can be used in swimlanes, or in displaying the values of attributes as well.

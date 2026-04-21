@@ -48,6 +48,10 @@ export default function UseAttributes(
     login,
   }: UseAttributesParams,
 ) {
+  function getMissingValueColor(attribute?: Attribute) {
+    return attribute?.valueColors?.[''];
+  }
+
   const attributes: Ref<Record<string, Attribute>> = ref({});
   const attributeFilters: Ref<AttributeFilter[]> = ref([]);
   const timelineGraphs: Ref<Record<string, TimelineGraph & {filtered?: boolean}>> = ref({});
@@ -490,7 +494,15 @@ export default function UseAttributes(
     return null;
   });
 
-  const getAttributeValueColor = (attribute: Attribute, val: string) => {
+  const getAttributeValueColor = (attribute: Attribute, val?: string | number | boolean) => {
+    if (val === undefined || val === null || val === '') {
+      if (attribute.noneColor) {
+        return attribute.noneColor;
+      }
+      return getMissingValueColor(attribute)
+        || attribute.color
+        || trackStyleManager.typeStyling.value.color(attribute.name);
+    }
     if (attribute.datatype === 'text') {
       if (attribute.staticColor) {
         if (attribute.color) {
@@ -498,20 +510,30 @@ export default function UseAttributes(
         }
         return trackStyleManager.typeStyling.value.color(attribute.name);
       }
-      if (attribute.valueColors && attribute.valueColors[val]) {
-        return attribute.valueColors[val];
+      const strVal = val.toString();
+      if (attribute.valueColors && attribute.valueColors[strVal]) {
+        return attribute.valueColors[strVal];
       }
     }
-    return trackStyleManager.typeStyling.value.color(val);
+    return trackStyleManager.typeStyling.value.color(val.toString());
   };
 
   const numericalColorScaling = computed(() => {
     const autoColorIndex: Record<string, (data: string | number | boolean) => string> = {};
     Object.entries(attributes.value).forEach(([baseKey, item]) => {
       autoColorIndex[baseKey] = ((data: string | number | boolean) => {
+        if (data === undefined || data === null || data === '') {
+          if (item.noneColor) {
+            return item.noneColor;
+          }
+          return getMissingValueColor(item)
+            || item.color
+            || trackStyleManager.typeStyling.value.color(item.name);
+        }
         if (item.datatype === 'number' && item.valueColors && Object.keys(item.valueColors).length) {
           const colorArr = Object.entries(item.valueColors as Record<string, string>)
-            .map(([key, val]) => ({ key: parseFloat(key), val }));
+            .map(([key, val]) => ({ key: parseFloat(key), val }))
+            .filter((entry) => !Number.isNaN(entry.key));
           colorArr.sort((a, b) => a.key - b.key);
 
           const colorNums = colorArr.map((map) => map.key);
