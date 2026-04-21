@@ -30,6 +30,12 @@ Simply use the key filter to select the attributes you whish to graph and config
 
 If you are creating a swimlane for a numerical attribute, utilize the value colors to create a color gradient which can be used to represent the values.
 
+For text attributes in swimlanes, color resolution follows the Attribute Value Colors settings:
+
+1. Missing (`undefined`/`null`) or empty (`''`) values use **None Color** when enabled.
+1. If **Static Color** is enabled, non-empty values use the attribute base color.
+1. Otherwise, per-value text color mappings are used.
+
 ## Swimlane Key
 
 ![Swimlane Key](images/AttributeTimeline/SwimlaneKey.png)
