@@ -52,8 +52,8 @@ export default defineComponent({
             if (!props.attribute.user && track.attributes[props.attribute.name]) {
               valueMap[track.attributes[props.attribute.name] as string] = true;
             } else if (props.attribute.user && track.attributes.userAttributes) {
-              const userAttr = (track.attributes.userAttributes[user]) as StringKeyObject;
-              if (userAttr[props.attribute.name]) {
+              const userAttr = track.attributes.userAttributes[user] as StringKeyObject | undefined;
+              if (userAttr && userAttr[props.attribute.name]) {
                 valueMap[userAttr[props.attribute.name] as string] = true;
               }
             }
@@ -63,8 +63,8 @@ export default defineComponent({
                 if (!props.attribute.user && feature.attributes[props.attribute.name]) {
                   valueMap[feature.attributes[props.attribute.name] as string] = true;
                 } else if (props.attribute.user && feature.attributes.userAttributes) {
-                  const userAttr = (feature.attributes.userAttributes[user]) as StringKeyObject;
-                  if (userAttr[props.attribute.name]) {
+                  const userAttr = feature.attributes.userAttributes[user] as StringKeyObject | undefined;
+                  if (userAttr && userAttr[props.attribute.name]) {
                     valueMap[userAttr[props.attribute.name] as string] = true;
                   }
                 }

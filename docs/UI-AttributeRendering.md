@@ -28,6 +28,7 @@ Under the Rendering Tab for the Attribute Editor if you turn on Render there wil
 * **Value**
     * *Value Text Size* - Text size in pixel for the value.  This will remain constant when scrolling in/out of the track.
     * *Value Color* - Text color for the display text.  If set to auto it will utilize the attribute color.  If Auto is turned off you can set a custom display text color.
+    * For text attributes with Value Color set to auto, colors follow Attribute Value Colors behavior (None Color for empty/missing values, Static Color for non-empty values when enabled, otherwise per-value mappings).
 * **Dimensions**
     * *% Type* - For width and height it will size the area for the attribute based on the track width/height.
     * *px Type* - It will size the dimension of the width/height in pixels.  This is useful if you have tracks of varying sizes and always want the attributes to fit properly.

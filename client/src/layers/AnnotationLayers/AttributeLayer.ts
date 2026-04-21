@@ -353,10 +353,22 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
     this.renderAttributes = attributes;
     this.user = user;
     this.autoColorIndex = [];
+    const getMissingValueColor = (attribute: Attribute) => {
+      if (attribute.noneColor) {
+        return attribute.noneColor;
+      }
+      return attribute.valueColors?.[''];
+    };
     // We create the color formatter for the render attributesW
     this.renderAttributes.forEach((item) => {
       if (item.datatype === 'text') {
         this.autoColorIndex.push((data: string | number | boolean) => {
+          if (data === undefined || data === null || data === '') {
+            return getMissingValueColor(item) || item.color || 'white';
+          }
+          if (item.staticColor) {
+            return item.color || 'white';
+          }
           if (item.valueColors && Object.keys(item.valueColors).length) {
             return item.valueColors[data as string] || item.color || 'white';
           }
@@ -364,9 +376,13 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
         });
       } else if (item.datatype === 'number') {
         this.autoColorIndex.push((data: string | number | boolean) => {
+          if (data === undefined || data === null || data === '') {
+            return getMissingValueColor(item) || item.color || 'white';
+          }
           if (item.valueColors && Object.keys(item.valueColors).length) {
             const colorArr = Object.entries(item.valueColors as Record<string, string>)
-              .map(([key, val]) => ({ key: parseFloat(key), val }));
+              .map(([key, val]) => ({ key: parseFloat(key), val }))
+              .filter((entry) => !Number.isNaN(entry.key));
             colorArr.sort((a, b) => a.key - b.key);
 
             const colorNums = colorArr.map((map) => map.key);
