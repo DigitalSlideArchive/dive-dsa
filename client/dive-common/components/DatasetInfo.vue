@@ -19,6 +19,7 @@ import {
   setDiveDatasetMetadataKey,
 } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import DatasetInfoAttributes from './DatasetInfoAttributes.vue';
 
 export default defineComponent({
   name: 'DatasetInfo',
@@ -26,6 +27,7 @@ export default defineComponent({
     StackedVirtualSidebarContainer,
     DIVEMetadataEditKey,
     MetadataKeyLabel,
+    DatasetInfoAttributes,
   },
 
   props: {
@@ -194,7 +196,7 @@ export default defineComponent({
     <template #default>
       <v-container>
         <v-expansion-panels v-model="panels" multiple>
-          <v-expansion-panel v-if="datasetInfoLength">
+          <v-expansion-panel v-if="datasetInfoLength" class="border">
             <v-expansion-panel-header>Folder Info</v-expansion-panel-header>
             <v-expansion-panel-content>
               <v-simple-table dark>
@@ -244,7 +246,7 @@ export default defineComponent({
                       />
                     </span>
                     <span v-else>
-                      {{ item.value !== undefined ? item.value.toString() : '' }}
+                      {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                     </span>
                   </v-list-item-subtitle>
                 </v-list-item-content>
@@ -253,6 +255,7 @@ export default defineComponent({
                 <v-expansion-panel
                   v-for="group in processedDatasetMetadata.defaultGroups"
                   :key="`datasetMetadata_default_group_${group.id}`"
+                  class="border"
                 >
                   <v-expansion-panel-header>
                     <span class="d-inline-flex align-center">
@@ -287,7 +290,7 @@ export default defineComponent({
                             />
                           </span>
                           <span v-else>
-                            {{ item.value !== undefined ? item.value.toString() : '' }}
+                            {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                           </span>
                         </v-list-item-subtitle>
                       </v-list-item-content>
@@ -296,7 +299,7 @@ export default defineComponent({
                 </v-expansion-panel>
               </v-expansion-panels>
               <v-expansion-panels>
-                <v-expansion-panel>
+                <v-expansion-panel class="border">
                   <v-expansion-panel-header>Advanced</v-expansion-panel-header>
                   <v-expansion-panel-content class="pa-0">
                     <v-list-item v-for="item in processedDatasetMetadata.advanced" :key="`datasetMetadata_${item.name}`" two-line dense>
@@ -318,7 +321,7 @@ export default defineComponent({
                             />
                           </span>
                           <span v-else>
-                            {{ item.value !== undefined ? item.value.toString() : '' }}
+                            {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                           </span>
                         </v-list-item-subtitle>
                       </v-list-item-content>
@@ -327,6 +330,7 @@ export default defineComponent({
                       <v-expansion-panel
                         v-for="group in processedDatasetMetadata.advancedGroups"
                         :key="`datasetMetadata_advanced_group_${group.id}`"
+                        class="border"
                       >
                         <v-expansion-panel-header>
                           <span class="d-inline-flex align-center">
@@ -361,7 +365,7 @@ export default defineComponent({
                                   />
                                 </span>
                                 <span v-else>
-                                  {{ item.value !== undefined ? item.value.toString() : '' }}
+                                  {{ item.value !== undefined && item.value !== null ? item.value.toString() : '' }}
                                 </span>
                               </v-list-item-subtitle>
                             </v-list-item-content>
@@ -374,6 +378,7 @@ export default defineComponent({
               </v-expansion-panels>
             </v-expansion-panel-content>
           </v-expansion-panel>
+          <DatasetInfoAttributes />
         </v-expansion-panels>
       </v-container>
     </template>
@@ -385,4 +390,5 @@ export default defineComponent({
   white-space: normal !important;
   word-break: break-word;
 }
+
 </style>
