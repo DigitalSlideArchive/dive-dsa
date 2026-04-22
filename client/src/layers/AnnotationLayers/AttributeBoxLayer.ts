@@ -64,6 +64,25 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
           }
           return false;
         });
+        const verticalLeft: number[] = [];
+        const verticalRight: number[] = [];
+        renderFiltered.forEach((item, idx) => {
+          const { render } = item;
+          if (render?.layout === 'vertical') {
+            if (['SW', 'NW'].includes(render.corner || '')) {
+              verticalLeft.push(idx);
+            } else {
+              verticalRight.push(idx);
+            }
+          }
+        });
+        const verticalLayoutMeta = new Map<number, { index: number; length: number }>();
+        verticalLeft.forEach((itemIdx, sideIndex) => {
+          verticalLayoutMeta.set(itemIdx, { index: sideIndex, length: verticalLeft.length });
+        });
+        verticalRight.forEach((itemIdx, sideIndex) => {
+          verticalLayoutMeta.set(itemIdx, { index: sideIndex, length: verticalRight.length });
+        });
         for (let i = 0; i < renderFiltered.length; i += 1) {
           const currentRender = renderFiltered[i].render;
           if (currentRender && currentRender.box) {
@@ -75,7 +94,13 @@ export default class AttributeBoxLayer extends BaseLayer<RectGeoJSData> {
               // eslint-disable-next-line no-continue
               continue;
             }
-            const { newBounds } = calculateAttributeArea(track.features.bounds, renderFiltered[i].render, i, renderFiltered.length);
+            const sideMeta = verticalLayoutMeta.get(i);
+            const { newBounds } = calculateAttributeArea(
+              track.features.bounds,
+              renderFiltered[i].render,
+              currentRender.layout === 'vertical' && sideMeta ? sideMeta.index : i,
+              currentRender.layout === 'vertical' && sideMeta ? sideMeta.length : renderFiltered.length,
+            );
             const polygon = boundToGeojson(newBounds);
             const lineColor = currentRender.boxColor === 'auto' ? renderFiltered[i].color || 'white' : currentRender.boxColor;
             const lineThickness = currentRender.boxThickness || 1;
