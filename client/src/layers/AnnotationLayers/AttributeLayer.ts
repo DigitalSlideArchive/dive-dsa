@@ -45,8 +45,9 @@ export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: A
     if (widthType === '%') {
       width = trackWidth * 0.01 * renderSettings.displayWidth.val;
     }
+    const leftAnchored = ['SW', 'NW'].includes(renderSettings?.corner || '');
     // calculate center position for point
-    const displayX = baseBounds[2] + 0.5 * width;
+    const displayX = leftAnchored ? (baseBounds[0] - 0.5 * width) : (baseBounds[2] + 0.5 * width);
     const valueX = displayX;
     // Calcualte Y Position
     const trackHeight = baseBounds[3] - baseBounds[1];
@@ -58,12 +59,19 @@ export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: A
     if (heightType === '%') {
       height = trackHeight * 0.01 * renderSettings.displayHeight.val;
     }
-    // So I think we want to set Display/Value
-    const displayHeight = baseBounds[1] + (height * renderIndex) + height * (1 / 3);
-    const valueHeight = baseBounds[1] + (height * renderIndex) + height * (2 / 3);
+    const bottomAnchored = ['SW', 'SE'].includes(renderSettings?.corner || '');
+    const topY = bottomAnchored
+      ? (baseBounds[3] - (height * (renderIndex + 1)))
+      : (baseBounds[1] + (height * renderIndex));
+    const bottomY = topY + height;
+    // Place display/value text within each vertical segment.
+    const displayHeight = topY + height * (1 / 3);
+    const valueHeight = topY + height * (2 / 3);
 
     // [x1, y1, x2, y2] as (left, top), (bottom, right)
-    const newBounds: RectBounds = [baseBounds[2], baseBounds[1] + (height * renderIndex), baseBounds[2] + width, baseBounds[1] + (height * renderIndex) + height];
+    const newBounds: RectBounds = leftAnchored
+      ? [baseBounds[0] - width, topY, baseBounds[0], bottomY]
+      : [baseBounds[2], topY, baseBounds[2] + width, bottomY];
     const textAlign = renderSettings.location === 'outside' ? 'center' : 'start';
     return {
       displayX, displayHeight, valueX, valueHeight, newBounds, offsetX: 0, offsetY: 0, textAlign,
@@ -166,6 +174,28 @@ function defaultFormatter(
       lineHeight = baseHeight * 1.30;
     }
 
+    // For vertical layouts, compute stacking independently for left and right sides.
+    // This keeps %/auto sizing and indexing separate per side.
+    const verticalLeft: number[] = [];
+    const verticalRight: number[] = [];
+    renderFiltered.forEach((item, idx) => {
+      const render = item.render;
+      if (render?.layout === 'vertical') {
+        if (['SW', 'NW'].includes(render.corner || '')) {
+          verticalLeft.push(idx);
+        } else {
+          verticalRight.push(idx);
+        }
+      }
+    });
+    const verticalLayoutMeta = new Map<number, { index: number; length: number }>();
+    verticalLeft.forEach((itemIdx, sideIndex) => {
+      verticalLayoutMeta.set(itemIdx, { index: sideIndex, length: verticalLeft.length });
+    });
+    verticalRight.forEach((itemIdx, sideIndex) => {
+      verticalLayoutMeta.set(itemIdx, { index: sideIndex, length: verticalRight.length });
+    });
+
     for (let i = 0; i < renderFiltered.length; i += 1) {
       const currentRender = renderFiltered[i].render;
       const { name } = renderFiltered[i];
@@ -227,9 +257,16 @@ function defaultFormatter(
             value = newVal;
           }
         }
+        const sideMeta = verticalLayoutMeta.get(i);
         const {
           displayX, displayHeight, valueX, valueHeight, offsetY, offsetX, textAlign,
-        } = calculateAttributeArea(bounds, currentRender, i, renderFiltered.length, lineHeight);
+        } = calculateAttributeArea(
+          bounds,
+          currentRender,
+          currentRender.layout === 'vertical' && sideMeta ? sideMeta.index : i,
+          currentRender.layout === 'vertical' && sideMeta ? sideMeta.length : renderFiltered.length,
+          lineHeight,
+        );
 
         const displayColor = currentRender.displayColor === 'auto' ? renderAttr[i].color : currentRender.displayColor;
         const { displayTextSize } = currentRender;
