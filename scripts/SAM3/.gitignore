@@ -1,0 +1,6 @@
+./masks
+./frames
+*.pt
+*.txt.gz
+*.mp4
+*.json
