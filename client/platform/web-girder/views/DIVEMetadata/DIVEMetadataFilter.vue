@@ -169,14 +169,18 @@ export default defineComponent({
             delete currentFilter.value.metadataFilters[key];
           }
         });
-        emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+        emit('updateFilters', {
+          filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value, resetPage: true,
+        });
       }
     });
 
     watch([search, regEx], () => {
       currentFilter.value.search = search.value;
       currentFilter.value.searchRegEx = regEx.value;
-      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+      emit('updateFilters', {
+        filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value, resetPage: true,
+      });
     });
 
     const clearFilter = (key: string) => {
@@ -186,7 +190,9 @@ export default defineComponent({
       if (currentFilter.value.metadataFilters[key]) {
         delete currentFilter.value.metadataFilters[key];
       }
-      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+      emit('updateFilters', {
+        filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value, resetPage: true,
+      });
     };
     const updateFilter = (key: string, { value, category, regEx } : {value: string | string[] | number | boolean | number[], category: MetadataFilterItem['category'], regEx?: boolean}) => {
       if (!currentFilter.value.metadataFilters) {
@@ -222,7 +228,9 @@ export default defineComponent({
     };
 
     watch([sortValue, sortDir], () => {
-      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+      emit('updateFilters', {
+        filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value, resetPage: true,
+      });
     });
 
     const getDefaultValue = (key: string) => {
@@ -263,7 +271,9 @@ export default defineComponent({
     };
 
     const jobCompleted = () => {
-      emit('updateFilters', { filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value });
+      emit('updateFilters', {
+        filter: currentFilter.value, sortVal: sortValue.value, sortDir: sortDir.value, resetPage: true,
+      });
     };
 
     const showSlicerCLI = computed(() => {
