@@ -136,14 +136,18 @@ export interface MetadataResultItem {
     metadata: StringKeyObject;
 }
 
-function getMetadataFilterValues(folderId: string, keys?: string[]) {
-  return girderRest.get<DIVEMetadataFilterValueResults>(`dive_metadata/${folderId}/metadata_keys`, {
-    params: { keys },
-  });
-}
-
 function toJsonParam(value: unknown) {
   return JSON.stringify(value ?? {});
+}
+
+function getMetadataFilterValues(folderId: string, keys?: string[]) {
+  const params: Record<string, string> = {};
+  if (keys !== undefined) {
+    params.keys = toJsonParam(keys);
+  }
+  return girderRest.get<DIVEMetadataFilterValueResults>(`dive_metadata/${folderId}/metadata_keys`, {
+    params,
+  });
 }
 
 function filterDiveMetadata(folderId: string, filters: DIVEMetadataFilter, offset = 0, limit = 50, sort = 'filename', sortdir = 1) {
@@ -182,7 +186,7 @@ async function getDiveDatasetMetadataRow(
 function createDiveMetadataClone(folder: string, filters: DIVEMetadataFilter, destFolder: string) {
   return girderRest.post<string>(`dive_metadata/${folder}/clone_filter`, null, {
     params: {
-      baseFolder: folder, filters, destFolder,
+      baseFolder: folder, filters: toJsonParam(filters), destFolder,
     },
   });
 }
@@ -210,7 +214,11 @@ function createDiveMetadataFolder(
 ) {
   return girderRest.post<createDiveMetadataResponse>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
     params: {
-      name, rootFolderId, categoricalLimit, displayConfig, ffprobeMetadata,
+      name,
+      rootFolderId,
+      categoricalLimit,
+      displayConfig: toJsonParam(displayConfig),
+      ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
   });
 }
@@ -346,12 +354,17 @@ async function updateDiveMetadataOrder(folderId: string, order: string[], groups
 }
 
 async function runSlicerMetadataTask(rootId: string, taskId: string, filters: DIVEMetadataFilter, params: Record<string, XMLBaseValue>) {
-  return girderRest.post<JobResponse>(`dive_metadata/${rootId}/slicer-cli-task`, { taskId, filterParams: { filters, params } }, { params: { taskId, filterParams: { filters, params } } });
+  const filterParams = toJsonParam({ filters, params });
+  return girderRest.post<JobResponse>(
+    `dive_metadata/${rootId}/slicer-cli-task`,
+    { taskId, filterParams },
+    { params: { taskId, filterParams } },
+  );
 }
 
 async function exportDiveMetadata(folderId: string, filters: DIVEMetadataFilter, format: 'csv' | 'json', baseUrl?: string) {
   const response = await girderRest.post(`dive_metadata/${folderId}/export`, null, {
-    params: { format, filters, baseURL: baseUrl },
+    params: { format, filters: toJsonParam(filters), baseURL: baseUrl },
     responseType: 'blob',
   });
 
