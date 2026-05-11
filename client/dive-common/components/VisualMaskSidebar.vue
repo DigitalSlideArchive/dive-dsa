@@ -91,7 +91,7 @@ export default defineComponent({
 
     function addMask() {
       handler.trackSelect(null, false);
-      visualMaskManager.addMask(selectedCamera.value, 'rectangle');
+      visualMaskManager.addMask(selectedCamera.value);
       showColorPicker.value = false;
     }
 

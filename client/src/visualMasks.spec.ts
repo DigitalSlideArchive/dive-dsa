@@ -64,7 +64,7 @@ describe('VisualMaskManager', () => {
       },
     });
 
-    const id = manager.addMask('singleCam', 'rectangle');
+    const id = manager.addMask('singleCam');
     manager.setMaskStyle('singleCam', id, { color: '#ff0000', opacity: 0.5 });
     manager.updateRectBounds('singleCam', 12, [1, 2, 3, 4], id);
 

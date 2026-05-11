@@ -342,7 +342,7 @@ export default class VisualMaskManager {
     return Math.max(...ids) + 1;
   }
 
-  addMask(camera: string, _type: VisualMaskGeometryType = 'rectangle') {
+  addMask(camera: string) {
     const id = this.getNextId();
     const masks = this.ensureCamera(camera);
     masks.push(new VisualMask({
