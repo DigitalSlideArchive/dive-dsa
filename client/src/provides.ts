@@ -31,6 +31,7 @@ import CameraStore from './CameraStore';
 import ConfigurationManager from './ConfigurationManager';
 import { EventChartData } from './use/useEventChart';
 import type { FilterTimeline } from './use/useTimelineFilters';
+import VisualMaskManager from './visualMasks';
 
 /**
  * Type definitions are read only because injectors may mutate internal state,
@@ -141,9 +142,11 @@ const UINotificationSymbol = Symbol('uiNotification');
 
 const TrackStyleManagerSymbol = Symbol('trackTypeStyling');
 const GroupStyleManagerSymbol = Symbol('groupTypeStyling');
+const VisualMaskStyleManagerSymbol = Symbol('visualMaskStyling');
 
 const TrackFilterControlsSymbol = Symbol('trackFilters');
 const GroupFilterControlsSymbol = Symbol('groupFilters');
+const VisualMaskManagerSymbol = Symbol('visualMaskManager');
 
 /**
  * Handler interface describes all global events mutations
@@ -291,6 +294,8 @@ export interface State {
   editingMode: EditingModeType;
   groupFilters: GroupFilterControls;
   groupStyleManager: StyleManager;
+  visualMaskManager: VisualMaskManager;
+  visualMaskStyleManager: StyleManager;
   multiSelectList: MultiSelectType;
   pendingSaveCount: pendingSaveCountType;
   progress: ProgressType;
@@ -337,6 +342,12 @@ function dummyState(): State {
     groupFilterControls,
     lookupGroups: cameraStore.lookupGroups,
   });
+  const visualMaskStyleManager = new StyleManager({ markChangesPending });
+  const visualMaskManager = new VisualMaskManager({
+    markChangesPending,
+    styleManager: visualMaskStyleManager,
+    syncConfiguration: () => {},
+  });
   return {
     annotatorPreferences: ref({
       trackTails: { before: 20, after: 10 },
@@ -357,6 +368,8 @@ function dummyState(): State {
     latestRevisionId: ref(0),
     groupFilters: groupFilterControls,
     groupStyleManager: new StyleManager({ markChangesPending }),
+    visualMaskManager,
+    visualMaskStyleManager,
     selectedCamera: ref('singleCam'),
     selectedKey: ref(''),
     selectedTrackId: ref(null),
@@ -424,7 +437,7 @@ function dummyState(): State {
     },
     trackFilters: trackFilterControls,
     trackStyleManager: new StyleManager({ markChangesPending }),
-    visibleModes: ref(['rectangle', 'text'] as VisibleAnnotationTypes[]),
+    visibleModes: ref(['rectangle', 'VisualMask', 'text'] as VisibleAnnotationTypes[]),
     readOnlyMode: ref(false),
     imageEnhancements: ref({}),
     diveMetadataRootId: ref(null),
@@ -450,6 +463,8 @@ function provideAnnotator(state: State, handler: Handler, attributesFilters: Att
   provide(EditingModeSymbol, state.editingMode);
   provide(GroupFilterControlsSymbol, state.groupFilters);
   provide(GroupStyleManagerSymbol, state.groupStyleManager);
+  provide(VisualMaskManagerSymbol, state.visualMaskManager);
+  provide(VisualMaskStyleManagerSymbol, state.visualMaskStyleManager);
   provide(MultiSelectSymbol, state.multiSelectList);
   provide(PendingSaveCountSymbol, state.pendingSaveCount);
   provide(ProgressSymbol, state.progress);
@@ -524,6 +539,14 @@ function useGroupFilterControls() {
 
 function useGroupStyleManager() {
   return use<StyleManager>(GroupStyleManagerSymbol);
+}
+
+function useVisualMaskManager() {
+  return use<VisualMaskManager>(VisualMaskManagerSymbol);
+}
+
+function useVisualMaskStyleManager() {
+  return use<StyleManager>(VisualMaskStyleManagerSymbol);
 }
 
 function useHandler() {
@@ -611,6 +634,8 @@ export {
   useHandler,
   useGroupFilterControls,
   useGroupStyleManager,
+  useVisualMaskManager,
+  useVisualMaskStyleManager,
   useMultiSelectList,
   usePendingSaveCount,
   useProgress,

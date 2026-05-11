@@ -2,6 +2,8 @@ import { ref, Ref } from 'vue';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
 import type { FilterTimeline } from './use/useTimelineFilters';
+import type { CustomStyle } from './StyleManager';
+import type { Feature } from './track';
 
 export interface DiveConfiguration {
   prevNext?: {
@@ -68,6 +70,7 @@ interface UIContextBar {
     UITrackList? : boolean;
     UIDatasetInfo?: boolean;
     UIAttributeUserReview?: boolean;
+    UIVisualMasks?: boolean;
 }
 
 interface UITrackDetails {
@@ -139,6 +142,17 @@ export interface CustomUISettings {
   width? : number;
   }
 
+export type VisualMaskGeometryType = 'rectangle' | 'Polygon';
+
+export interface VisualMaskConfiguration {
+  id: number;
+  name: string;
+  enabled?: boolean;
+  type: VisualMaskGeometryType;
+  frames: Feature[];
+  style?: CustomStyle;
+}
+
 export interface Configuration {
   general?: {
     configurationMerge? : 'merge up' | 'merge down' | 'disabled';
@@ -152,6 +166,7 @@ export interface Configuration {
   filterTimelines?: FilterTimeline[];
   timelineConfigs?: TimelineConfiguration[];
   customUI?: CustomUISettings;
+  visualMasks?: Record<string, VisualMaskConfiguration[]>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

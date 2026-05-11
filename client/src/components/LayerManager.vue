@@ -47,6 +47,8 @@ import {
   useConfiguration,
   useAttributes,
   useMasks,
+  useVisualMaskManager,
+  useVisualMaskStyleManager,
 } from '../provides';
 
 const useworker = true;
@@ -104,6 +106,8 @@ export default defineComponent({
     const selectedKeyRef = useSelectedKey();
     const trackStyleManager = useTrackStyleManager();
     const groupStyleManager = useGroupStyleManager();
+    const visualMaskManager = useVisualMaskManager();
+    const visualMaskStyleManager = useVisualMaskStyleManager();
     const annotatorPrefs = useAnnotatorPreferences();
     const typeStylingRef = computed(() => {
       if (props.colorBy === 'group') {
@@ -151,6 +155,16 @@ export default defineComponent({
       }
     }
 
+    const visualMaskRectLayer = new RectangleLayer({
+      annotator,
+      stateStyling: visualMaskStyleManager.stateStyles,
+      typeStyling: visualMaskStyleManager.typeStyling,
+    });
+    const visualMaskPolyLayer = new PolygonLayer({
+      annotator,
+      stateStyling: visualMaskStyleManager.stateStyles,
+      typeStyling: visualMaskStyleManager.typeStyling,
+    });
     const rectAnnotationLayer = new RectangleLayer({
       annotator,
       stateStyling: trackStyleManager.stateStyles,
@@ -208,6 +222,12 @@ export default defineComponent({
       typeStyling: typeStylingRef,
       type: 'rectangle',
     });
+    const visualMaskEditLayer = new EditAnnotationLayer({
+      annotator,
+      stateStyling: visualMaskStyleManager.stateStyles,
+      typeStyling: visualMaskStyleManager.typeStyling,
+      type: 'rectangle',
+    });
 
     const updateAttributes = () => {
       const newList = attributes.value.filter((item) => item.render).sort((a, b) => {
@@ -259,10 +279,25 @@ export default defineComponent({
 
       const frameData = [] as FrameDataTrack[];
       const editingTracks = [] as FrameDataTrack[];
-      if (currentFrameIds === undefined) {
-        return;
-      }
-      currentFrameIds.forEach(
+      const visualMaskFrameData = [] as FrameDataTrack[];
+      visualMaskManager.getMasks(props.camera).forEach((visualMask) => {
+        if (!visualMask.enabled) {
+          return;
+        }
+        const features = visualMask.getFeature(frame);
+        if (!features) {
+          return;
+        }
+        visualMaskFrameData.push({
+          selected: visualMaskManager.selectedMaskId.value === visualMask.id,
+          editing: visualMaskManager.editingMaskId.value === visualMask.id,
+          track: visualMask as never,
+          groups: [],
+          features,
+          styleType: [visualMask.styleKey, 1],
+        });
+      });
+      (currentFrameIds || []).forEach(
         (trackId: AnnotationId) => {
           if (trackStore?.annotationIds.value.length === 0) {
             return; // No annotations so just skip the updating
@@ -312,6 +347,16 @@ export default defineComponent({
           }
         },
       );
+
+      if (visibleModes.includes('VisualMask')) {
+        visualMaskRectLayer.setDrawingOther(['Polygon']);
+        visualMaskRectLayer.changeData(visualMaskFrameData);
+        visualMaskPolyLayer.setDrawingOther(true);
+        visualMaskPolyLayer.changeData(visualMaskFrameData);
+      } else {
+        visualMaskRectLayer.disable();
+        visualMaskPolyLayer.disable();
+      }
 
       if (visibleModes.includes('rectangle')) {
         //We modify rects opacity/thickness if polygons are visible or not
@@ -423,8 +468,26 @@ export default defineComponent({
         timeLayer.disable();
       }
 
-      if (selectedTrackId !== null) {
-        if ((editingTrack) && !currentFrameIds.includes(selectedTrackId)
+      const editingVisualMask = props.camera === selectedCamera.value
+        ? visualMaskManager.getEditingMask(props.camera)
+        : undefined;
+      if (editingVisualMask) {
+        const visualMaskFrame = {
+          selected: true,
+          editing: true,
+          track: editingVisualMask as never,
+          groups: [],
+          features: editingVisualMask.getFeature(frame),
+          styleType: [editingVisualMask.styleKey, 1] as [string, number],
+        };
+        visualMaskEditLayer.setType(editingVisualMask.type);
+        visualMaskEditLayer.setKey('');
+        visualMaskEditLayer.changeData([visualMaskFrame]);
+        editAnnotationLayer.disable();
+        maskEditorLayer.disable();
+        rectAnnotationLayer.setDisableClicking(false);
+      } else if (selectedTrackId !== null) {
+        if ((editingTrack) && !(currentFrameIds || []).includes(selectedTrackId)
         && props.camera === selectedCamera.value) {
           const editTrack = trackStore?.getPossible(selectedTrackId);
           if (editTrack === undefined) {
@@ -448,9 +511,11 @@ export default defineComponent({
             editAnnotationLayer.setKey(selectedKey);
             editAnnotationLayer.changeData(editingTracks);
           }
+          visualMaskEditLayer.disable();
           maskEditorLayer.disable();
         } else if (editingTracks.length && editingTrack === 'Mask') {
           maskLayer.disable();
+          visualMaskEditLayer.disable();
           editAnnotationLayer.disable();
           rectAnnotationLayer.setDisableClicking(true);
           const track = editingTracks[0];
@@ -471,11 +536,13 @@ export default defineComponent({
           });
           getOrCreateFilter(track.styleType[0], typeStylingRef.value.color(track.styleType[0]));
         } else {
+          visualMaskEditLayer.disable();
           editAnnotationLayer.disable();
           maskEditorLayer.disable();
           rectAnnotationLayer.setDisableClicking(false);
         }
       } else {
+        visualMaskEditLayer.disable();
         editAnnotationLayer.disable();
         rectAnnotationLayer.setDisableClicking(false);
         if (maskEditorLayer.checkEnabled()) {
@@ -513,6 +580,7 @@ export default defineComponent({
         multiSeletListRef,
         visibleModesRef,
         typeStylingRef,
+        visualMaskManager.revisionCounter,
         toRef(props, 'colorBy'),
         selectedCamera,
       ],
@@ -587,6 +655,7 @@ export default defineComponent({
       if (selectedCamera.value !== props.camera) {
         return;
       }
+      visualMaskManager.clearSelection();
       //So we only want to pass the click whjen not in creation mode or editing mode for features
       if (editAnnotationLayer.getMode() !== 'creation' && getUISetting('UISelection')) {
         editAnnotationLayer.disable();
@@ -595,9 +664,31 @@ export default defineComponent({
       }
     };
 
+    const visualMaskClicked = (maskId: number | null, editing: boolean) => {
+      if (selectedCamera.value !== props.camera) {
+        return;
+      }
+      handler.trackSelect(null, false);
+      if (maskId === null) {
+        visualMaskManager.clearSelection();
+        return;
+      }
+      visualMaskManager.selectMask(maskId);
+      if (editing) {
+        visualMaskManager.startEditing(props.camera, maskId);
+      } else {
+        visualMaskManager.stopEditing();
+      }
+    };
+
     //Sync of internal geoJS state with the application
     editAnnotationLayer.bus.$on('editing-annotation-sync', (editing: boolean) => {
       handler.trackSelect(selectedTrackIdRef.value, editing);
+    });
+    visualMaskEditLayer.bus.$on('editing-annotation-sync', (editing: boolean) => {
+      if (!editing) {
+        visualMaskManager.stopEditing();
+      }
     });
     rectAnnotationLayer.bus.$on('annotation-clicked', Clicked);
     rectAnnotationLayer.bus.$on('annotation-right-clicked', Clicked);
@@ -605,6 +696,10 @@ export default defineComponent({
     timeLayer.bus.$on('annotation-right-clicked', Clicked);
     polyAnnotationLayer.bus.$on('annotation-clicked', Clicked);
     polyAnnotationLayer.bus.$on('annotation-right-clicked', Clicked);
+    visualMaskRectLayer.bus.$on('annotation-clicked', (maskId: number | null) => visualMaskClicked(maskId, false));
+    visualMaskRectLayer.bus.$on('annotation-right-clicked', (maskId: number | null) => visualMaskClicked(maskId, true));
+    visualMaskPolyLayer.bus.$on('annotation-clicked', (maskId: number | null) => visualMaskClicked(maskId, false));
+    visualMaskPolyLayer.bus.$on('annotation-right-clicked', (maskId: number | null) => visualMaskClicked(maskId, true));
     editAnnotationLayer.bus.$on('update:geojson', (
       mode: 'in-progress' | 'editing',
       geometryCompleteEvent: boolean,
@@ -629,6 +724,38 @@ export default defineComponent({
         handler.updateGeoJSON(mode, frameNumberRef.value, flickNumberRef.value, data, key, cb);
       }
       // Jump into edit mode if we completed a new shape
+      if (geometryCompleteEvent) {
+        updateLayers(
+          frameNumberRef.value,
+          editingModeRef.value,
+          selectedTrackIdRef.value,
+          multiSeletListRef.value,
+          enabledTracksRef.value,
+          visibleModesRef.value,
+          selectedKeyRef.value,
+          props.colorBy,
+        );
+      }
+    });
+    visualMaskEditLayer.bus.$on('update:geojson', (
+      _mode: 'in-progress' | 'editing',
+      geometryCompleteEvent: boolean,
+      data: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.LineString | GeoJSON.Point>,
+      type: string,
+      key = '',
+      cb: () => void,
+    ) => {
+      if (key) {
+        // Visual masks store a single shape per frame and do not use keyed geometries.
+      }
+      if (type === 'rectangle') {
+        const bounds = geojsonToBound(data as GeoJSON.Feature<GeoJSON.Polygon>);
+        cb();
+        visualMaskManager.updateRectBounds(props.camera, frameNumberRef.value, bounds);
+      } else if (type === 'Polygon') {
+        cb();
+        visualMaskManager.updateGeoJSON(props.camera, frameNumberRef.value, data as GeoJSON.Feature<GeoJSON.Polygon>);
+      }
       if (geometryCompleteEvent) {
         updateLayers(
           frameNumberRef.value,
@@ -748,15 +875,15 @@ export default defineComponent({
           <feComponentTransfer>
             <feFuncR
               type="discrete"
-              :tableValues="overlay.videoLayerTransparencyVals[0][0]"
+              :tableValues="overlay.videoLayerTransparencyVals[0][0].join(' ')"
             />
             <feFuncG
               type="discrete"
-              :tableValues="overlay.videoLayerTransparencyVals[0][1]"
+              :tableValues="overlay.videoLayerTransparencyVals[0][1].join(' ')"
             />
             <feFuncB
               type="discrete"
-              :tableValues="overlay.videoLayerTransparencyVals[0][2]"
+              :tableValues="overlay.videoLayerTransparencyVals[0][2].join(' ')"
             />
           </feComponentTransfer>
 
@@ -800,7 +927,7 @@ export default defineComponent({
             id="colorScale"
             in="SourceGraphic"
             type="matrix"
-            :values="overlay.colorScaleMatrix"
+            :values="overlay.colorScaleMatrix.join(' ')"
           />
         </filter>
       </defs>
