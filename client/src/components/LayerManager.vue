@@ -160,11 +160,6 @@ export default defineComponent({
       stateStyling: visualMaskStyleManager.stateStyles,
       typeStyling: visualMaskStyleManager.typeStyling,
     });
-    const visualMaskPolyLayer = new PolygonLayer({
-      annotator,
-      stateStyling: visualMaskStyleManager.stateStyles,
-      typeStyling: visualMaskStyleManager.typeStyling,
-    });
     const rectAnnotationLayer = new RectangleLayer({
       annotator,
       stateStyling: trackStyleManager.stateStyles,
@@ -349,13 +344,10 @@ export default defineComponent({
       );
 
       if (visibleModes.includes('VisualMask')) {
-        visualMaskRectLayer.setDrawingOther(['Polygon']);
+        visualMaskRectLayer.setDrawingOther([]);
         visualMaskRectLayer.changeData(visualMaskFrameData);
-        visualMaskPolyLayer.setDrawingOther(true);
-        visualMaskPolyLayer.changeData(visualMaskFrameData);
       } else {
         visualMaskRectLayer.disable();
-        visualMaskPolyLayer.disable();
       }
 
       if (visibleModes.includes('rectangle')) {
@@ -480,11 +472,12 @@ export default defineComponent({
           features: editingVisualMask.getFeature(frame),
           styleType: [editingVisualMask.styleKey, 1] as [string, number],
         };
-        visualMaskEditLayer.setType(editingVisualMask.type);
-        visualMaskEditLayer.setKey('');
-        visualMaskEditLayer.changeData([visualMaskFrame]);
         editAnnotationLayer.disable();
         maskEditorLayer.disable();
+        visualMaskEditLayer.setType('rectangle');
+        visualMaskEditLayer.setKey('');
+        visualMaskEditLayer.changeData([visualMaskFrame]);
+        annotator.setImageCursor('mdi-vector-rectangle');
         rectAnnotationLayer.setDisableClicking(false);
       } else if (selectedTrackId !== null) {
         if ((editingTrack) && !(currentFrameIds || []).includes(selectedTrackId)
@@ -698,8 +691,6 @@ export default defineComponent({
     polyAnnotationLayer.bus.$on('annotation-right-clicked', Clicked);
     visualMaskRectLayer.bus.$on('annotation-clicked', (maskId: number | null) => visualMaskClicked(maskId, false));
     visualMaskRectLayer.bus.$on('annotation-right-clicked', (maskId: number | null) => visualMaskClicked(maskId, true));
-    visualMaskPolyLayer.bus.$on('annotation-clicked', (maskId: number | null) => visualMaskClicked(maskId, false));
-    visualMaskPolyLayer.bus.$on('annotation-right-clicked', (maskId: number | null) => visualMaskClicked(maskId, true));
     editAnnotationLayer.bus.$on('update:geojson', (
       mode: 'in-progress' | 'editing',
       geometryCompleteEvent: boolean,
@@ -738,7 +729,7 @@ export default defineComponent({
       }
     });
     visualMaskEditLayer.bus.$on('update:geojson', (
-      _mode: 'in-progress' | 'editing',
+      mode: 'in-progress' | 'editing',
       geometryCompleteEvent: boolean,
       data: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.LineString | GeoJSON.Point>,
       type: string,
@@ -748,13 +739,13 @@ export default defineComponent({
       if (key) {
         // Visual masks store a single shape per frame and do not use keyed geometries.
       }
+      if (mode !== 'editing') {
+        return;
+      }
       if (type === 'rectangle') {
         const bounds = geojsonToBound(data as GeoJSON.Feature<GeoJSON.Polygon>);
         cb();
         visualMaskManager.updateRectBounds(props.camera, frameNumberRef.value, bounds);
-      } else if (type === 'Polygon') {
-        cb();
-        visualMaskManager.updateGeoJSON(props.camera, frameNumberRef.value, data as GeoJSON.Feature<GeoJSON.Polygon>);
       }
       if (geometryCompleteEvent) {
         updateLayers(

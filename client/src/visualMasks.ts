@@ -28,6 +28,18 @@ function normalizeStyle(style?: CustomStyle): CustomStyle {
   };
 }
 
+function normalizeGeometryFeature(
+  geometryFeature: GeoJSON.Feature<TrackSupportedFeature>,
+): GeoJSON.Feature<TrackSupportedFeature> {
+  return {
+    ...geometryFeature,
+    properties: {
+      ...(geometryFeature.properties || {}),
+      key: geometryFeature.properties?.key ?? '',
+    },
+  };
+}
+
 export class VisualMask {
   id: number;
 
@@ -132,11 +144,12 @@ export class VisualMask {
     }
     const collection = next.geometry || { type: 'FeatureCollection', features: [] };
     geometry.forEach((geo) => {
-      const i = collection.features.findIndex((item) => item.geometry.type === geo.geometry.type);
+      const normalizedGeo = normalizeGeometryFeature(geo);
+      const i = collection.features.findIndex((item) => item.geometry.type === normalizedGeo.geometry.type);
       if (i >= 0) {
-        collection.features.splice(i, 1, geo);
+        collection.features.splice(i, 1, normalizedGeo);
       } else {
-        collection.features.push(geo);
+        collection.features.push(normalizedGeo);
       }
     });
     if (collection.features.length) {
@@ -329,20 +342,20 @@ export default class VisualMaskManager {
     return Math.max(...ids) + 1;
   }
 
-  addMask(camera: string, type: VisualMaskGeometryType) {
+  addMask(camera: string, _type: VisualMaskGeometryType = 'rectangle') {
     const id = this.getNextId();
     const masks = this.ensureCamera(camera);
     masks.push(new VisualMask({
       id,
       name: `Mask ${id + 1}`,
-      type,
+      type: 'rectangle',
       enabled: true,
       frames: [],
       style: DEFAULT_VISUAL_MASK_STYLE,
     }));
     this.selectedMaskId.value = id;
     this.editingMaskId.value = id;
-    this.editingMode.value = type;
+    this.editingMode.value = 'rectangle';
     this.commit();
     return id;
   }
@@ -439,16 +452,12 @@ export default class VisualMaskManager {
     if (!mask) {
       return;
     }
-    mask.type = 'Polygon';
+    mask.type = 'rectangle';
     mask.setFeature({
       frame,
       bounds: geojsonToBound(data),
       keyframe: true,
-    }, [{
-      type: 'Feature',
-      geometry: data.geometry,
-      properties: {},
-    }]);
+    });
     this.commit();
   }
 }

@@ -89,9 +89,9 @@ export default defineComponent({
       );
     });
 
-    function addMask(type: 'rectangle' | 'Polygon') {
+    function addMask() {
       handler.trackSelect(null, false);
-      visualMaskManager.addMask(selectedCamera.value, type);
+      visualMaskManager.addMask(selectedCamera.value, 'rectangle');
       showColorPicker.value = false;
     }
 
@@ -179,24 +179,12 @@ export default defineComponent({
             color="primary"
             class="mr-2"
             :disabled="!canEditMasks"
-            @click="addMask('rectangle')"
+            @click="addMask()"
           >
             <v-icon left small>
               mdi-vector-square
             </v-icon>
             Add Box
-          </v-btn>
-          <v-btn
-            small
-            color="primary"
-            outlined
-            :disabled="!canEditMasks"
-            @click="addMask('Polygon')"
-          >
-            <v-icon left small>
-              mdi-vector-polygon
-            </v-icon>
-            Add Polygon
           </v-btn>
         </div>
         <div class="text-caption grey--text mb-2">

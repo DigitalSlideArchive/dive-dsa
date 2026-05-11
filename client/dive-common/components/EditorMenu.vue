@@ -7,7 +7,7 @@ import { Mousetrap, OverlayPreferences } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
-import { useMasks, useConfiguration } from 'vue-media-annotator/provides';
+import { useMasks, useConfiguration, useVisualMaskManager } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import MaskTracking from 'dive-common/components/MaskTracking.vue';
 
@@ -81,6 +81,7 @@ export default defineComponent({
     let toolTimeTimeout: number | undefined;
     const { editorOptions, editorFunctions } = useMasks();
     const configMan = useConfiguration();
+    const visualMaskManager = useVisualMaskManager();
     const store = useStore();
     const isOwnerAdmin = computed(() => {
       const currentUser = store.state.User.user as ({
@@ -260,7 +261,7 @@ export default defineComponent({
           click: () => toggleVisible('attributeKey'),
         });
       }
-      if (!isOwnerAdmin.value) {
+      if (!isOwnerAdmin.value || !visualMaskManager.hasMasks.value) {
         return buttons.filter((button) => button.id !== 'VisualMask');
       }
       return buttons;
@@ -269,7 +270,7 @@ export default defineComponent({
     const isVisible = (mode: VisibleAnnotationTypes) => props.visibleModes.includes(mode);
 
     const toggleVisible = (mode: VisibleAnnotationTypes) => {
-      if (mode === 'VisualMask' && !isOwnerAdmin.value) {
+      if (mode === 'VisualMask' && (!isOwnerAdmin.value || !visualMaskManager.hasMasks.value)) {
         return;
       }
       if (isVisible(mode)) {
