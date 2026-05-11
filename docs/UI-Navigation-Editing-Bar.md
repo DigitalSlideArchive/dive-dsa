@@ -39,4 +39,5 @@ The **:material-eye: visibility** section contains toggle buttons that control t
 * ==:material-vector-line:== toggles **head/tail line** visibility
 * ==:material-format-text:== toggles annotation type & confidence **text** visibility
 * ==:material-comment-text-outline:== toggles a **cursor hover tooltip**, helpful for reviewing very dense scenes with lots of overlap.
+* ==:material-image-filter-center-focus-strong:== toggles **visual mask** visibility when visual masks exist and the current user is a configuration owner or administrator.  See [Visual Masks](UI-Visual-Masks.md).
 * ==:material-navigation:== toggles **track trail** visibility.  The track trail is configurable to show up to 100 frames both ahead and behind each bounding box.  The trail line is made of bounding box midpoints.
