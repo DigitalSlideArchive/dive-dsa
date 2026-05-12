@@ -40,23 +40,11 @@ export default defineComponent({
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const girderRest = useGirderRest();
-    const isAdminOwner = computed(() => {
-      let ownerAdmin = false;
-      if (girderRest.user) {
-        ownerAdmin = girderRest.user.admin;
-      }
-      const id = girderRest.user._id;
-      const groups = girderRest.user.groups as string[];
-      if (configMan.configOwners.value.users.findIndex((item) => item.id === id) !== -1) {
-        ownerAdmin = true;
-      }
-      groups.forEach((group) => {
-        if (configMan.configOwners.value.groups.findIndex((item) => item.id === group) !== -1) {
-          ownerAdmin = true;
-        }
-      });
-      return ownerAdmin;
-    });
+    const isAdminOwner = computed(() => configMan.isConfigOwnerAdmin(girderRest.user as ({
+        admin?: boolean;
+        _id?: string;
+        groups?: string[];
+      } | null)));
     const hasConfig = computed(() => !!configMan.configuration.value);
     const menuOpen = ref(false);
     const additive = ref(false);

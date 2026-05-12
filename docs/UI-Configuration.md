@@ -9,6 +9,8 @@ DIVE-DSA has the capability to specify configurations for datasets.  Configurati
 
  Along with launch actions, special keyboard shortcuts can be configured to perform actions, like selecting tracks or going to specific frames in tracks.
 
+Visual masks are also stored in the dataset configuration.  They are owner/admin-managed rectangular overlays that persist until changed on a later frame.  For usage details, see [Visual Masks](UI-Visual-Masks.md).
+
 ## General
 
 ![General](images/Configuration//General/General.png)

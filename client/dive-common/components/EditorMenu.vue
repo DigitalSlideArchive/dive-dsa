@@ -7,7 +7,8 @@ import { Mousetrap, OverlayPreferences } from 'vue-media-annotator/types';
 import { EditAnnotationTypes, VisibleAnnotationTypes } from 'vue-media-annotator/layers';
 import Recipe from 'vue-media-annotator/recipe';
 import { hexToRgb } from 'vue-media-annotator/utils';
-import { useMasks } from 'vue-media-annotator/provides';
+import { useMasks, useConfiguration, useVisualMaskManager } from 'vue-media-annotator/provides';
+import { useStore } from 'platform/web-girder/store/types';
 import MaskTracking from 'dive-common/components/MaskTracking.vue';
 
 interface ButtonData {
@@ -79,6 +80,17 @@ export default defineComponent({
     const toolTipForce = ref(false);
     let toolTimeTimeout: number | undefined;
     const { editorOptions, editorFunctions } = useMasks();
+    const configMan = useConfiguration();
+    const visualMaskManager = useVisualMaskManager();
+    const store = useStore();
+    const isOwnerAdmin = computed(() => {
+      const currentUser = store.state.User.user as ({
+        admin?: boolean;
+        _id?: string;
+        groups?: string[];
+      } | null);
+      return configMan.isConfigOwnerAdmin(currentUser);
+    });
     const modeToolTips = {
       Creating: {
         rectangle: 'Drag to draw rectangle. Press ESC to exit.',
@@ -217,6 +229,14 @@ export default defineComponent({
           tooltip: 'Tooltip Information about Hovered over annotations',
           click: () => toggleVisible('tooltip'),
         },
+        {
+          id: 'VisualMask',
+          type: 'VisualMask',
+          active: isVisible('VisualMask'),
+          icon: 'mdi-image-filter-center-focus-strong',
+          tooltip: 'Configuration visual masks',
+          click: () => toggleVisible('VisualMask'),
+        },
       ];
       if (props.attributeKey) {
         buttons.push({
@@ -228,12 +248,18 @@ export default defineComponent({
           click: () => toggleVisible('attributeKey'),
         });
       }
+      if (!isOwnerAdmin.value || !visualMaskManager.hasMasks.value) {
+        return buttons.filter((button) => button.id !== 'VisualMask');
+      }
       return buttons;
     });
 
     const isVisible = (mode: VisibleAnnotationTypes) => props.visibleModes.includes(mode);
 
     const toggleVisible = (mode: VisibleAnnotationTypes) => {
+      if (mode === 'VisualMask' && (!isOwnerAdmin.value || !visualMaskManager.hasMasks.value)) {
+        return;
+      }
       if (isVisible(mode)) {
         emit('set-annotation-state', {
           visible: props.visibleModes.filter((m) => m !== mode),

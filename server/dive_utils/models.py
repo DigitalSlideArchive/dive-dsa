@@ -538,6 +538,16 @@ class CustomUISettings(BaseModel):
     width: Optional[int]
 
 
+class VisualMask(BaseModel):
+    id: int
+    name: str
+    enabled: Optional[bool]
+    useRelativePositioning: Optional[bool]
+    type: Literal['rectangle']
+    frames: List[Feature] = Field(default_factory=list)
+    style: Optional[CustomStyle]
+
+
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]
     UISettings: Optional[UISettings]
@@ -546,6 +556,7 @@ class DIVEConfiguration(BaseModel):
     filterTimelines: Optional[List[FilterTimeline]]
     timelineConfigs: Optional[List[TimelineConfiguration]]
     customUI: Optional[CustomUISettings]
+    visualMasks: Optional[Dict[str, List[VisualMask]]]
 
     @validator('timelineConfigs', pre=True)
     @classmethod

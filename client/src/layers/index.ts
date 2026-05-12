@@ -12,7 +12,7 @@ import * as UILayerTypes from './UILayers/UILayerTypes';
 import EditAnnotationLayer from './EditAnnotationLayer';
 import type { EditAnnotationTypes } from './EditAnnotationLayer';
 
-type VisibleAnnotationTypes = EditAnnotationTypes | 'text' | 'tooltip' | 'TrackTail' | 'overlays' | 'attributeKey';
+type VisibleAnnotationTypes = EditAnnotationTypes | 'VisualMask' | 'text' | 'tooltip' | 'TrackTail' | 'overlays' | 'attributeKey';
 
 export {
   /* AnnotationLayers */

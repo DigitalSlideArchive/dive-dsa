@@ -134,6 +134,12 @@ Every track is required to have a bounding box, but a polygon region may be adde
 ![Polygon Demo](videos/CreationModes/PolygonAnnotation.gif)
 
 
+## Visual Masks
+
+Visual masks are configuration-backed rectangular overlays that can be managed by configuration owners and administrators.
+
+For the full workflow, permissions, and visibility behavior, see [Visual Masks](UI-Visual-Masks.md).
+
 ## Segmentation Masks
 
 ![Polygon Demo](videos/CreationModes/SegmentationAnnotation.gif)

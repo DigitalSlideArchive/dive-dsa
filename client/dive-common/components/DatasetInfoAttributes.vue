@@ -230,8 +230,8 @@ export default defineComponent({
                   small
                   class="ml-2"
                   v-bind="attrs"
-                  v-on="on"
                   aria-label="Detection attribute settings"
+                  v-on="on"
                   @click.stop
                 >
                   <v-icon small>

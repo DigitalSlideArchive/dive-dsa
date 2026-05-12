@@ -2,6 +2,8 @@ import { ref, Ref } from 'vue';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
 import type { FilterTimeline } from './use/useTimelineFilters';
+import type { CustomStyle } from './StyleManager';
+import type { Feature } from './track';
 
 export interface DiveConfiguration {
   prevNext?: {
@@ -68,6 +70,7 @@ interface UIContextBar {
     UITrackList? : boolean;
     UIDatasetInfo?: boolean;
     UIAttributeUserReview?: boolean;
+    UIVisualMasks?: boolean;
 }
 
 interface UITrackDetails {
@@ -139,6 +142,24 @@ export interface CustomUISettings {
   width? : number;
   }
 
+export interface ConfigurationUser {
+  admin?: boolean;
+  _id?: string;
+  groups?: string[];
+}
+
+export type VisualMaskGeometryType = 'rectangle';
+
+export interface VisualMaskConfiguration {
+  id: number;
+  name: string;
+  enabled?: boolean;
+  useRelativePositioning?: boolean;
+  type: VisualMaskGeometryType;
+  frames: Feature[];
+  style?: CustomStyle;
+}
+
 export interface Configuration {
   general?: {
     configurationMerge? : 'merge up' | 'merge down' | 'disabled';
@@ -152,6 +173,7 @@ export interface Configuration {
   filterTimelines?: FilterTimeline[];
   timelineConfigs?: TimelineConfiguration[];
   customUI?: CustomUISettings;
+  visualMasks?: Record<string, VisualMaskConfiguration[]>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -241,6 +263,20 @@ export default class ConfigurationManager {
     groups: {name: string; id: string}[];
   }) {
     this.configOwners.value = data;
+  }
+
+  isConfigOwnerAdmin(user: ConfigurationUser | null | undefined) {
+    if (!user) {
+      return false;
+    }
+    if (user.admin) {
+      return true;
+    }
+    if (user._id && this.configOwners.value.users.some((item) => item.id === user._id)) {
+      return true;
+    }
+    return (user.groups || []).some((group) => this.configOwners.value.groups
+      .some((item) => item.id === group));
   }
 
   setPrevNext(data: DiveConfiguration['prevNext']) {

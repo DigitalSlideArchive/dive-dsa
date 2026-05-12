@@ -56,6 +56,7 @@ nav:
       - Introduction: Annotation-User-Interface-Overview.md
       - Navigation and Editing Bar: UI-Navigation-Editing-Bar.md
       - Annotation Window: UI-Annotation-View.md
+      - Visual Masks: UI-Visual-Masks.md
       - Type List: UI-Type-List.md
       - Track List: UI-Track-List.md
       - Timeline: UI-Timeline.md

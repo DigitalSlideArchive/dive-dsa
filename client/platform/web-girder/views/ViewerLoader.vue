@@ -12,6 +12,7 @@ import context from 'dive-common/store/context';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import ConfigurationEditor from 'dive-common/components/ConfigurationEditor.vue';
+import VisualMaskSidebar from 'dive-common/components/VisualMaskSidebar.vue';
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 
 import { useRouter } from 'vue-router/composables';
@@ -65,6 +66,7 @@ export default defineComponent({
     ViewerAlert,
     DIVETools,
     ConfigurationEditor,
+    VisualMaskSidebar,
     AnnotationDataBrowser,
     ...context.getComponents(),
   },

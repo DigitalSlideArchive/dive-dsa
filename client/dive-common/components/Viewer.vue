@@ -22,6 +22,7 @@ import {
   StyleManager, TrackFilterControls, GroupFilterControls,
   ConfigurationManager,
 } from 'vue-media-annotator/index';
+import VisualMaskManager from 'vue-media-annotator/visualMasks';
 import { provideAnnotator } from 'vue-media-annotator/provides';
 
 import {
@@ -66,6 +67,7 @@ import { useRoute } from 'vue-router/composables';
 import AttributeShortcutToggle from './Attributes/AttributeShortcutToggle.vue';
 import GroupSidebarVue from './GroupSidebar.vue';
 import MultiCamToolsVue from './MultiCamTools.vue';
+import VisualMaskSidebarVue from './VisualMaskSidebar.vue';
 import PrevNext from './PrevNext.vue';
 import AttributesSideBarVue from './Attributes/AttributesSideBar.vue';
 import TypeThresholdVue from './TypeThreshold.vue';
@@ -172,6 +174,14 @@ export default defineComponent({
     });
 
     const store = useStore();
+    const isConfigOwnerAdmin = computed(() => {
+      const currentUser = store.state.User.user as ({
+        admin?: boolean;
+        _id?: string;
+        groups?: string[];
+      } | null);
+      return configurationManager.isConfigOwnerAdmin(currentUser);
+    });
 
     const {
       save: saveToServer,
@@ -208,11 +218,31 @@ export default defineComponent({
     const vuetify = inject('vuetify') as Vuetify;
     const trackStyleManager = new StyleManager({ markChangesPending, vuetify });
     const groupStyleManager = new StyleManager({ markChangesPending, vuetify });
+    const visualMaskStyleManager = new StyleManager({ markChangesPending, vuetify });
 
     const cameraStore = new CameraStore({ markChangesPending });
     // eslint-disable-next-line max-len
     const configurationManager = new ConfigurationManager({
       configurationId, setConfigurationId, saveConfiguration, transferConfiguration,
+    });
+    const visualMaskManager = new VisualMaskManager({
+      markChangesPending,
+      styleManager: visualMaskStyleManager,
+      syncConfiguration: (visualMasks) => {
+        if (!configurationManager.configuration.value) {
+          if (!Object.keys(visualMasks).length) {
+            return;
+          }
+          configurationManager.setConfiguration({});
+        }
+        if (configurationManager.configuration.value) {
+          if (Object.keys(visualMasks).length) {
+            configurationManager.configuration.value.visualMasks = visualMasks;
+          } else {
+            delete configurationManager.configuration.value.visualMasks;
+          }
+        }
+      },
     });
 
     // This context for removal
@@ -507,6 +537,10 @@ export default defineComponent({
         handler.trackSelect(selectedTrackId.value, false);
       }
       try {
+        await configurationManager.saveConfiguration(
+          configurationId.value,
+          { visualMasks: visualMaskManager.serialize() },
+        );
         await saveToServer({
           customTypeStyling: trackStyleManager.getTypeStyles(trackFilters.allTypes),
           customGroupStyling: groupStyleManager.getTypeStyles(groupFilters.allTypes),
@@ -526,7 +560,8 @@ export default defineComponent({
         }
       } catch (err) {
         let text = 'Unable to Save Data';
-        if (err.response && err.response.status === 403) {
+        const errorResponse = err as { response?: { status?: number } };
+        if (errorResponse.response && errorResponse.response.status === 403) {
           text = 'You do not have permission to Save Data to this Folder.';
         }
         await prompt({
@@ -635,6 +670,7 @@ export default defineComponent({
         configurationManager.setConfiguration(
           config.diveConfig.metadata.configuration,
         );
+        visualMaskManager.load(config.diveConfig.metadata.configuration.visualMasks);
 
         if (config.diveConfig.metadata.configuration.general?.baseConfiguration) {
           configurationManager.setConfigurationId(
@@ -644,6 +680,8 @@ export default defineComponent({
         if (config.diveConfig.metadata.configuration.filterTimelines) {
           useTimelineFilters.loadFilterTimelines(config.diveConfig.metadata.configuration.filterTimelines);
         }
+      } else {
+        visualMaskManager.load();
       }
       const flatUIMap = configurationManager.getFlatUISettingMap();
       ctx.emit('get-ui-settings', flatUIMap);
@@ -836,6 +874,18 @@ export default defineComponent({
             component: DatasetInfo,
           });
         }
+        if (!configurationManager.getUISetting('UIVisualMasks') || !isConfigOwnerAdmin.value) {
+          context.unregister({
+            description: 'Visual Masks',
+            component: VisualMaskSidebarVue,
+          });
+        } else {
+          context.register({
+            description: 'Visual Masks',
+            component: VisualMaskSidebarVue,
+            width: 340,
+          });
+        }
 
         if (!configurationManager.getUISetting('UIThresholdControls')) {
           context.unregister({
@@ -861,7 +911,7 @@ export default defineComponent({
         progress.loaded = false;
         console.error(err);
         const errorEl = document.createElement('div');
-        errorEl.innerHTML = getResponseError(err);
+        errorEl.innerHTML = getResponseError(err as never);
         loadError.value = errorEl.innerText
           .concat(". If you don't know how to resolve this, please contact the server administrator.");
         throw err;
@@ -979,6 +1029,8 @@ export default defineComponent({
         editingMode,
         groupFilters,
         groupStyleManager,
+        visualMaskManager,
+        visualMaskStyleManager,
         multiSelectList,
         pendingSaveCount,
         progress,
@@ -1063,6 +1115,7 @@ export default defineComponent({
       selectedTrackId,
       editingGroupId,
       selectedKey,
+      visualMaskManager,
       trackFilters,
       videoUrl,
       overlays,
@@ -1168,7 +1221,7 @@ export default defineComponent({
             recipes,
             multiSelectActive,
             editingDetails,
-            overlays,
+            overlays: overlays ? [...overlays] : [],
             groupEditActive: editingGroupId !== null,
           }"
           :get-u-i-setting="getUISetting"
@@ -1303,7 +1356,7 @@ export default defineComponent({
           v-mousetrap="[
             { bind: 'n', handler: () => !readonlyState && handler.trackAdd() },
             { bind: 'r', handler: () => aggregateController.resetZoom() },
-            { bind: 'esc', handler: () => getUISetting('UISelection') && handler.trackAbort() },
+            { bind: 'esc', handler: () => (visualMaskManager.editingMaskId !== null ? visualMaskManager.stopEditing() : (getUISetting('UISelection') && handler.trackAbort())) },
           ]"
           class="d-flex flex-column grow"
         >
@@ -1337,7 +1390,7 @@ export default defineComponent({
                 <LayerManager
                   v-if="progress.loaded"
                   :camera="camera"
-                  :overlays="overlays"
+                  :overlays="overlays ? [...overlays] : []"
                 />
               </component>
             </div>
