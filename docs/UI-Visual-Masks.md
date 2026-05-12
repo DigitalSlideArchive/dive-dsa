@@ -6,21 +6,15 @@ Unlike track annotations, visual masks are stored with the dataset configuration
 
 ## Permissions
 
-Visual masks are restricted to configuration owners and administrators.
+Visual mask management is restricted to configuration owners and administrators.
 
-Standard users can still see existing visual masks in the annotation view, but they cannot:
-
-- create masks
-- edit mask geometry
-- rename masks
-- change mask styling
-- enable or disable masks
+Non-owner/admin users do not get the **Visual Masks** sidebar or the visual-mask visibility toggle in the editing bar. Existing masks may still appear in the annotation view when they are enabled in the current configuration.
 
 ## Where to Find Them
 
-When visual masks are enabled in the dataset configuration, owners and administrators can manage them from the **Visual Masks** context sidebar.
+When visual masks are enabled in the dataset configuration, configuration owners and administrators can manage them from the **Visual Masks** context sidebar.
 
-If at least one visual mask exists for the current dataset, owners and administrators will also see a visibility toggle in the editing bar:
+If at least one visual mask exists for the current dataset, configuration owners and administrators will also see a visibility toggle in the editing bar:
 
 - ==:material-image-filter-center-focus-strong:== toggles visual mask display
 
