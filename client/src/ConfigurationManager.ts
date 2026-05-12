@@ -142,7 +142,13 @@ export interface CustomUISettings {
   width? : number;
   }
 
-export type VisualMaskGeometryType = 'rectangle' | 'Polygon';
+export interface ConfigurationUser {
+  admin?: boolean;
+  _id?: string;
+  groups?: string[];
+}
+
+export type VisualMaskGeometryType = 'rectangle';
 
 export interface VisualMaskConfiguration {
   id: number;
@@ -256,6 +262,20 @@ export default class ConfigurationManager {
     groups: {name: string; id: string}[];
   }) {
     this.configOwners.value = data;
+  }
+
+  isConfigOwnerAdmin(user: ConfigurationUser | null | undefined) {
+    if (!user) {
+      return false;
+    }
+    if (user.admin) {
+      return true;
+    }
+    if (user._id && this.configOwners.value.users.some((item) => item.id === user._id)) {
+      return true;
+    }
+    return (user.groups || []).some((group) => this.configOwners.value.groups
+      .some((item) => item.id === group));
   }
 
   setPrevNext(data: DiveConfiguration['prevNext']) {

@@ -36,21 +36,7 @@ export default defineComponent({
         _id?: string;
         groups?: string[];
       } | null);
-      let ownerAdmin = false;
-      if (currentUser) {
-        ownerAdmin = !!currentUser.admin;
-      }
-      const userId = currentUser?._id;
-      const groups = currentUser?.groups || [];
-      if (userId && configMan.configOwners.value.users.findIndex((item) => item.id === userId) !== -1) {
-        ownerAdmin = true;
-      }
-      groups.forEach((group) => {
-        if (configMan.configOwners.value.groups.findIndex((item) => item.id === group) !== -1) {
-          ownerAdmin = true;
-        }
-      });
-      return ownerAdmin;
+      return configMan.isConfigOwnerAdmin(currentUser);
     });
     const canEditMasks = computed(() => isOwnerAdmin.value && !readOnlyMode.value);
 
@@ -161,15 +147,9 @@ export default defineComponent({
             </div>
           </div>
         </div>
-        <v-alert
-          v-if="!isOwnerAdmin"
-          dense
-          outlined
-          type="info"
-          class="mb-3"
-        >
-          Visual masks are viewable here, but only configuration owners/admins can edit them.
-        </v-alert>
+        <div class="text-caption grey--text mb-3">
+          Visual mask changes are stored in the dataset configuration and saved with the standard save button.
+        </div>
         <div class="text-caption grey--text mb-2">
           Add Visual Mask
         </div>

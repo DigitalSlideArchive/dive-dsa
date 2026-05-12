@@ -89,20 +89,7 @@ export default defineComponent({
         _id?: string;
         groups?: string[];
       } | null);
-      if (!currentUser) {
-        return false;
-      }
-      let ownerAdmin = !!currentUser.admin;
-      if (configMan.configOwners.value.users
-        .findIndex((item) => item.id === currentUser._id) !== -1) {
-        ownerAdmin = true;
-      }
-      (currentUser.groups || []).forEach((group: string) => {
-        if (configMan.configOwners.value.groups.findIndex((item) => item.id === group) !== -1) {
-          ownerAdmin = true;
-        }
-      });
-      return ownerAdmin;
+      return configMan.isConfigOwnerAdmin(currentUser);
     });
     const modeToolTips = {
       Creating: {
