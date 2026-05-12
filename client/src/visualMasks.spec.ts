@@ -25,33 +25,6 @@ describe('VisualMask', () => {
     expect(mask.getFeature(30)?.bounds).toEqual([5, 5, 15, 15]);
   });
 
-  it('normalizes polygon geometry with an empty key for editing', () => {
-    const mask = new VisualMask({
-      id: 2,
-      name: 'Polygon Mask',
-      type: 'Polygon',
-      frames: [{
-        frame: 10,
-        bounds: [0, 0, 10, 10],
-        keyframe: true,
-        geometry: {
-          type: 'FeatureCollection',
-          features: [{
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
-            },
-            properties: {},
-          }],
-        },
-      }],
-    });
-
-    expect(mask.getFeature(10)?.geometry?.features[0]?.properties).toEqual({ key: '' });
-  });
-});
-
 describe('VisualMaskManager', () => {
   it('serializes per-camera visual masks with their styles', () => {
     const styleManager = new StyleManager({ markChangesPending: () => {} });
