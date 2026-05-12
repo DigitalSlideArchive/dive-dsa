@@ -24,6 +24,7 @@ describe('VisualMask', () => {
     expect(mask.getFeature(20)?.bounds).toEqual([5, 5, 15, 15]);
     expect(mask.getFeature(30)?.bounds).toEqual([5, 5, 15, 15]);
   });
+});
 
 describe('VisualMaskManager', () => {
   it('serializes per-camera visual masks with their styles', () => {
@@ -70,7 +71,7 @@ describe('VisualMaskManager', () => {
       syncConfiguration: () => {},
     });
 
-    const id = manager.addMask('singleCam', 'Polygon');
+    const id = manager.addMask('singleCam');
 
     expect(manager.getMask('singleCam', id)?.type).toBe('rectangle');
     expect(manager.editingMode.value).toBe('rectangle');
