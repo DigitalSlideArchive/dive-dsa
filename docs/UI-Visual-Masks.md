@@ -58,6 +58,54 @@ Each visual mask can store its own style settings in the configuration:
 
 These settings are shared with the dataset configuration, so they persist across sessions just like other configuration-driven UI settings.
 
+## Configuration Format
+
+Visual masks live under the top-level `visualMasks` key in the dataset configuration. The value is an object keyed by camera name, where each camera contains an array of masks.
+
+Example:
+
+```json
+{
+  "visualMasks": {
+    "cam1": [
+      {
+        "id": 0,
+        "name": "Doorway Mask",
+        "enabled": true,
+        "type": "rectangle",
+        "style": {
+          "color": "#000000",
+          "fill": true,
+          "opacity": 1,
+          "strokeWidth": 3
+        },
+        "frames": [
+          {
+            "frame": 10,
+            "bounds": [120, 80, 420, 260],
+            "keyframe": true
+          },
+          {
+            "frame": 25,
+            "bounds": [140, 80, 420, 260],
+            "keyframe": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Quick notes:
+
+- `visualMasks.cam1` can be replaced with any camera name from the dataset configuration.
+- Each mask needs an `id`, `name`, `type`, and `frames` array.
+- `type` is currently always `"rectangle"`.
+- `frames` stores the explicit shape changes for that mask. The mask remains in effect until a later frame entry changes it.
+- Each frame entry uses `bounds: [x1, y1, x2, y2]` in image/display coordinates.
+- `style` is optional. If omitted, the application fills in defaults such as black, filled, and fully opaque (`opacity: 1`).
+
 ## Current Limitations
 
 - Only rectangle visual masks are supported currently.
