@@ -542,6 +542,7 @@ class VisualMask(BaseModel):
     id: int
     name: str
     enabled: Optional[bool]
+    useRelativePositioning: Optional[bool]
     type: Literal['rectangle']
     frames: List[Feature] = Field(default_factory=list)
     style: Optional[CustomStyle]

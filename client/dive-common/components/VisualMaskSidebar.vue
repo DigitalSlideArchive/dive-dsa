@@ -11,6 +11,7 @@ import {
   useTime,
   useVisualMaskManager,
 } from 'vue-media-annotator/provides';
+import { injectAggregateController } from 'vue-media-annotator/components/annotators/useMediaController';
 
 export default defineComponent({
   name: 'VisualMaskSidebar',
@@ -22,6 +23,7 @@ export default defineComponent({
   },
   setup() {
     const configMan = useConfiguration();
+    const aggregateController = injectAggregateController().value;
     const handler = useHandler();
     const readOnlyMode = useReadOnlyMode();
     const selectedCamera = useSelectedCamera();
@@ -41,6 +43,9 @@ export default defineComponent({
     const canEditMasks = computed(() => isOwnerAdmin.value && !readOnlyMode.value);
 
     const currentFrame = computed(() => time.frame.value);
+    const selectedCameraFrameSize = computed(() => (
+      aggregateController.getController(selectedCamera.value).frameSize.value
+    ));
     const cameraMasks = computed(() => {
       const revision = visualMaskManager.revisionCounter.value;
       if (revision >= 0) {
@@ -104,11 +109,24 @@ export default defineComponent({
       });
     }
 
+    function setRelativePositioning(value: boolean) {
+      if (!selectedMask.value) {
+        return;
+      }
+      visualMaskManager.setMaskRelativePositioning(
+        selectedCamera.value,
+        selectedMask.value.id,
+        value,
+        selectedCameraFrameSize.value,
+      );
+    }
+
     return {
       addMask,
       cameraMasks,
       canEditMasks,
       currentFrame,
+      selectedCameraFrameSize,
       editingMaskId: visualMaskManager.editingMaskId,
       isEditingSelected,
       isExactKeyframe,
@@ -120,6 +138,7 @@ export default defineComponent({
       selectMask,
       showColorPicker,
       toggleEditing,
+      setRelativePositioning,
       updateStyle,
       visualMaskManager,
       seekFrame: handler.seekFrame,
@@ -190,16 +209,30 @@ export default defineComponent({
               </v-list-item-subtitle>
             </v-list-item-content>
             <v-list-item-action class="d-flex flex-row align-center">
-              <v-switch
+              <v-tooltip
                 v-if="isOwnerAdmin"
-                :input-value="mask.enabled"
-                inset
-                dense
-                class="mt-0 pt-0 mr-1"
-                hide-details
-                :disabled="readOnlyMode"
-                @change="visualMaskManager.setMaskEnabled(selectedCamera, mask.id, $event)"
-              />
+                top
+              >
+                <template #activator="{ on, attrs }">
+                  <div
+                    class="d-flex align-center mr-1"
+                    v-bind="attrs"
+                    v-on="on"
+                    @click.stop
+                  >
+                    <v-checkbox
+                      :input-value="mask.enabled"
+                      dense
+                      class="mask-visibility-checkbox mt-0 pt-0"
+                      hide-details
+                      :disabled="readOnlyMode"
+                      @change="visualMaskManager.setMaskEnabled(selectedCamera, mask.id, $event)"
+                      @click.stop
+                    />
+                  </div>
+                </template>
+                <span>Visibility</span>
+              </v-tooltip>
               <v-btn
                 icon
                 small
@@ -254,32 +287,17 @@ export default defineComponent({
           :disabled="!canEditMasks"
           @change="visualMaskManager.renameMask(selectedCamera, selectedMask.id, $event)"
         />
-        <div class="d-flex flex-wrap mb-3">
-          <v-chip
-            x-small
-            class="mr-1 mb-1"
-          >
-            {{ selectedMask.type }}
-          </v-chip>
-          <v-chip
-            x-small
-            class="mr-1 mb-1"
-            :color="isEditingSelected ? 'primary' : undefined"
-          >
-            {{ isEditingSelected ? 'editing' : 'selected' }}
-          </v-chip>
-          <v-chip
-            x-small
-            class="mr-1 mb-1"
-          >
-            frame {{ currentFrame }}
-          </v-chip>
-          <v-chip
-            x-small
-            class="mb-1"
-          >
-            {{ isExactKeyframe ? 'shape changes here' : 'inherits previous shape' }}
-          </v-chip>
+        <v-switch
+          :input-value="selectedMask.useRelativePositioning"
+          label="Relative positioning"
+          dense
+          hide-details
+          class="mb-1 mt-0"
+          :disabled="!canEditMasks"
+          @change="setRelativePositioning"
+        />
+        <div class="text-caption grey--text mb-3">
+          Store mask bounds as a percentage of the video size so the mask scales across videos with different resolutions.
         </div>
         <div class="d-flex flex-wrap mb-3">
           <v-btn
@@ -408,5 +426,10 @@ export default defineComponent({
   border: 1px solid white;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.mask-visibility-checkbox {
+  margin: 0;
+  padding: 0;
 }
 </style>

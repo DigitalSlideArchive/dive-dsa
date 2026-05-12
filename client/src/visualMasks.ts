@@ -17,6 +17,8 @@ const DEFAULT_VISUAL_MASK_STYLE: CustomStyle = {
   strokeWidth: 3,
 };
 
+const RELATIVE_POSITION_PERCENT_SCALE = 100;
+
 function getVisualMaskStyleKey(id: number) {
   return `visual-mask-${id}`;
 }
@@ -26,6 +28,64 @@ function normalizeStyle(style?: CustomStyle): CustomStyle {
     ...DEFAULT_VISUAL_MASK_STYLE,
     ...style,
   };
+}
+
+function normalizeRelativeValue(value: number) {
+  return Number(value.toFixed(6));
+}
+
+function hasFrameSize(frameSize?: readonly [number, number]) {
+  return !!frameSize && frameSize[0] > 0 && frameSize[1] > 0;
+}
+
+function convertBoundsToRelative(
+  bounds: RectBounds,
+  frameSize?: readonly [number, number],
+): RectBounds {
+  if (!hasFrameSize(frameSize)) {
+    return [...bounds] as RectBounds;
+  }
+  const width = frameSize![0];
+  const height = frameSize![1];
+  return [
+    normalizeRelativeValue((bounds[0] / width) * RELATIVE_POSITION_PERCENT_SCALE),
+    normalizeRelativeValue((bounds[1] / height) * RELATIVE_POSITION_PERCENT_SCALE),
+    normalizeRelativeValue((bounds[2] / width) * RELATIVE_POSITION_PERCENT_SCALE),
+    normalizeRelativeValue((bounds[3] / height) * RELATIVE_POSITION_PERCENT_SCALE),
+  ];
+}
+
+function convertBoundsToAbsolute(
+  bounds: RectBounds,
+  frameSize?: readonly [number, number],
+): RectBounds {
+  if (!hasFrameSize(frameSize)) {
+    return [...bounds] as RectBounds;
+  }
+  const width = frameSize![0];
+  const height = frameSize![1];
+  return [
+    Math.round((bounds[0] / RELATIVE_POSITION_PERCENT_SCALE) * width),
+    Math.round((bounds[1] / RELATIVE_POSITION_PERCENT_SCALE) * height),
+    Math.round((bounds[2] / RELATIVE_POSITION_PERCENT_SCALE) * width),
+    Math.round((bounds[3] / RELATIVE_POSITION_PERCENT_SCALE) * height),
+  ];
+}
+
+function normalizeStoredBounds(
+  bounds: RectBounds,
+  useRelativePositioning: boolean,
+  frameSize?: readonly [number, number],
+): RectBounds {
+  if (useRelativePositioning) {
+    return convertBoundsToRelative(bounds, frameSize);
+  }
+  return [
+    Math.round(bounds[0]),
+    Math.round(bounds[1]),
+    Math.round(bounds[2]),
+    Math.round(bounds[3]),
+  ];
 }
 
 function normalizeGeometryFeature(
@@ -47,6 +107,8 @@ export class VisualMask {
 
   enabled: boolean;
 
+  useRelativePositioning: boolean;
+
   type: VisualMaskGeometryType;
 
   features: Feature[];
@@ -59,6 +121,7 @@ export class VisualMask {
     id,
     name,
     enabled = true,
+    useRelativePositioning = false,
     type,
     frames,
     style,
@@ -66,6 +129,7 @@ export class VisualMask {
     this.id = id;
     this.name = name;
     this.enabled = enabled;
+    this.useRelativePositioning = useRelativePositioning;
     this.type = type;
     this.features = [];
     this.featureIndex = [];
@@ -87,9 +151,15 @@ export class VisualMask {
     return this.features[frame] || null;
   }
 
-  getFeature(frame: number) {
+  getFeature(frame: number, frameSize?: readonly [number, number]) {
     const exact = this.getExactFeature(frame);
     if (exact) {
+      if (exact.bounds && this.useRelativePositioning) {
+        return {
+          ...exact,
+          bounds: convertBoundsToAbsolute(exact.bounds, frameSize),
+        };
+      }
       return exact;
     }
     if (!this.featureIndex.length) {
@@ -103,11 +173,15 @@ export class VisualMask {
     if (!source) {
       return null;
     }
-    return {
+    const nextFeature: Feature = {
       ...source,
       frame,
       keyframe: false,
     };
+    if (nextFeature.bounds && this.useRelativePositioning) {
+      nextFeature.bounds = convertBoundsToAbsolute(nextFeature.bounds, frameSize);
+    }
+    return nextFeature;
   }
 
   getNextKeyframe(frame: number) {
@@ -126,6 +200,7 @@ export class VisualMask {
     feature: Feature,
     geometry: GeoJSON.Feature<TrackSupportedFeature>[] = [],
     ensureKeyframe = true,
+    frameSize?: readonly [number, number],
   ) {
     const { frame } = feature;
     const current = this.features[frame] || { frame };
@@ -135,12 +210,7 @@ export class VisualMask {
       keyframe: ensureKeyframe ? true : feature.keyframe,
     };
     if (next.bounds) {
-      next.bounds = [
-        Math.round(next.bounds[0]),
-        Math.round(next.bounds[1]),
-        Math.round(next.bounds[2]),
-        Math.round(next.bounds[3]),
-      ];
+      next.bounds = normalizeStoredBounds(next.bounds, this.useRelativePositioning, frameSize);
     }
     const collection = next.geometry || { type: 'FeatureCollection', features: [] };
     geometry.forEach((geo) => {
@@ -167,6 +237,25 @@ export class VisualMask {
     delete this.features[frame];
   }
 
+  setUseRelativePositioning(
+    useRelativePositioning: boolean,
+    frameSize?: readonly [number, number],
+  ) {
+    if (this.useRelativePositioning === useRelativePositioning) {
+      return;
+    }
+    this.featureIndex.forEach((frame) => {
+      const feature = this.features[frame];
+      if (!feature?.bounds) {
+        return;
+      }
+      feature.bounds = useRelativePositioning
+        ? convertBoundsToRelative(feature.bounds, frameSize)
+        : convertBoundsToAbsolute(feature.bounds, frameSize);
+    });
+    this.useRelativePositioning = useRelativePositioning;
+  }
+
   serialize(): VisualMaskConfiguration {
     const frames: Feature[] = [];
     this.featureIndex.forEach((frame) => {
@@ -182,6 +271,7 @@ export class VisualMask {
       id: this.id,
       name: this.name,
       enabled: this.enabled,
+      useRelativePositioning: this.useRelativePositioning,
       type: this.type,
       frames,
       style: this.style,
@@ -350,6 +440,7 @@ export default class VisualMaskManager {
       name: `Mask ${id + 1}`,
       type: 'rectangle',
       enabled: true,
+      useRelativePositioning: true,
       frames: [],
       style: DEFAULT_VISUAL_MASK_STYLE,
     }));
@@ -394,6 +485,20 @@ export default class VisualMaskManager {
     this.commit();
   }
 
+  setMaskRelativePositioning(
+    camera: string,
+    id: number,
+    useRelativePositioning: boolean,
+    frameSize?: readonly [number, number],
+  ) {
+    const mask = this.getMask(camera, id);
+    if (!mask) {
+      return;
+    }
+    mask.setUseRelativePositioning(useRelativePositioning, frameSize);
+    this.commit();
+  }
+
   setMaskStyle(camera: string, id: number, style: CustomStyle) {
     const mask = this.getMask(camera, id);
     if (!mask) {
@@ -422,7 +527,13 @@ export default class VisualMaskManager {
     this.commit();
   }
 
-  updateRectBounds(camera: string, frame: number, bounds: RectBounds, id = this.editingMaskId.value) {
+  updateRectBounds(
+    camera: string,
+    frame: number,
+    bounds: RectBounds,
+    id = this.editingMaskId.value,
+    frameSize?: readonly [number, number],
+  ) {
     if (id === null) {
       return;
     }
@@ -435,7 +546,7 @@ export default class VisualMaskManager {
       frame,
       bounds,
       keyframe: true,
-    });
+    }, [], true, frameSize);
     this.commit();
   }
 
@@ -444,6 +555,7 @@ export default class VisualMaskManager {
     frame: number,
     data: GeoJSON.Feature<GeoJSON.Polygon>,
     id = this.editingMaskId.value,
+    frameSize?: readonly [number, number],
   ) {
     if (id === null) {
       return;
@@ -457,13 +569,15 @@ export default class VisualMaskManager {
       frame,
       bounds: geojsonToBound(data),
       keyframe: true,
-    });
+    }, [], true, frameSize);
     this.commit();
   }
 }
 
 export {
   DEFAULT_VISUAL_MASK_STYLE,
+  convertBoundsToAbsolute,
+  convertBoundsToRelative,
   getVisualMaskStyleKey,
   normalizeStyle,
 };

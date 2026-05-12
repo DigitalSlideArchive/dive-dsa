@@ -35,10 +35,26 @@ describe('VisualMask', () => {
 
     expect(mask.style.opacity).toBe(1);
   });
+
+  it('converts relative mask bounds to the current frame size for display', () => {
+    const mask = new VisualMask({
+      id: 3,
+      name: 'Relative Mask',
+      type: 'rectangle',
+      useRelativePositioning: true,
+      frames: [{
+        frame: 10,
+        bounds: [10, 20, 30, 40],
+        keyframe: true,
+      }],
+    });
+
+    expect(mask.getFeature(10, [200, 50])?.bounds).toEqual([20, 10, 60, 20]);
+  });
 });
 
 describe('VisualMaskManager', () => {
-  it('serializes per-camera visual masks with their styles', () => {
+  it('serializes per-camera visual masks with relative bounds by default', () => {
     const styleManager = new StyleManager({ markChangesPending: () => {} });
     let serializedMasks = {};
     const manager = new VisualMaskManager({
@@ -51,23 +67,99 @@ describe('VisualMaskManager', () => {
 
     const id = manager.addMask('singleCam');
     manager.setMaskStyle('singleCam', id, { color: '#ff0000', opacity: 0.5 });
-    manager.updateRectBounds('singleCam', 12, [1, 2, 3, 4], id);
+    manager.updateRectBounds('singleCam', 12, [10, 20, 30, 40], id, [200, 200]);
 
     expect(serializedMasks).toEqual({
       singleCam: [{
         id,
         name: 'Mask 1',
         enabled: true,
+        useRelativePositioning: true,
         type: 'rectangle',
         frames: [{
           frame: 12,
-          bounds: [1, 2, 3, 4],
+          bounds: [5, 10, 15, 20],
           keyframe: true,
         }],
         style: {
           color: '#ff0000',
           fill: true,
           opacity: 0.5,
+          strokeWidth: 3,
+        },
+      }],
+    });
+  });
+
+  it('converts stored bounds when toggling relative positioning', () => {
+    const styleManager = new StyleManager({ markChangesPending: () => {} });
+    let serializedMasks = {};
+    const manager = new VisualMaskManager({
+      markChangesPending: () => {},
+      styleManager,
+      syncConfiguration: (visualMasks) => {
+        serializedMasks = visualMasks;
+      },
+    });
+
+    const id = manager.addMask('singleCam');
+    manager.updateRectBounds('singleCam', 12, [10, 20, 30, 40], id, [200, 200]);
+    manager.setMaskRelativePositioning('singleCam', id, false, [200, 200]);
+
+    expect(serializedMasks).toEqual({
+      singleCam: [{
+        id,
+        name: 'Mask 1',
+        enabled: true,
+        useRelativePositioning: false,
+        type: 'rectangle',
+        frames: [{
+          frame: 12,
+          bounds: [10, 20, 30, 40],
+          keyframe: true,
+        }],
+        style: {
+          color: '#000000',
+          fill: true,
+          opacity: 1,
+          strokeWidth: 3,
+        },
+      }],
+    });
+  });
+
+  it('converts absolute masks to percentage bounds when enabling relative positioning', () => {
+    const styleManager = new StyleManager({ markChangesPending: () => {} });
+    let serializedMasks = {};
+    const manager = new VisualMaskManager({
+      markChangesPending: () => {},
+      styleManager,
+      syncConfiguration: (visualMasks) => {
+        serializedMasks = visualMasks;
+      },
+    });
+
+    const id = manager.addMask('singleCam');
+    manager.setMaskRelativePositioning('singleCam', id, false, [200, 200]);
+    manager.updateRectBounds('singleCam', 12, [10, 20, 30, 40], id, [200, 200]);
+    manager.setMaskRelativePositioning('singleCam', id, true, [200, 200]);
+
+    expect(serializedMasks).toEqual({
+      singleCam: [{
+        id,
+        name: 'Mask 1',
+        enabled: true,
+        useRelativePositioning: true,
+        type: 'rectangle',
+        frames: [{
+          frame: 12,
+          bounds: [5, 10, 15, 20],
+          keyframe: true,
+        }],
+        style: {
+          color: '#000000',
+          fill: true,
+          opacity: 1,
           strokeWidth: 3,
         },
       }],
@@ -85,6 +177,7 @@ describe('VisualMaskManager', () => {
     const id = manager.addMask('singleCam');
 
     expect(manager.getMask('singleCam', id)?.type).toBe('rectangle');
+    expect(manager.getMask('singleCam', id)?.useRelativePositioning).toBe(true);
     expect(manager.editingMode.value).toBe('rectangle');
   });
 });

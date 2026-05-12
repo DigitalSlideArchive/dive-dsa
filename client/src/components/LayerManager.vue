@@ -275,11 +275,12 @@ export default defineComponent({
       const frameData = [] as FrameDataTrack[];
       const editingTracks = [] as FrameDataTrack[];
       const visualMaskFrameData = [] as FrameDataTrack[];
+      const frameSize = annotator.frameSize.value;
       visualMaskManager.getMasks(props.camera).forEach((visualMask) => {
         if (!visualMask.enabled) {
           return;
         }
-        const features = visualMask.getFeature(frame);
+        const features = visualMask.getFeature(frame, frameSize);
         if (!features) {
           return;
         }
@@ -469,7 +470,7 @@ export default defineComponent({
           editing: true,
           track: editingVisualMask as never,
           groups: [],
-          features: editingVisualMask.getFeature(frame),
+          features: editingVisualMask.getFeature(frame, frameSize),
           styleType: [editingVisualMask.styleKey, 1] as [string, number],
         };
         editAnnotationLayer.disable();
@@ -745,7 +746,13 @@ export default defineComponent({
       if (type === 'rectangle') {
         const bounds = geojsonToBound(data as GeoJSON.Feature<GeoJSON.Polygon>);
         cb();
-        visualMaskManager.updateRectBounds(props.camera, frameNumberRef.value, bounds);
+        visualMaskManager.updateRectBounds(
+          props.camera,
+          frameNumberRef.value,
+          bounds,
+          undefined,
+          annotator.frameSize.value,
+        );
       }
       if (geometryCompleteEvent) {
         updateLayers(

@@ -154,6 +154,7 @@ export interface VisualMaskConfiguration {
   id: number;
   name: string;
   enabled?: boolean;
+  useRelativePositioning?: boolean;
   type: VisualMaskGeometryType;
   frames: Feature[];
   style?: CustomStyle;

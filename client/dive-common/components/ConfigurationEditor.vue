@@ -40,13 +40,11 @@ export default defineComponent({
     const configMan = useConfiguration();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const girderRest = useGirderRest();
-    const isAdminOwner = computed(() => {
-      return configMan.isConfigOwnerAdmin(girderRest.user as ({
+    const isAdminOwner = computed(() => configMan.isConfigOwnerAdmin(girderRest.user as ({
         admin?: boolean;
         _id?: string;
         groups?: string[];
-      } | null));
-    });
+      } | null)));
     const hasConfig = computed(() => !!configMan.configuration.value);
     const menuOpen = ref(false);
     const additive = ref(false);
