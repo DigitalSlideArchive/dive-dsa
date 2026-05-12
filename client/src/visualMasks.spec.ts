@@ -24,6 +24,17 @@ describe('VisualMask', () => {
     expect(mask.getFeature(20)?.bounds).toEqual([5, 5, 15, 15]);
     expect(mask.getFeature(30)?.bounds).toEqual([5, 5, 15, 15]);
   });
+
+  it('defaults style opacity to fully opaque', () => {
+    const mask = new VisualMask({
+      id: 2,
+      name: 'Opaque Mask',
+      type: 'rectangle',
+      frames: [],
+    });
+
+    expect(mask.style.opacity).toBe(1);
+  });
 });
 
 describe('VisualMaskManager', () => {

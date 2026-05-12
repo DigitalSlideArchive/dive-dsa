@@ -13,7 +13,7 @@ import type {
 const DEFAULT_VISUAL_MASK_STYLE: CustomStyle = {
   color: '#000000',
   fill: true,
-  opacity: 0.35,
+  opacity: 1,
   strokeWidth: 3,
 };
 
