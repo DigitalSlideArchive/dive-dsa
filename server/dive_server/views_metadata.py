@@ -350,6 +350,100 @@ _BULK_IMPORT_SKIP_KEYS = frozenset(
 )
 
 
+def _metadata_schema_key_stats_refresh_is_locked(key: str) -> bool:
+    """Keys whose schema buckets are managed separately; do not overwrite from DB scan."""
+    if key in ('LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path'):
+        return True
+    if key.startswith('DIVE_') or key.startswith('ffprobe'):
+        return True
+    return False
+
+
+def _metadata_dict_for_schema_stats_refresh(meta: dict) -> dict:
+    """Strip locked keys before aggregating schema stats from a stored metadata dict."""
+    return {k: v for k, v in meta.items() if not _metadata_schema_key_stats_refresh_is_locked(k)}
+
+
+def _empty_metadata_key_stats_bucket(old_bucket: dict) -> dict:
+    """Schema entry for a key that has no non-null samples across stored rows."""
+    cat = old_bucket.get('category', 'search')
+    typ = old_bucket.get('type', 'string')
+    out: dict = {'category': cat, 'count': 0, 'type': typ}
+    if cat == 'categorical':
+        out['set'] = []
+        out['unique'] = 0
+    elif cat == 'numerical':
+        rng = old_bucket.get('range')
+        if isinstance(rng, dict):
+            out['range'] = {
+                'min': float(rng.get('min', 0.0)),
+                'max': float(rng.get('max', 0.0)),
+            }
+            finalize_metadata_keys_numerical_range(out['range'])
+        else:
+            out['range'] = {'min': 0.0, 'max': 0.0}
+    elif cat == 'search' and typ == 'string':
+        out['unique'] = 0
+    desc = old_bucket.get('description')
+    if isinstance(desc, str) and desc.strip():
+        out['description'] = desc.strip()
+    return out
+
+
+def _merge_recomputed_metadata_key_stats_into_existing(
+    existing_keys: dict,
+    recomputed: dict,
+) -> dict:
+    """
+    Merge finalized stats from ``recomputed`` into ``existing_keys``.
+    Locked keys are copied unchanged; descriptions on editable keys are preserved.
+    """
+    out: dict = {}
+    for key, old_bucket in existing_keys.items():
+        if _metadata_schema_key_stats_refresh_is_locked(key):
+            out[key] = dict(old_bucket)
+            continue
+        if key in recomputed:
+            nb = dict(recomputed[key])
+            desc = old_bucket.get('description')
+            if isinstance(desc, str) and desc.strip():
+                nb['description'] = desc.strip()
+            out[key] = nb
+        else:
+            out[key] = _empty_metadata_key_stats_bucket(old_bucket)
+    for key, rec_bucket in recomputed.items():
+        if _metadata_schema_key_stats_refresh_is_locked(key):
+            continue
+        if key not in out:
+            out[key] = dict(rec_bucket)
+    return out
+
+
+def refresh_metadata_keys_stats_from_stored_dive_metadata(root_folder, categorical_limit: int) -> None:
+    """
+    Recompute aggregate fields on the metadata schema (count, type, unique, set/range,
+    category) from all ``DIVE_Metadata`` rows for this root.
+
+    Used after bulk updates: ``updateKey`` / ``updateKeyValue`` only widen categorical
+    sets and numerical ranges and never maintain counts or ``type``/``unique`` like
+    ``process_metadata`` does.
+    """
+    root_id = str(root_folder['_id'])
+    keys_doc = DIVE_MetadataKeys().findOne({'root': root_id})
+    if not keys_doc:
+        return
+    accum: dict = {}
+    for row in DIVE_Metadata().find({'root': root_id}):
+        flat = _metadata_dict_for_schema_stats_refresh(row.get('metadata') or {})
+        _accumulate_flat_metadata_key_stats(accum, flat)
+    _finalize_metadata_keys_categories(accum, categorical_limit)
+    keys_doc['metadataKeys'] = _merge_recomputed_metadata_key_stats_into_existing(
+        keys_doc['metadataKeys'],
+        accum,
+    )
+    DIVE_MetadataKeys().save(keys_doc)
+
+
 def _bulk_import_row_is_matcher_key(key):
     """True for columns used only to locate a row (never stored via updateKey)."""
     return isinstance(key, str) and key.lower() in _BULK_IMPORT_SKIP_KEYS
@@ -506,6 +600,8 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
         DIVE_MetadataKeys().mergeImportedKeyDescriptions(
             rootFolder, user, aggregated_descriptions
         )
+    if any(r.get('status') in ('success', 'partial_success') for r in results):
+        refresh_metadata_keys_stats_from_stored_dive_metadata(rootFolder, categoricalLimit)
     return results
 
 
