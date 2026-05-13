@@ -92,20 +92,49 @@ def python_to_javascript_type(py_type):
     return type_mapping.get(py_type, "unknown")
 
 
+def _is_blank_metadata_value_for_stats(raw) -> bool:
+    """
+    True when a stored value should not contribute to count / set / range aggregates.
+
+    Skips nulls, NaN/inf placeholders, whitespace-only strings, empty containers, and
+    string-only lists/tuples where every string is empty or whitespace.
+    """
+    if raw is None:
+        return True
+    if is_nonfinite_numeric_placeholder(raw):
+        return True
+    if isinstance(raw, str):
+        return raw.strip() == ''
+    if isinstance(raw, (list, tuple)):
+        if len(raw) == 0:
+            return True
+        if any(not isinstance(el, str) for el in raw):
+            return False
+        return not any(
+            isinstance(el, str)
+            and el.strip() != ''
+            and not is_nonfinite_numeric_placeholder(el)
+            for el in raw
+        )
+    if isinstance(raw, dict):
+        return len(raw) == 0
+    return False
+
+
 def _accumulate_flat_metadata_key_stats(metadataKeys, flat_dict):
     """
     Merge one flat metadata dict into in-progress metadataKeys stats (same rules
     as JSON import / recursive dataset creation: finite numerics, no NaN in string sets).
     """
     for key, raw in flat_dict.items():
-        if key not in metadataKeys and raw is not None:
+        if _is_blank_metadata_value_for_stats(raw):
+            continue
+        if key not in metadataKeys:
             metadataKeys[key] = {
                 'type': python_to_javascript_type(type(raw)),
                 'set': set(),
                 'count': 0,
             }
-        if raw is None:
-            continue
         typ = metadataKeys[key]['type']
         if typ == 'string':
             if is_nonfinite_numeric_placeholder(raw):
@@ -113,13 +142,18 @@ def _accumulate_flat_metadata_key_stats(metadataKeys, flat_dict):
             metadataKeys[key]['set'].add(raw)
             metadataKeys[key]['count'] += 1
         elif typ == 'array':
+            added_string = False
             for el in raw:
                 if python_to_javascript_type(type(el)) != 'string':
                     continue
                 if is_nonfinite_numeric_placeholder(el):
                     continue
+                if isinstance(el, str) and el.strip() == '':
+                    continue
                 metadataKeys[key]['set'].add(el)
-            metadataKeys[key]['count'] += 1
+                added_string = True
+            if added_string:
+                metadataKeys[key]['count'] += 1
         elif typ == 'number':
             merged = merge_finite_numeric_range_dict(metadataKeys[key].get('range'), raw)
             if merged is None:
@@ -1012,7 +1046,7 @@ class DIVEMetadata(Resource):
     @access.user
     @autoDescribeRoute(
         Description(
-            "Get a list of filter keys for a specific folder.  This is more used for debugging values in the metadata"
+            "Get a list of filter keys for a specific folder.  Provides the type and range for values in the metadata"
         ).modelParam(
             "id",
             description="Base folder ID",
@@ -1187,7 +1221,7 @@ class DIVEMetadata(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter values for DIVE Metadata")
+        Description("Get a list of filter values for DIVE Metadata, use for debugging")
         .modelParam(
             "id",
             description="Base folder ID",

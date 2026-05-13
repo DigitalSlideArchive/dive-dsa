@@ -15,6 +15,7 @@ from dive_server.views_metadata import (  # noqa: E402
     _PROCESS_METADATA_FFPROBE_DEFAULT,
     _accumulate_flat_metadata_key_stats,
     _finalize_metadata_keys_categories,
+    _is_blank_metadata_value_for_stats,
     _merge_recomputed_metadata_key_stats_into_existing,
     _metadata_dict_for_schema_stats_refresh,
     _normalize_metadata_config,
@@ -78,6 +79,34 @@ def test_metadata_dict_for_schema_stats_refresh_strips_dive_prefixed_keys():
     meta = {'stricture_flag': 'Y', 'DIVE_Name': 'a', 'ffprobe_width': 1920}
     stripped = _metadata_dict_for_schema_stats_refresh(meta)
     assert stripped == {'stricture_flag': 'Y'}
+
+
+def test_is_blank_metadata_value_for_stats():
+    assert _is_blank_metadata_value_for_stats(None) is True
+    assert _is_blank_metadata_value_for_stats('') is True
+    assert _is_blank_metadata_value_for_stats('   \t') is True
+    assert _is_blank_metadata_value_for_stats([]) is True
+    assert _is_blank_metadata_value_for_stats(['', '  ']) is True
+    assert _is_blank_metadata_value_for_stats('x') is False
+    assert _is_blank_metadata_value_for_stats(0) is False
+    assert _is_blank_metadata_value_for_stats(False) is False
+    assert _is_blank_metadata_value_for_stats([1, 2]) is False
+    assert _is_blank_metadata_value_for_stats(['', 'a']) is False
+
+
+def test_accumulate_metadata_key_stats_skips_blank_strings_for_count():
+    accum = {}
+    for meta in (
+        {'k': ''},
+        {'k': '  '},
+        {'k': 'Y'},
+        {'k': None},
+        {'k': 'Y'},
+    ):
+        _accumulate_flat_metadata_key_stats(accum, meta)
+    _finalize_metadata_keys_categories(accum, categorical_limit=50)
+    assert accum['k']['count'] == 2
+    assert accum['k']['unique'] == 1
 
 
 def test_merge_recomputed_metadata_key_stats_matches_process_metadata_shape():
