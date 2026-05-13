@@ -6,7 +6,7 @@ When a notification is detected on the client a dialog window will be displayed 
 
 ## REST Endpoint
 
-There is a REST endpoint: `POST /dive_rpc/ui_notificaitions/{id}` that takes in a DatasetId and JSON body response to display the notification to the same user with the same DatasetId currently open.  I.E. If you run a task the task is able to provide information back to the user in the form of a Dialog box and provide suggestion actions like selecting a track or going to a specific frame.
+There is a REST endpoint: `POST /dive_rpc/ui_notification/{id}` that takes in a DatasetId and JSON body response to display the notification to the same user with the same DatasetId currently open.  I.E. If you run a task the task is able to provide information back to the user in the form of a Dialog box and provide suggestion actions like selecting a track or going to a specific frame.
 
 
 
