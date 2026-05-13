@@ -15,8 +15,8 @@ import subprocess
 
 apiURL = "127.0.0.1"  # url of the server
 port = 8010  # set to your local port being used
-rootFolderId = '68b832711394856d5124a243'  # root folderId to push data to
-limit = 1000  # only want to process X videos
+rootFolderId = '6a046a841f9dc1415085ab7d'  # root folderId to push data to
+limit = 100  # only want to process X videos
 # Below is a global variable which shouldn't be edited
 totalFolders = 0  # use to maintain a total count of items added
 
