@@ -49,6 +49,15 @@ from dive_utils.types import DiveDatasetList, DIVEMetadataSlicerCLITaskParams
 
 from . import crud_dataset
 
+_PROCESS_METADATA_DISPLAY_DEFAULT = {
+    "display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag'],
+    "hide": ["ETag", "ETagDuplicated", "Size"],
+}
+_PROCESS_METADATA_FFPROBE_DEFAULT = {
+    "import": False,
+    "keys": ["width", "height", "display_aspect_ratio"],
+}
+
 # Metadata may store keys that duplicate injected export columns; strip by lowercase name so CSV has one Filename, etc.
 _EXPORT_INJECTED_FIELD_LOWERS = frozenset({'divedataset', 'filename', 'dive_url'})
 
@@ -266,6 +275,8 @@ def _ensure_filter_lists_in_display_config(display_config):
 
 
 def remove_before_folder(path, folder_name):
+    if not isinstance(path, str):
+        return None
     index = path.find(folder_name)
     if index != -1:
         return path[index:]
@@ -588,20 +599,14 @@ class DIVEMetadata(Resource):
         .jsonParam(
             "displayConfig",
             "List of Main Display Keys for the metadata and keys to hide from the filter",
-            required=True,
-            default={
-                "display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag'],
-                "hide": ["ETag", "ETagDuplicated", "Size"],
-            },
+            required=False,
+            default=_PROCESS_METADATA_DISPLAY_DEFAULT,
         )
         .jsonParam(
             "ffprobeMetadata",
             "List Metadata keys to extract from the ffprobe metadata from videos.  Setting 'import' to 'true' will import the data",
-            required=True,
-            default={
-                "import": False,
-                "keys": ["width", "height", "display_aspect_ratio"],
-            },
+            required=False,
+            default=_PROCESS_METADATA_FFPROBE_DEFAULT,
         )
         .param(
             "categoricalLimit",
@@ -633,6 +638,12 @@ class DIVEMetadata(Resource):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
+        displayConfig = _normalize_metadata_config(
+            displayConfig, _PROCESS_METADATA_DISPLAY_DEFAULT
+        )
+        ffprobeMetadata = _normalize_metadata_config(
+            ffprobeMetadata, _PROCESS_METADATA_FFPROBE_DEFAULT
+        )
         # Delete existing data if it is there already:
         rootQuery = {"root": str(folder["_id"])}
         found = DIVE_Metadata().findOne(query=rootQuery, user=user)
@@ -719,13 +730,20 @@ class DIVEMetadata(Resource):
                                     item['DIVE_Name'] = datasetFolder['lowerName']
                                     item['DIVE_Path'] = resource_path
                                     datasetFolder.get('name')
-                                    if ffprobeMetadata.get(
-                                        'import', False
-                                    ):  # Add in ffprobe metadata to the system
+                                    _ff_import = ffprobeMetadata.get('import', False)
+                                    if isinstance(_ff_import, str):
+                                        _ff_import = _ff_import.strip().lower() in (
+                                            'true',
+                                            '1',
+                                            'yes',
+                                        )
+                                    if _ff_import:  # Add in ffprobe metadata to the system
                                         ffmetadata = datasetFolder.get('meta', {}).get(
                                             'ffprobe_info', {}
                                         )
                                         ffkeys = ffprobeMetadata.get('keys', [])
+                                        if not isinstance(ffkeys, (list, tuple)):
+                                            ffkeys = []
                                         for ffMetadataKey in ffkeys:
                                             if ffmetadata.get(ffMetadataKey, False):
                                                 item[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(
