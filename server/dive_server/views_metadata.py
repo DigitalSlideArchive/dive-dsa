@@ -35,9 +35,46 @@ from dive_utils.constants import (
     ndjsonRegex,
 )
 from dive_utils.metadata.models import DIVE_Metadata, DIVE_MetadataKeys
+from dive_utils.metadata.numeric import (
+    categorical_values_for_schema,
+    coerce_export_empty_strings,
+    finalize_metadata_keys_numerical_range,
+    is_nonfinite_numeric_placeholder,
+    merge_finite_numeric_range_dict,
+    sanitize_metadata_keys_doc_for_api,
+    sanitize_value_tree_for_girder_json,
+    safe_min_max,
+)
 from dive_utils.types import DiveDatasetList, DIVEMetadataSlicerCLITaskParams
 
 from . import crud_dataset
+
+_PROCESS_METADATA_DISPLAY_DEFAULT = {
+    "display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag'],
+    "hide": ["ETag", "ETagDuplicated", "Size"],
+}
+_PROCESS_METADATA_FFPROBE_DEFAULT = {
+    "import": False,
+    "keys": ["width", "height", "display_aspect_ratio"],
+}
+
+# Metadata may store keys that duplicate injected export columns; strip by lowercase name so CSV has one Filename, etc.
+_EXPORT_INJECTED_FIELD_LOWERS = frozenset({'divedataset', 'filename', 'dive_url'})
+
+
+def _metadata_fieldnames_for_export(metadata_items):
+    """Sorted metadata keys excluding fields we emit as fixed leading columns."""
+    keys = {key for item in metadata_items for key in item.get('metadata', {}).keys()}
+    return sorted(k for k in keys if k.lower() not in _EXPORT_INJECTED_FIELD_LOWERS)
+
+
+def _strip_injected_metadata_keys_copy(meta: dict):
+    """Remove duplicate injected keys before JSON export (canonical DIVEDataset / Filename / DIVE_URL follow)."""
+    out = dict(meta)
+    for k in list(out.keys()):
+        if k.lower() in _EXPORT_INJECTED_FIELD_LOWERS:
+            del out[k]
+    return out
 
 
 def python_to_javascript_type(py_type):
@@ -53,6 +90,100 @@ def python_to_javascript_type(py_type):
         # Add more mappings as needed for other types
     }
     return type_mapping.get(py_type, "unknown")
+
+
+def _is_blank_metadata_value_for_stats(raw) -> bool:
+    """
+    True when a stored value should not contribute to count / set / range aggregates.
+
+    Skips nulls, NaN/inf placeholders, whitespace-only strings, empty containers, and
+    string-only lists/tuples where every string is empty or whitespace.
+    """
+    if raw is None:
+        return True
+    if is_nonfinite_numeric_placeholder(raw):
+        return True
+    if isinstance(raw, str):
+        return raw.strip() == ''
+    if isinstance(raw, (list, tuple)):
+        if len(raw) == 0:
+            return True
+        if any(not isinstance(el, str) for el in raw):
+            return False
+        return not any(
+            isinstance(el, str)
+            and el.strip() != ''
+            and not is_nonfinite_numeric_placeholder(el)
+            for el in raw
+        )
+    if isinstance(raw, dict):
+        return len(raw) == 0
+    return False
+
+
+def _accumulate_flat_metadata_key_stats(metadataKeys, flat_dict):
+    """
+    Merge one flat metadata dict into in-progress metadataKeys stats (same rules
+    as JSON import / recursive dataset creation: finite numerics, no NaN in string sets).
+    """
+    for key, raw in flat_dict.items():
+        if _is_blank_metadata_value_for_stats(raw):
+            continue
+        if key not in metadataKeys:
+            metadataKeys[key] = {
+                'type': python_to_javascript_type(type(raw)),
+                'set': set(),
+                'count': 0,
+            }
+        typ = metadataKeys[key]['type']
+        if typ == 'string':
+            if is_nonfinite_numeric_placeholder(raw):
+                continue
+            metadataKeys[key]['set'].add(raw)
+            metadataKeys[key]['count'] += 1
+        elif typ == 'array':
+            added_string = False
+            for el in raw:
+                if python_to_javascript_type(type(el)) != 'string':
+                    continue
+                if is_nonfinite_numeric_placeholder(el):
+                    continue
+                if isinstance(el, str) and el.strip() == '':
+                    continue
+                metadataKeys[key]['set'].add(el)
+                added_string = True
+            if added_string:
+                metadataKeys[key]['count'] += 1
+        elif typ == 'number':
+            merged = merge_finite_numeric_range_dict(metadataKeys[key].get('range'), raw)
+            if merged is None:
+                continue
+            metadataKeys[key]['range'] = merged
+
+
+def _finalize_metadata_keys_categories(metadataKeys, categorical_limit):
+    """Assign categorical vs search vs numerical; JSON-safe sets and numerical ranges."""
+    for key in metadataKeys.keys():
+        bucket = metadataKeys[key]
+        bucket['unique'] = len(bucket['set'])
+        t = bucket['type']
+        if t in ('string', 'array') and (
+            bucket['unique'] < categorical_limit
+            or (bucket['count'] <= len(bucket['set']) and len(bucket['set']) < categorical_limit)
+        ):
+            bucket['category'] = 'categorical'
+            bucket['set'] = categorical_values_for_schema(list(bucket['set']))
+        elif t == 'string':
+            bucket['category'] = 'search'
+            del bucket['set']
+        elif t == 'number':
+            bucket['category'] = 'numerical'
+            del bucket['set']
+            rng = bucket.get('range')
+            if isinstance(rng, dict):
+                finalize_metadata_keys_numerical_range(rng)
+        else:
+            del bucket['set']
 
 
 # Keys we do not attach imported {value, description} schema text to (matchers / system fields).
@@ -103,6 +234,9 @@ def normalize_metadata_row_for_storage(row):
     - Per row: ``"DIVEMetadataKeyDescriptions": {"MyKey": "...", "Other": {"description": "..."}}``
       (this object is not stored on dataset rows).
     """
+    if isinstance(row, dict):
+        # JSON may contain NaN/Infinity; pandas CSV rows use float nan — keep trees Girder-JSON-safe.
+        sanitize_value_tree_for_girder_json(row, minmax_keys_to_zero=False)
     if not isinstance(row, dict):
         return row, {}
     out = {}
@@ -175,6 +309,8 @@ def _ensure_filter_lists_in_display_config(display_config):
 
 
 def remove_before_folder(path, folder_name):
+    if not isinstance(path, str):
+        return None
     index = path.find(folder_name)
     if index != -1:
         return path[index:]
@@ -197,9 +333,19 @@ def find_folder_by_path(folder, sibling_path, user):
     return current_folder
 
 
+def _loads_metadata_import_json(s: str):
+    """
+    Parse JSON for metadata bulk / folder import.
+
+    Python's json.loads accepts NaN/Infinity by default; map those to None so we
+    never propagate non-finite floats like sparse CSV cells do.
+    """
+    return json.loads(s, parse_constant=lambda _c: None)
+
+
 def load_ndjson_string(ndjson_string):
     # Split the string into lines and parse each line as JSON
-    return [json.loads(line) for line in ndjson_string.splitlines()]
+    return [_loads_metadata_import_json(line) for line in ndjson_string.splitlines()]
 
 
 def load_metadata_json(search_folder, type='ndjson'):
@@ -223,7 +369,7 @@ def load_metadata_json(search_folder, type='ndjson'):
         file_string = b"".join(list(file_generator)).decode()
         json_data = {}
         if type == 'json':
-            json_data = json.loads(file_string)
+            json_data = _loads_metadata_import_json(file_string)
         elif type == 'ndjson':
             json_data = load_ndjson_string(file_string)
         # Now we determine data types from the array of data
@@ -231,6 +377,110 @@ def load_metadata_json(search_folder, type='ndjson'):
             print("JSON metadata isn't an array")
             return False
         return json_data, file['name']
+
+
+_BULK_IMPORT_SKIP_KEYS = frozenset(
+    {'divedataset', 'filename', 'dive_path', 'divemetadatakeydescriptions'}
+)
+
+
+def _metadata_schema_key_stats_refresh_is_locked(key: str) -> bool:
+    """Keys whose schema buckets are managed separately; do not overwrite from DB scan."""
+    if key in ('LastModifiedTime', 'LastModifiedBy', 'DIVEDataset', 'filename', 'DIVE_Path'):
+        return True
+    if key.startswith('DIVE_') or key.startswith('ffprobe'):
+        return True
+    return False
+
+
+def _metadata_dict_for_schema_stats_refresh(meta: dict) -> dict:
+    """Strip locked keys before aggregating schema stats from a stored metadata dict."""
+    return {k: v for k, v in meta.items() if not _metadata_schema_key_stats_refresh_is_locked(k)}
+
+
+def _empty_metadata_key_stats_bucket(old_bucket: dict) -> dict:
+    """Schema entry for a key that has no non-null samples across stored rows."""
+    cat = old_bucket.get('category', 'search')
+    typ = old_bucket.get('type', 'string')
+    out: dict = {'category': cat, 'count': 0, 'type': typ}
+    if cat == 'categorical':
+        out['set'] = []
+        out['unique'] = 0
+    elif cat == 'numerical':
+        rng = old_bucket.get('range')
+        if isinstance(rng, dict):
+            out['range'] = {
+                'min': float(rng.get('min', 0.0)),
+                'max': float(rng.get('max', 0.0)),
+            }
+            finalize_metadata_keys_numerical_range(out['range'])
+        else:
+            out['range'] = {'min': 0.0, 'max': 0.0}
+    elif cat == 'search' and typ == 'string':
+        out['unique'] = 0
+    desc = old_bucket.get('description')
+    if isinstance(desc, str) and desc.strip():
+        out['description'] = desc.strip()
+    return out
+
+
+def _merge_recomputed_metadata_key_stats_into_existing(
+    existing_keys: dict,
+    recomputed: dict,
+) -> dict:
+    """
+    Merge finalized stats from ``recomputed`` into ``existing_keys``.
+    Locked keys are copied unchanged; descriptions on editable keys are preserved.
+    """
+    out: dict = {}
+    for key, old_bucket in existing_keys.items():
+        if _metadata_schema_key_stats_refresh_is_locked(key):
+            out[key] = dict(old_bucket)
+            continue
+        if key in recomputed:
+            nb = dict(recomputed[key])
+            desc = old_bucket.get('description')
+            if isinstance(desc, str) and desc.strip():
+                nb['description'] = desc.strip()
+            out[key] = nb
+        else:
+            out[key] = _empty_metadata_key_stats_bucket(old_bucket)
+    for key, rec_bucket in recomputed.items():
+        if _metadata_schema_key_stats_refresh_is_locked(key):
+            continue
+        if key not in out:
+            out[key] = dict(rec_bucket)
+    return out
+
+
+def refresh_metadata_keys_stats_from_stored_dive_metadata(root_folder, categorical_limit: int) -> None:
+    """
+    Recompute aggregate fields on the metadata schema (count, type, unique, set/range,
+    category) from all ``DIVE_Metadata`` rows for this root.
+
+    Used after bulk updates: ``updateKey`` / ``updateKeyValue`` only widen categorical
+    sets and numerical ranges and never maintain counts or ``type``/``unique`` like
+    ``process_metadata`` does.
+    """
+    root_id = str(root_folder['_id'])
+    keys_doc = DIVE_MetadataKeys().findOne({'root': root_id})
+    if not keys_doc:
+        return
+    accum: dict = {}
+    for row in DIVE_Metadata().find({'root': root_id}):
+        flat = _metadata_dict_for_schema_stats_refresh(row.get('metadata') or {})
+        _accumulate_flat_metadata_key_stats(accum, flat)
+    _finalize_metadata_keys_categories(accum, categorical_limit)
+    keys_doc['metadataKeys'] = _merge_recomputed_metadata_key_stats_into_existing(
+        keys_doc['metadataKeys'],
+        accum,
+    )
+    DIVE_MetadataKeys().save(keys_doc)
+
+
+def _bulk_import_row_is_matcher_key(key):
+    """True for columns used only to locate a row (never stored via updateKey)."""
+    return isinstance(key, str) and key.lower() in _BULK_IMPORT_SKIP_KEYS
 
 
 def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
@@ -259,11 +509,12 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
                 new_keys[key].add(value)
     # Infer types/categories for new keys
     for key, values in new_keys.items():
-        if isinstance(next(iter(values)), str):
-            category = 'categorical' if len(values) < categoricalLimit else 'search'
-        elif isinstance(next(iter(values)), (int, float)):
+        # CSV/partial rows often yield NaN for empty cells; min/max must stay JSON-finite.
+        mm = safe_min_max(values)
+        if mm is not None:
             category = 'numerical'
-
+        elif any(isinstance(v, str) for v in values):
+            category = 'categorical' if len(values) < categoricalLimit else 'search'
         else:
             category = 'search'
         info = {
@@ -271,12 +522,9 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
             "count": len(values),
         }
         if category == 'categorical':
-            info['set'] = list(values)
+            info['set'] = categorical_values_for_schema(values)
         elif category == 'numerical':
-            info['range'] = {
-                "min": min(values),
-                "max": max(values),
-            }
+            info['range'] = {'min': mm[0], 'max': mm[1]}
         DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
     for entry in normalized_updates:
         reason = None
@@ -298,20 +546,31 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
             if not dive_metadata:
                 reason = f"No dataset found with id {dataset_id}"
         elif video_name:
-            dive_metadata_items = DIVE_Metadata().find(
-                {"filename": video_name, 'root': str(rootFolder["_id"])}
+            # List matches once: the old code only set dive_metadata inside count() > 1, so a
+            # unique Filename never matched and every row looked like "not_found".
+            filename_matches = list(
+                DIVE_Metadata().find(
+                    {"filename": video_name, 'root': str(rootFolder["_id"])}
+                )
             )
-            if dive_metadata_items.count() > 1:
-                # do we have to match the resouce with the DIVE Path
+            if len(filename_matches) == 0:
+                dive_metadata = None
+            elif len(filename_matches) == 1:
+                dive_metadata = filename_matches[0]
+            else:
                 dive_path = entry.get('DIVE_Path', False)
                 if not dive_path:
-                    reason = f"Multiple datasets found with videoName {video_name}, need DIVE_Path to disambiguate"
+                    reason = (
+                        f"Multiple datasets found with videoName {video_name}, need DIVE_Path to disambiguate"
+                    )
                 else:
-                    for item in dive_metadata_items:
+                    for item in filename_matches:
                         if item.get('DIVE_Path', False) == dive_path:
                             dive_metadata = item
                             break
-            if not dive_metadata:
+                    if not dive_metadata:
+                        reason = f"No dataset matched videoName {video_name} with DIVE_Path {dive_path}"
+            if not dive_metadata and not reason:
                 reason = f"No dataset found with videoName or DIVE_Name {video_name}"
         else:
             raise RestException('Metadata Updates need either DIVEDataset or Filename', code=400)
@@ -325,6 +584,8 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
             if replace:
                 DIVE_Metadata().removeCustomKeys(dataset, rootId, user)
             for key, value in entry.items():
+                if _bulk_import_row_is_matcher_key(key):
+                    continue
                 # Set the value for this key on the dataset
                 try:
                     DIVE_Metadata().updateKey(
@@ -373,6 +634,8 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
         DIVE_MetadataKeys().mergeImportedKeyDescriptions(
             rootFolder, user, aggregated_descriptions
         )
+    if any(r.get('status') in ('success', 'partial_success') for r in results):
+        refresh_metadata_keys_stats_from_stored_dive_metadata(rootFolder, categoricalLimit)
     return results
 
 
@@ -466,20 +729,14 @@ class DIVEMetadata(Resource):
         .jsonParam(
             "displayConfig",
             "List of Main Display Keys for the metadata and keys to hide from the filter",
-            required=True,
-            default={
-                "display": ['Batch', 'SampleDate', 'SubjectId', 'StudyId', 'ExperimentTag'],
-                "hide": ["ETag", "ETagDuplicated", "Size"],
-            },
+            required=False,
+            default=_PROCESS_METADATA_DISPLAY_DEFAULT,
         )
         .jsonParam(
             "ffprobeMetadata",
             "List Metadata keys to extract from the ffprobe metadata from videos.  Setting 'import' to 'true' will import the data",
-            required=True,
-            default={
-                "import": False,
-                "keys": ["width", "height", "display_aspect_ratio"],
-            },
+            required=False,
+            default=_PROCESS_METADATA_FFPROBE_DEFAULT,
         )
         .param(
             "categoricalLimit",
@@ -511,6 +768,12 @@ class DIVEMetadata(Resource):
         # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
         # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
+        displayConfig = _normalize_metadata_config(
+            displayConfig, _PROCESS_METADATA_DISPLAY_DEFAULT
+        )
+        ffprobeMetadata = _normalize_metadata_config(
+            ffprobeMetadata, _PROCESS_METADATA_FFPROBE_DEFAULT
+        )
         # Delete existing data if it is there already:
         rootQuery = {"root": str(folder["_id"])}
         found = DIVE_Metadata().findOne(query=rootQuery, user=user)
@@ -597,18 +860,28 @@ class DIVEMetadata(Resource):
                                     item['DIVE_Name'] = datasetFolder['lowerName']
                                     item['DIVE_Path'] = resource_path
                                     datasetFolder.get('name')
-                                    if ffprobeMetadata.get(
-                                        'import', False
-                                    ):  # Add in ffprobe metadata to the system
+                                    _ff_import = ffprobeMetadata.get('import', False)
+                                    if isinstance(_ff_import, str):
+                                        _ff_import = _ff_import.strip().lower() in (
+                                            'true',
+                                            '1',
+                                            'yes',
+                                        )
+                                    if _ff_import:  # Add in ffprobe metadata to the system
                                         ffmetadata = datasetFolder.get('meta', {}).get(
                                             'ffprobe_info', {}
                                         )
                                         ffkeys = ffprobeMetadata.get('keys', [])
+                                        if not isinstance(ffkeys, (list, tuple)):
+                                            ffkeys = []
                                         for ffMetadataKey in ffkeys:
                                             if ffmetadata.get(ffMetadataKey, False):
                                                 item[f'ffprobe_{ffMetadataKey}'] = ffmetadata.get(
                                                     ffMetadataKey, False
                                                 )
+                                    sanitize_value_tree_for_girder_json(
+                                        item, minmax_keys_to_zero=False
+                                    )
                                     DIVE_Metadata().createMetadata(
                                         datasetFolder, folder, user, item
                                     )
@@ -627,45 +900,9 @@ class DIVEMetadata(Resource):
 
                 else:
                     errorLog.append(f"Could not find any results for Video file {item[matcher]}")
-                for key in item.keys():
-                    if key not in metadataKeys.keys() and item[key] is not None:
-                        datatype = python_to_javascript_type(type(item[key]))
-                        metadataKeys[key] = {"type": datatype, "set": set(), "count": 0}
-                    if item[key] is None:
-                        continue  # we skip null values for processing
-                    if metadataKeys[key]['type'] == 'string':
-                        metadataKeys[key]['set'].add(item[key])
-                        metadataKeys[key]['count'] += 1
-                    if metadataKeys[key]['type'] == 'array':
-                        for arrayitem in item[key]:
-                            if python_to_javascript_type(type(arrayitem)) == 'string':
-                                metadataKeys[key]['set'].add(arrayitem)
-                        metadataKeys[key]['count'] += 1
-                    if metadataKeys[key]['type'] == 'number':
-                        if 'range' not in metadataKeys[key].keys():
-                            metadataKeys[key]['range'] = {"min": item[key], "max": item[key]}
-                        metadataKeys[key]['range'] = {
-                            "min": min(item[key], metadataKeys[key]["range"]["min"]),
-                            "max": max(item[key], metadataKeys[key]["range"]["max"]),
-                        }
+                _accumulate_flat_metadata_key_stats(metadataKeys, item)
             # now we need to determine what is categorical vs what is a search field
-            for key in metadataKeys.keys():
-                item = metadataKeys[key]
-                metadataKeys[key]["unique"] = len(item["set"])
-                if item["type"] in ['string', 'array'] and (
-                    item["unique"] < categoricalLimit
-                    or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
-                ):
-                    metadataKeys[key]["category"] = "categorical"
-                    metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
-                elif item["type"] == 'string':
-                    metadataKeys[key]["category"] = "search"
-                    del metadataKeys[key]['set']
-                elif item["type"] == 'number':
-                    metadataKeys[key]["category"] = "numerical"
-                    del metadataKeys[key]['set']
-                else:
-                    del metadataKeys[key]['set']
+            _finalize_metadata_keys_categories(metadataKeys, categoricalLimit)
             _apply_imported_descriptions_to_metadata_keys(metadataKeys, key_import_descriptions)
             DIVE_MetadataKeys().createMetadataKeys(folder, user, metadataKeys)
             # add metadata to root folder for
@@ -783,47 +1020,12 @@ class DIVEMetadata(Resource):
                             data[f'ffprobe_{ffMetadataKey}'] = float(raw_value)
                         except (ValueError, TypeError):
                             data[f'ffprobe_{ffMetadataKey}'] = str(raw_value)
+            sanitize_value_tree_for_girder_json(data, minmax_keys_to_zero=False)
             DIVE_Metadata().createMetadata(item, base_folder, user, data)
-            for key in data.keys():
-                if key not in metadataKeys.keys() and data[key] is not None:
-                    datatype = python_to_javascript_type(type(data[key]))
-                    metadataKeys[key] = {"type": datatype, "set": set(), "count": 0}
-                if data[key] is None:
-                    continue  # we skip null values for processing
-                if metadataKeys[key]['type'] == 'string':
-                    metadataKeys[key]['set'].add(data[key])
-                    metadataKeys[key]['count'] += 1
-                if metadataKeys[key]['type'] == 'array':
-                    for arrayitem in data[key]:
-                        if python_to_javascript_type(type(arrayitem)) == 'string':
-                            metadataKeys[key]['set'].add(arrayitem)
-                    metadataKeys[key]['count'] += 1
-                if metadataKeys[key]['type'] == 'number':
-                    if 'range' not in metadataKeys[key].keys():
-                        metadataKeys[key]['range'] = {"min": data[key], "max": data[key]}
-                    metadataKeys[key]['range'] = {
-                        "min": min(data[key], metadataKeys[key]["range"]["min"]),
-                        "max": max(data[key], metadataKeys[key]["range"]["max"]),
-                    }
+            _accumulate_flat_metadata_key_stats(metadataKeys, data)
 
             # now we need to determine what is categorical vs what is a search field
-        for key in metadataKeys.keys():
-            item = metadataKeys[key]
-            metadataKeys[key]["unique"] = len(item["set"])
-            if item["type"] in ['string', 'array'] and (
-                item["unique"] < categoricalLimit
-                or (item["count"] <= len(item["set"]) and len(item["set"]) < categoricalLimit)
-            ):
-                metadataKeys[key]["category"] = "categorical"
-                metadataKeys[key]['set'] = list(metadataKeys[key]['set'])
-            elif item["type"] == 'string':
-                metadataKeys[key]["category"] = "search"
-                del metadataKeys[key]['set']
-            elif item["type"] == 'number':
-                metadataKeys[key]["category"] = "numerical"
-                del metadataKeys[key]['set']
-            else:
-                del metadataKeys[key]['set']
+        _finalize_metadata_keys_categories(metadataKeys, categoricalLimit)
         DIVE_MetadataKeys().createMetadataKeys(base_folder, user, metadataKeys)
         # add metadata to root folder for
         base_folder['meta'][DIVEMetadataMarker] = True
@@ -844,7 +1046,7 @@ class DIVEMetadata(Resource):
     @access.user
     @autoDescribeRoute(
         Description(
-            "Get a list of filter keys for a specific folder.  This is more used for debugging values in the metadata"
+            "Get a list of filter keys for a specific folder.  Provides the type and range for values in the metadata"
         ).modelParam(
             "id",
             description="Base folder ID",
@@ -862,17 +1064,10 @@ class DIVEMetadata(Resource):
             query=query,
             user=user,
         )
-        keys = metadata_key['metadataKeys']
-        for key in keys:
-            item = keys[key]
-            if item.get('category', False):
-                if item['category'] == 'numerical':
-                    if (
-                        item['range']
-                        and item['range']['min'] == float('inf')
-                        or item['range']['max'] == float('-inf')
-                    ):
-                        item['range'] = {'min': 0, 'max': 0}
+        # NaN/inf in numerical ranges or categorical sets (common after partial CSV imports)
+        # breaks json.dumps(allow_nan=False).
+        if sanitize_metadata_keys_doc_for_api(metadata_key):
+            DIVE_MetadataKeys().save(metadata_key)
         if metadata_key.get('unlocked', False) is False:
             metadata_key['unlocked'] = []
             DIVE_MetadataKeys().initialize_updated_data(folder, None)
@@ -907,9 +1102,14 @@ class DIVEMetadata(Resource):
         )
         if metadata_items is not None:
             pages = math.ceil(metadata_items.count() / limit)
+            page_list = list(metadata_items)
+            # Dataset rows can contain pandas NaN in metadata (e.g. sparse CSV); Girder JSON forbids NaN.
+            for doc in page_list:
+                if sanitize_value_tree_for_girder_json(doc, minmax_keys_to_zero=False):
+                    DIVE_Metadata().save(doc)
             structured_results = {
                 'totalPages': pages,
-                'pageResults': list(metadata_items),
+                'pageResults': page_list,
                 'count': total_items,
                 'filtered': metadata_items.count(),
             }
@@ -1021,7 +1221,7 @@ class DIVEMetadata(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Get a list of filter values for DIVE Metadata")
+        Description("Get a list of filter values for DIVE Metadata, use for debugging")
         .modelParam(
             "id",
             description="Base folder ID",
@@ -1069,7 +1269,7 @@ class DIVEMetadata(Resource):
 
         for key in results.keys():
             results[key] = sorted(results[key])
-
+        sanitize_value_tree_for_girder_json(results, minmax_keys_to_zero=False)
         return results
 
     @access.user
@@ -1211,7 +1411,8 @@ class DIVEMetadata(Resource):
             if category == 'categorical' and values_arr and len(values_arr) > 0:
                 info['set'] = list(set(values_arr))
             if category == 'numerical':
-                info['range'] = {'min': float('inf'), 'max': float('-inf')}
+                # Do not use inf sentinels — Girder JSON responses use allow_nan=False.
+                info['range'] = {'min': 0.0, 'max': 0.0}
             if info.get('set', None) is None:
                 info['set'] = []
             desc_text = (description or '').strip() if description is not None else ''
@@ -1515,18 +1716,14 @@ class DIVEMetadata(Resource):
 
         if format == 'csv':
             output = io.StringIO(newline='')
-            # Infer CSV headers from all keys used across items
-            headers = sorted(
-                {key for item in metadata_items for key in item.get('metadata', {}).keys()}
-            )
-            headers.insert(0, 'DIVEDataset')  # Add DIVEDataset as first column
-            headers.insert(1, 'Filename')  # Add filename as second column
-            headers.insert(2, 'DIVE_URL')  # Add DIVE_URL as third column
+            # Infer CSV headers from metadata keys, excluding columns we inject once (avoids duplicate Filename).
+            meta_headers = _metadata_fieldnames_for_export(metadata_items)
+            headers = ['DIVEDataset', 'Filename', 'DIVE_URL', *meta_headers]
             writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
             writer.writeheader()
             for item in metadata_items:
 
-                row = {key: item.get('metadata', {}).get(key, '') for key in headers}
+                row = {key: item.get('metadata', {}).get(key, '') for key in meta_headers}
                 row['DIVEDataset'] = str(item['DIVEDataset'])
                 row['Filename'] = item.get('filename', '')
                 # generate the url for the dive metadata it should be of the format like
@@ -1539,6 +1736,8 @@ class DIVEMetadata(Resource):
                 else:
                     tempBaseURL = getApiUrl().replace('/api/v1', '')
                     row['DIVE_URL'] = f"{tempBaseURL}/#/viewer/{item['DIVEDataset']}?diveMetadataRootId={item['root']}"
+                sanitize_value_tree_for_girder_json(row, minmax_keys_to_zero=False)
+                coerce_export_empty_strings(row)
                 writer.writerow(row)
 
             csv_output = output.getvalue()
@@ -1552,7 +1751,7 @@ class DIVEMetadata(Resource):
         else:  # JSON
             export_data = []
             for item in metadata_items:
-                export_item = item.get('metadata', {}).copy()
+                export_item = _strip_injected_metadata_keys_copy(item.get('metadata', {}))
                 export_item['DIVEDataset'] = str(item['DIVEDataset'])
                 export_item['Filename'] = item.get('filename', '')
                 export_data.append(export_item)
@@ -1566,6 +1765,8 @@ class DIVEMetadata(Resource):
                 else:
                     tempBaseURL = getApiUrl().replace('/api/v1', '')
                     export_item['DIVE_URL'] = f"{tempBaseURL}/#/viewer/{item['DIVEDataset']}?diveMetadataRootId={item['root']}"
+                sanitize_value_tree_for_girder_json(export_item, minmax_keys_to_zero=False)
+                coerce_export_empty_strings(export_item)
             setContentDisposition(filename, mime='application/json')
             setRawResponse()
 
@@ -1584,12 +1785,12 @@ class DIVEMetadata(Resource):
         json.dumps(previous_data).encode('utf-8')
 
         results = bulk_metadata_update_process(user, rootFolder, updates, replace)
-        # get errors in the results
-        errors = []
-        for item in results:
-            if 'error' in item.keys():
-                errors.append(item['error'])
-        if len(errors) > 0:
+        # Skip the heavy history snapshot if any row failed (not just not_found: partial_success
+        # and per-key errors use the "errors" list, which the old code ignored).
+        failed = any(
+            item.get('status') in ('not_found', 'error', 'partial_success') for item in results
+        )
+        if failed:
             return results
         # Check and find DIVEMetadataMarker folder or create it if it doesn't exist
         metadata_folder = Folder().findOne(
@@ -1651,6 +1852,8 @@ class DIVEMetadata(Resource):
     )
     def bulk_update_metadata_file(self, rootFolder, replace):
         user = self.getCurrentUser()
+        if rootFolder['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
         # We Need to find any JSON file in the folder and be able to proces it
         unprocessed_items = Folder().childItems(
             rootFolder,
@@ -1675,9 +1878,9 @@ class DIVEMetadata(Resource):
             file_generator = File().download(file, headers=False)()
             file_string = b"".join(list(file_generator)).decode()
             if file['name'].endswith('.json'):  # standard json file
-                updates = json.loads(file_string)
+                updates = _loads_metadata_import_json(file_string)
             elif file['name'].endswith('.ndjson'):  # new line delimited json
-                updates = [json.loads(line) for line in file_string.splitlines()]
+                updates = [_loads_metadata_import_json(line) for line in file_string.splitlines()]
             elif file['name'].endswith('.csv'):  # use pandas for automatic type conversion
                 df = pd.read_csv(io.StringIO(file_string))
                 updates = df.to_dict(orient='records')
@@ -1715,6 +1918,8 @@ class DIVEMetadata(Resource):
     )
     def bulk_update_metadata(self, rootFolder, updates, replace=False):
         user = self.getCurrentUser()
+        if rootFolder['meta'].get(DIVEMetadataMarker, False) is False:
+            raise RestException('Folder is not a DIVE Metadata folder', code=404)
         # We want to get the Data before processing
         results = self.bulk_metadata_process_file(user, rootFolder, updates, replace)
 

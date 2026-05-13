@@ -1,10 +1,17 @@
 import datetime
+import math
 
 from dateutil import parser
 from girder import events
 from girder.constants import SortDir
 from girder.exceptions import ValidationException
 from girder.models.model_base import Model
+
+from dive_utils.metadata.numeric import (
+    categorical_values_for_schema,
+    is_nonfinite_numeric_placeholder,
+    merge_numeric_sample_into_range_dict,
+)
 
 
 class DIVE_Metadata(Model):
@@ -71,15 +78,22 @@ class DIVE_Metadata(Model):
         return doc
 
     def updateKey(self, folder, root, owner, key, value, categoricalLimit=50, force=False):
-        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root})
+        # root is the DIVE metadata *collection* folder id (string); folder is the dataset Girder folder.
+        root_id = str(root)
+        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root_id})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} found')
-        query = {'root': root}
+            raise Exception(
+                f'No DIVE_Metadata row for datasetId={folder["_id"]} and metadataRoot={root_id}'
+            )
+        query = {'root': root_id}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,
         )
         if not metadataKeys:
-            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+            raise Exception(
+                f'No DIVE_MetadataKeys document for metadataRoot={root_id} '
+                f'(request was for datasetId={folder["_id"]})'
+            )
         if (
             key not in metadataKeys['unlocked'] and metadataKeys['owner'] != str(owner['_id'])
         ) and force is False:
@@ -106,16 +120,35 @@ class DIVE_Metadata(Model):
             raise Exception(
                 f'Key: {key} is not in the metadata only keys: {editable_keys} can be updated'
             )
-        if metadataKeys['metadataKeys'][key]['category'] == 'numerical':
-            existing['metadata'][key] = float(value)
+        cat = metadataKeys['metadataKeys'][key]['category']
+        finite_num = None
+        non_num_stored = None
+        if cat == 'numerical':
+            try:
+                fv = float(value)
+            except (TypeError, ValueError):
+                fv = float('nan')
+            # Sparse CSV cells become NaN — never persist (breaks Girder JSON on filter/metadata APIs).
+            if math.isfinite(fv):
+                existing['metadata'][key] = fv
+                finite_num = fv
+            else:
+                existing['metadata'][key] = None
         else:
-            existing['metadata'][key] = value
+            non_num_stored = value
+            if is_nonfinite_numeric_placeholder(non_num_stored):
+                non_num_stored = None
+            existing['metadata'][key] = non_num_stored
         self.save(existing)
-        # now we need to update the metadataKey
-        DIVE_MetadataKeys().updateKeyValue(existing['root'], owner, key, value, categoricalLimit)
+        # now we need to update the metadataKey aggregate (skip non-finite numericals)
+        if cat == 'numerical' and finite_num is not None:
+            DIVE_MetadataKeys().updateKeyValue(existing['root'], owner, key, finite_num, categoricalLimit)
+        elif cat != 'numerical' and non_num_stored is not None:
+            DIVE_MetadataKeys().updateKeyValue(existing['root'], owner, key, non_num_stored, categoricalLimit)
 
     def deleteKey(self, folder, root, owner, key):
-        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root})
+        root_id = str(root)
+        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root_id})
         if not existing:
             return
         query = {'root': existing['root']}
@@ -124,22 +157,33 @@ class DIVE_Metadata(Model):
             owner=str(owner['_id']),
         )
         if not metadataKeys:
-            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+            raise Exception(
+                f'No DIVE_MetadataKeys document for metadataRoot={existing["root"]} '
+                f'(deleteKey context datasetId={folder["_id"]})'
+            )
         if existing['metadata'].get(key, None) is not None:
             del existing['metadata'][key]
             self.save(existing)
 
     def removeCustomKeys(self, folder, root, owner):
-        existing = self.findOne({'DIVEDataset': str(folder['_id'])})
+        # Must scope by root: the same dataset id must not be paired with another metadata collection's row.
+        root_id = str(root)
+        existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': root_id})
         if not existing:
-            raise Exception(f'Note MetadataKeys with folderId: {folder["_id"]} not found')
+            raise Exception(
+                f'No DIVE_Metadata row for datasetId={folder["_id"]} and metadataRoot={root_id} '
+                f'(cannot clear custom keys for replace import)'
+            )
         query = {'root': existing['root']}
         metadataKeys = DIVE_MetadataKeys().findOne(
             query=query,
             owner=str(owner['_id']),
         )
         if not metadataKeys:
-            raise Exception(f'Could not find the root metadataKeys with folderId: {folder["_id"]}')
+            raise Exception(
+                f'No DIVE_MetadataKeys document for metadataRoot={query["root"]} and owner={owner["_id"]} '
+                f'(removeCustomKeys context datasetId={folder["_id"]})'
+            )
         keys_to_remove = [
             key
             for key in existing['metadata'].keys()
@@ -388,17 +432,17 @@ class DIVE_MetadataKeys(Model):
         keyData = existing['metadataKeys'][key]
         category = keyData['category']
         if category == 'categorical':
-            keyDataSet = set(keyData['set'])
-            if len(keyDataSet) + 1 < categoricalLimit:
-                keyDataSet.add(value)
-            else:
-                keyData['category'] = 'search'
-                del keyData['set']
-            keyData['set'] = list(keyDataSet)
+            keyDataSet = set(categorical_values_for_schema(keyData.get('set', [])))
+            skip_add = is_nonfinite_numeric_placeholder(value)
+            if not skip_add:
+                if len(keyDataSet) + 1 < categoricalLimit:
+                    keyDataSet.add(value)
+                else:
+                    keyData['category'] = 'search'
+                    keyData.pop('set', None)
+            if keyData.get('category') == 'categorical':
+                keyData['set'] = list(keyDataSet)
         if category == 'numerical' and keyData.get('range', False):
-            range = keyData['range']
-            range['min'] = min(float(value), float(range['min']))
-            range['max'] = max(float(value), float(range['max']))
-            keyData['range'] = range
+            merge_numeric_sample_into_range_dict(keyData['range'], value)
         existing['metadataKeys'][key] = keyData
         self.save(existing)
