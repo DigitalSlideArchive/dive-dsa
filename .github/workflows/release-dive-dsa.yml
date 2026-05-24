@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          cache: false
+          package-manager-cache: false  # never use caching in release builds
       - run: npm ci
       - run: npm run build:web
       - run: npm publish
