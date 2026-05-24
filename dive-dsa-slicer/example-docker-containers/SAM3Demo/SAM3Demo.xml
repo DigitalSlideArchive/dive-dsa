@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+  <category>DIVE</category>
+  <title>SAM3 Text Segmentation</title>
+  <description>Segment all instances matching a text prompt on a DIVE video frame using SAM3, optionally propagate masks forward through subsequent frames, and ingest annotations</description>
+  <version>0.1.0</version>
+  <documentation-url></documentation-url>
+  <license>Apache 2.0</license>
+  <contributor>Bryon Lewis</contributor>
+  <acknowledgements>This work is part of the DIVE project.</acknowledgements>
+  <parameters>
+    <label>Prompt</label>
+    <description>Text prompt and detection settings</description>
+    <string>
+      <name>TextPrompt</name>
+      <longflag>TextPrompt</longflag>
+      <label>Text prompt</label>
+      <description><![CDATA[Open-vocabulary phrase describing what to segment (e.g. "person", "red car")]]></description>
+      <default></default>
+    </string>
+    <double>
+      <name>ConfidenceThreshold</name>
+      <longflag>ConfidenceThreshold</longflag>
+      <label>Confidence threshold</label>
+      <description><![CDATA[Minimum detection score (0-1) to keep an instance]]></description>
+      <default>0.5</default>
+      <minimum>0.0</minimum>
+      <maximum>1.0</maximum>
+    </double>
+    <string>
+      <name>DIVETrackType</name>
+      <longflag>DIVETrackType</longflag>
+      <label>Track type</label>
+      <description><![CDATA[Classification label applied to each new track]]></description>
+      <default>unknown</default>
+    </string>
+    <integer>
+      <name>DIVEFrameId</name>
+      <longflag>DIVEFrameId</longflag>
+      <description><![CDATA[Frame index to run text segmentation on]]></description>
+      <label>Frame Id</label>
+      <default>0</default>
+    </integer>
+    <integer>
+      <name>TrackingFrames</name>
+      <longflag>TrackingFrames</longflag>
+      <description><![CDATA[Number of frames to track forward from the prompt frame (1 = single frame only)]]></description>
+      <label>Tracking Frames</label>
+      <default>1</default>
+    </integer>
+  </parameters>
+  <parameters advanced="true">
+    <label>Automatic Parameters</label>
+    <description>Input/output parameters</description>
+    <directory>
+      <name>DIVEDirectory</name>
+      <longflag>DIVEDirectory</longflag>
+      <description><![CDATA[An input DIVE Directory. If no default is specified, the current directory is used,]]></description>
+      <label>Input DIVE directory</label>
+      <channel>input</channel>
+    </directory>
+    <file>
+      <name>DIVEVideo</name>
+      <label>Input Video</label>
+      <description>Input video</description>
+      <channel>input</channel>
+      <index>0</index>
+    </file>
+  </parameters>
+  <parameters advanced="true">
+    <label>Girder API URL and Key</label>
+    <description>A Girder API URL and token for Girder client</description>
+    <string>
+      <name>girderApiUrl</name>
+      <longflag>api-url</longflag>
+      <label>Girder API URL</label>
+      <description>A Girder API URL (e.g., https://girder.example.com:443/api/v1)</description>
+      <default></default>
+    </string>
+    <string>
+      <name>girderToken</name>
+      <longflag>girder-token</longflag>
+      <label>Girder Token</label>
+      <description>A Girder token</description>
+      <default></default>
+    </string>
+  </parameters>
+</executable>

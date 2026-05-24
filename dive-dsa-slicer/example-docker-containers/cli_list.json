@@ -19,5 +19,8 @@
   },
   "SAM2Demo": {
     "type": "python"
+  },
+  "SAM3Demo": {
+    "type": "python"
   }
 }
