@@ -29,7 +29,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/DigitalSlideArchive/dive-dsa/tree/main/dive-dsa-slicer/vue-girder-slicer-ui"
+    "url": "https://github.com/DigitalSlideArchive/dive-dsa",
+    "directory": "dive-dsa-slicer/vue-girder-slicer-ui"
   },
   "scripts": {
     "dev": "vite",
