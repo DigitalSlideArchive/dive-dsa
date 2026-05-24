@@ -7,6 +7,11 @@
   },
   "description": "DIVE annotation platform for Digital Slide Archive",
   "homepage": "https://digitalslidearchive.github.io/dive-dsa/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DigitalSlideArchive/dive-dsa",
+    "directory": "client"
+  },
   "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
