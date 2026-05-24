@@ -4,4 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        HF_TOKEN: ${HF_TOKEN:-}
     image: ghcr.io/digitalslidearchive/dive-dsa/dive-dsa-slicer-examples:${TAG:-latest}
+

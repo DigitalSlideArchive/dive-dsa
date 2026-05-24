@@ -5,7 +5,7 @@ RUN tar -xvf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
 # Use a version of alpine that includes bash and python
 FROM python:3.11-slim
 LABEL maintainer="Kitware, Inc. <kitware@kitware.com>"
-
+LABEL com.nvidia.volumes.needed=nvidia_driver
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends \
     # For installing pip \
@@ -24,25 +24,34 @@ RUN apt-get update && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN mkdir -p /opt/SAM2/models
+RUN mkdir -p /opt/SAM2/models /opt/SAM3/models
 
 COPY ./download_ckpts.sh /opt/SAM2/models/download_ckpts.sh
+COPY ./download_sam3_ckpts.sh /opt/SAM3/models/download_sam3_ckpts.sh
 # Download the checkpoints
 # and make sure the script is executable \
 # and run it to download the checkpoints \
 # and then remove the script to reduce image size \
-RUN chmod u+x /opt/SAM2/models/download_ckpts.sh 
+RUN chmod u+x /opt/SAM2/models/download_ckpts.sh /opt/SAM3/models/download_sam3_ckpts.sh
 RUN /opt/SAM2/models/download_ckpts.sh
-RUN rm /opt/SAM2/models/download_ckpts.sh
 
 RUN pip install --no-cache-dir --upgrade pip setuptools && \
+    pip install --no-cache-dir huggingface_hub
+
+# HF_TOKEN is passed at build time (e.g. from compose .env); not stored in the image ENV.
+ARG HF_TOKEN=
+RUN HF_TOKEN="${HF_TOKEN}" /opt/SAM3/models/download_sam3_ckpts.sh
+
+RUN rm /opt/SAM2/models/download_ckpts.sh /opt/SAM3/models/download_sam3_ckpts.sh
+
+RUN \
     # Install bokeh to help debug dask \
     pip install --no-cache-dir 'bokeh>=0.12.14,<3' && \
     # Install some other dependencies here to save time in the histomicstk \
     # install step \
     pip install --no-cache-dir opencv-python-headless && \
-    # SAM Dependenceis
-    pip install --no-cache-dir sam2 pycocotools torch pillow && \
+    # SAM dependencies
+    pip install --no-cache-dir sam2 sam3 huggingface_hub psutil pycocotools torch pillow && \
     # clean up \
     rm -rf /root/.cache/pip/*
 
