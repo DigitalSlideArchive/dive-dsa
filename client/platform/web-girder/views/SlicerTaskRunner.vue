@@ -198,14 +198,30 @@ export default defineComponent({
 </script>
 
 <template>
-  <v-container fluid fill-height>
-    <v-row align="center">
-      <v-spacer />
-      <v-icon size="30" @click="dialog = true">
-        mdi-help
-      </v-icon>
-    </v-row>
-    <girder-slicer-tasks-integrated :filter="filter" :defaults="defaultFunc" @run-task="triggerRunTask($event)" />
+  <div class="slicer-task-runner d-flex flex-column">
+    <div class="sidebar-scroll">
+      <v-container
+        fluid
+        class="pa-3"
+      >
+        <div class="d-flex align-center mb-2">
+          <v-spacer />
+          <v-btn
+            icon
+            small
+            title="Help"
+            @click="dialog = true"
+          >
+            <v-icon>mdi-help</v-icon>
+          </v-btn>
+        </div>
+        <girder-slicer-tasks-integrated
+          :filter="filter"
+          :defaults="defaultFunc"
+          @run-task="triggerRunTask($event)"
+        />
+      </v-container>
+    </div>
     <v-dialog v-model="dialog" width="500">
       <v-card>
         <v-card-title>
@@ -239,12 +255,18 @@ export default defineComponent({
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-container>
+  </div>
 </template>
 
 <style scoped>
-.slicer {
-    min-height: 100%;
-    height: 100%;
+.slicer-task-runner {
+  height: 100%;
+  min-height: 0;
+}
+
+.sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 </style>
