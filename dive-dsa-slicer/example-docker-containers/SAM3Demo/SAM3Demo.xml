@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <executable>
   <category>DIVE</category>
-  <title>SAM3 Text Segmentation</title>
-  <description>Segment all instances matching a text prompt on a DIVE video frame using SAM3, optionally propagate masks forward through subsequent frames, and ingest annotations</description>
+  <title>SAM 3.1 Text Segmentation</title>
+  <description>Segment all instances matching a text prompt on a DIVE video frame using SAM 3.1, optionally propagate masks forward through subsequent frames, and ingest annotations</description>
   <version>0.1.0</version>
   <documentation-url></documentation-url>
   <license>Apache 2.0</license>
