@@ -12,9 +12,13 @@ from . import viame
 
 
 def is_coco_json(coco: Dict[str, Any]):
-    # Required COCO fields according to https://cocodataset.org/#format-data
-    keys = ['info', 'images', 'annotations', 'categories']
-    return all(key in coco for key in keys)
+    # Fields required by the DIVE importer. `info` is part of the COCO spec but is
+    # often omitted by exporters (e.g. pycocotools); tests use JSON without it too.
+    keys = ['images', 'annotations', 'categories']
+    if not all(key in coco for key in keys):
+        return False
+    # Avoid treating DIVE track JSON as COCO when both schemas share top-level keys.
+    return 'tracks' not in coco
 
 
 def annotation_info(annotation: dict, meta: CocoMetadata) -> Tuple[int, str, int, List[int]]:
