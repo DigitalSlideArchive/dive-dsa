@@ -703,3 +703,9 @@ def test_read_kwcoco_json(
         expected_tracks, sort_keys=True
     )
     assert json.dumps(attributes, sort_keys=True) == json.dumps(expected_attributes, sort_keys=True)
+
+
+def test_is_coco_json_without_info():
+    assert kwcoco.is_coco_json(test_tuple[0][0])
+    assert not kwcoco.is_coco_json({'tracks': {}, 'groups': {}, 'version': 2})
+    assert not kwcoco.is_coco_json({'images': [], 'annotations': []})
