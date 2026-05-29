@@ -21,6 +21,17 @@ def is_coco_json(coco: Dict[str, Any]):
     return 'tracks' not in coco
 
 
+def _normalize_score(score: Any) -> float:
+    """Some exporters use score: [0.9] instead of scalar 0.9."""
+    if isinstance(score, (list, tuple)):
+        if not score:
+            return 1.0
+        score = score[0]
+    if score is None:
+        return 1.0
+    return float(score)
+
+
 def annotation_info(annotation: dict, meta: CocoMetadata) -> Tuple[int, str, int, List[int]]:
     # these fields will always exist
     annotation_id = annotation['id']
@@ -50,7 +61,7 @@ def _parse_annotation(annotation: dict, meta: CocoMetadata) -> Tuple[dict, dict,
     track_attributes: Dict[str, Any] = {}
 
     category_id = annotation['category_id']
-    score = annotation.get('score', 1.0)  # may not exist, default to 1.0
+    score = _normalize_score(annotation.get('score', 1.0))
     class_name = meta.categories[category_id]['name']
     confidence_pair = (class_name, score)
 

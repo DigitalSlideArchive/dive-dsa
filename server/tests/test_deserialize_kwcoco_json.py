@@ -709,3 +709,22 @@ def test_is_coco_json_without_info():
     assert kwcoco.is_coco_json(test_tuple[0][0])
     assert not kwcoco.is_coco_json({'tracks': {}, 'groups': {}, 'version': 2})
     assert not kwcoco.is_coco_json({'images': [], 'annotations': []})
+
+
+def test_litdet_array_score_import():
+    """Some exporters use score: [0.9] instead of scalar 0.9."""
+    coco = {
+        'categories': [{'id': 1, 'name': 'test'}],
+        'images': [{'id': 1, 'file_name': '1.png', 'width': 100, 'height': 100}],
+        'annotations': [
+            {
+                'id': 1,
+                'image_id': 1,
+                'category_id': 1,
+                'bbox': [10.0, 10.0, 20.0, 30.0],
+                'score': [0.747],
+            }
+        ],
+    }
+    converted, _ = kwcoco.load_coco_as_tracks_and_attributes(coco)
+    assert converted['tracks']['1']['confidencePairs'] == [('test', 0.747)]
