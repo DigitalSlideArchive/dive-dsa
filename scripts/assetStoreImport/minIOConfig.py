@@ -31,11 +31,13 @@ def get_container_ip(container_name: str, network_name: str) -> str:
 @click.command()
 @click.option('--data-dir', '-d', default='./sample', show_default=True,
               type=click.Path(file_okay=False), help="Folder to host in MinIO bucket")
+@click.option('--expose', is_flag=True, default=False,
+              help="Publish MinIO ports on the host (off by default; only reachable on dive-dsa_default)")
 @click.option('--api-port', default=9000, show_default=True,
-              help="Port for S3 API access")
+              help="Host port for S3 API when --expose is set")
 @click.option('--console-port', default=9001, show_default=True,
-              help="Port for MinIO Console access")
-def main(data_dir, api_port, console_port):
+              help="Host port for MinIO Console when --expose is set")
+def main(data_dir, expose, api_port, console_port):
     """
     Launch MinIO and a persistent mc container, configure a bucket and user.
     """
@@ -58,18 +60,25 @@ def main(data_dir, api_port, console_port):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # Start MinIO server
-    click.echo(f"🚀 Starting MinIO server with data dir: {data_dir}")
-    subprocess.run([
+    expose_msg = " (host ports published)" if expose else " (docker network only)"
+    click.echo(f"🚀 Starting MinIO server with data dir: {data_dir}{expose_msg}")
+    minio_run = [
         "docker", "run", "-d",
         "--name", minio_container,
         "--network", "dive-dsa_default",
-        "-p", f"{api_port}:9000",
-        "-p", f"{console_port}:9001",
+    ]
+    if expose:
+        minio_run.extend([
+            "-p", f"{api_port}:9000",
+            "-p", f"{console_port}:9001",
+        ])
+    minio_run.extend([
         "-e", "MINIO_ROOT_USER=rootuser",
         "-e", "MINIO_ROOT_PASSWORD=rootpass123",
         "minio/minio",
-        "server", "/data", "--console-address", ":9001"
-    ], check=True)
+        "server", "/data", "--console-address", ":9001",
+    ])
+    subprocess.run(minio_run, check=True)
 
     # Give MinIO time to start
     click.echo("⏳ Waiting for MinIO server to start...")
@@ -103,7 +112,6 @@ def main(data_dir, api_port, console_port):
         )
         return result.stdout if capture_output else None
 
-    localhost = "localhost"
     # Configure alias for root user
     mc_cmd("alias", "set", "local", f"http://{minio_ip}:9000", "rootuser", "rootpass123")
 
@@ -152,12 +160,15 @@ def main(data_dir, api_port, console_port):
     # shutdown the client server
     subprocess.run(["docker", "stop", mc_container], check=True)
     subprocess.run(["docker", "rm", mc_container], check=True)
-    click.echo(f"\n✅ MinIO setup complete!\n")
-    click.echo(f"  Console: http://{localhost}:{console_port} (user: rootuser / rootpass123)")
-    click.echo(f"  S3 API:  http://{minio_container}:{api_port}")
-    click.echo(f"  S3 API:  http://{minio_ip}:{api_port}")
+    click.echo("\n✅ MinIO setup complete!\n")
+    click.echo(f"  S3 API:  http://{minio_container}:9000 (dive-dsa_default)")
+    click.echo(f"  S3 API:  http://{minio_ip}:9000 (dive-dsa_default)")
+    if expose:
+        click.echo(f"  Console (host): http://localhost:{console_port} (user: rootuser / rootpass123)")
+        click.echo(f"  S3 API (host):  http://localhost:{api_port}")
+    else:
+        click.echo("  Host access: not published (pass --expose to map ports to localhost)")
     click.echo(f"  Bucket: {bucket_name}")
-    click.echo(f"  Persistent mc client running as container: {mc_container}")
 
 if __name__ == "__main__":
     main()
