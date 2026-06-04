@@ -570,6 +570,23 @@ def _normalize_create_metadata_configs(displayConfig, ffprobeMetadata):
     return display_config, ffprobe_metadata
 
 
+def _display_config_from_metadata_folder(metadata_folder):
+    """Build display config for indexing from an existing DIVE metadata folder."""
+    stored = metadata_folder.get('meta', {}).get(DIVEMetadataFilter) or {}
+    display_config = _normalize_metadata_config(stored, _CREATE_METADATA_DISPLAY_DEFAULT)
+    if stored.get('categoricalLimit') is not None:
+        display_config['categoricalLimit'] = stored['categoricalLimit']
+    return display_config
+
+
+def _categorical_limit_from_metadata_folder(metadata_folder, display_config):
+    return (
+        metadata_folder.get('meta', {})
+        .get(DIVEMetadataFilter, {})
+        .get('categoricalLimit', display_config.get('categoricalLimit', 50))
+    )
+
+
 def _build_default_dataset_metadata_row(item, user, ffprobe_metadata):
     data = {
         'DIVE_DatasetId': str(item['_id']),
@@ -872,6 +889,7 @@ class DIVEMetadata(Resource):
         )
         self.route("POST", ("create_metadata_folder", ":id"), self.create_metadata_folder)
         self.route("POST", ("create_metadata_recursive",), self.create_metadata_recursive)
+        self.route("POST", (":id", "index_folder"), self.index_metadata_folder)
         self.route("POST", (':id', "clone_filter"), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
@@ -1434,6 +1452,78 @@ class DIVEMetadata(Resource):
             'created': created,
             'existing': existing_results,
             'errors': errors,
+        }
+
+    @access.user
+    @autoDescribeRoute(
+        Description(
+            "Index DIVE datasets from another folder into an existing DIVE metadata folder. "
+            "Adds rows for datasets not yet in the metadata root; optionally replaces default "
+            "fields for datasets already indexed from the same scan."
+        )
+        .modelParam(
+            "id",
+            description="Existing DIVE metadata folder",
+            model=Folder,
+            level=AccessType.WRITE,
+        )
+        .param(
+            "rootFolderId",
+            "Folder to scan recursively for DIVE datasets to add or refresh",
+            paramType="formData",
+            dataType="string",
+            required=True,
+        )
+        .param(
+            "replaceMetadata",
+            "When true, overwrite default metadata rows for datasets found under rootFolderId",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
+        .jsonParam(
+            "ffprobeMetadata",
+            "ffprobe keys to import for newly indexed or replaced rows",
+            required=False,
+            default=_CREATE_METADATA_FFPROBE_DEFAULT,
+        )
+    )
+    def index_metadata_folder(self, folder, rootFolderId, replaceMetadata, ffprobeMetadata):
+        user = self.getCurrentUser()
+        if not _is_dive_metadata_folder(folder):
+            raise RestException('Folder is not a DIVE Metadata folder', code=400)
+        root_folder = Folder().load(
+            rootFolderId,
+            level=AccessType.WRITE,
+            user=user,
+            force=True,
+        )
+        display_config = _display_config_from_metadata_folder(folder)
+        ffprobe_metadata = _normalize_metadata_config(
+            ffprobeMetadata,
+            _CREATE_METADATA_FFPROBE_DEFAULT,
+        )
+        categorical_limit = _categorical_limit_from_metadata_folder(folder, display_config)
+        populate_result = _populate_dive_metadata_folder(
+            folder,
+            root_folder,
+            user,
+            display_config,
+            ffprobe_metadata,
+            categorical_limit,
+            replace_metadata=replaceMetadata is True,
+        )
+        return {
+            'results': (
+                f"indexed {populate_result['datasetCount']} datasets: "
+                f"added {populate_result['added']}, skipped {populate_result['existing']} existing"
+            ),
+            'metadataFolderId': str(folder['_id']),
+            'rootFolderId': str(root_folder['_id']),
+            'added': populate_result['added'],
+            'existing': populate_result['existing'],
+            'datasetCount': populate_result['datasetCount'],
         }
 
     @access.user

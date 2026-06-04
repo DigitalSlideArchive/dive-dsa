@@ -218,6 +218,15 @@ export interface createDiveMetadataRecursiveResponse {
   errors: string[];
 }
 
+export interface IndexDiveMetadataFolderResponse {
+  results: string;
+  metadataFolderId: string;
+  rootFolderId: string;
+  added: number;
+  existing: number;
+  datasetCount: number;
+}
+
 function createDiveMetadataFolder(
   parentFolder: string,
   name: string,
@@ -267,6 +276,27 @@ function createDiveMetadataRecursive(
       ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
   });
+}
+
+function indexDiveMetadataFromFolder(
+  metadataFolderId: string,
+  rootFolderId: string,
+  replaceMetadata = false,
+  ffprobeMetadata = {
+    import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
+  },
+) {
+  return girderRest.post<IndexDiveMetadataFolderResponse>(
+    `dive_metadata/${metadataFolderId}/index_folder`,
+    null,
+    {
+      params: {
+        rootFolderId,
+        replaceMetadata,
+        ffprobeMetadata: toJsonParam(ffprobeMetadata),
+      },
+    },
+  );
 }
 
 function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, unlocked: boolean) {
@@ -476,6 +506,7 @@ export {
   createDiveMetadataClone,
   createDiveMetadataFolder,
   createDiveMetadataRecursive,
+  indexDiveMetadataFromFolder,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
   updateDiveMetadataKeyDescription,

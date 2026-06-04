@@ -14,6 +14,8 @@ from dive_server.views_metadata import (  # noqa: E402
     _PROCESS_METADATA_DISPLAY_DEFAULT,
     _PROCESS_METADATA_FFPROBE_DEFAULT,
     _accumulate_flat_metadata_key_stats,
+    _categorical_limit_from_metadata_folder,
+    _display_config_from_metadata_folder,
     _finalize_metadata_keys_categories,
     _is_blank_metadata_value_for_stats,
     _is_dive_metadata_folder,
@@ -23,6 +25,7 @@ from dive_server.views_metadata import (  # noqa: E402
     _normalize_metadata_config,
     remove_before_folder,
 )
+from dive_utils.constants import DIVEMetadataFilter  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -55,6 +58,22 @@ def test_metadata_folder_name_for_dataset_folder():
     assert _metadata_folder_name_for_dataset_folder({'name': 'Study A'}, 'DIVE Metadata') == (
         'Study A - DIVE Metadata'
     )
+
+
+def test_display_config_from_metadata_folder_uses_stored_filter():
+    folder = {
+        'meta': {
+            DIVEMetadataFilter: {
+                'display': ['Species'],
+                'hide': ['DIVE_Path'],
+                'categoricalLimit': 25,
+            },
+        },
+    }
+    display_config = _display_config_from_metadata_folder(folder)
+    assert display_config['display'] == ['Species']
+    assert display_config['hide'] == ['DIVE_Path']
+    assert _categorical_limit_from_metadata_folder(folder, display_config) == 25
 
 
 def test_normalize_metadata_config_none_uses_defaults():

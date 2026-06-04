@@ -14,11 +14,17 @@ import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataSlicerVue from './DIVEMetadataSlicer.vue';
 import DIVEMetadataExportVue from './DIVEMetadataExport.vue';
 import DIVEMetadataImportVue from './DIVEMetadataImport.vue';
+import DIVEMetadataIndexFolderVue from './DIVEMetadataIndexFolder.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataFilter',
   components: {
-    DIVEMetadataFilterItemVue, DIVEMetadataCloneVue, DIVEMetadataSlicerVue, DIVEMetadataExportVue, DIVEMetadataImportVue,
+    DIVEMetadataFilterItemVue,
+    DIVEMetadataCloneVue,
+    DIVEMetadataSlicerVue,
+    DIVEMetadataExportVue,
+    DIVEMetadataImportVue,
+    DIVEMetadataIndexFolderVue,
   },
   props: {
     currentPage: {
@@ -362,6 +368,12 @@ export default defineComponent({
 
         <v-spacer />
         <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="mr-2" @job-complete="jobCompleted()" />
+        <DIVEMetadataIndexFolderVue
+          v-if="ownerAdmin"
+          :metadata-root="id"
+          class="mr-2"
+          @updated="metadataImported()"
+        />
         <DIVEMetadataImportVue v-if="ownerAdmin" :metadata-root="id" class="mr-2" @updated="metadataImported()" />
         <DIVEMetadataExportVue :metadata-root="id" :filters="currentFilter" class="pr-4" />
         <v-chip><span class="pr-1">Filtered:</span>{{ filtered }} / {{ count }}</v-chip>
