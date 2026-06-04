@@ -63,6 +63,27 @@ This object controls key visibility, ordering, grouping, and some UI behavior.
 
 A new collection of URL endpoints under `dive_metadata` allows for importing and querying DIVE Metadata.
 
+### Creating metadata from folders or collections
+
+**POST** `/dive_metadata/create_metadata_folder/{parentFolderId}`
+
+Creates a DIVE metadata folder under `parentFolderId` and indexes datasets under `rootFolderId`. If a metadata folder already exists under the parent, it is reused. Existing per-dataset metadata rows are not overwritten.
+
+**POST** `/dive_metadata/create_metadata_recursive`
+
+Creates metadata for a Girder **folder** or **collection** without replacing existing metadata.
+
+| Parameter | Description |
+|-----------|-------------|
+| `resourceId` | Folder or collection ID |
+| `resourceType` | `folder` or `collection` |
+| `scope` | `single` (one metadata folder for the resource) or `subfolders` (one metadata folder per immediate child folder, created as a **sibling** next to that folder) |
+| `name` | Metadata folder name (`<child> - <name>` sibling folder name when `scope=subfolders`) |
+| `parentFolderId` | Optional parent for `scope=single` on a folder |
+| `displayConfig` / `ffprobeMetadata` / `categoricalLimit` | Same as `create_metadata_folder` |
+
+Existing metadata folders are reused; only missing datasets are indexed. Folders that already have a DIVE metadata child are updated in place when new datasets appear.
+
 ### Ingesting DIVE Metadata
 
 **POST** `/dive_metadata/process_metadata/{id}`

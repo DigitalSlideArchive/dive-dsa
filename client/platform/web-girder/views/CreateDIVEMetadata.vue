@@ -8,7 +8,11 @@ import { RootlessLocationType } from 'platform/web-girder/store/types';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { getFolder } from 'platform/web-girder/api';
 import { useRouter } from 'vue-router/composables';
-import { createDiveMetadataFolder } from 'platform/web-girder/api/divemetadata.service';
+import {
+  createDiveMetadataFolder,
+  createDiveMetadataRecursive,
+} from 'platform/web-girder/api/divemetadata.service';
+import eventBus from '../eventBus';
 import type { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
 
 export default defineComponent({
@@ -18,6 +22,14 @@ export default defineComponent({
     datasetId: {
       type: String as PropType<string | null>,
       default: null,
+    },
+    resourceType: {
+      type: String as PropType<'folder' | 'collection' | null>,
+      default: null,
+    },
+    resourceName: {
+      type: String,
+      default: '',
     },
     revision: {
       type: Number,
@@ -36,23 +48,49 @@ export default defineComponent({
   setup(props) {
     const router = useRouter();
     const girderRest = useGirderRest();
-    const source = ref(null as GirderModel | null);
+    const source = ref(null as GirderModel | { _id: string; _modelType: string; name: string } | null);
     const open = ref(false);
     const categoricalLimit = ref(50);
+    const perSubfolder = ref(false);
+    const scope = ref<'single' | 'subfolders'>('single');
     const location: Ref<RootlessLocationType> = ref({
       _modelType: ('user' as GirderModelType),
       _id: girderRest.user._id,
     });
-    const newName = ref('');
+    const newName = ref('DIVE Metadata');
 
+    const isCollection = computed(() => props.resourceType === 'collection');
+    const useRecursiveApi = computed(
+      () => isCollection.value || perSubfolder.value,
+    );
     const locationIsFolder = computed(() => (location.value._modelType === 'folder'));
+    const effectiveScope = computed(() => {
+      if (isCollection.value) {
+        return scope.value;
+      }
+      return perSubfolder.value ? 'subfolders' : 'single';
+    });
 
     async function click() {
-      if (props.datasetId) {
+      if (!props.datasetId) {
+        return;
+      }
+      if (props.resourceType === 'collection') {
+        source.value = {
+          _id: props.datasetId,
+          _modelType: 'collection',
+          name: props.resourceName || 'Collection',
+        };
+        scope.value = 'subfolders';
+        perSubfolder.value = true;
+        newName.value = 'DIVE Metadata';
+      } else {
         source.value = (await getFolder(props.datasetId)).data;
         newName.value = `DiveMetadata of ${source.value.name}`;
-        open.value = true;
+        scope.value = 'single';
+        perSubfolder.value = false;
       }
+      open.value = true;
     }
 
     function setLocation(newLoc: RootlessLocationType) {
@@ -64,7 +102,38 @@ export default defineComponent({
     const { request: _createRequest, error: createError, loading: createLoading } = useRequest();
     const doCreate = () => _createRequest(async () => {
       if (!props.datasetId) {
-        throw new Error('no source dataset');
+        throw new Error('no source resource');
+      }
+      if (useRecursiveApi.value) {
+        const result = await createDiveMetadataRecursive(
+          props.datasetId,
+          isCollection.value ? 'collection' : 'folder',
+          effectiveScope.value,
+          newName.value,
+          categoricalLimit.value,
+        );
+        const { created, existing, errors } = result.data;
+        const hasWork = created.length > 0
+          || existing.some((entry) => entry.metadataFolderId);
+        if (!hasWork) {
+          throw new Error(
+            errors.join('; ')
+            || 'No metadata folders were created or updated',
+          );
+        }
+        if (effectiveScope.value === 'subfolders') {
+          open.value = false;
+          eventBus.$emit('refresh-data-browser');
+          return;
+        }
+        const first = created.find((entry) => entry.metadataFolderId)
+          || existing.find((entry) => entry.metadataFolderId);
+        open.value = false;
+        router.push({ name: 'metadata', params: { id: first!.metadataFolderId! } });
+        return;
+      }
+      if (!locationIsFolder.value) {
+        throw new Error('Choose a destination folder');
       }
       const newDataset = await createDiveMetadataFolder(
         location.value._id,
@@ -73,6 +142,7 @@ export default defineComponent({
         categoricalLimit.value,
       );
       router.push({ name: 'metadata', params: { id: newDataset.data.folderId } });
+      open.value = false;
     });
 
     return {
@@ -84,6 +154,11 @@ export default defineComponent({
       open,
       source,
       categoricalLimit,
+      perSubfolder,
+      scope,
+      isCollection,
+      useRecursiveApi,
+      effectiveScope,
       /* methods */
       click,
       doCreate,
@@ -124,23 +199,29 @@ export default defineComponent({
             <v-spacer />
           </v-btn>
         </template>
-        <span>Create a DIVEMetadata Item based on subfolders</span>
+        <span>Create DIVE metadata for this folder or collection (skips existing metadata)</span>
       </v-tooltip>
     </template>
 
     <v-card v-if="source">
       <v-divider />
       <v-card-title>
-        Create a DIVEMetadata Item from the current folder
+        Create DIVE metadata from {{ source.name }}
       </v-card-title>
       <v-card-text>
         <v-card-text>
-          This will generate a DIVEMetadata Item for the current folder.  It will recursively find all DIVE
-          Datasets in the children folder and extract the filename, id, and ffmpeg information for indexing purposes.
-          After this is complete you can then use the <v-chip>edit filters</v-chip> button to add new fields and change what fields are bvisible by default.
+          <p v-if="isCollection">
+            For a <strong>collection</strong>, you can create one metadata folder for the whole
+            collection or one per top-level folder (as a sibling folder next to each one). Existing
+            metadata folders are reused and only missing datasets are indexed.
+          </p>
+          <p v-else>
+            This indexes DIVE datasets under the current folder. Existing metadata rows are not
+            replaced. Choose a destination folder, or enable per-subfolder creation below.
+          </p>
           <v-text-field
             v-model="newName"
-            label="New MetadataFolder name"
+            label="Metadata folder name"
             class="mt-4"
             outlined
             dense
@@ -152,12 +233,35 @@ export default defineComponent({
             label="Categorical Limit"
             hint="number of unique values before converting to a searchable field"
           />
+          <v-radio-group
+            v-if="isCollection"
+            v-model="scope"
+            label="Collection scope"
+            class="mt-2"
+          >
+            <v-radio
+              label="One metadata folder for the entire collection"
+              value="single"
+            />
+            <v-radio
+              label="One metadata folder per top-level folder"
+              value="subfolders"
+            />
+          </v-radio-group>
+          <v-checkbox
+            v-else
+            v-model="perSubfolder"
+            label="Create a sibling metadata folder for each immediate subfolder"
+            class="mt-2"
+          />
 
           <v-card
+            v-if="!useRecursiveApi"
             outlined
             flat
+            class="mt-2"
           >
-            <p>Choose a location where the new metadataFolder should be placed</p>
+            <p>Choose where the new metadata folder should be placed</p>
             <GirderFileManager
               new-folder-enabled
               no-access-control-w
@@ -184,17 +288,23 @@ export default defineComponent({
             color="primary"
             class="mt-4"
             :loading="createLoading"
-            :disabled="!locationIsFolder || createLoading"
+            :disabled="(!useRecursiveApi && !locationIsFolder) || createLoading"
             @click="doCreate"
           >
-            <span v-if="!locationIsFolder">
+            <span v-if="!useRecursiveApi && !locationIsFolder">
               Choose a destination folder...
             </span>
+            <span v-else-if="useRecursiveApi && effectiveScope === 'subfolders'">
+              Create metadata for subfolders of {{ source.name }}
+            </span>
+            <span v-else-if="useRecursiveApi">
+              Create metadata for {{ source.name }}
+            </span>
             <span v-else-if="'name' in location">
-              Create DIVEMetadata Item into {{ location.name }}
+              Create metadata folder in {{ location.name }}
             </span>
             <span v-else>
-              Something went wrong
+              Create metadata
             </span>
           </v-btn>
         </v-card-text>
