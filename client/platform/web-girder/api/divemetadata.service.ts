@@ -197,7 +197,25 @@ export interface createDiveMetadataResponse {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   'metadataKeys': any[];
   'folderId': string;
+  existing?: number;
+}
 
+export interface CreateDiveMetadataRecursiveEntry {
+  rootFolderId: string;
+  metadataFolderId?: string;
+  added?: number;
+  existing?: number;
+  reusedExisting?: boolean;
+  reason?: string;
+}
+
+export interface createDiveMetadataRecursiveResponse {
+  scope: 'single' | 'subfolders';
+  resourceType: 'folder' | 'collection';
+  resourceId: string;
+  created: CreateDiveMetadataRecursiveEntry[];
+  existing: CreateDiveMetadataRecursiveEntry[];
+  errors: string[];
 }
 
 function createDiveMetadataFolder(
@@ -217,6 +235,34 @@ function createDiveMetadataFolder(
       name,
       rootFolderId,
       categoricalLimit,
+      displayConfig: toJsonParam(displayConfig),
+      ffprobeMetadata: toJsonParam(ffprobeMetadata),
+    },
+  });
+}
+
+function createDiveMetadataRecursive(
+  resourceId: string,
+  resourceType: 'folder' | 'collection',
+  scope: 'single' | 'subfolders' = 'subfolders',
+  name = 'DIVE Metadata',
+  categoricalLimit = 50,
+  parentFolderId?: string,
+  displayConfig = {
+    display: ['DIVE_DatasetId', 'DIVE_Name'],
+  },
+  ffprobeMetadata = {
+    import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
+  },
+) {
+  return girderRest.post<createDiveMetadataRecursiveResponse>('dive_metadata/create_metadata_recursive', null, {
+    params: {
+      resourceId,
+      resourceType,
+      scope,
+      name,
+      categoricalLimit,
+      parentFolderId,
       displayConfig: toJsonParam(displayConfig),
       ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
@@ -429,6 +475,7 @@ export {
   getDiveDatasetMetadataRow,
   createDiveMetadataClone,
   createDiveMetadataFolder,
+  createDiveMetadataRecursive,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
   updateDiveMetadataKeyDescription,

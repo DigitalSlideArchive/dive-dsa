@@ -95,6 +95,19 @@ export default defineComponent({
       });
       return results;
     },
+    metadataLocationId() {
+      return this.location?._id ?? null;
+    },
+    metadataResourceType() {
+      const modelType = this.location?._modelType;
+      if (modelType === 'collection' || modelType === 'folder') {
+        return modelType;
+      }
+      return null;
+    },
+    metadataResourceName() {
+      return this.location?.name ?? '';
+    },
   },
   methods: {
     async deleteSelection() {
@@ -159,7 +172,9 @@ export default defineComponent({
                 />
                 <CreateDIVEMetadata
                   v-bind="{ buttonOptions, menuOptions }"
-                  :dataset-id="location?._id || null"
+                  :dataset-id="metadataLocationId"
+                  :resource-type="metadataResourceType"
+                  :resource-name="metadataResourceName"
                 />
 
                 <v-btn

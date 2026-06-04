@@ -16,6 +16,8 @@ from dive_server.views_metadata import (  # noqa: E402
     _accumulate_flat_metadata_key_stats,
     _finalize_metadata_keys_categories,
     _is_blank_metadata_value_for_stats,
+    _is_dive_metadata_folder,
+    _metadata_folder_name_for_dataset_folder,
     _merge_recomputed_metadata_key_stats_into_existing,
     _metadata_dict_for_schema_stats_refresh,
     _normalize_metadata_config,
@@ -34,6 +36,25 @@ def test_remove_before_folder_non_string_returns_none(path):
 def test_remove_before_folder_string_slice():
     assert remove_before_folder('/root/foo/bar', 'foo') == 'foo/bar'
     assert remove_before_folder('/no/match', 'zzz') is None
+
+
+@pytest.mark.parametrize(
+    'meta,expected',
+    [
+        ({'DIVEMetadata': True}, True),
+        ({'DIVEMetadata': 'true'}, True),
+        ({'DIVEMetadata': False}, False),
+        ({}, False),
+    ],
+)
+def test_is_dive_metadata_folder(meta, expected):
+    assert _is_dive_metadata_folder({'meta': meta}) is expected
+
+
+def test_metadata_folder_name_for_dataset_folder():
+    assert _metadata_folder_name_for_dataset_folder({'name': 'Study A'}, 'DIVE Metadata') == (
+        'Study A - DIVE Metadata'
+    )
 
 
 def test_normalize_metadata_config_none_uses_defaults():

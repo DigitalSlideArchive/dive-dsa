@@ -46,8 +46,18 @@ class DIVE_Metadata(Model):
             ]
         )
 
-    def createMetadata(self, folder, root, owner, metadata, created_date=None):  # noqa: B006
+    def createMetadata(
+        self,
+        folder,
+        root,
+        owner,
+        metadata,
+        created_date=None,
+        replace=True,
+    ):  # noqa: B006
         existing = self.findOne({'DIVEDataset': str(folder['_id']), 'root': str(root['_id'])})
+        if existing and not replace:
+            return existing
         if not existing:
             if created_date is None:
                 created = datetime.datetime.utcnow()
@@ -254,8 +264,10 @@ class DIVE_MetadataKeys(Model):
                 existing['owner'] = str(user['_id'])
             self.save(existing)
 
-    def createMetadataKeys(self, root, owner, metadataKeys, created_date=None):
+    def createMetadataKeys(self, root, owner, metadataKeys, created_date=None, replace=True):
         existing = self.findOne({'root': str(root['_id'])})
+        if existing and not replace:
+            return existing
         if not existing:
             if created_date is None:
                 created = datetime.datetime.utcnow()
