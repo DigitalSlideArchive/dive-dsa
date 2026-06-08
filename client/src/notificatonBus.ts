@@ -1,4 +1,5 @@
 import { GirderModel, RestClient } from '@girder/components/src';
+import NotificationBus from '@girder/components/src/utils/notifications';
 
 // TODO remove after GWC types are fixed
 interface AugmentedRestClient extends RestClient {
@@ -14,80 +15,42 @@ export interface GirderNotification {
 }
 
 /**
- * Based on Girder Web Components NotificationBus, but simpler.
- * Register notifications directly on the girderRest instance using
- * the EventSource api.
+ * Register Girder 5 WebSocket notifications on the RestClient.
+ *
+ * Uses NotificationBus from @girder/components (girder-5-websocket-upgrade branch)
+ * and forwards events to the RestClient for existing dive-dsa listeners.
  *
  * @param rc Girder RestClient
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function registerNotifications(_rc: any) {
-  const rc: AugmentedRestClient = _rc; // TODO remove after types fixed
-  const ES = window.EventSource;
-  const withCredentials = true;
-  const timeoutSeconds = 300;
-  const retryMsDefault = 8_000;
-  let since = new Date();
-  let lastConnectionAttempt = new Date();
-  let eventSourceInstance: EventSource | null = null;
+  const rc: AugmentedRestClient = _rc;
+  // Package types still describe EventSource; runtime uses WebSocket on this branch.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bus = new (NotificationBus as any)(rc, { listenToRestClient: true }) as NotificationBus;
 
-  function connected() {
-    return !!eventSourceInstance;
-  }
-
-  function emitNotification(notification: GirderNotification) {
-    const { type, updated } = notification;
-    if (updated) {
-      since = new Date(Math.max(+since, +new Date(updated)));
+  // Girder 5 exposes /notifications/me (plural); patch until GWC branch matches.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (bus as any)._getWebSocketUrl = function getWebSocketUrl(this: NotificationBus) {
+    const token = this.$rest.token;
+    if (!token) {
+      throw new Error('No authentication token available');
     }
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsPath = this.$rest.apiRoot.replace(/\/api\/v1$/, '') || '';
+    return `${wsProtocol}//${window.location.host}${wsPath}/notifications/me?token=${token}`;
+  };
+
+  const originalEmit = bus._emitNotification.bind(bus);
+  bus._emitNotification = (notification: GirderNotification) => {
+    originalEmit(notification);
+    const { type } = notification;
     for (let i = type.indexOf('.'); i !== -1; i = type.indexOf('.', i + 1)) {
       rc.$emit(`message:${type.substring(0, i)}`, notification);
     }
     rc.$emit(`message:${type}`, notification);
     rc.$emit('message', notification);
-  }
+  };
 
-  function onSseMessage(e: MessageEvent) {
-    emitNotification(JSON.parse(e.data));
-  }
-
-  function disconnect() {
-    if (eventSourceInstance) {
-      eventSourceInstance.close();
-    }
-    eventSourceInstance = null;
-  }
-
-  function onSseError() {
-    const nowSeconds = Math.ceil(Date.now() / 1000);
-    const lastSeconds = Math.ceil(+lastConnectionAttempt / 1000);
-    let retryMs = retryMsDefault;
-    /** If time since last success is at least half the timeout, it's probably just a timeout */
-    if ((nowSeconds - lastSeconds) > (timeoutSeconds * 0.5)) {
-      retryMs = 0;
-    }
-    disconnect();
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    window.setTimeout(connect, retryMs);
-  }
-
-  function connect() {
-    if (connected()) {
-      return;
-    }
-    if (!rc.user) {
-      return;
-    }
-    lastConnectionAttempt = new Date();
-    const sinceSeconds = Math.ceil(+since / 1000);
-    const url = `${rc.apiRoot}/notification/stream?since=${sinceSeconds}&timeout=${timeoutSeconds}`;
-    eventSourceInstance = new ES(url, { withCredentials });
-    eventSourceInstance.onmessage = onSseMessage;
-    eventSourceInstance.onerror = onSseError;
-  }
-
-  rc.$on('login', connect);
-  rc.$on('logout', disconnect);
-
-  return { connect, disconnect };
+  return { connect: () => bus.connect(), disconnect: () => bus.disconnect() };
 }
