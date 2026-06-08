@@ -13,6 +13,20 @@ COPY .git/ /app/.git/
 COPY client/ /app/
 RUN npm run build:web
 
+FROM node:20 AS girder-client-builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y git
+ARG CACHEBUST=2
+RUN git clone https://github.com/girder/girder.git
+RUN cd girder/girder && cd web && npm install --include=optional && npx vite build --base=/girder/
+
+FROM node:20 AS dive-plugin-client-builder
+WORKDIR /opt/dive/src/dive_server/web_client
+COPY server/dive_server/web_client/package.json server/dive_server/web_client/package-lock.json ./
+RUN npm install
+COPY server/dive_server/web_client/ ./
+RUN npm run build
+
 # ========================
 # == SERVER BUILD STAGE ==
 # ========================
@@ -20,60 +34,30 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server-builder
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /opt/dive/src
-
-# Install only essential build dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        git \
-        pkg-config \
-        libgomp1 && \
+      curl git build-essential pkg-config libgomp1 && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/*
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 ENV VIRTUAL_ENV="/opt/dive/local/venv"
 ENV UV_PROJECT_ENVIRONMENT=/opt/dive/local/venv
 ENV PATH="/opt/dive/local/venv/bin:$PATH"
-
-# Create virtual environment
 RUN uv venv /opt/dive/local/venv
 
-# Copy dependency files first for better caching
-COPY server/pyproject.toml /opt/dive/src/
-COPY server/uv.lock /opt/dive/src/
+COPY server/pyproject.toml server/uv.lock /opt/dive/src/
 COPY .git/ /opt/dive/src/.git/
-
-# Install dependencies without SAM2 (web server doesn't need it)
 RUN uv sync --frozen --no-install-project --no-dev
 
-# Copy source and install project
 COPY server/ /opt/dive/src/
 RUN uv sync --frozen --no-dev
-
-# Install Node.js for Girder build
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
-RUN . ~/.bashrc && \
-    nvm install 14 && \
-    nvm alias default 14 && \
-    nvm use default && \
-    ln -s $(dirname `which npm`) /usr/local/node
-
-ENV PATH="/usr/local/node:$PATH"
-RUN girder build
-
-# Clean up build artifacts and cache
-RUN rm -rf /root/.cache /tmp/* /var/tmp/* && \
-    find /opt/dive/local/venv -name "*.pyc" -delete && \
-    find /opt/dive/local/venv -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # =================
 # == DIST SERVER ==
 # =================
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS server
 
-# Install only runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libgomp1 \
@@ -81,21 +65,22 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Hack: Tell GitPython to be quiet, we aren't using git
 ENV GIT_PYTHON_REFRESH="quiet"
+ENV VIRTUAL_ENV="/opt/dive/local/venv"
+ENV UV_PROJECT_ENVIRONMENT=/opt/dive/local/venv
 ENV PATH="/opt/dive/local/venv/bin:/usr/local/bin:$PATH"
 
-# Copy uv binary for runtime use
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Install startup scripts
+COPY --from=server-builder /opt/dive/local/venv /opt/dive/local/venv
+COPY --from=server-builder /opt/dive/src /opt/dive/src
+COPY --from=client-builder /app/dist/ /opt/dive/clients/dive
+COPY --from=client-builder /app/dist/ /opt/dive/src/dive_server/dive_client
+COPY --from=girder-client-builder /app/girder/girder/web/dist/ /opt/dive/clients/girder
+COPY --from=dive-plugin-client-builder /opt/dive/src/dive_server/web_client/dist /opt/dive/clients/dive-plugin-web-client
+COPY --from=dive-plugin-client-builder /opt/dive/src/dive_server/web_client/dist /opt/dive/src/dive_server/web_client/dist
 COPY docker/entrypoint_server.sh docker/server_setup.py /
 
-# Create non-root user for security
-RUN useradd --create-home --uid 1000 --shell=/bin/bash dive
+RUN useradd --create-home --uid 1000 --shell=/bin/bash dive && \
+    chown -R dive:dive /opt/dive
 
-# Copy essential parts from builder (ownership set during COPY)
-COPY --from=server-builder --chown=dive:dive /opt/dive/local/venv /opt/dive/local/venv
-COPY --from=server-builder --chown=dive:dive /opt/dive/src /opt/dive/src
-COPY --from=client-builder --chown=dive:dive /app/dist/ /opt/dive/local/venv/share/girder/static/dive/
 ENTRYPOINT [ "/entrypoint_server.sh" ]
