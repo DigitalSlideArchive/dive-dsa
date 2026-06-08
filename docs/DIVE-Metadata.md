@@ -63,6 +63,41 @@ This object controls key visibility, ordering, grouping, and some UI behavior.
 
 A new collection of URL endpoints under `dive_metadata` allows for importing and querying DIVE Metadata.
 
+### Creating metadata from folders or collections
+
+**POST** `/dive_metadata/create_metadata_folder/{parentFolderId}`
+
+Creates a DIVE metadata folder under `parentFolderId` and indexes datasets under `rootFolderId`. If a metadata folder already exists under the parent, it is reused. Existing per-dataset metadata rows are not overwritten.
+
+**POST** `/dive_metadata/create_metadata_recursive`
+
+Creates metadata for a Girder **folder** or **collection** without replacing existing metadata.
+
+| Parameter | Description |
+|-----------|-------------|
+| `resourceId` | Folder or collection ID |
+| `resourceType` | `folder` or `collection` |
+| `scope` | `single` (one metadata folder for the resource) or `subfolders` (one metadata folder per immediate child folder, created as a **sibling** next to that folder) |
+| `name` | Metadata folder name (`<child> - <name>` sibling folder name when `scope=subfolders`) |
+| `parentFolderId` | Optional parent for `scope=single` on a folder |
+| `displayConfig` / `ffprobeMetadata` / `categoricalLimit` | Same as `create_metadata_folder` |
+
+Existing metadata folders are reused; only missing datasets are indexed. Folders that already have a DIVE metadata child are updated in place when new datasets appear.
+
+### Adding datasets from another folder (reindex)
+
+**POST** `/dive_metadata/{metadataFolderId}/index_folder`
+
+Indexes DIVE datasets from a Girder folder into an **existing** DIVE metadata folder (the metadata search UI exposes this as **Add folder**).
+
+| Parameter | Description |
+|-----------|-------------|
+| `rootFolderId` | Folder to scan recursively for DIVE datasets |
+| `replaceMetadata` | When `true`, overwrite default metadata rows (`DIVE_*`, ffprobe fields) for datasets found under `rootFolderId`; custom keys from CSV/JSON import are unchanged unless you re-import those files |
+| `ffprobeMetadata` | Same object as `create_metadata_folder` (optional) |
+
+Only datasets not yet in the metadata root are added by default. Use this after importing new media into a sibling or child folder, or to attach a second dataset tree to one metadata collection.
+
 ### Ingesting DIVE Metadata
 
 **POST** `/dive_metadata/process_metadata/{id}`

@@ -12,6 +12,7 @@ from girder.api.rest import Resource, getApiUrl, setRawResponse, setResponseHead
 from girder.constants import AccessType
 from girder.exceptions import RestException
 from girder.models.file import File
+from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
@@ -478,6 +479,238 @@ def refresh_metadata_keys_stats_from_stored_dive_metadata(root_folder, categoric
     DIVE_MetadataKeys().save(keys_doc)
 
 
+_CREATE_METADATA_DISPLAY_DEFAULT = {
+    "display": ['DIVE_DatasetId', 'DIVE_Name'],
+    "hide": [""],
+}
+_CREATE_METADATA_FFPROBE_DEFAULT = {
+    "import": True,
+    "keys": ["width", "height", "display_aspect_ratio", "nb_frames", "duration"],
+}
+
+
+def _is_dive_metadata_folder(folder) -> bool:
+    return folder.get('meta', {}).get(DIVEMetadataMarker) in TRUTHY_META_VALUES
+
+
+def _find_existing_dive_metadata_child(parent_folder, user):
+    """Return a direct child folder already marked as DIVE metadata, if any."""
+    for child in Folder().childFolders(parent_folder, 'folder', user=user):
+        if _is_dive_metadata_folder(child):
+            return child
+    return None
+
+
+def _load_girder_folder_parent(folder, user):
+    """
+    Return the immediate Girder parent model and parentType for a folder.
+
+    Nested folders may still carry collection ancestry in ``parentCollection``; resolve
+    the direct parent by loading ``parentId`` as a folder first, then as a collection.
+    """
+    parent_id = folder.get('parentId')
+    if not parent_id:
+        return None, None
+    parent_folder = Folder().load(
+        str(parent_id),
+        level=AccessType.WRITE,
+        user=user,
+        force=True,
+    )
+    if parent_folder is not None:
+        return parent_folder, 'folder'
+    parent_collection = Collection().load(
+        str(parent_id),
+        level=AccessType.WRITE,
+        user=user,
+        force=True,
+    )
+    if parent_collection is not None:
+        return parent_collection, 'collection'
+    return None, None
+
+
+def _metadata_folder_name_for_dataset_folder(dataset_folder, name_suffix):
+    return f"{dataset_folder['name']} - {name_suffix}"
+
+
+def _find_existing_dive_metadata_sibling(dataset_folder, user, metadata_name):
+    """Return a sibling metadata folder (same parent as ``dataset_folder``), if any."""
+    parent, parent_type = _load_girder_folder_parent(dataset_folder, user)
+    if parent is None:
+        return None
+    for sibling in Folder().childFolders(parent, parent_type, user=user):
+        if not _is_dive_metadata_folder(sibling):
+            continue
+        if sibling['name'] == metadata_name:
+            return sibling
+    return None
+
+
+def _create_dive_metadata_sibling_folder(dataset_folder, metadata_name, user):
+    """Create a DIVE metadata folder next to ``dataset_folder`` (not inside it)."""
+    parent, parent_type = _load_girder_folder_parent(dataset_folder, user)
+    if parent is None:
+        raise RestException(
+            f'Could not resolve parent for folder "{dataset_folder.get("name", "")}"',
+            code=400,
+        )
+    return Folder().createFolder(parent, metadata_name, parentType=parent_type)
+
+
+def _folder_has_recursive_datasets(folder, user) -> bool:
+    probe: list = []
+    crud_dataset.get_recursive_datasets(folder, user, probe, limit=1)
+    return len(probe) > 0
+
+
+def _normalize_create_metadata_configs(displayConfig, ffprobeMetadata):
+    display_config = _normalize_metadata_config(displayConfig, _CREATE_METADATA_DISPLAY_DEFAULT)
+    ffprobe_metadata = _normalize_metadata_config(ffprobeMetadata, _CREATE_METADATA_FFPROBE_DEFAULT)
+    return display_config, ffprobe_metadata
+
+
+def _display_config_from_metadata_folder(metadata_folder):
+    """Build display config for indexing from an existing DIVE metadata folder."""
+    stored = metadata_folder.get('meta', {}).get(DIVEMetadataFilter) or {}
+    display_config = _normalize_metadata_config(stored, _CREATE_METADATA_DISPLAY_DEFAULT)
+    if stored.get('categoricalLimit') is not None:
+        display_config['categoricalLimit'] = stored['categoricalLimit']
+    return display_config
+
+
+def _categorical_limit_from_metadata_folder(metadata_folder, display_config):
+    return (
+        metadata_folder.get('meta', {})
+        .get(DIVEMetadataFilter, {})
+        .get('categoricalLimit', display_config.get('categoricalLimit', 50))
+    )
+
+
+def _build_default_dataset_metadata_row(item, user, ffprobe_metadata):
+    data = {
+        'DIVE_DatasetId': str(item['_id']),
+        'DIVE_Name': str(item['lowerName']),
+        'DIVE_Path': path_util.getResourcePath('folder', item, user=user),
+    }
+    if ffprobe_metadata.get('import', False):
+        ffmetadata = item.get('meta', {}).get('ffprobe_info', {})
+        ffkeys = ffprobe_metadata.get('keys', [])
+        for ff_metadata_key in ffkeys:
+            if ffmetadata.get(ff_metadata_key) is not None:
+                raw_value = ffmetadata[ff_metadata_key]
+                try:
+                    data[f'ffprobe_{ff_metadata_key}'] = float(raw_value)
+                except (ValueError, TypeError):
+                    data[f'ffprobe_{ff_metadata_key}'] = str(raw_value)
+    sanitize_value_tree_for_girder_json(data, minmax_keys_to_zero=False)
+    return data
+
+
+def _apply_dive_metadata_folder_marker(base_folder, display_config, categorical_limit):
+    base_folder['meta'][DIVEMetadataMarker] = True
+    display_config['categoricalLimit'] = categorical_limit
+    if display_config.get('hide', False) is False:
+        display_config['hide'] = [""]
+    _ensure_filter_lists_in_display_config(display_config)
+    base_folder['meta'][DIVEMetadataFilter] = display_config
+    Folder().save(base_folder)
+
+
+def _populate_dive_metadata_folder(
+    base_folder,
+    root_folder,
+    user,
+    display_config,
+    ffprobe_metadata,
+    categorical_limit,
+    replace_metadata=False,
+):
+    """
+    Index datasets under ``root_folder`` into ``base_folder``.
+
+    When ``replace_metadata`` is false, existing per-dataset rows and schema docs are left
+    unchanged; only missing datasets are added and key stats are refreshed if needed.
+    """
+    dataset_list = []
+    crud_dataset.get_recursive_datasets(root_folder, user, dataset_list)
+    added = 0
+    existing_count = 0
+    metadata_keys = {}
+    root_id = str(base_folder['_id'])
+    for item in dataset_list:
+        data = _build_default_dataset_metadata_row(item, user, ffprobe_metadata)
+        existing_row = DIVE_Metadata().findOne(
+            {'DIVEDataset': str(item['_id']), 'root': root_id}
+        )
+        if existing_row and not replace_metadata:
+            existing_count += 1
+            continue
+        DIVE_Metadata().createMetadata(
+            item,
+            base_folder,
+            user,
+            data,
+            replace=replace_metadata or existing_row is None,
+        )
+        added += 1
+        _accumulate_flat_metadata_key_stats(metadata_keys, data)
+
+    keys_doc = DIVE_MetadataKeys().findOne({'root': root_id})
+    if replace_metadata or keys_doc is None:
+        _finalize_metadata_keys_categories(metadata_keys, categorical_limit)
+        DIVE_MetadataKeys().createMetadataKeys(
+            base_folder,
+            user,
+            metadata_keys,
+            replace=replace_metadata or keys_doc is None,
+        )
+    elif added > 0:
+        refresh_metadata_keys_stats_from_stored_dive_metadata(base_folder, categorical_limit)
+
+    if not _is_dive_metadata_folder(base_folder):
+        _apply_dive_metadata_folder_marker(base_folder, display_config, categorical_limit)
+
+    return {
+        'added': added,
+        'existing': existing_count,
+        'datasetCount': len(dataset_list),
+        'metadataKeys': metadata_keys,
+    }
+
+
+def _resolve_create_metadata_targets(resource_id, resource_type, user):
+    if resource_type == 'collection':
+        collection = Collection().load(
+            resource_id,
+            level=AccessType.WRITE,
+            user=user,
+            force=True,
+        )
+        if collection is None:
+            raise RestException('Collection not found', code=404)
+        return collection, 'collection'
+
+    folder = Folder().load(
+        resource_id,
+        level=AccessType.WRITE,
+        user=user,
+        force=True,
+    )
+    if folder is None:
+        raise RestException('Folder not found', code=404)
+    if _is_dive_metadata_folder(folder):
+        raise RestException(
+            'Cannot create metadata inside an existing DIVE metadata folder',
+            code=400,
+        )
+    return folder, 'folder'
+
+
+def _list_immediate_child_folders(parent, parent_type, user):
+    return list(Folder().childFolders(parent, parent_type, user=user))
+
+
 def _bulk_import_row_is_matcher_key(key):
     """True for columns used only to locate a row (never stored via updateKey)."""
     return isinstance(key, str) and key.lower() in _BULK_IMPORT_SKIP_KEYS
@@ -655,6 +888,8 @@ class DIVEMetadata(Resource):
             self.filter_folder,
         )
         self.route("POST", ("create_metadata_folder", ":id"), self.create_metadata_folder)
+        self.route("POST", ("create_metadata_recursive",), self.create_metadata_recursive)
+        self.route("POST", (":id", "index_folder"), self.index_metadata_folder)
         self.route("POST", (':id', "clone_filter"), self.clone_filter)
         self.route("GET", (':id', 'metadata_keys'), self.get_metadata_keys)
         self.route("GET", (':id', 'metadata_filter_values'), self.get_metadata_filter)
@@ -972,75 +1207,323 @@ class DIVEMetadata(Resource):
     def create_metadata_folder(
         self, folder, name, rootFolderId, displayConfig, ffprobeMetadata, categoricalLimit
     ):
-        # Process the current folder for the specified fileType using the matcher to generate DIVE_Metadata
-        # make sure the folder is set to a DIVE Metadata folder using DIVE_METADATA = True
         user = self.getCurrentUser()
-
-        base_folder = Folder().createFolder(folder, name)
-        data = None
-        errorLog = []
-        added = 0
-        metadataKeys = {}
-        datasetList = []
-        rootFolder = Folder().load(
+        metadata_folder = _find_existing_dive_metadata_child(folder, user)
+        base_folder = metadata_folder or Folder().createFolder(folder, name)
+        root_folder = Folder().load(
             rootFolderId,
             level=AccessType.WRITE,
             user=user,
             force=True,
         )
-        displayConfig = _normalize_metadata_config(
+        display_config, ffprobe_metadata = _normalize_create_metadata_configs(
             displayConfig,
-            {
-                "display": ['DIVE_DatasetId', 'DIVE_Name'],
-                "hide": [""],
-            },
-        )
-        ffprobeMetadata = _normalize_metadata_config(
             ffprobeMetadata,
-            {
-                "import": True,
-                "keys": ["width", "height", "display_aspect_ratio", "nb_frames", "duration"],
-            },
         )
-        crud_dataset.get_recursive_datasets(rootFolder, user, datasetList)
-
-        for item in datasetList:
-            data = {}
-            data['DIVE_DatasetId'] = str(item['_id'])
-            data['DIVE_Name'] = str(item['lowerName'])
-            resource_path = path_util.getResourcePath('folder', item, user=user)
-            data['DIVE_Path'] = resource_path
-            if ffprobeMetadata.get('import', False):  # Add in ffprobe metadata to the system
-                ffmetadata = item.get('meta', {}).get('ffprobe_info', {})
-                ffkeys = ffprobeMetadata.get('keys', [])
-                for ffMetadataKey in ffkeys:
-                    if ffmetadata.get(ffMetadataKey) is not None:
-                        raw_value = ffmetadata[ffMetadataKey]
-                        try:
-                            data[f'ffprobe_{ffMetadataKey}'] = float(raw_value)
-                        except (ValueError, TypeError):
-                            data[f'ffprobe_{ffMetadataKey}'] = str(raw_value)
-            sanitize_value_tree_for_girder_json(data, minmax_keys_to_zero=False)
-            DIVE_Metadata().createMetadata(item, base_folder, user, data)
-            _accumulate_flat_metadata_key_stats(metadataKeys, data)
-
-            # now we need to determine what is categorical vs what is a search field
-        _finalize_metadata_keys_categories(metadataKeys, categoricalLimit)
-        DIVE_MetadataKeys().createMetadataKeys(base_folder, user, metadataKeys)
-        # add metadata to root folder for
-        base_folder['meta'][DIVEMetadataMarker] = True
-        displayConfig['categoricalLimit'] = categoricalLimit
-        if displayConfig.get('hide', False) is False:
-            displayConfig['hide'] = [""]
-        _ensure_filter_lists_in_display_config(displayConfig)
-        base_folder['meta'][DIVEMetadataFilter] = displayConfig
-        Folder().save(base_folder)
+        populate_result = _populate_dive_metadata_folder(
+            base_folder,
+            root_folder,
+            user,
+            display_config,
+            ffprobe_metadata,
+            categoricalLimit,
+            replace_metadata=False,
+        )
+        added = populate_result['added']
 
         return {
-            "results": f"added {added} folders",
-            "errors": errorLog,
-            "metadataKeys": metadataKeys,
+            "results": f"added {added} datasets",
+            "errors": [],
+            "metadataKeys": populate_result['metadataKeys'],
             "folderId": str(base_folder['_id']),
+            "existing": populate_result['existing'],
+        }
+
+    @access.user
+    @autoDescribeRoute(
+        Description(
+            "Create DIVE metadata for a Girder collection or folder. "
+            "Can create one metadata folder for the whole resource or one per immediate subfolder. "
+            "Existing DIVE metadata folders and per-dataset rows are not replaced."
+        )
+        .param(
+            "resourceId",
+            "Folder or collection ID to scan for DIVE datasets",
+            paramType="formData",
+            dataType="string",
+            required=True,
+        )
+        .param(
+            "resourceType",
+            "Girder resource type: folder or collection",
+            paramType="formData",
+            dataType="string",
+            default="folder",
+            required=False,
+        )
+        .param(
+            "scope",
+            "single: one metadata folder for all datasets under the resource; "
+            "subfolders: one metadata folder per immediate child folder, created as a sibling of that folder",
+            paramType="formData",
+            dataType="string",
+            default="subfolders",
+            required=False,
+        )
+        .param(
+            "name",
+            "Metadata folder name (single scope) or name suffix (subfolders: '<child> - <name>')",
+            paramType="formData",
+            dataType="string",
+            default="DIVE Metadata",
+            required=False,
+        )
+        .param(
+            "parentFolderId",
+            "Parent folder for a new metadata folder in single scope (defaults to resourceId when resource is a folder)",
+            paramType="formData",
+            dataType="string",
+            required=False,
+        )
+        .jsonParam(
+            "displayConfig",
+            "List of Main Display Keys for the metadata and keys to hide from the filter",
+            required=True,
+            default=_CREATE_METADATA_DISPLAY_DEFAULT,
+        )
+        .jsonParam(
+            "ffprobeMetadata",
+            "List Metadata keys to extract from the ffprobe metadata from videos",
+            required=True,
+            default=_CREATE_METADATA_FFPROBE_DEFAULT,
+        )
+        .param(
+            "categoricalLimit",
+            "Above this number make a field a search field instead of a dropdown",
+            paramType="formData",
+            dataType="integer",
+            default=50,
+        )
+    )
+    def create_metadata_recursive(
+        self,
+        resourceId,
+        resourceType,
+        scope,
+        name,
+        parentFolderId,
+        displayConfig,
+        ffprobeMetadata,
+        categoricalLimit,
+    ):
+        user = self.getCurrentUser()
+        resource_type = (resourceType or 'folder').strip().lower()
+        if resource_type not in ('folder', 'collection'):
+            raise RestException('resourceType must be folder or collection', code=400)
+        scope_norm = (scope or 'subfolders').strip().lower()
+        if scope_norm not in ('single', 'subfolders'):
+            raise RestException('scope must be single or subfolders', code=400)
+
+        resource, parent_type = _resolve_create_metadata_targets(resourceId, resource_type, user)
+        display_config, ffprobe_metadata = _normalize_create_metadata_configs(
+            displayConfig,
+            ffprobeMetadata,
+        )
+        created = []
+        existing_results = []
+        errors = []
+
+        if scope_norm == 'single':
+            if resource_type == 'collection':
+                parent = resource
+                parent_folder_type = 'collection'
+                scan_roots = _list_immediate_child_folders(resource, 'collection', user)
+            else:
+                parent = Folder().load(
+                    parentFolderId or resourceId,
+                    level=AccessType.WRITE,
+                    user=user,
+                    force=True,
+                )
+                parent_folder_type = 'folder'
+                scan_roots = [resource]
+
+            metadata_folder = _find_existing_dive_metadata_child(parent, user)
+            reused_existing = metadata_folder is not None
+            base_folder = metadata_folder or Folder().createFolder(
+                parent, name, parentType=parent_folder_type
+            )
+            populate_result = {'added': 0, 'existing': 0}
+            if resource_type == 'collection':
+                if not scan_roots:
+                    errors.append(f'No folders under collection {resource["name"]}')
+                for child in scan_roots:
+                    extra = _populate_dive_metadata_folder(
+                        base_folder,
+                        child,
+                        user,
+                        display_config,
+                        ffprobe_metadata,
+                        categoricalLimit,
+                        replace_metadata=False,
+                    )
+                    populate_result['added'] += extra['added']
+                    populate_result['existing'] += extra['existing']
+            else:
+                populate_result = _populate_dive_metadata_folder(
+                    base_folder,
+                    resource,
+                    user,
+                    display_config,
+                    ffprobe_metadata,
+                    categoricalLimit,
+                    replace_metadata=False,
+                )
+            entry = {
+                'rootFolderId': str(resource['_id']),
+                'metadataFolderId': str(base_folder['_id']),
+                'added': populate_result['added'],
+                'existing': populate_result['existing'],
+            }
+            if reused_existing:
+                entry['reusedExisting'] = True
+            if reused_existing and populate_result['added'] == 0:
+                existing_results.append({**entry, 'reason': 'existing_metadata_folder'})
+            else:
+                created.append(entry)
+        else:
+            child_folders = _list_immediate_child_folders(resource, parent_type, user)
+            for child in child_folders:
+                if _is_dive_metadata_folder(child):
+                    existing_results.append(
+                        {
+                            'rootFolderId': str(child['_id']),
+                            'reason': 'folder_is_metadata_root',
+                        }
+                    )
+                    continue
+                if not _folder_has_recursive_datasets(child, user):
+                    existing_results.append(
+                        {
+                            'rootFolderId': str(child['_id']),
+                            'reason': 'no_datasets',
+                        }
+                    )
+                    continue
+                metadata_name = _metadata_folder_name_for_dataset_folder(child, name)
+                metadata_folder = _find_existing_dive_metadata_sibling(child, user, metadata_name)
+                if metadata_folder is None:
+                    # Legacy layout: metadata folder was created inside the dataset folder.
+                    metadata_folder = _find_existing_dive_metadata_child(child, user)
+                reused_existing = metadata_folder is not None
+                try:
+                    base_folder = metadata_folder or _create_dive_metadata_sibling_folder(
+                        child, metadata_name, user
+                    )
+                except RestException as exc:
+                    errors.append(f'{child["name"]}: {exc}')
+                    continue
+                populate_result = _populate_dive_metadata_folder(
+                    base_folder,
+                    child,
+                    user,
+                    display_config,
+                    ffprobe_metadata,
+                    categoricalLimit,
+                    replace_metadata=False,
+                )
+                entry = {
+                    'rootFolderId': str(child['_id']),
+                    'metadataFolderId': str(base_folder['_id']),
+                    'added': populate_result['added'],
+                    'existing': populate_result['existing'],
+                }
+                if reused_existing:
+                    entry['reusedExisting'] = True
+                if reused_existing and populate_result['added'] == 0:
+                    existing_results.append({**entry, 'reason': 'existing_metadata_folder'})
+                else:
+                    created.append(entry)
+
+        return {
+            'scope': scope_norm,
+            'resourceType': resource_type,
+            'resourceId': str(resource['_id']),
+            'created': created,
+            'existing': existing_results,
+            'errors': errors,
+        }
+
+    @access.user
+    @autoDescribeRoute(
+        Description(
+            "Index DIVE datasets from another folder into an existing DIVE metadata folder. "
+            "Adds rows for datasets not yet in the metadata root; optionally replaces default "
+            "fields for datasets already indexed from the same scan."
+        )
+        .modelParam(
+            "id",
+            description="Existing DIVE metadata folder",
+            model=Folder,
+            level=AccessType.WRITE,
+        )
+        .param(
+            "rootFolderId",
+            "Folder to scan recursively for DIVE datasets to add or refresh",
+            paramType="formData",
+            dataType="string",
+            required=True,
+        )
+        .param(
+            "replaceMetadata",
+            "When true, overwrite default metadata rows for datasets found under rootFolderId",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
+        .jsonParam(
+            "ffprobeMetadata",
+            "ffprobe keys to import for newly indexed or replaced rows",
+            required=False,
+            default=_CREATE_METADATA_FFPROBE_DEFAULT,
+        )
+    )
+    def index_metadata_folder(self, folder, rootFolderId, replaceMetadata, ffprobeMetadata):
+        user = self.getCurrentUser()
+        if not _is_dive_metadata_folder(folder):
+            raise RestException('Folder is not a DIVE Metadata folder', code=400)
+        root_folder = Folder().load(
+            rootFolderId,
+            level=AccessType.WRITE,
+            user=user,
+            force=True,
+        )
+        display_config = _display_config_from_metadata_folder(folder)
+        ffprobe_metadata = _normalize_metadata_config(
+            ffprobeMetadata,
+            _CREATE_METADATA_FFPROBE_DEFAULT,
+        )
+        categorical_limit = _categorical_limit_from_metadata_folder(folder, display_config)
+        populate_result = _populate_dive_metadata_folder(
+            folder,
+            root_folder,
+            user,
+            display_config,
+            ffprobe_metadata,
+            categorical_limit,
+            replace_metadata=replaceMetadata is True,
+        )
+        return {
+            'results': (
+                f"indexed {populate_result['datasetCount']} datasets: "
+                f"added {populate_result['added']}, skipped {populate_result['existing']} existing"
+            ),
+            'metadataFolderId': str(folder['_id']),
+            'rootFolderId': str(root_folder['_id']),
+            'added': populate_result['added'],
+            'existing': populate_result['existing'],
+            'datasetCount': populate_result['datasetCount'],
         }
 
     @access.user

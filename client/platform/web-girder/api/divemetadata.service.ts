@@ -197,7 +197,34 @@ export interface createDiveMetadataResponse {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   'metadataKeys': any[];
   'folderId': string;
+  existing?: number;
+}
 
+export interface CreateDiveMetadataRecursiveEntry {
+  rootFolderId: string;
+  metadataFolderId?: string;
+  added?: number;
+  existing?: number;
+  reusedExisting?: boolean;
+  reason?: string;
+}
+
+export interface createDiveMetadataRecursiveResponse {
+  scope: 'single' | 'subfolders';
+  resourceType: 'folder' | 'collection';
+  resourceId: string;
+  created: CreateDiveMetadataRecursiveEntry[];
+  existing: CreateDiveMetadataRecursiveEntry[];
+  errors: string[];
+}
+
+export interface IndexDiveMetadataFolderResponse {
+  results: string;
+  metadataFolderId: string;
+  rootFolderId: string;
+  added: number;
+  existing: number;
+  datasetCount: number;
 }
 
 function createDiveMetadataFolder(
@@ -221,6 +248,55 @@ function createDiveMetadataFolder(
       ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
   });
+}
+
+function createDiveMetadataRecursive(
+  resourceId: string,
+  resourceType: 'folder' | 'collection',
+  scope: 'single' | 'subfolders' = 'subfolders',
+  name = 'DIVE Metadata',
+  categoricalLimit = 50,
+  parentFolderId?: string,
+  displayConfig = {
+    display: ['DIVE_DatasetId', 'DIVE_Name'],
+  },
+  ffprobeMetadata = {
+    import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
+  },
+) {
+  return girderRest.post<createDiveMetadataRecursiveResponse>('dive_metadata/create_metadata_recursive', null, {
+    params: {
+      resourceId,
+      resourceType,
+      scope,
+      name,
+      categoricalLimit,
+      parentFolderId,
+      displayConfig: toJsonParam(displayConfig),
+      ffprobeMetadata: toJsonParam(ffprobeMetadata),
+    },
+  });
+}
+
+function indexDiveMetadataFromFolder(
+  metadataFolderId: string,
+  rootFolderId: string,
+  replaceMetadata = false,
+  ffprobeMetadata = {
+    import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
+  },
+) {
+  return girderRest.post<IndexDiveMetadataFolderResponse>(
+    `dive_metadata/${metadataFolderId}/index_folder`,
+    null,
+    {
+      params: {
+        rootFolderId,
+        replaceMetadata,
+        ffprobeMetadata: toJsonParam(ffprobeMetadata),
+      },
+    },
+  );
 }
 
 function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, unlocked: boolean) {
@@ -429,6 +505,8 @@ export {
   getDiveDatasetMetadataRow,
   createDiveMetadataClone,
   createDiveMetadataFolder,
+  createDiveMetadataRecursive,
+  indexDiveMetadataFromFolder,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
   updateDiveMetadataKeyDescription,
