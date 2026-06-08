@@ -6,7 +6,7 @@ from girder.api.rest import Resource
 from girder.constants import AccessType, TokenScope
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.notification import Notification
+from girder.notification import Notification
 from girder.models.token import Token
 from girder.models.setting import Setting
 from girder_jobs.models.job import Job
@@ -236,12 +236,12 @@ class RpcResource(Resource):
 
         body['datasetId'] = (folder.get('_id', False),)
 
-        Notification().createNotification(
+        Notification(
             type='ui_notification',
             data=body,
             user=self.getCurrentUser(),
             expires=datetime.now() + timedelta(seconds=300),
-        )
+        ).flush()
         return 'Notification Sent'
 
     @access.user(scope=TokenScope.DATA_READ)
@@ -265,12 +265,12 @@ class RpcResource(Resource):
 
         body['datasetId'] = folder.get('_id', False)
 
-        Notification().createNotification(
+        Notification(
             type='mask_update',
             data=body,
             user=self.getCurrentUser(),
             expires=datetime.now() + timedelta(seconds=300),
-        )
+        ).flush()
         return 'Notification Sent'
 
     @access.user
