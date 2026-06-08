@@ -1,5 +1,4 @@
 import { GirderModel, RestClient } from '@girder/components/src';
-import NotificationBus from '@girder/components/src/utils/notifications';
 
 // TODO remove after GWC types are fixed
 interface AugmentedRestClient extends RestClient {
@@ -15,42 +14,81 @@ export interface GirderNotification {
 }
 
 /**
- * Register Girder 5 WebSocket notifications on the RestClient.
- *
- * Uses NotificationBus from @girder/components (girder-5-websocket-upgrade branch)
- * and forwards events to the RestClient for existing dive-dsa listeners.
+ * Based on Girder Web Components NotificationBus, but simpler.
+ * Register notifications directly on the girderRest instance using
+ * the WebSocket api.
  *
  * @param rc Girder RestClient
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function registerNotifications(_rc: any) {
-  const rc: AugmentedRestClient = _rc;
-  // Package types still describe EventSource; runtime uses WebSocket on this branch.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bus = new (NotificationBus as any)(rc, { listenToRestClient: true }) as NotificationBus;
+  const rc: AugmentedRestClient = _rc; // TODO remove after types fixed
+  const retryMsDefault = 8_000;
+  let webSocketInstance: WebSocket | null = null;
 
-  // Girder 5 exposes /notifications/me (plural); patch until GWC branch matches.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (bus as any)._getWebSocketUrl = function getWebSocketUrl(this: NotificationBus) {
-    const token = this.$rest.token;
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsPath = this.$rest.apiRoot.replace(/\/api\/v1$/, '') || '';
-    return `${wsProtocol}//${window.location.host}${wsPath}/notifications/me?token=${token}`;
-  };
+  function connected() {
+    return !!webSocketInstance && webSocketInstance.readyState === WebSocket.OPEN;
+  }
 
-  const originalEmit = bus._emitNotification.bind(bus);
-  bus._emitNotification = (notification: GirderNotification) => {
-    originalEmit(notification);
+  function emitNotification(notification: GirderNotification) {
     const { type } = notification;
     for (let i = type.indexOf('.'); i !== -1; i = type.indexOf('.', i + 1)) {
       rc.$emit(`message:${type.substring(0, i)}`, notification);
     }
     rc.$emit(`message:${type}`, notification);
     rc.$emit('message', notification);
-  };
+  }
 
-  return { connect: () => bus.connect(), disconnect: () => bus.disconnect() };
+  function onWebSocketMessage(e: MessageEvent) {
+    emitNotification(JSON.parse(e.data));
+  }
+
+  function disconnect() {
+    if (webSocketInstance) {
+      webSocketInstance.close();
+    }
+    webSocketInstance = null;
+  }
+
+  function onWebSocketError() {
+    disconnect();
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    window.setTimeout(connect, retryMsDefault);
+  }
+
+  function onWebSocketClose() {
+    webSocketInstance = null;
+    // Attempt to reconnect after a delay
+    if (rc.user) {
+      window.setTimeout(connect, retryMsDefault);
+    }
+  }
+
+  function connect() {
+    if (connected()) {
+      return;
+    }
+    if (!rc.user) {
+      return;
+    }
+    // Get the token from RestClient
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { token } = rc as any;
+    if (!token) {
+      return;
+    }
+    // Construct WebSocket URL from current location
+    const { protocol, host } = window.location;
+    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${wsProtocol}//${host}/notifications/me?token=${token}`;
+    webSocketInstance = new WebSocket(url);
+    webSocketInstance.onmessage = onWebSocketMessage;
+    webSocketInstance.onerror = onWebSocketError;
+    webSocketInstance.onclose = onWebSocketClose;
+  }
+
+  rc.$on('login', connect);
+  rc.$on('logout', disconnect);
+
+  return { connect, disconnect };
 }

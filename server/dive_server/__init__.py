@@ -8,7 +8,6 @@ from girder.models.user import User
 from girder.plugin import getPlugin, registerPluginStaticContent
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
-from girder_jobs.models.job import Job
 
 from dive_utils import constants
 
@@ -46,8 +45,10 @@ class GirderPlugin(plugin.GirderPlugin):
         info["apiRoot"].user.route("PUT", (":id", "use_private_queue"), use_private_queue)
         User().exposeFields(AccessType.READ, constants.UserPrivateQueueEnabledMarker)
 
-        # Expose Job dataset assocation
-        Job().exposeFields(AccessType.READ, constants.JOBCONST_DATASET_ID)
+        # Expose Job dataset association on the registered jobs model singleton.
+        ModelImporter.model('job', 'jobs').exposeFields(
+            AccessType.READ, constants.JOBCONST_DATASET_ID
+        )
 
         DIVE_MAIL_TEMPLATES = Path(os.path.realpath(__file__)).parent / 'mail_templates'
         mail_utils.addTemplateDirectory(str(DIVE_MAIL_TEMPLATES))

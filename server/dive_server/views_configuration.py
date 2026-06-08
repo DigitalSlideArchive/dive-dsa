@@ -4,9 +4,8 @@ from girder.api.rest import Resource
 from girder.models.setting import Setting
 from girder.models.token import Token
 from girder.utility import setting_utilities
-from girder_jobs.models.job import Job
-
 from dive_server import crud
+from dive_server import crud_rpc
 from dive_tasks.sam_tasks import download_sam_models
 from dive_utils import constants, models
 
@@ -110,8 +109,7 @@ class ConfigurationResource(Resource):
                 girder_job_type="SAM2",
             ),
         )
-        Job().save(newjob.job)
-        return newjob.job
+        return crud_rpc._persist_async_job_metadata(newjob)
 
     @access.public
     @autoDescribeRoute(Description("Get custom brand data"))

@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.12"
 resolution-markers = [
     "python_full_version >= '3.11' and sys_platform == 'win32'",
@@ -488,12 +488,12 @@ dev = [
 requires-dist = [
     { name = "cherrypy", specifier = ">=18.9.0" },
     { name = "click", specifier = ">=8.1.3" },
-    { name = "girder", specifier = "==5.0.4" },
-    { name = "girder-client", specifier = ">=5.0.4" },
-    { name = "girder-jobs", specifier = "==5.0.4" },
-    { name = "girder-plugin-worker", specifier = "==5.0.4" },
+    { name = "girder", specifier = "==5.0.10" },
+    { name = "girder-client", specifier = ">=5.0.10" },
+    { name = "girder-jobs", specifier = "==5.0.10" },
+    { name = "girder-plugin-worker", specifier = "==5.0.10" },
     { name = "girder-slicer-cli-web", specifier = "==5.0.10" },
-    { name = "girder-worker", specifier = "==5.0.4" },
+    { name = "girder-worker", specifier = "==5.0.10" },
     { name = "girder-worker-utils", specifier = ">=0.9.0,<1" },
     { name = "gputil", specifier = ">=1.4.0" },
     { name = "hydra-core", marker = "extra == 'sam'", specifier = ">=1.3.2" },
@@ -588,7 +588,7 @@ wheels = [
 
 [[package]]
 name = "girder"
-version = "5.0.4"
+version = "5.0.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
@@ -617,9 +617,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/4c/ec19c17c90d6be52ac90582d8f4caed761ef4f98c694ab2fb97840fa53f6/girder-5.0.4.tar.gz", hash = "sha256:73589bde2e0d8955f930c2756259db93b3eae25d9ebe9022c3bb5c98530982e7", size = 2784081, upload-time = "2026-04-21T14:36:58.819Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/ee/018ede53a8f0fed181a53db5068c338b3f9a69161967d26c2716c79bf13b/girder-5.0.10.tar.gz", hash = "sha256:63e2b32e2c53c2e6faa0d88cc72388a626d582d2d480380b18a8cf86c9cee5c3", size = 2805837, upload-time = "2026-06-02T18:16:50.697Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/b8/4cc296441b887b25ce078d88a7362cb9c0f19cc8e1e51b26494a911c6a12/girder-5.0.4-py3-none-any.whl", hash = "sha256:074f72a6e5fc929612755db4f4569999967e1e04e18c8745b2c4479c2faa5bcc", size = 1973506, upload-time = "2026-04-21T14:36:56.853Z" },
+    { url = "https://files.pythonhosted.org/packages/37/3e/b9beab5a61f800dda846bb6711f8a5d01e8508719f82f05e9a477044b17a/girder-5.0.10-py3-none-any.whl", hash = "sha256:4907ef7f0f963d35b88d50d66db20da16794e728b0f8d9de12fcde6dcbc8de84", size = 1986196, upload-time = "2026-06-02T18:16:48.861Z" },
 ]
 
 [[package]]
@@ -639,27 +639,27 @@ wheels = [
 
 [[package]]
 name = "girder-jobs"
-version = "5.0.4"
+version = "5.0.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "girder" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f0/13/f9bc797a9f0f9154e6a394fe4e0b0dbc48d75dd99d39150fa88372ef9b98/girder_jobs-5.0.4.tar.gz", hash = "sha256:5529bbe6cd444326866fe0b7aab40d69cbacedd5884f9c326c9bab04bc2229db", size = 205667, upload-time = "2026-04-21T14:38:28.934Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/2b/4e2df0bf9686496eb5291aa98e155201f3c7486a9e99c6347acfc826e4ad/girder_jobs-5.0.10.tar.gz", hash = "sha256:054b2b5f7f55a79abde3ac816527db676e0f5669bca2b2ce41148b038ef04538", size = 205755, upload-time = "2026-06-02T18:18:55.673Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/5e/b2bd98d3f66069418ffb677254935b82ff01d8994608aa25f4e45b341a83/girder_jobs-5.0.4-py3-none-any.whl", hash = "sha256:e5f1138c55fb1b078eb8a3078ce166694a17147b23b8fef49a9419e0a8e0b32f", size = 202410, upload-time = "2026-04-21T14:38:27.744Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/72/9edd9fbf198fa03c54f918d9d3cf42ddb87607ee7fbf3c2fb974afc109ac/girder_jobs-5.0.10-py3-none-any.whl", hash = "sha256:3d1e1c936a7285697d4d4df193d721ac068cd005b19c331eb76c03ea127c770b", size = 202490, upload-time = "2026-06-02T18:18:54.445Z" },
 ]
 
 [[package]]
 name = "girder-plugin-worker"
-version = "5.0.4"
+version = "5.0.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "girder" },
     { name = "girder-jobs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c6/0d/055f296789a58b3f7827893f6d2b07f30246faaf54415d4791479bddbd8a/girder_plugin_worker-5.0.4.tar.gz", hash = "sha256:4c1bd52e059cc58379182b9ed69de4f4b00403f5eeca1bfaf647dd193b485159", size = 12289, upload-time = "2026-04-21T14:39:55.315Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/7b/b09bbc207181ed25bce7422e8e0daeea27de3efff7af50714bceedc1e7c5/girder_plugin_worker-5.0.10.tar.gz", hash = "sha256:e3b7fb7819791ca1196b2002df2d21f63682c2ffa298ec129eaa45536398150f", size = 12282, upload-time = "2026-06-02T18:20:49.814Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/84/46/bb1e40ee4d8c903172c7a7ebefe609827f4006a69da7c4e8f12feaff227b/girder_plugin_worker-5.0.4-py3-none-any.whl", hash = "sha256:5eca2f85cbe4026615e51c6205e072827cc2075e5925b861616beb16399a8e48", size = 13503, upload-time = "2026-04-21T14:39:54.199Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/11/60a9f92ae2f1f7250e77b75a92795f3dbd68947ffec49fc1fd966a150fb6/girder_plugin_worker-5.0.10-py3-none-any.whl", hash = "sha256:ef8c7dc100c9be6c4f391203710d723bf161ee1dbabb44990bf48dbeca33f9b9", size = 13520, upload-time = "2026-06-02T18:20:48.884Z" },
 ]
 
 [[package]]
@@ -679,7 +679,7 @@ wheels = [
 
 [[package]]
 name = "girder-worker"
-version = "5.0.4"
+version = "5.0.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -694,9 +694,9 @@ dependencies = [
     { name = "stevedore" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/83/56/7b6fb2ea26f8885b35faed5afa006e13e24228e89d4c97f37aaa2db371ec/girder_worker-5.0.4.tar.gz", hash = "sha256:aa7cca7086ebdde25f5defc9714234d81bcc01447990c087bab4a5f58062ea64", size = 42661, upload-time = "2026-04-21T14:40:21.616Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/99/e5/8dc794e3c8944f233363216f1894e330d9b92d9d06bfb335e08f0d33659b/girder_worker-5.0.10.tar.gz", hash = "sha256:ee8f4bc878c986745009743c15a854fe6befebd535cc12bd2f970366f0e597b4", size = 42659, upload-time = "2026-06-02T18:21:21.881Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/11/67/358b080e17804dc12f814a900144ca6af24a1d0cb337c9eeb7fff42824c4/girder_worker-5.0.4-py3-none-any.whl", hash = "sha256:0c357699effa219f90f0ea25b05eef3c1e773cabf28d93dc7e92897e97e33b8f", size = 59235, upload-time = "2026-04-21T14:40:20.218Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/22/a47f3769564001cd098e16b70c6667f0b6aea2f3ffe44a8516340ccda64f/girder_worker-5.0.10-py3-none-any.whl", hash = "sha256:fb8185b55f52e30aff2fc2170bb0c868269f2145bdc794617d8ad733a677edf1", size = 59237, upload-time = "2026-06-02T18:21:20.879Z" },
 ]
 
 [[package]]
@@ -1062,7 +1062,7 @@ name = "nvidia-cudnn-cu12"
 version = "9.10.2.21"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ba/51/e123d997aa098c61d029f76663dedbfb9bc8dcf8c60cbd6adbe42f76d049/nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:949452be657fa16687d0930933f032835951ef0892b37d2d53824d1a84dc97a8", size = 706758467, upload-time = "2025-06-06T21:54:08.597Z" },
@@ -1073,7 +1073,7 @@ name = "nvidia-cufft-cu12"
 version = "11.3.3.83"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/13/ee4e00f30e676b66ae65b4f08cb5bcbb8392c03f54f2d5413ea99a5d1c80/nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:4d2dd21ec0b88cf61b62e6b43564355e5222e4a3fb394cac0db101f2dd0d4f74", size = 193118695, upload-time = "2025-03-07T01:45:27.821Z" },
@@ -1100,9 +1100,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.7.3.90"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
-    { name = "nvidia-cusparse-cu12" },
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "nvidia-cusparse-cu12", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/85/48/9a13d2975803e8cf2777d5ed57b87a0b6ca2cc795f9a4f59796a910bfb80/nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:4376c11ad263152bd50ea295c05370360776f8c3427b30991df774f9fb26c450", size = 267506905, upload-time = "2025-03-07T01:47:16.273Z" },
@@ -1113,7 +1113,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.5.8.93"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/f5/e1854cb2f2bcd4280c44736c93550cc300ff4b8c95ebe370d0aa7d2b473d/nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1ec05d76bbbd8b61b06a80e1eaf8cf4959c3d4ce8e711b65ebd0443bb0ebb13b", size = 288216466, upload-time = "2025-03-07T01:48:13.779Z" },
@@ -1991,7 +1991,7 @@ name = "triton"
 version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "setuptools" },
+    { name = "setuptools", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/ee/0ee5f64a87eeda19bbad9bc54ae5ca5b98186ed00055281fd40fb4beb10e/triton-3.4.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7ff2785de9bc02f500e085420273bb5cc9c9bb767584a4aa28d6e360cec70128", size = 155430069, upload-time = "2025-07-30T19:58:21.715Z" },
