@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 
@@ -74,8 +74,11 @@ def process_assetstore_import(event, meta: dict):
         foldername = f'Video {item["name"]}'
         # reuse existing folder if it already exists with same name
         dest = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
-        now = datetime.now()
-        if now - dest['created'] > timedelta(hours=1):
+        now = datetime.now(timezone.utc)
+        created = dest['created']
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        if now - created > timedelta(hours=1):
             # Remove the old referenced item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:
