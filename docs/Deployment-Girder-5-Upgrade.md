@@ -10,7 +10,7 @@ For general deployment steps, see [Running with Docker Compose](Deployment-Docke
 |--------|-----------------|
 | **Girder 5** | Rebuild or pull `dive-dsa-web` and `dive-dsa-worker` images. |
 | **Redis** | Add a Redis service; required for job and UI notifications. |
-| **Notifications** | The web client uses WebSockets (not the legacy Girder EventStream) via `@girder/components` from `girder/girder_web_components#girder-5-websocket-upgrade`. Ensure browsers can reach the Girder API and that Redis is running. |
+| **Notifications** | The web client uses WebSockets (not the legacy Girder EventStream) via `@girder/components` from `girder/girder_web_components#girder-5-axios-upgrade`. Ensure browsers can reach the Girder API and that Redis is running. |
 | **Environment variables** | Rename broker and worker API settings (table below). |
 | **Static clients** | Girder UI is pre-built at `GIRDER_STATIC_ROOT_DIR` (`/opt/dive/clients/girder`) and served at `/girder`. The DIVE annotator is built separately and served at `/dive` with assets under `/dive/static`. The DIVE Girder plugin web client is built with Vite into `server/dive_server/web_client/dist`. |
 
