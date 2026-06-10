@@ -1,0 +1,102 @@
+# Test dive_server packaging: wheel is built on the host, then installed in the images.
+#
+#   bash test_deployment/prepare.sh
+#   docker compose -f test_deployment/docker-compose.yml up --build
+#
+#   http://localhost:8010/girder   (login admin / letmein)
+#   http://localhost:8010/dive
+#   http://localhost:15672         (RabbitMQ management, guest / guest)
+
+x-wheel-broker-env: &wheel-broker-env
+  GIRDER_WORKER_BROKER: amqp://guest:guest@rabbit/default
+  GIRDER_WORKER_BACKEND: rpc://guest:guest@localhost/
+  GIRDER_MONGO_URI: mongodb://mongo:27017/girder
+  GIRDER_NOTIFICATION_REDIS_URL: redis://redis:6379
+
+services:
+  rabbit:
+    image: rabbitmq:4.2-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: default
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbit consumer_timeout 432000000
+
+  mongo:
+    image: mongo:5.0
+    volumes:
+      - wheel_test_mongo:/data/db
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxclients 1000
+
+  girder:
+    build:
+      context: ..
+      dockerfile: test_deployment/girder.Dockerfile
+    image: dive-dsa-wheel-test:local
+    init: true
+    ports:
+      - "8010:8080"
+    volumes:
+      - wheel_test_assetstore:/home/assetstore
+    depends_on:
+      - mongo
+      - redis
+      - rabbit
+    environment:
+      <<: *wheel-broker-env
+      # Girder notification WebSockets (Girder UI + /dive SPA) share one async pool;
+      # default max_connections=100 is too low when clients auto-reconnect.
+      GIRDER_NOTIFICATION_REDIS_URL: redis://redis:6379?max_connections=512
+      GIRDER_ADMIN_USER: admin
+      GIRDER_ADMIN_PASS: letmein
+      GIRDER_SETTING_WORKER_API_URL: http://girder:8080/api/v1
+      GIRDER_STATIC_ROOT_DIR: /opt/dive/clients/girder
+      CORS_ALLOWED_ORIGINS: http://localhost:8010
+
+  # Girder 5 local queue (assetstore import follow-up, etc.)
+  localworker:
+    image: dive-dsa-wheel-test:local
+    init: true
+    entrypoint:
+      - celery
+      - -A
+      - girder_worker.app
+      - worker
+      - -Q
+      - local
+      - -c
+      - "2"
+      - -l
+      - info
+    depends_on:
+      - girder
+      - rabbit
+    environment:
+      <<: *wheel-broker-env
+      C_FORCE_ROOT: "1"
+
+  # DIVE celery worker (pipelines, transcoding, etc.)
+  worker:
+    build:
+      context: ..
+      dockerfile: test_deployment/worker.Dockerfile
+    image: dive-dsa-wheel-test-worker:local
+    init: true
+    depends_on:
+      - girder
+      - rabbit
+    environment:
+      <<: *wheel-broker-env
+      GIRDER_SETTING_WORKER_API_URL: http://girder:8080/api/v1
+      WORKER_WATCHING_QUEUES: celery
+      WORKER_CONCURRENCY: "2"
+
+volumes:
+  wheel_test_mongo:
+  wheel_test_assetstore:

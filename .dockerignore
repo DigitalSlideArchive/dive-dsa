@@ -3,6 +3,7 @@
 .gitattributes
 dive-dsa-slicer/
 scripts/
+!server/scripts/build_release_assets.sh
 testutils/
 # Documentation
 docs/
@@ -25,6 +26,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+!server/dist/
 downloads/
 eggs/
 .eggs/
