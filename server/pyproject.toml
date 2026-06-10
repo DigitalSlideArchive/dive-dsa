@@ -30,11 +30,13 @@ license = {text = "Apache 2.0"}
 readme = "README.md"
 keywords = ["DIVE", "VIAME", "Annotation", "Computer Vision", "Marine"]
 classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Web Environment",
   "License :: OSI Approved :: Apache Software License",
   "Natural Language :: English",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
 ]
 requires-python = ">=3.10,<3.12"
@@ -95,10 +97,30 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["dive_server", "dive_tasks", "dive_utils"]
-include = ["**/*.mako"]
+include = [
+  "dive_server/web_client/dist/**",
+  "dive_server/dive_client/**",
+  "dive_server/mail_templates/**",
+  "**/*.mako",
+]
+exclude = [
+  "dive_server/web_client/node_modules/**",
+  "**/*.map",
+]
 
 [tool.hatch.build.targets.sdist]
-include = ["dive_server/", "dive_tasks/", "dive_utils/", "**/*.mako", "README.md"]
+include = [
+  "dive_server/",
+  "dive_tasks/",
+  "dive_utils/",
+  "scripts/build_release_assets.sh",
+  "**/*.mako",
+  "README.md",
+]
+exclude = [
+  "dive_server/web_client/node_modules/**",
+  "**/*.map",
+]
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"

@@ -58,18 +58,26 @@ class GirderPlugin(plugin.GirderPlugin):
         info['serverRoot'].mount(core_girder, '/girder', core_girder.config)
         del info['serverRoot'].apps['']
 
-        dive_path = os.path.join('/opt/dive/src/dive_server/dive_client')
-        conf = {
-            '/': {
-                'tools.staticfile.on': True,
-                'tools.staticfile.filename': os.path.join(dive_path, 'index.html'),
-            },
-            '/static': {
-                'tools.staticdir.on': True,
-                'tools.staticdir.dir': dive_path,
-            },
-        }
-        info['serverRoot'].mount(None, '/dive', conf)
+        dive_client_dir = Path(__file__).parent / 'dive_client'
+        dive_index = dive_client_dir / 'index.html'
+        if dive_index.is_file():
+            conf = {
+                '/': {
+                    'tools.staticfile.on': True,
+                    'tools.staticfile.filename': str(dive_index),
+                },
+                '/static': {
+                    'tools.staticdir.on': True,
+                    'tools.staticdir.dir': str(dive_client_dir),
+                },
+            }
+            info['serverRoot'].mount(None, '/dive', conf)
+        else:
+            logging.getLogger(__name__).warning(
+                'DIVE annotator SPA is not built at %s; skipping /dive mount. '
+                'Build it with `npm run build:web` in the client directory.',
+                dive_client_dir,
+            )
 
         plugin_static_dir = Path(__file__).parent / 'web_client' / 'dist'
         plugin_assets = {
@@ -78,7 +86,7 @@ class GirderPlugin(plugin.GirderPlugin):
         }
         if all((plugin_static_dir / filename).is_file() for filenames in plugin_assets.values() for filename in filenames):
             registerPluginStaticContent(
-                plugin='dive',
+                plugin=self.name,
                 css=[f'/{filename}' for filename in plugin_assets['css']],
                 js=[f'/{filename}' for filename in plugin_assets['js']],
                 staticDir=plugin_static_dir,
