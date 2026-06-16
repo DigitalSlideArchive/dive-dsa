@@ -2324,10 +2324,10 @@ vite-plugin-dts@^3.6.3:
     kolorist "^1.8.0"
     vue-tsc "^1.8.20"
 
-vite@^6.3.5:
-  version "6.3.5"
-  resolved "https://registry.npmjs.org/vite/-/vite-6.3.5.tgz"
-  integrity sha512-cZn6NDFE7wdTpINgs++ZJ4N49W2vRp8LCKrn3Ob1kYNtOo21vfDoaV5GzBfLU4MovSAB8uNRm4jgzVQZ+mBzPQ==
+vite@^6.4.3:
+  version "6.4.3"
+  resolved "https://registry.yarnpkg.com/vite/-/vite-6.4.3.tgz#85a164db7ce706f2a776812efa2b340f1721858e"
+  integrity sha512-NTKlcQjlAK7MlQoyb6LgaqHc8sso/pVyUJYWMws3jg21uTJw/LddqIFPcPqP6PzpgbIcZyKI85sFE4HBrQDA8A==
   dependencies:
     esbuild "^0.25.0"
     fdir "^6.4.4"
