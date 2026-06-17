@@ -7,6 +7,7 @@ import unicodedata
 
 from girder.api.rest import setResponseHeader
 
+from dive_utils.constants import DIVE_CONFIG
 from dive_utils.types import GirderModel
 
 TRUTHY_META_VALUES = ['yes', '1', 1, 'true', 't', 'True', True]
@@ -19,6 +20,15 @@ NOT_NUMBERS_REGEX = re.compile(r'[^\d]+')
 def asbool(value: Union[str, None, bool]) -> bool:
     """Convert freeform mongo metadata value into a boolean"""
     return str(value).lower() in TRUTHY_META_VALUES
+
+
+def prevent_assetstore_transcoding(dive_config: Union[Dict[str, Any], None] = None) -> bool:
+    """Return whether assetstore imports should skip transcoding incompatible media."""
+    if dive_config is None:
+        from girder.models.setting import Setting
+
+        dive_config = Setting().get(DIVE_CONFIG) or {}
+    return asbool(dive_config.get('AssetstoreImportSettings', {}).get('preventTranscoding', False))
 
 
 def fromMeta(

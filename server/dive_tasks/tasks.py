@@ -19,7 +19,7 @@ from pycocotools import mask as mask_utils
 from dive_tasks import utils
 from dive_tasks.frame_alignment import check_and_fix_frame_alignment
 from dive_tasks.manager import patch_manager
-from dive_utils import constants, fromMeta
+from dive_utils import constants, fromMeta, prevent_assetstore_transcoding
 from dive_utils.types import GirderModel
 
 
@@ -98,11 +98,10 @@ def convert_video(
             raise Exception('FPS lower than 1 is not supported')
 
         # lets determine if we don't need to transcode this file
-        if (
-            skip_transcoding
-            and videostream[0]['codec_name'] == 'h264'
-            and item['name'].endswith('.mp4')
-        ):
+        is_compatible = (
+            videostream[0]['codec_name'] == 'h264' and item['name'].lower().endswith('.mp4')
+        )
+        if skip_transcoding and is_compatible:
             # Now we can update the meta data and push the values
             gc.addMetadataToItem(
                 itemId,
@@ -130,11 +129,25 @@ def convert_video(
             )
             return
         elif skip_transcoding:
+            dive_config = gc.get('dive_configuration/dive_config') or {}
+            if prevent_assetstore_transcoding(dive_config):
+                manager.write(
+                    'Transcoding prevented by assetstore import settings; '
+                    'video is not h264 in an mp4 container.\n'
+                )
+                gc.addMetadataToFolder(
+                    folderId,
+                    {
+                        constants.PreventTranscodingMarker: True,
+                        constants.MarkForPostProcess: False,
+                    },
+                )
+                return
             print('Transcoding cannot be skipped:')
             if videostream[0]['codec_name'] != 'h264':
                 print(f'Codec Name: {videostream[0]["codec_name"]}')
                 print('Codec name is not h264 so file will be transcoded')
-            if not item['name'].endswith('.mp4'):
+            if not item['name'].lower().endswith('.mp4'):
                 print(f'File Container is not .mp4: {item["name"]}')
 
         command = [
