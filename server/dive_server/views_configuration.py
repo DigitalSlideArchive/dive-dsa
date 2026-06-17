@@ -1,12 +1,14 @@
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
+from girder.constants import AccessType
+from girder.models.folder import Folder
 from girder.models.setting import Setting
 from girder.models.token import Token
 from girder.utility import setting_utilities
 from girder_jobs.models.job import Job
 
-from dive_server import crud
+from dive_server import crud, crud_dataset
 from dive_tasks.sam_tasks import download_sam_models
 from dive_utils import constants, models
 
@@ -46,6 +48,7 @@ class ConfigurationResource(Resource):
         self.route("PUT", ("sam2_configs",), self.update_sam2_configs)
         self.route("GET", ("dive_config",), self.get_dive_config)
         self.route("PUT", ("dive_config",), self.update_dive_config)
+        self.route("GET", ("dataset_transcode_stats",), self.get_dataset_transcode_stats)
 
     @access.public
     @autoDescribeRoute(Description("Get custom brand data"))
@@ -134,3 +137,24 @@ class ConfigurationResource(Resource):
             base_config['AssetstoreImportSettings'] = data['AssetstoreImportSettings']
 
         Setting().set(constants.DIVE_CONFIG, base_config)
+
+    @access.admin
+    @autoDescribeRoute(
+        Description(
+            "Count DIVE datasets and PreventTranscoding markers within a folder and its descendants"
+        )
+        .modelParam(
+            "folderId",
+            description="Root folder to search for datasets",
+            model=Folder,
+            level=AccessType.READ,
+        )
+    )
+    def get_dataset_transcode_stats(self, folder):
+        user = self.getCurrentUser()
+        stats = crud_dataset.get_transcoding_stats(folder, user)
+        return {
+            'folderId': str(folder['_id']),
+            'folderName': folder['name'],
+            **stats,
+        }

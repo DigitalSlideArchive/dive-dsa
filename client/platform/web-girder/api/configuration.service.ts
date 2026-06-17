@@ -45,6 +45,15 @@ export interface DIVEGirderConfig {
 
 export type AddOns = [string, string, string, boolean][];
 
+export interface DatasetTranscodeStats {
+  folderId: string;
+  folderName: string;
+  datasetCount: number;
+  preventTranscodingCount: number;
+  transcodedCount: number;
+  totalCount: number;
+}
+
 function getBrandData() {
   return girderRest.get<BrandData>('dive_configuration/brand_data');
 }
@@ -74,6 +83,12 @@ function putSAM2Config(sam2Config: SAM2Config, forceDownload = false) {
   });
 }
 
+function getDatasetTranscodeStats(folderId: string) {
+  return girderRest.get<DatasetTranscodeStats>(
+    `dive_configuration/dataset_transcode_stats?folderId=${encodeURIComponent(folderId)}`,
+  );
+}
+
 export {
   getBrandData,
   putBrandData,
@@ -81,4 +96,5 @@ export {
   putDIVEGirderConfig,
   getSAM2Config,
   putSAM2Config,
+  getDatasetTranscodeStats,
 };

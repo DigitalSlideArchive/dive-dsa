@@ -13,7 +13,7 @@ from girder.utility import ziputil
 from pydantic.main import BaseModel
 
 from dive_server import crud, crud_annotation
-from dive_utils import TRUTHY_META_VALUES, constants, fromMeta, models, types
+from dive_utils import TRUTHY_META_VALUES, asbool, constants, fromMeta, models, types
 
 
 def get_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
@@ -220,6 +220,37 @@ def get_recursive_datasets(
             else:
                 return
         get_recursive_datasets(child, user, datasetList, limit)
+
+
+def get_transcoding_stats(
+    root_folder: types.GirderModel,
+    user: types.GirderUserModel,
+) -> Dict[str, int]:
+    """Count DIVE datasets and PreventTranscoding folders under a folder tree.
+
+    PreventTranscoding is set on video import folders that were not transcoded.
+    Those folders are typically not yet marked as DIVE datasets (annotate).
+    """
+    dataset_count = 0
+    prevent_transcoding_count = 0
+
+    def count_in_tree(folder: types.GirderModel) -> None:
+        nonlocal dataset_count, prevent_transcoding_count
+        if asbool(fromMeta(folder, constants.DatasetMarker, False)):
+            dataset_count += 1
+        if asbool(fromMeta(folder, constants.PreventTranscodingMarker, False)):
+            prevent_transcoding_count += 1
+        for child in Folder().childFolders(folder, 'folder', user):
+            count_in_tree(child)
+
+    count_in_tree(root_folder)
+    total_count = dataset_count + prevent_transcoding_count
+    return {
+        'datasetCount': dataset_count,
+        'preventTranscodingCount': prevent_transcoding_count,
+        'transcodedCount': dataset_count,
+        'totalCount': total_count,
+    }
 
 
 def get_media(

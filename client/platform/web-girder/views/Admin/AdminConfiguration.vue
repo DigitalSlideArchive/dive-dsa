@@ -15,6 +15,7 @@ import {
 } from 'platform/web-girder/api/configuration.service';
 import { cloneDeep } from 'lodash';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import AdminDatasetTranscodeStats from './AdminDatasetTranscodeStats.vue';
 
 const defaultSAM2Config: SAM2Config = {
   celeryQueue: 'celery',
@@ -40,6 +41,7 @@ const defaultSAM2Config: SAM2Config = {
 
 export default defineComponent({
   name: 'AdminConfiguration',
+  components: { AdminDatasetTranscodeStats },
   setup() {
     const diveGirderConfig: Ref<DIVEGirderConfig> = ref({});
     const sam2Config: Ref<SAM2Config> = ref({
@@ -54,6 +56,7 @@ export default defineComponent({
     const sam2MaskTracking = ref(false);
     const preventAssetstoreTranscoding = ref(false);
     const forceDownload = ref(false);
+
     const getConfig = async () => {
       const configResp = await getDIVEGirderConfig();
       diveGirderConfig.value = configResp.data;
@@ -146,16 +149,15 @@ export default defineComponent({
         </v-row>
       </v-card-text>
       <v-card-actions>
-        <v-row dense>
-          <v-spacer />
-          <v-btn
-            color="success"
-            class="ml-2"
-            @click="saveDIVEConfig()"
-          >
-            Set DIVE Config
-          </v-btn>
-        </v-row>
+        <AdminDatasetTranscodeStats />
+        <v-spacer />
+        <v-btn
+          color="success"
+          class="ml-2"
+          @click="saveDIVEConfig()"
+        >
+          Set DIVE Config
+        </v-btn>
       </v-card-actions>
     </v-card>
 
