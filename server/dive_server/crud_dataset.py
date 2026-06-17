@@ -223,10 +223,11 @@ def get_recursive_datasets(
 
 
 def get_transcoding_stats(
-    root_folder: types.GirderModel,
+    root: types.GirderModel,
     user: types.GirderUserModel,
+    root_type: str = 'folder',
 ) -> Dict[str, int]:
-    """Count DIVE datasets and PreventTranscoding folders under a folder tree.
+    """Count DIVE datasets and PreventTranscoding folders under a folder tree or collection.
 
     PreventTranscoding is set on video import folders that were not transcoded.
     Those folders are typically not yet marked as DIVE datasets (annotate).
@@ -243,7 +244,11 @@ def get_transcoding_stats(
         for child in Folder().childFolders(folder, 'folder', user):
             count_in_tree(child)
 
-    count_in_tree(root_folder)
+    if root_type == 'collection':
+        for child_folder in Folder().childFolders(root, 'collection', user):
+            count_in_tree(child_folder)
+    else:
+        count_in_tree(root)
     total_count = dataset_count + prevent_transcoding_count
     return {
         'datasetCount': dataset_count,

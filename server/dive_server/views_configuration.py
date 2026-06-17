@@ -2,6 +2,8 @@ from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
 from girder.constants import AccessType
+from girder.exceptions import RestException
+from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.setting import Setting
 from girder.models.token import Token
@@ -139,20 +141,51 @@ class ConfigurationResource(Resource):
     @access.admin
     @autoDescribeRoute(
         Description(
-            "Count DIVE datasets and PreventTranscoding markers within a folder and its descendants"
+            "Count DIVE datasets and PreventTranscoding markers within a folder tree or collection"
         )
-        .modelParam(
-            "folderId",
-            description="Root folder to search for datasets",
-            model=Folder,
-            level=AccessType.READ,
+        .param(
+            "resourceId",
+            "Folder or collection ID to search for datasets",
+            dataType="string",
+            required=True,
+        )
+        .param(
+            "resourceType",
+            "Girder resource type: folder or collection",
+            dataType="string",
+            default="folder",
+            required=False,
         )
     )
-    def get_dataset_transcode_stats(self, folder):
+    def get_dataset_transcode_stats(self, resourceId, resourceType):
         user = self.getCurrentUser()
-        stats = crud_dataset.get_transcoding_stats(folder, user)
+        resource_type = (resourceType or 'folder').strip().lower()
+        if resource_type not in ('folder', 'collection'):
+            raise RestException('resourceType must be folder or collection', code=400)
+
+        if resource_type == 'collection':
+            resource = Collection().load(
+                resourceId,
+                level=AccessType.READ,
+                user=user,
+                force=True,
+            )
+            if resource is None:
+                raise RestException('Collection not found', code=404)
+        else:
+            resource = Folder().load(
+                resourceId,
+                level=AccessType.READ,
+                user=user,
+                force=True,
+            )
+            if resource is None:
+                raise RestException('Folder not found', code=404)
+
+        stats = crud_dataset.get_transcoding_stats(resource, user, root_type=resource_type)
         return {
-            'folderId': str(folder['_id']),
-            'folderName': folder['name'],
+            'resourceId': str(resource['_id']),
+            'resourceName': resource['name'],
+            'resourceType': resource_type,
             **stats,
         }

@@ -25,7 +25,9 @@ export default defineComponent({
       _id: girderRest.user._id,
     });
     const transcodeStats: Ref<DatasetTranscodeStats | null> = ref(null);
-    const locationIsFolder = computed(() => (location.value._modelType === 'folder'));
+    const locationIsAnalyzable = computed(() => (
+      location.value._modelType === 'folder' || location.value._modelType === 'collection'
+    ));
     const transcodedPercent = computed(() => {
       if (!transcodeStats.value || transcodeStats.value.totalCount === 0) {
         return 0;
@@ -67,17 +69,21 @@ export default defineComponent({
       loading: transcodeStatsLoading,
     } = useRequest();
     const fetchTranscodeStats = () => analyzeTranscodeStats(async () => {
-      if (!locationIsFolder.value) {
+      if (!locationIsAnalyzable.value) {
         return;
       }
-      const response = await getDatasetTranscodeStats(location.value._id);
+      const modelType = location.value._modelType;
+      if (modelType !== 'folder' && modelType !== 'collection') {
+        return;
+      }
+      const response = await getDatasetTranscodeStats(location.value._id, modelType);
       transcodeStats.value = response.data;
     });
 
     return {
       open,
       location,
-      locationIsFolder,
+      locationIsAnalyzable,
       setLocation,
       transcodeStats,
       transcodeStatsError,
@@ -110,8 +116,8 @@ export default defineComponent({
       <v-card-title>Dataset Transcoding Stats</v-card-title>
       <v-card-text>
         <span class="text-caption text--secondary">
-          Select a folder to count DIVE datasets and how many are marked PreventTranscoding
-          (non-transcoded) versus transcoded.
+          Select a folder or collection to count DIVE datasets and how many are marked
+          PreventTranscoding (non-transcoded) versus transcoded.
         </span>
         <v-alert
           v-if="transcodeStatsError"
@@ -152,11 +158,11 @@ export default defineComponent({
           color="primary"
           class="mt-4"
           :loading="transcodeStatsLoading"
-          :disabled="!locationIsFolder || transcodeStatsLoading"
+          :disabled="!locationIsAnalyzable || transcodeStatsLoading"
           @click="fetchTranscodeStats"
         >
-          <span v-if="!locationIsFolder">
-            Choose a folder to analyze...
+          <span v-if="!locationIsAnalyzable">
+            Choose a folder or collection to analyze...
           </span>
           <span v-else-if="'name' in location">
             Analyze {{ location.name }}
@@ -173,7 +179,7 @@ export default defineComponent({
         >
           <v-card-text>
             <div class="text-subtitle-1 mb-2">
-              Results for {{ transcodeStats.folderName }}
+              Results for {{ transcodeStats.resourceName }}
             </div>
             <v-row dense>
               <v-col cols="12" sm="4">
