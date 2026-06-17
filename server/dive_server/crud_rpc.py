@@ -30,6 +30,29 @@ def _get_queue_name(user: types.GirderUserModel, default="celery") -> str:
     return default
 
 
+def _persist_async_job_metadata(
+    async_result,
+    *,
+    access_source: Optional[types.GirderModel] = None,
+    **metadata: object,
+) -> types.GirderModel:
+    """
+    Save DIVE-specific fields on a Celery job without clobbering worker status.
+
+    GirderAsyncResult.job caches the document from first access (typically INACTIVE).
+    Job().save() on that stale dict can race with the worker task_prerun RUNNING update
+    and leave the job stuck INACTIVE, which breaks later PUSHING_OUTPUT transitions.
+    """
+    job = Job().load(async_result.job['_id'], force=True)
+    for key, value in metadata.items():
+        job[key] = value
+    if access_source is not None:
+        Job().copyAccessPolicies(access_source, job)
+    job = Job().save(job)
+    async_result._job = job
+    return job
+
+
 def _check_running_jobs(folder_id_str: str):
     """Find running jobs associated with the given folder"""
     return (
@@ -257,11 +280,15 @@ def postprocess(
                     girder_job_type="private" if job_is_private else "convert",
                 ),
             )
-            newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
-            newjob.job[constants.JOBCONST_DATASET_ID] = str(item["folderId"])
-            newjob.job[constants.JOBCONST_CREATOR] = str(user['_id'])
-            Job().save(newjob.job)
-            created_job_ids.append(newjob.job['_id'])
+            job = _persist_async_job_metadata(
+                newjob,
+                **{
+                    constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
+                    constants.JOBCONST_DATASET_ID: str(item["folderId"]),
+                    constants.JOBCONST_CREATOR: str(user['_id']),
+                },
+            )
+            created_job_ids.append(job['_id'])
             return {'folder': dsFolder, 'job_ids': created_job_ids}
 
         if not isClone:
@@ -285,10 +312,14 @@ def postprocess(
                         girder_job_type="private" if job_is_private else "convert",
                     ),
                 )
-                newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
-                newjob.job[constants.JOBCONST_DATASET_ID] = dsFolder["_id"]
-                Job().save(newjob.job)
-                created_job_ids.append(newjob.job['_id'])
+                job = _persist_async_job_metadata(
+                    newjob,
+                    **{
+                        constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
+                        constants.JOBCONST_DATASET_ID: dsFolder["_id"],
+                    },
+                )
+                created_job_ids.append(job['_id'])
 
             # transcode IMAGERY if necessary
             imageItems = Folder().childItems(
@@ -310,10 +341,14 @@ def postprocess(
                         girder_job_type="private" if job_is_private else "convert",
                     ),
                 )
-                newjob.job[constants.JOBCONST_PRIVATE_QUEUE] = job_is_private
-                newjob.job[constants.JOBCONST_DATASET_ID] = dsFolder["_id"]
-                Job().save(newjob.job)
-                created_job_ids.append(newjob.job['_id'])
+                job = _persist_async_job_metadata(
+                    newjob,
+                    **{
+                        constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
+                        constants.JOBCONST_DATASET_ID: dsFolder["_id"],
+                    },
+                )
+                created_job_ids.append(job['_id'])
 
             elif imageItems.count() > 0:
                 dsFolder["meta"][constants.DatasetMarker] = True

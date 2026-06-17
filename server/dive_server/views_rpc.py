@@ -9,7 +9,6 @@ from girder.models.item import Item
 from girder.models.notification import Notification
 from girder.models.token import Token
 from girder.models.setting import Setting
-from girder_jobs.models.job import Job
 from girder.exceptions import RestException
 
 from dive_tasks.sam_tasks import run_sam2_inference
@@ -370,5 +369,4 @@ class RpcResource(Resource):
                 girder_job_type="SAM2",
             ),
         )
-        Job().save(newjob.job)
-        return newjob.job
+        return crud_rpc._persist_async_job_metadata(newjob)
