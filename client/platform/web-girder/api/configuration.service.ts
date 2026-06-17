@@ -32,9 +32,15 @@ export interface AnnotatorFeatures {
 export interface EnabledFeatures {
   annotator: AnnotatorFeatures;
 }
+
+export interface AssetstoreImportSettings {
+  preventTranscoding?: boolean;
+}
+
 export interface DIVEGirderConfig {
   SAM2Config?: SAM2ClientConfig;
   EnabledFeatures? :EnabledFeatures;
+  AssetstoreImportSettings?: AssetstoreImportSettings;
 }
 
 export type AddOns = [string, string, string, boolean][];

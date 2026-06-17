@@ -52,11 +52,13 @@ export default defineComponent({
     const newModelConfig = ref('');
     const newModelCheckpoint = ref('');
     const sam2MaskTracking = ref(false);
+    const preventAssetstoreTranscoding = ref(false);
     const forceDownload = ref(false);
     const getConfig = async () => {
       const configResp = await getDIVEGirderConfig();
       diveGirderConfig.value = configResp.data;
       sam2MaskTracking.value = configResp.data.EnabledFeatures?.annotator.sam2MaskTracking || false;
+      preventAssetstoreTranscoding.value = configResp.data.AssetstoreImportSettings?.preventTranscoding || false;
       if (configResp.data.SAM2Config) {
         sam2Config.value.celeryQueue = configResp.data.SAM2Config.queues?.[0] || 'celery';
       }
@@ -69,10 +71,14 @@ export default defineComponent({
     };
 
     const saveDIVEConfig = async () => {
-      const data: DIVEGirderConfig = { EnabledFeatures: diveGirderConfig.value.EnabledFeatures };
-      if (sam2MaskTracking.value) {
-        data.EnabledFeatures = { annotator: { sam2MaskTracking: sam2MaskTracking.value } };
-      }
+      const data: DIVEGirderConfig = {
+        EnabledFeatures: {
+          annotator: { sam2MaskTracking: sam2MaskTracking.value },
+        },
+        AssetstoreImportSettings: {
+          preventTranscoding: preventAssetstoreTranscoding.value,
+        },
+      };
       await putDIVEGirderConfig(data);
     };
 
@@ -104,6 +110,7 @@ export default defineComponent({
       sam2Config,
       saveSAM2Config,
       sam2MaskTracking,
+      preventAssetstoreTranscoding,
       newModelKey,
       newModelConfig,
       newModelCheckpoint,
@@ -122,6 +129,20 @@ export default defineComponent({
       <v-card-text>
         <v-row dense>
           <v-switch v-model="sam2MaskTracking" hide-details label="SAM2 Mask Tracking" />
+        </v-row>
+        <v-row dense>
+          <v-switch
+            v-model="preventAssetstoreTranscoding"
+            hide-details
+            label="Prevent Assetstore Import Transcoding"
+          />
+        </v-row>
+        <v-row dense>
+          <span class="text-caption text--secondary">
+            When enabled, assetstore imports will not transcode videos. Compatible h264 mp4 files
+            will still become DIVE datasets. Incompatible videos are marked PreventTranscoding and
+            are not post-processed into datasets.
+          </span>
         </v-row>
       </v-card-text>
       <v-card-actions>

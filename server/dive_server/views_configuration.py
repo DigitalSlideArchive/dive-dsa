@@ -130,5 +130,7 @@ class ConfigurationResource(Resource):
             base_config['SAM2Config'] = data['SAM2Config']
         if data.get('EnabledFeatures', False):
             base_config['EnabledFeatures'] = data['EnabledFeatures']
+        if data.get('AssetstoreImportSettings', False):
+            base_config['AssetstoreImportSettings'] = data['AssetstoreImportSettings']
 
         Setting().set(constants.DIVE_CONFIG, base_config)
