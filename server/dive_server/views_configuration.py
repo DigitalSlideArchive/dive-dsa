@@ -1,12 +1,15 @@
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
+from girder.constants import AccessType
+from girder.exceptions import RestException
+from girder.models.collection import Collection
+from girder.models.folder import Folder
 from girder.models.setting import Setting
 from girder.models.token import Token
 from girder.utility import setting_utilities
-from girder_jobs.models.job import Job
 
-from dive_server import crud
+from dive_server import crud, crud_dataset, crud_rpc
 from dive_tasks.sam_tasks import download_sam_models
 from dive_utils import constants, models
 
@@ -46,6 +49,7 @@ class ConfigurationResource(Resource):
         self.route("PUT", ("sam2_configs",), self.update_sam2_configs)
         self.route("GET", ("dive_config",), self.get_dive_config)
         self.route("PUT", ("dive_config",), self.update_dive_config)
+        self.route("GET", ("dataset_transcode_stats",), self.get_dataset_transcode_stats)
 
     @access.public
     @autoDescribeRoute(Description("Get custom brand data"))
@@ -110,8 +114,7 @@ class ConfigurationResource(Resource):
                 girder_job_type="SAM2",
             ),
         )
-        Job().save(newjob.job)
-        return newjob.job
+        return crud_rpc._persist_async_job_metadata(newjob)
 
     @access.public
     @autoDescribeRoute(Description("Get custom brand data"))
@@ -130,5 +133,59 @@ class ConfigurationResource(Resource):
             base_config['SAM2Config'] = data['SAM2Config']
         if data.get('EnabledFeatures', False):
             base_config['EnabledFeatures'] = data['EnabledFeatures']
+        if data.get('AssetstoreImportSettings', False):
+            base_config['AssetstoreImportSettings'] = data['AssetstoreImportSettings']
 
         Setting().set(constants.DIVE_CONFIG, base_config)
+
+    @access.admin
+    @autoDescribeRoute(
+        Description(
+            "Count DIVE datasets and PreventTranscoding markers within a folder tree or collection"
+        )
+        .param(
+            "resourceId",
+            "Folder or collection ID to search for datasets",
+            dataType="string",
+            required=True,
+        )
+        .param(
+            "resourceType",
+            "Girder resource type: folder or collection",
+            dataType="string",
+            default="folder",
+            required=False,
+        )
+    )
+    def get_dataset_transcode_stats(self, resourceId, resourceType):
+        user = self.getCurrentUser()
+        resource_type = (resourceType or 'folder').strip().lower()
+        if resource_type not in ('folder', 'collection'):
+            raise RestException('resourceType must be folder or collection', code=400)
+
+        if resource_type == 'collection':
+            resource = Collection().load(
+                resourceId,
+                level=AccessType.READ,
+                user=user,
+                force=True,
+            )
+            if resource is None:
+                raise RestException('Collection not found', code=404)
+        else:
+            resource = Folder().load(
+                resourceId,
+                level=AccessType.READ,
+                user=user,
+                force=True,
+            )
+            if resource is None:
+                raise RestException('Folder not found', code=404)
+
+        stats = crud_dataset.get_transcoding_stats(resource, user, root_type=resource_type)
+        return {
+            'resourceId': str(resource['_id']),
+            'resourceName': resource['name'],
+            'resourceType': resource_type,
+            **stats,
+        }

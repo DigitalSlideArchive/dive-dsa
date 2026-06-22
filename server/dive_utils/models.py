@@ -695,9 +695,14 @@ class EnabledFeatures(BaseModel):
     annotator: AnnotatorFeatures
 
 
+class AssetstoreImportSettings(BaseModel):
+    preventTranscoding: Optional[bool] = False
+
+
 class DIVESystemConfig(BaseModel):
     SAM2Config: Optional[SAM2ClientConfig]
     EnabledFeatures: Optional[EnabledFeatures]
+    AssetstoreImportSettings: Optional[AssetstoreImportSettings]
 
 
 # interpolate all features [a, b)
