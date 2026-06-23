@@ -5,6 +5,7 @@ import traceback
 from typing import Dict, List, Union
 
 import cherrypy
+from girder.api.rest import getCurrentToken
 from girder.models.token import Token
 from girder.models.user import User
 from girder_jobs.models.job import Job
@@ -41,7 +42,10 @@ def cliSubHandler(cliItem, params, user, token, datalist=None):
 
     cliTitle = f'DIVE Metadata Task: {cliItem.name}'
     original_params = copy.deepcopy(params)
-    cherrypy.request.headers['Girder-Token'] = token['_id']
+    if hasattr(getCurrentToken, 'set'):
+        getCurrentToken.set(token)
+    if not getCurrentToken():
+        cherrypy.request.headers['Girder-Token'] = token['_id']
 
     container_args = [cliItem.name]
     reference = {
@@ -179,7 +183,14 @@ def create_sub_job(
     dataset_params['girderApiUrl'] = base_params['girderApiUrl']
     name = dive_params.get('DIVEDatasetName', 'Unknown Dataset')
     Token().createToken(user=user)
-    subJob = cliSubHandler(cliItem, dataset_params, user, token)
+    # girder_worker uses cherrypy.request.app to detect a Girder REST context.
+    # Batch scheduling runs in a worker thread, so fake it like slicer_cli_web.
+    _before = cherrypy.request.app
+    cherrypy.request.app = 'fake_context'
+    try:
+        subJob = cliSubHandler(cliItem, dataset_params, user, token)
+    finally:
+        cherrypy.request.app = _before
     baseJob = Job().updateJob(
         baseJob,
         log=f'Running Slicer CLI Task: {cliItem.name} on Dive Data: {name}\n',

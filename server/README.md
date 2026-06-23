@@ -52,6 +52,36 @@ Access the server at <http://localhost:8010>
 
 To work on the Vue client, see development instructions in `../client`.
 
+## PyPI release build
+
+The `dive_server` wheel bundles the DIVE annotator SPA and the Girder plugin web client.
+Build both frontends before creating a release wheel:
+
+```bash
+bash scripts/build_release_assets.sh
+uv build
+```
+
+Publishing is automated via `.github/workflows/release-dive-server.yml` on GitHub
+release (requires [PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/) for this repository).
+
+### Test wheel install in Docker
+
+Build the wheel on the host, then use compose to install it like PyPI and run Girder 5:
+
+```bash
+bash test_deployment/prepare.sh
+docker compose -f test_deployment/docker-compose.yml up --build
+```
+
+- Girder UI: http://localhost:8010/girder (login `admin` / `letmein`)
+- DIVE SPA: http://localhost:8010/dive
+- RabbitMQ management: http://localhost:15672 (guest / guest)
+
+The stack includes RabbitMQ, a `localworker` (Girder `local` queue), and a
+`worker` (DIVE `celery` queue). Both install the same pre-built
+`server/dist/*.whl` as the web container.
+
 ## Unit Testing and Static Checks
 
 Automation is done with [Tox](https://pypi.org/project/tox/) with tox-uv plugin.

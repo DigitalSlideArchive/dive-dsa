@@ -1,20 +1,18 @@
+import logging
 import os
 from pathlib import Path
 
 from girder import events, plugin
 from girder.constants import AccessType
-from girder.models.setting import Setting
 from girder.models.user import User
-from girder.plugin import getPlugin
+from girder.plugin import getPlugin, registerPluginStaticContent
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
-from girder_jobs.models.job import Job
 
 from dive_utils import constants
 
-from .client_webroot import ClientWebroot
 from .crud_annotation import GroupItem, RevisionLogItem, TrackItem
-from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new_user_email
+from .event import send_new_user_email
 from .views_annotation import AnnotationResource
 from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
@@ -42,67 +40,68 @@ class GirderPlugin(plugin.GirderPlugin):
 
         # required because girder doesn't load plugins in order so we need to manually load first.
         getPlugin('jobs').load(info)
-        getPlugin('large_image').load(info)
         # Setup route additions for exsting resources
         info['apiRoot'].job.route("GET", ("queued",), countJobs)
         info["apiRoot"].user.route("PUT", (":id", "use_private_queue"), use_private_queue)
         User().exposeFields(AccessType.READ, constants.UserPrivateQueueEnabledMarker)
 
-        # Expose Job dataset assocation
-        Job().exposeFields(AccessType.READ, constants.JOBCONST_DATASET_ID)
+        # Expose Job dataset association on the registered jobs model singleton.
+        ModelImporter.model('job', 'jobs').exposeFields(
+            AccessType.READ, constants.JOBCONST_DATASET_ID
+        )
 
         DIVE_MAIL_TEMPLATES = Path(os.path.realpath(__file__)).parent / 'mail_templates'
         mail_utils.addTemplateDirectory(str(DIVE_MAIL_TEMPLATES))
 
-        # Relocate Girder
-        girderRoot = info['serverRoot']
-        info['serverRoot'].girder = girderRoot
-        info["serverRoot"].dive = ClientWebroot()
-        info["serverRoot"].api = info["serverRoot"].girder.api
-        info["serverRoot"].dive.api = info["serverRoot"].girder.api
+        core_girder = info['serverRoot'].apps['']
+        core_girder.script_name = '/girder'
+        info['serverRoot'].mount(core_girder, '/girder', core_girder.config)
+        del info['serverRoot'].apps['']
 
-        # info["serverRoot"], info["serverRoot"].girder = (
-        #     ClientWebroot(),
-        #     info["serverRoot"],
-        # )
+        dive_client_dir = Path(__file__).parent / 'dive_client'
+        dive_index = dive_client_dir / 'index.html'
+        if dive_index.is_file():
+            conf = {
+                '/': {
+                    'tools.staticfile.on': True,
+                    'tools.staticfile.filename': str(dive_index),
+                },
+                '/static': {
+                    'tools.staticdir.on': True,
+                    'tools.staticdir.dir': str(dive_client_dir),
+                },
+            }
+            info['serverRoot'].mount(None, '/dive', conf)
+        else:
+            logging.getLogger(__name__).warning(
+                'DIVE annotator SPA is not built at %s; skipping /dive mount. '
+                'Build it with `npm run build:web` in the client directory.',
+                dive_client_dir,
+            )
 
-        diveS3Import = DIVES3Imports()
-        events.bind(
-            "rest.post.assetstore/:id/import.before",
-            "process_s3_import_before",
-            diveS3Import.process_s3_import_before,
-        )
+        plugin_static_dir = Path(__file__).parent / 'web_client' / 'dist'
+        plugin_assets = {
+            'css': ['style.css'],
+            'js': ['girder-plugin-dive.umd.cjs'],
+        }
+        if all((plugin_static_dir / filename).is_file() for filenames in plugin_assets.values() for filename in filenames):
+            registerPluginStaticContent(
+                plugin=self.name,
+                css=[f'/{filename}' for filename in plugin_assets['css']],
+                js=[f'/{filename}' for filename in plugin_assets['js']],
+                staticDir=plugin_static_dir,
+                tree=info['serverRoot'],
+            )
+        else:
+            logging.getLogger(__name__).warning(
+                'DIVE Girder plugin web client is not built at %s; skipping static '
+                'registration. Build it with `npm run build` in '
+                'server/dive_server/web_client or rebuild the web image.',
+                plugin_static_dir,
+            )
 
-        events.bind(
-            "rest.post.assetstore/:id/import.after",
-            "process_s3_import_after",
-            diveS3Import.process_s3_import_after,
-        )
-
-        events.bind(
-            "filesystem_assetstore_imported",
-            "process_fs_import",
-            process_fs_import,
-        )
-        events.bind(
-            "s3_assetstore_imported",
-            "process_s3_import",
-            process_s3_import,
-        )
         events.bind(
             'model.user.save.created',
             'send_new_user_email',
             send_new_user_email,
         )
-
-        plugin.getPlugin('worker').load(info)
-        if not Setting().get('worker.api_url'):
-            Setting().set(
-                'worker.api_url',
-                os.environ.get('WORKER_API_URL', 'http://girder:8080/api/v1'),
-            )
-
-        broker_url = os.environ.get('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq')
-        if broker_url is None:
-            raise RuntimeError('CELERY_BROKER_URL must be set')
-        Setting().set('worker.broker', broker_url)

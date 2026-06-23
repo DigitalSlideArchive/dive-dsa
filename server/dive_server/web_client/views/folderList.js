@@ -1,7 +1,7 @@
 import $ from 'jquery';
 
-import { wrap } from '@girder/core/utilities/PluginUtils';
-import FolderListWidget from '@girder/core/views/widgets/FolderListWidget';
+const  { wrap } = girder.utilities.PluginUtils;
+const FolderListWidget = girder.views.widgets.FolderListWidget;
 
 import '../stylesheets/views/itemList.styl';
 import { convertToDIVEHandler, webrootPath, metadataRootPath } from '../utils/utils';

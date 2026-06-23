@@ -20,7 +20,7 @@ from girder.models.token import Token
 from girder.models.upload import Upload
 from girder.utility import path as path_util
 from girder_jobs.models.job import Job
-from girder_worker.girder_plugin.utils import getWorkerApiUrl
+from girder_plugin_worker.utils import getWorkerApiUrl
 from pandas import pandas as pd
 import pymongo
 
