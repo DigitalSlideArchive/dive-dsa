@@ -16,13 +16,14 @@ from girder_jobs.models.job import Job
 from girder_plugin_worker.utils import getWorkerApiUrl
 
 from dive_tasks.dive_batch_postprocess import DIVEBatchPostprocessTaskParams
-from dive_utils import asbool, fromMeta
+from dive_utils import asbool, fromMeta, prevent_assetstore_transcoding
 from dive_utils.constants import (
     AssetstoreSourceMarker,
     AssetstoreSourcePathMarker,
     DatasetMarker,
     FPSMarker,
     MarkForPostProcess,
+    PreventTranscodingMarker,
     TypeMarker,
     VideoType,
     videoRegex,
@@ -104,15 +105,19 @@ def process_assetstore_import(event, meta: dict):
         root, _ = os.path.split(importPath)
         # if the parent folder is not marked as a DIVE Dataset, Mark it.
         if not asbool(fromMeta(folder, DatasetMarker)):
-            folder["meta"].update(
-                {
-                    TypeMarker: dataset_type,  # Sets to video
-                    FPSMarker: -1,  # auto calculate the FPS from import
-                    AssetstoreSourcePathMarker: root,
-                    MarkForPostProcess: True,  # skip transcode or transcode if required
-                    **meta,
-                }
-            )
+            prevent_transcoding = prevent_assetstore_transcoding()
+            is_compatible_container = item['name'].lower().endswith('.mp4')
+            folder_meta = {
+                TypeMarker: dataset_type,  # Sets to video
+                FPSMarker: -1,  # auto calculate the FPS from import
+                AssetstoreSourcePathMarker: root,
+                **meta,
+            }
+            if prevent_transcoding and not is_compatible_container:
+                folder_meta[PreventTranscodingMarker] = True
+            else:
+                folder_meta[MarkForPostProcess] = True  # skip transcode or transcode if required
+            folder["meta"].update(folder_meta)
             Folder().save(folder)
 
 

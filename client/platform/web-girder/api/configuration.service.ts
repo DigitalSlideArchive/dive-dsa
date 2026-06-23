@@ -32,12 +32,28 @@ export interface AnnotatorFeatures {
 export interface EnabledFeatures {
   annotator: AnnotatorFeatures;
 }
+
+export interface AssetstoreImportSettings {
+  preventTranscoding?: boolean;
+}
+
 export interface DIVEGirderConfig {
   SAM2Config?: SAM2ClientConfig;
   EnabledFeatures? :EnabledFeatures;
+  AssetstoreImportSettings?: AssetstoreImportSettings;
 }
 
 export type AddOns = [string, string, string, boolean][];
+
+export interface DatasetTranscodeStats {
+  resourceId: string;
+  resourceName: string;
+  resourceType: 'folder' | 'collection';
+  datasetCount: number;
+  preventTranscodingCount: number;
+  transcodedCount: number;
+  totalCount: number;
+}
 
 function getBrandData() {
   return girderRest.get<BrandData>('dive_configuration/brand_data');
@@ -68,6 +84,16 @@ function putSAM2Config(sam2Config: SAM2Config, forceDownload = false) {
   });
 }
 
+function getDatasetTranscodeStats(resourceId: string, resourceType: 'folder' | 'collection') {
+  const params = new URLSearchParams({
+    resourceId,
+    resourceType,
+  });
+  return girderRest.get<DatasetTranscodeStats>(
+    `dive_configuration/dataset_transcode_stats?${params.toString()}`,
+  );
+}
+
 export {
   getBrandData,
   putBrandData,
@@ -75,4 +101,5 @@ export {
   putDIVEGirderConfig,
   getSAM2Config,
   putSAM2Config,
+  getDatasetTranscodeStats,
 };

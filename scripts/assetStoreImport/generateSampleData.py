@@ -10,6 +10,7 @@ import datetime
 import random
 import subprocess
 import json
+import sys
 from pathlib import Path
 import click
 from faker import Faker
@@ -21,17 +22,43 @@ FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
 VIDEO_FPS = 30
 
-def create_random_video(file_path: Path, duration: int):
-    """Create a random test video using ffmpeg (MP4 container, H.264 codec)."""
+COMPATIBLE_PROFILE = {
+    "codec": "libx264",
+    "ext": ".mp4",
+    "extra_args": ["-pix_fmt", "yuv420p"],
+    "label": "libx264/mp4",
+}
+
+INCOMPATIBLE_PROFILES = [
+    {"codec": "mpeg4", "ext": ".avi", "extra_args": [], "label": "mpeg4/avi"},
+    {"codec": "mpeg2video", "ext": ".mpg", "extra_args": [], "label": "mpeg2/mpeg"},
+    {"codec": "mjpeg", "ext": ".avi", "extra_args": ["-q:v", "5"], "label": "mjpeg/avi"},
+    {"codec": "libx264", "ext": ".avi", "extra_args": ["-pix_fmt", "yuv420p"], "label": "libx264/avi"},
+    {"codec": "mpeg4", "ext": ".mov", "extra_args": [], "label": "mpeg4/mov"},
+]
+
+
+def pick_video_profile(mixed_codecs: bool, compatible_ratio: float) -> dict:
+    """Pick a video encoding profile for sample data generation."""
+    if not mixed_codecs or random.random() < compatible_ratio:
+        return COMPATIBLE_PROFILE
+    return random.choice(INCOMPATIBLE_PROFILES)
+
+
+def create_random_video(file_path: Path, duration: int, profile: dict = None) -> Path:
+    """Create a random test video using ffmpeg."""
+    profile = profile or COMPATIBLE_PROFILE
+    output_path = file_path.with_suffix(profile["ext"])
     cmd = [
         "ffmpeg", "-y",
-        "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
+        "-f", "lavfi", "-i", f"testsrc=size={FRAME_WIDTH}x{FRAME_HEIGHT}:rate={VIDEO_FPS}",
         "-t", str(duration),
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        str(file_path)
+        "-c:v", profile["codec"],
+        *profile.get("extra_args", []),
+        str(output_path),
     ]
     subprocess.run(cmd, check=True)
+    return output_path
 
 def extract_frames_from_video(video_path: Path, image_dir: Path):
     """Extract frames from a video and save as sequential JPG files."""
@@ -267,7 +294,14 @@ def write_annotations(
     else:
         generate_annotation_json(tracks, output_file)
 
-def create_video_content(base_dir: Path, max_videos: int, counter: dict, total: int):
+def create_video_content(
+    base_dir: Path,
+    max_videos: int,
+    counter: dict,
+    total: int,
+    mixed_codecs: bool = False,
+    compatible_ratio: float = 0.5,
+):
     """Create videos and associated JSON or VIAME CSV annotations."""
     if counter['count'] >= total:
         return
@@ -276,10 +310,12 @@ def create_video_content(base_dir: Path, max_videos: int, counter: dict, total: 
         if counter['count'] >= total:
             break
         duration = random.randint(5, 30)
-        name = fake.word() + ".mp4"
-        video_path = base_dir / name
-        create_random_video(video_path, duration)
+        profile = pick_video_profile(mixed_codecs, compatible_ratio)
+        name = fake.word() + profile["ext"]
+        video_path = create_random_video(base_dir / name, duration, profile)
         counter['count'] += 1
+        if mixed_codecs:
+            click.echo(f"  Created {video_path.name} ({profile['label']})")
 
         use_viame_csv = random.choice([True, False])
         ext = ".csv" if use_viame_csv else ".json"
@@ -313,15 +349,26 @@ def create_image_sequence_content(base_dir: Path, counter: dict, total: int):
         frame_filenames=frame_filenames if use_viame_csv else None,
     )
 
-def create_folder_structure(base_dir: Path, depth: int, max_depth: int,
-                            max_videos: int, counter: dict, total: int):
+def create_folder_structure(
+    base_dir: Path,
+    depth: int,
+    max_depth: int,
+    max_videos: int,
+    counter: dict,
+    total: int,
+    mixed_codecs: bool = False,
+    compatible_ratio: float = 0.5,
+    videos_only: bool = True,
+):
     """Recursively create folders with either videos or image sequences."""
     if counter['count'] >= total:
         return
 
-    content_type = random.choice(["video", "images"])
+    content_type = "video" if videos_only else random.choice(["video", "images"])
     if content_type == "video":
-        create_video_content(base_dir, max_videos, counter, total)
+        create_video_content(
+            base_dir, max_videos, counter, total, mixed_codecs, compatible_ratio
+        )
     else:
         create_image_sequence_content(base_dir, counter, total)
 
@@ -335,13 +382,43 @@ def create_folder_structure(base_dir: Path, depth: int, max_depth: int,
         subfolder = base_dir / fake.word()
         subfolder.mkdir(parents=True, exist_ok=True)
         if depth < max_depth:
-            create_folder_structure(subfolder, depth+1, max_depth, max_videos, counter, total)
+            create_folder_structure(
+                subfolder,
+                depth + 1,
+                max_depth,
+                max_videos,
+                counter,
+                total,
+                mixed_codecs,
+                compatible_ratio,
+                videos_only,
+            )
         else:
-            leaf_type = random.choice(["video", "images"])
+            leaf_type = "video" if videos_only else random.choice(["video", "images"])
             if leaf_type == "video":
-                create_video_content(subfolder, max_videos, counter, total)
+                create_video_content(
+                    subfolder, max_videos, counter, total, mixed_codecs, compatible_ratio
+                )
             else:
                 create_image_sequence_content(subfolder, counter, total)
+
+DEFAULT_MIXED_CODEC_RATIO = 0.7
+
+
+def _normalize_mixed_codecs_argv(argv: list) -> list:
+    """Expand bare --mixed-codecs to --mixed-codecs 0.7 for Click 8.x compatibility."""
+    normalized = []
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        normalized.append(arg)
+        if arg == '--mixed-codecs':
+            next_arg = argv[index + 1] if index + 1 < len(argv) else None
+            if next_arg is None or next_arg.startswith('-'):
+                normalized.append(str(DEFAULT_MIXED_CODEC_RATIO))
+        index += 1
+    return normalized
+
 
 @click.command()
 @click.option('--output', '-o', default='./sample', show_default=True,
@@ -353,21 +430,54 @@ def create_folder_structure(base_dir: Path, depth: int, max_depth: int,
 @click.option('--videos', '-v', default=2, show_default=True,
               help="Maximum videos per folder")
 @click.option('--total', '-t', default=10, show_default=True,
-              help="Total number of datasets (videos or image sequences)")
-def main(output, folders, max_depth, videos, total):
+              help="Total number of datasets (videos by default)")
+@click.option(
+    '--videos-only/--with-images',
+    default=True,
+    show_default=True,
+    help="Generate only videos (default) or also include random image sequences",
+)
+@click.option(
+    '--mixed-codecs',
+    default=None,
+    type=click.FloatRange(0.0, 1.0),
+    metavar='RATIO',
+    help="Generate a mix of compatible (libx264/mp4) and incompatible videos. "
+         f"Optionally pass the fraction of libx264/mp4 videos (default: {DEFAULT_MIXED_CODEC_RATIO}).",
+)
+def main(output, folders, max_depth, videos, total, videos_only, mixed_codecs):
     base_path = Path(output)
     base_path.mkdir(parents=True, exist_ok=True)
 
+    mixed_codecs_enabled = mixed_codecs is not None
+    compatible_ratio = mixed_codecs if mixed_codecs_enabled else 1.0
+
     counter = {'count': 0}
     click.echo(f"Generating up to {total} datasets in {base_path}...")
+    if mixed_codecs_enabled:
+        click.echo(
+            f"Mixed codecs enabled: {compatible_ratio:.0%} libx264/mp4, "
+            f"{1 - compatible_ratio:.0%} other encodings/containers"
+        )
     for _ in range(folders):
         if counter['count'] >= total:
             break
         folder_path = base_path / fake.word()
         folder_path.mkdir(parents=True, exist_ok=True)
-        create_folder_structure(folder_path, 1, max_depth, videos, counter, total)
+        create_folder_structure(
+            folder_path,
+            1,
+            max_depth,
+            videos,
+            counter,
+            total,
+            mixed_codecs_enabled,
+            compatible_ratio,
+            videos_only,
+        )
 
     click.echo(f"Done! Created {counter['count']} datasets.")
 
 if __name__ == '__main__':
+    sys.argv = _normalize_mixed_codecs_argv(sys.argv)
     main()
