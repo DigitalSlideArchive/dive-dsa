@@ -8,7 +8,7 @@
 FROM node:20 AS girder-client-builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
-ARG GIRDER_VERSION=v5.0.10
+ARG GIRDER_VERSION=v5.0.12
 RUN git clone --depth 1 --branch "${GIRDER_VERSION}" https://github.com/girder/girder.git
 RUN cd girder/girder/web && npm install --include=optional && npx vite build --base=/girder/
 
@@ -32,7 +32,7 @@ RUN uv venv "${VIRTUAL_ENV}"
 
 # Wheel must be built on the host before `docker compose build`.
 COPY server/dist/dive_server-*.whl /tmp/wheels/
-RUN uv pip install "girder==5.0.10" /tmp/wheels/dive_server-*.whl && rm -rf /tmp/wheels
+RUN uv pip install "girder==5.0.12" /tmp/wheels/dive_server-*.whl && rm -rf /tmp/wheels
 
 RUN python - <<'PY'
 from pathlib import Path
