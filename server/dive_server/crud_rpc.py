@@ -326,7 +326,9 @@ def postprocess(
                     newjob,
                     **{
                         constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
-                        constants.JOBCONST_DATASET_ID: dsFolder["_id"],
+                        # Always persist as str so client Jobs store + running-job
+                        # lookups match folder ids from the browser.
+                        constants.JOBCONST_DATASET_ID: str(dsFolder["_id"]),
                     },
                 )
                 _notify_job_status(job, user)
@@ -356,7 +358,7 @@ def postprocess(
                     newjob,
                     **{
                         constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
-                        constants.JOBCONST_DATASET_ID: dsFolder["_id"],
+                        constants.JOBCONST_DATASET_ID: str(dsFolder["_id"]),
                     },
                 )
                 _notify_job_status(job, user)
