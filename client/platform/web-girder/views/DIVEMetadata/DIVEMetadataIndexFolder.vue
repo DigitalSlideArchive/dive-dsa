@@ -6,7 +6,7 @@ import { GirderFileManager, GirderModelType } from '@girder/components/src';
 import useRequest from 'dive-common/use/useRequest';
 import { RootlessLocationType } from 'platform/web-girder/store/types';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
-import { indexDiveMetadataFromFolder } from 'platform/web-girder/api/divemetadata.service';
+import { indexDiveMetadataFromFolderAndWait } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 
 export default defineComponent({
@@ -56,7 +56,7 @@ export default defineComponent({
       if (!locationIsFolder.value) {
         throw new Error('Choose a folder to index');
       }
-      const { data } = await indexDiveMetadataFromFolder(
+      const data = await indexDiveMetadataFromFolderAndWait(
         props.metadataRoot,
         location.value._id,
         replaceMetadata.value,

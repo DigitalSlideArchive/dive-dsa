@@ -9,8 +9,8 @@ import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { getFolder } from 'platform/web-girder/api';
 import { useRouter } from 'vue-router/composables';
 import {
-  createDiveMetadataFolder,
-  createDiveMetadataRecursive,
+  createDiveMetadataFolderAndWait,
+  createDiveMetadataRecursiveAndWait,
 } from 'platform/web-girder/api/divemetadata.service';
 import eventBus from '../eventBus';
 import type { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
@@ -105,14 +105,14 @@ export default defineComponent({
         throw new Error('no source resource');
       }
       if (useRecursiveApi.value) {
-        const result = await createDiveMetadataRecursive(
+        const result = await createDiveMetadataRecursiveAndWait(
           props.datasetId,
           isCollection.value ? 'collection' : 'folder',
           effectiveScope.value,
           newName.value,
           categoricalLimit.value,
         );
-        const { created, existing, errors } = result.data;
+        const { created, existing, errors } = result;
         const hasWork = created.length > 0
           || existing.some((entry) => entry.metadataFolderId);
         if (!hasWork) {
@@ -135,13 +135,13 @@ export default defineComponent({
       if (!locationIsFolder.value) {
         throw new Error('Choose a destination folder');
       }
-      const newDataset = await createDiveMetadataFolder(
+      const newDataset = await createDiveMetadataFolderAndWait(
         location.value._id,
         newName.value,
         props.datasetId,
         categoricalLimit.value,
       );
-      router.push({ name: 'metadata', params: { id: newDataset.data.folderId } });
+      router.push({ name: 'metadata', params: { id: newDataset.folderId } });
       open.value = false;
     });
 

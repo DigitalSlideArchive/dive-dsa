@@ -195,9 +195,10 @@ export interface createDiveMetadataResponse {
   'results': string,
   'errors': string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  'metadataKeys': any[];
+  'metadataKeys': any;
   'folderId': string;
   existing?: number;
+  added?: number;
 }
 
 export interface CreateDiveMetadataRecursiveEntry {
@@ -221,10 +222,54 @@ export interface createDiveMetadataRecursiveResponse {
 export interface IndexDiveMetadataFolderResponse {
   results: string;
   metadataFolderId: string;
+  folderId?: string;
   rootFolderId: string;
   added: number;
   existing: number;
   datasetCount: number;
+}
+
+/** Girder job returned immediately by metadata ingest endpoints. */
+export interface DiveMetadataIngestJob {
+  _id: string;
+  title?: string;
+  type?: string;
+  status: number;
+  log?: string;
+  progress?: { current: number; total: number };
+  meta?: {
+    diveMetadataIngestResult?: Record<string, unknown>;
+  };
+}
+
+const TERMINAL_JOB_STATUSES = new Set([
+  // Girder JobStatus: SUCCESS=3, ERROR=4, CANCELED=5 (numeric values from @girder/components)
+  3, 4, 5,
+]);
+
+async function waitForMetadataIngestJob(
+  jobId: string,
+  options?: {
+    intervalMs?: number;
+    onProgress?: (job: DiveMetadataIngestJob) => void;
+  },
+): Promise<Record<string, unknown>> {
+  const intervalMs = options?.intervalMs ?? 2000;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data: job } = await girderRest.get<DiveMetadataIngestJob>(`job/${jobId}`);
+    options?.onProgress?.(job);
+    if (TERMINAL_JOB_STATUSES.has(job.status)) {
+      if (job.status !== 3) {
+        const logTail = (job.log || '').trim().split('\n').slice(-5).join('\n');
+        throw new Error(
+          logTail || `Metadata job ${jobId} failed (status=${job.status})`,
+        );
+      }
+      return (job.meta?.diveMetadataIngestResult || {}) as Record<string, unknown>;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
 }
 
 function createDiveMetadataFolder(
@@ -239,7 +284,7 @@ function createDiveMetadataFolder(
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
-  return girderRest.post<createDiveMetadataResponse>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
+  return girderRest.post<DiveMetadataIngestJob>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
     params: {
       name,
       rootFolderId,
@@ -248,6 +293,14 @@ function createDiveMetadataFolder(
       ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
   });
+}
+
+async function createDiveMetadataFolderAndWait(
+  ...args: Parameters<typeof createDiveMetadataFolder>
+): Promise<createDiveMetadataResponse> {
+  const { data: job } = await createDiveMetadataFolder(...args);
+  const result = await waitForMetadataIngestJob(job._id);
+  return result as unknown as createDiveMetadataResponse;
 }
 
 function createDiveMetadataRecursive(
@@ -264,7 +317,7 @@ function createDiveMetadataRecursive(
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
-  return girderRest.post<createDiveMetadataRecursiveResponse>('dive_metadata/create_metadata_recursive', null, {
+  return girderRest.post<DiveMetadataIngestJob>('dive_metadata/create_metadata_recursive', null, {
     params: {
       resourceId,
       resourceType,
@@ -278,6 +331,14 @@ function createDiveMetadataRecursive(
   });
 }
 
+async function createDiveMetadataRecursiveAndWait(
+  ...args: Parameters<typeof createDiveMetadataRecursive>
+): Promise<createDiveMetadataRecursiveResponse> {
+  const { data: job } = await createDiveMetadataRecursive(...args);
+  const result = await waitForMetadataIngestJob(job._id);
+  return result as unknown as createDiveMetadataRecursiveResponse;
+}
+
 function indexDiveMetadataFromFolder(
   metadataFolderId: string,
   rootFolderId: string,
@@ -286,7 +347,7 @@ function indexDiveMetadataFromFolder(
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
-  return girderRest.post<IndexDiveMetadataFolderResponse>(
+  return girderRest.post<DiveMetadataIngestJob>(
     `dive_metadata/${metadataFolderId}/index_folder`,
     null,
     {
@@ -297,6 +358,14 @@ function indexDiveMetadataFromFolder(
       },
     },
   );
+}
+
+async function indexDiveMetadataFromFolderAndWait(
+  ...args: Parameters<typeof indexDiveMetadataFromFolder>
+): Promise<IndexDiveMetadataFolderResponse> {
+  const { data: job } = await indexDiveMetadataFromFolder(...args);
+  const result = await waitForMetadataIngestJob(job._id);
+  return result as unknown as IndexDiveMetadataFolderResponse;
 }
 
 function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, unlocked: boolean) {
@@ -463,7 +532,11 @@ async function putDiveMetadataLastModified(folderId:string, rootId: string) {
 }
 
 async function processImportedFile(rootId:string, replace = false) {
-  return girderRest.post(`dive_metadata/bulk_update_file/${rootId}`, null, { params: { replace } });
+  return girderRest.post<DiveMetadataIngestJob>(
+    `dive_metadata/bulk_update_file/${rootId}`,
+    null,
+    { params: { replace } },
+  );
 }
 
 interface HTMLFile extends File {
@@ -492,8 +565,9 @@ async function importMetadataFile(parentId: string, path: string, file?: HTMLFil
       headers: { 'Content-Type': 'application/octet-stream' },
     });
     if (uploadResponse.status === 200) {
-      const final = await processImportedFile(parentId, replace);
-      return final.status === 200;
+      const { data: job } = await processImportedFile(parentId, replace);
+      await waitForMetadataIngestJob(job._id);
+      return true;
     }
   }
   return false;
@@ -505,8 +579,12 @@ export {
   getDiveDatasetMetadataRow,
   createDiveMetadataClone,
   createDiveMetadataFolder,
+  createDiveMetadataFolderAndWait,
   createDiveMetadataRecursive,
+  createDiveMetadataRecursiveAndWait,
   indexDiveMetadataFromFolder,
+  indexDiveMetadataFromFolderAndWait,
+  waitForMetadataIngestJob,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
   updateDiveMetadataKeyDescription,
