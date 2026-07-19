@@ -65,22 +65,26 @@ uv build
 Publishing is automated via `.github/workflows/release-dive-server.yml` on GitHub
 release (requires [PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/) for this repository).
 
-### Test wheel install in Docker
+### Test wheel install in Docker (Girder 5 package path)
 
-Build the wheel on the host, then use compose to install it like PyPI and run Girder 5:
+The `test_deployment/` stack installs **Girder from PyPI** and **DIVE from a
+wheel** (SPA + plugin UI bundled into the package), matching Girder 5's
+Python-package install model. The wheel is built inside Docker — no host
+`npm`/`uv build` required:
 
 ```bash
-bash test_deployment/prepare.sh
 docker compose -f test_deployment/docker-compose.yml up --build
 ```
+
+See `test_deployment/README.md` for SPA placement details and optional host
+wheel builds (`bash test_deployment/prepare.sh`).
 
 - Girder UI: http://localhost:8010/girder (login `admin` / `letmein`)
 - DIVE SPA: http://localhost:8010/dive
 - RabbitMQ management: http://localhost:15672 (guest / guest)
 
 The stack includes RabbitMQ, a `localworker` (Girder `local` queue), and a
-`worker` (DIVE `celery` queue). Both install the same pre-built
-`server/dist/*.whl` as the web container.
+`worker` (DIVE `celery` queue).
 
 ## Unit Testing and Static Checks
 

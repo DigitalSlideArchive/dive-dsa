@@ -9,6 +9,8 @@ testutils/
 docs/
 *.md
 README*
+!server/README.md
+!test_deployment/README.md
 
 # Development files
 .vscode/
@@ -89,10 +91,13 @@ Thumbs.db
 /tmp/
 /var/tmp/
 
-# Docker
+# Docker (compose/Dockerfiles are read from the host; keep entrypoints in context)
 Dockerfile*
+!test_deployment/Dockerfile
 docker-compose*.yml
+!test_deployment/docker-compose.yml
 .dockerignore
+!test_deployment/entrypoint_*.sh
 
 # CI/CD
 .github/
