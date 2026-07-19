@@ -1,7 +1,9 @@
 # Girder 5 package-install test stack
 
-This compose file validates the **Python package** install path used by Girder 5
-and DIVE (not the main source-bind development stack in the repo root).
+These compose files validate the **Python package** install path used by Girder 5
+and DIVE (not the main source-bind development stack in the repo root). Use the
+local-wheel stack to exercise a checkout build, or the PyPI stack to exercise a
+published release install.
 
 ## Upstream Girder docs (SPA / web client)
 
@@ -15,11 +17,28 @@ DIVE follows those patterns: the annotator SPA is an additional mount at `/dive`
 
 ## What gets installed
 
+There are two compose files:
+
+| Stack | Compose file | `dive-dsa` source |
+|-------|--------------|-------------------|
+| Local wheel | `docker-compose.yml` | Built from this checkout inside Docker |
+| Published PyPI | `docker-compose.pypi.yml` | `uv pip install dive-dsa==…` from PyPI |
+
+### Local wheel (`docker-compose.yml`)
+
 | Package | How |
 |---------|-----|
 | `girder==5.0.12` | `pip` / `uv pip` from PyPI |
 | `dive-dsa` (imports `dive_server` / `dive_tasks`) | Wheel built in Docker with frontends embedded |
 | Girder core web UI | Built from `girder/girder` at tag `v5.0.12` with `npx vite build --base=/girder/`, then `GIRDER_STATIC_ROOT_DIR` |
+
+### Published PyPI (`docker-compose.pypi.yml`)
+
+| Package | How |
+|---------|-----|
+| `girder==5.0.12` | `uv pip` from PyPI |
+| `dive-dsa==0.0.1` (override with build-arg) | `uv pip` from PyPI (SPA + plugin UI already in the wheel) |
+| Girder core web UI | Same git-tag Vite build as above (not on PyPI) |
 
 ## Where the DIVE SPA lives in the package
 
@@ -35,6 +54,8 @@ Hatch includes these paths in the wheel (`server/pyproject.toml`). At runtime,
 
 ## Run
 
+### Local wheel (build `dive-dsa` from this repo)
+
 ```bash
 docker compose -f test_deployment/docker-compose.yml up --build
 ```
@@ -42,6 +63,25 @@ docker compose -f test_deployment/docker-compose.yml up --build
 - Girder UI: http://localhost:8010/girder (login `admin` / `letmein`)
 - DIVE SPA: http://localhost:8010/dive
 - RabbitMQ management: http://localhost:15672 (`guest` / `guest`)
+
+### Published PyPI (install `girder` + `dive-dsa` from PyPI)
+
+```bash
+docker compose -f test_deployment/docker-compose.pypi.yml up --build
+```
+
+- Girder UI: http://localhost:8011/girder (login `admin` / `letmein`)
+- DIVE SPA: http://localhost:8011/dive
+- RabbitMQ management: http://localhost:15673 (`guest` / `guest`)
+
+Pin a different published version:
+
+```bash
+docker compose -f test_deployment/docker-compose.pypi.yml build \
+  --build-arg DIVE_DSA_VERSION=0.0.1 \
+  --build-arg PYTHON_GIRDER=5.0.12 \
+  --build-arg GIRDER_VERSION=v5.0.12
+```
 
 ## Optional: build the wheel on the host
 
@@ -55,5 +95,6 @@ bash server/scripts/build_wheel.sh --publish   # needs UV_PUBLISH_TOKEN
 ```
 
 See `server/README.md` (PyPI release build) for full CLI and GitHub Actions
-instructions. The compose file above still builds the wheel inside Docker; host
+instructions. `docker-compose.yml` still builds the wheel inside Docker; host
 wheels are for local inspection, publish, or CI artifact checks.
+`docker-compose.pypi.yml` installs a published wheel from PyPI instead.

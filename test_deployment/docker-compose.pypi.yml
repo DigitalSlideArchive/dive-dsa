@@ -1,18 +1,19 @@
-# Girder 5 package-install smoke test.
+# Girder 5 + DIVE from published PyPI packages (release install smoke test).
 #
-# Installs Girder from PyPI and DIVE from a wheel built inside Docker
-# (SPA + plugin UI bundled into dive_server). No host npm/uv build required.
+#   docker compose -f test_deployment/docker-compose.pypi.yml up --build
 #
-#   docker compose -f test_deployment/docker-compose.yml up --build
+# Uses different host ports / volume names than docker-compose.yml so both
+# stacks can run side by side.
 #
-#   http://localhost:8010/girder   (admin / letmein)
-#   http://localhost:8010/dive
-#   http://localhost:15672         (RabbitMQ, guest / guest)
+#   http://localhost:8011/girder   (admin / letmein)
+#   http://localhost:8011/dive
+#   http://localhost:15673         (RabbitMQ, guest / guest)
 #
-# Optional host wheel path (faster iteration): bash test_deployment/prepare.sh
-# then use the legacy Dockerfiles — see README.md.
+# Override pins at build time, e.g.:
+#   docker compose -f test_deployment/docker-compose.pypi.yml build \
+#     --build-arg DIVE_DSA_VERSION=0.0.1 --build-arg PYTHON_GIRDER=5.0.12
 
-name: dive-dsa-package-wheel
+name: dive-dsa-package-pypi
 
 x-broker-env: &broker-env
   GIRDER_WORKER_BROKER: amqp://guest:guest@rabbit/default
@@ -24,8 +25,8 @@ services:
   rabbit:
     image: rabbitmq:4.2-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5673:5672"
+      - "15673:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -35,7 +36,7 @@ services:
   mongo:
     image: mongo:5.0
     volumes:
-      - package_test_mongo:/data/db
+      - pypi_test_mongo:/data/db
 
   redis:
     image: redis:7-alpine
@@ -44,35 +45,33 @@ services:
   girder:
     build:
       context: ..
-      dockerfile: test_deployment/Dockerfile
+      dockerfile: test_deployment/Dockerfile.pypi
       target: girder
       args:
         GIRDER_VERSION: v5.0.12
         PYTHON_GIRDER: "5.0.12"
-    image: dive-dsa-girder5-package:local
+        DIVE_DSA_VERSION: "0.0.1"
+    image: dive-dsa-girder5-pypi:local
     init: true
     ports:
       - "8010:8080"
     volumes:
-      - package_test_assetstore:/home/assetstore
+      - pypi_test_assetstore:/home/assetstore
     depends_on:
       - mongo
       - redis
       - rabbit
     environment:
       <<: *broker-env
-      # Shared WebSocket notification pool; raise above default 100 under reconnect load.
       GIRDER_NOTIFICATION_REDIS_URL: redis://redis:6379?max_connections=512
       GIRDER_ADMIN_USER: admin
       GIRDER_ADMIN_PASS: letmein
       GIRDER_SETTING_WORKER_API_URL: http://girder:8080/api/v1
-      # Girder 5 core UI built with --base=/girder/ (see Dockerfile girder-web stage)
       GIRDER_STATIC_ROOT_DIR: /opt/dive/clients/girder
-      CORS_ALLOWED_ORIGINS: http://localhost:8010
+      CORS_ALLOWED_ORIGINS: http://localhost:8011
 
-  # Girder 5 "local" queue (assetstore import follow-up, metadata ingest, etc.)
   localworker:
-    image: dive-dsa-girder5-package:local
+    image: dive-dsa-girder5-pypi:local
     init: true
     entrypoint:
       - celery
@@ -92,13 +91,14 @@ services:
       <<: *broker-env
       C_FORCE_ROOT: "1"
 
-  # DIVE celery worker (pipelines, transcoding, etc.)
   worker:
     build:
       context: ..
-      dockerfile: test_deployment/Dockerfile
+      dockerfile: test_deployment/Dockerfile.pypi
       target: worker
-    image: dive-dsa-girder5-package-worker:local
+      args:
+        DIVE_DSA_VERSION: "0.0.1"
+    image: dive-dsa-girder5-pypi-worker:local
     init: true
     depends_on:
       - girder
@@ -110,5 +110,5 @@ services:
       WORKER_CONCURRENCY: "2"
 
 volumes:
-  package_test_mongo:
-  package_test_assetstore:
+  pypi_test_mongo:
+  pypi_test_assetstore:
