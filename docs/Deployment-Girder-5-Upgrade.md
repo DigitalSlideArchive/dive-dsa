@@ -69,7 +69,9 @@ On container start, the entrypoint also restores the image-built plugin dist fro
 
 ## Development-only: `localworker`
 
-When using `docker-compose.override.yml`, a **`localworker`** service runs Celery on the `local` queue for assetstore import follow-up tasks. This service is for local development and assetstore import post-processing.
+When using `docker-compose.override.yml`, a **`localworker`** service runs Celery on the `local` queue for assetstore import follow-up tasks and metadata ingest. This service is for local development and assetstore import post-processing.
+
+Metadata ingest loads NDJSON/JSON/CSV over HTTP via `GirderClient` (same pattern as batch postprocess), so it does not require a filesystem assetstore mount on the worker.
 
 ## Python dependencies
 

@@ -65,6 +65,11 @@ A new collection of URL endpoints under `dive_metadata` allows for importing and
 
 ### Creating metadata from folders or collections
 
+These endpoints enqueue work on the Celery **`local`** queue and return a Girder
+**job** document immediately. Poll `GET /job/{id}` until status is SUCCESS /
+ERROR / CANCELED. When finished successfully, a compact summary is stored at
+`job.meta.diveMetadataIngestResult` (folder IDs, added counts, error samples).
+
 **POST** `/dive_metadata/create_metadata_folder/{parentFolderId}`
 
 Creates a DIVE metadata folder under `parentFolderId` and indexes datasets under `rootFolderId`. If a metadata folder already exists under the parent, it is reused. Existing per-dataset metadata rows are not overwritten.
@@ -88,7 +93,7 @@ Existing metadata folders are reused; only missing datasets are indexed. Folders
 
 **POST** `/dive_metadata/{metadataFolderId}/index_folder`
 
-Indexes DIVE datasets from a Girder folder into an **existing** DIVE metadata folder (the metadata search UI exposes this as **Add folder**).
+Indexes DIVE datasets from a Girder folder into an **existing** DIVE metadata folder (the metadata search UI exposes this as **Add folder**). Returns a Girder job immediately (same polling contract as create endpoints).
 
 | Parameter | Description |
 |-----------|-------------|
@@ -103,6 +108,8 @@ Only datasets not yet in the metadata root are added by default. Use this after 
 **POST** `/dive_metadata/process_metadata/{id}`
 
 Requires a folder ID that serves as the parent location for DIVE Datasets.
+Returns a Girder job immediately; heavy NDJSON/JSON matching runs on the
+`local` worker. Results are in `job.meta.diveMetadataIngestResult`.
 
 #### Parameters
 
@@ -284,7 +291,11 @@ Content-Type: application/json
 
 ## Bulk Updating DIVE Metadata
 
-There are two endpoitns that can be used to bulk update DIVE Metadata.  One is a direct Endpoint that takes in JSON data:
+There are two endpoints that can be used to bulk update DIVE Metadata. Both
+enqueue a Girder job on the `local` queue and return the job immediately.
+Poll `GET /job/{id}`; on SUCCESS see `job.meta.diveMetadataIngestResult`.
+
+One is a direct Endpoint that takes in JSON data:
 
 **POST** `/dive_metadata/bulk_update_metadata/{rootId}`
 
@@ -294,6 +305,9 @@ There are two endpoitns that can be used to bulk update DIVE Metadata.  One is a
 |-----------|------|-------------|
 | `rootId` | Path Parameter | The root metadata folder ID. |
 | `updates` | Body Parameter | An array of metadata key/value pairs to update |
+
+The request thread persists the body as a temporary item under the metadata
+root, then the worker loads and deletes that item while applying updates.
 
 This system requires that either `DIVEDataset` or `Filename` be in each object to match up the correct Metadata Item.  Additionally if there are multiple `Filename` matches within the dataset it requires that `DIVE_Path` also be included in upload.  It will attempt to use `DIVEDataset` first followed by `Filename` and `DIVE_Path`.
 This creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
@@ -353,7 +367,9 @@ In addition to the Direct POSTing of JSON metadata there is another endpoint tha
 
 **POST** `/dive_metadata/bulk_update_file/{rootId}`
 
-Once a file is uploaded to the DIVEMetadata Root Folder hitting this endpoint will process this file to update the metadata.
+Once a file is uploaded to the DIVEMetadata Root Folder hitting this endpoint
+enqueues a job that processes the oldest JSON/NDJSON/CSV item in the folder
+(the item is removed after the worker loads it).
 Similar to the JSON format this file can be either JSON, NDJSON or CSV.  With CSV it requires columns that have `DIVEDataset`, `Filename`, `DIVE_Path` if required.
 Similar to the POST endpoint with JSON this creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
 
