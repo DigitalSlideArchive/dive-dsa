@@ -637,6 +637,7 @@ def _populate_dive_metadata_folder(
     ffprobe_metadata,
     categorical_limit,
     replace_metadata=False,
+    job=None,
 ):
     """
     Index datasets under ``root_folder`` into ``base_folder``.
@@ -650,23 +651,45 @@ def _populate_dive_metadata_folder(
     existing_count = 0
     metadata_keys = {}
     root_id = str(base_folder['_id'])
-    for item in dataset_list:
+    total = len(dataset_list)
+    last_pct = -1
+    _ingest_job_progress(
+        job,
+        0,
+        max(total, 1),
+        log=(
+            f'Indexing {total} datasets from "{root_folder.get("name", root_id)}" '
+            f'into metadata folder "{base_folder.get("name", root_id)}"\n'
+        ),
+    )
+    for i, item in enumerate(dataset_list):
         data = _build_default_dataset_metadata_row(item, user, ffprobe_metadata)
         existing_row = DIVE_Metadata().findOne(
             {'DIVEDataset': str(item['_id']), 'root': root_id}
         )
         if existing_row and not replace_metadata:
             existing_count += 1
-            continue
-        DIVE_Metadata().createMetadata(
-            item,
-            base_folder,
-            user,
-            data,
-            replace=replace_metadata or existing_row is None,
+        else:
+            DIVE_Metadata().createMetadata(
+                item,
+                base_folder,
+                user,
+                data,
+                replace=replace_metadata or existing_row is None,
+            )
+            added += 1
+            _accumulate_flat_metadata_key_stats(metadata_keys, data)
+        current = i + 1
+        last_pct = _maybe_ingest_percent_progress(
+            job,
+            current,
+            total,
+            last_pct,
+            message=lambda pct, cur, tot: (
+                f'Progress {pct}% ({cur}/{tot} datasets): '
+                f'added={added}, skipped_existing={existing_count}'
+            ),
         )
-        added += 1
-        _accumulate_flat_metadata_key_stats(metadata_keys, data)
 
     keys_doc = DIVE_MetadataKeys().findOne({'root': root_id})
     if replace_metadata or keys_doc is None:
@@ -682,6 +705,16 @@ def _populate_dive_metadata_folder(
 
     if not _is_dive_metadata_folder(base_folder):
         _apply_dive_metadata_folder_marker(base_folder, display_config, categorical_limit)
+
+    _ingest_job_progress(
+        job,
+        max(total, 1),
+        max(total, 1),
+        log=(
+            f'Finished indexing: {total} datasets scanned, '
+            f'added={added}, skipped_existing={existing_count}\n'
+        ),
+    )
 
     return {
         'added': added,
@@ -728,7 +761,7 @@ def _bulk_import_row_is_matcher_key(key):
     return isinstance(key, str) and key.lower() in _BULK_IMPORT_SKIP_KEYS
 
 
-def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
+def bulk_metadata_update_process(user, rootFolder, updates, replace=False, job=None):
     results = []
     # Get or create MetadataKeys for the root
     if rootFolder['meta'].get(DIVEMetadataMarker, False) is False:
@@ -771,7 +804,23 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
         elif category == 'numerical':
             info['range'] = {'min': mm[0], 'max': mm[1]}
         DIVE_MetadataKeys().addKey(rootFolder, user, key, info, unlocked=False)
-    for entry in normalized_updates:
+
+    total = len(normalized_updates)
+    last_pct = -1
+    status_counts = {
+        'success': 0,
+        'partial_success': 0,
+        'error': 0,
+        'not_found': 0,
+    }
+    _ingest_job_progress(
+        job,
+        0,
+        max(total, 1),
+        log=f'Applying bulk updates to {total} rows (replace={replace})\n',
+    )
+
+    for row_idx, entry in enumerate(normalized_updates):
         reason = None
         # Try to find by DIVEDataset by the matchers
         dive_metadata = None
@@ -840,34 +889,39 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
                 except Exception as ex:
                     errors.append(f"Failed to set {key}: {str(ex)}")
             if updated_keys and not errors:
+                row_status = 'success'
                 results.append(
                     {
                         "matcher": matcher,
-                        "status": "success",
+                        "status": row_status,
                         "datasetId": str(dataset["_id"]),
                         "updatedKeys": updated_keys,
                     }
                 )
             elif updated_keys and errors:
+                row_status = 'partial_success'
                 results.append(
                     {
                         "matcher": matcher,
-                        "status": "partial_success",
+                        "status": row_status,
                         "datasetId": str(dataset["_id"]),
                         "updatedKeys": updated_keys,
                         "errors": errors,
                     }
                 )
             else:
+                row_status = 'error'
                 results.append(
                     {
                         "matcher": matcher,
-                        "status": "error",
+                        "status": row_status,
                         "datasetId": str(dataset["_id"]),
                         "errors": errors,
                     }
                 )
+            status_counts[row_status] = status_counts.get(row_status, 0) + 1
         else:
+            status_counts['not_found'] += 1
             results.append(
                 {
                     "matcher": matcher,
@@ -875,12 +929,38 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False):
                     "error": reason,
                 }
             )
+        current = row_idx + 1
+        last_pct = _maybe_ingest_percent_progress(
+            job,
+            current,
+            total,
+            last_pct,
+            message=lambda pct, cur, tot: (
+                f'Progress {pct}% ({cur}/{tot} rows): '
+                f'success={status_counts["success"]}, '
+                f'partial={status_counts["partial_success"]}, '
+                f'error={status_counts["error"]}, '
+                f'not_found={status_counts["not_found"]}'
+            ),
+        )
     if aggregated_descriptions:
         DIVE_MetadataKeys().mergeImportedKeyDescriptions(
             rootFolder, user, aggregated_descriptions
         )
     if any(r.get('status') in ('success', 'partial_success') for r in results):
         refresh_metadata_keys_stats_from_stored_dive_metadata(rootFolder, categoricalLimit)
+    _ingest_job_progress(
+        job,
+        max(total, 1),
+        max(total, 1),
+        log=(
+            f'Finished bulk update ({total} rows): '
+            f'success={status_counts["success"]}, '
+            f'partial={status_counts["partial_success"]}, '
+            f'error={status_counts["error"]}, '
+            f'not_found={status_counts["not_found"]}\n'
+        ),
+    )
     return results
 
 
@@ -892,12 +972,62 @@ def _ingest_job_progress(job, current, total, log=None):
 
     kwargs = {
         'progressCurrent': current,
-        'progressTotal': total,
+        'progressTotal': max(total, 1),
         'status': JobStatus.RUNNING,
     }
     if log:
         kwargs['log'] = log
     Job().updateJob(job, **kwargs)
+
+
+def _should_log_percent_milestone(current, total, last_logged_pct, step=10):
+    """
+    Decide whether to emit a progress log for this step.
+
+    Returns ``(should_log, new_last_logged_pct)``. Logs at each ``step`` percent
+    (default 10, 20, …) and always when ``current >= total``.
+    """
+    if total <= 0:
+        return True, 100
+    if current >= total:
+        return True, 100
+    pct = int((100 * current) / total)
+    milestone = (pct // step) * step
+    if milestone > last_logged_pct and milestone > 0:
+        return True, milestone
+    return False, last_logged_pct
+
+
+def _maybe_ingest_percent_progress(
+    job,
+    current,
+    total,
+    last_logged_pct,
+    *,
+    message,
+    step=10,
+):
+    """
+    Update job progress and append a log line at each percent milestone.
+
+    ``message`` may be a string or a callable ``(pct, current, total) -> str``.
+    Returns the updated ``last_logged_pct``.
+    """
+    if job is None:
+        return last_logged_pct
+    should_log, new_pct = _should_log_percent_milestone(
+        current, total, last_logged_pct, step=step
+    )
+    if not should_log:
+        return last_logged_pct
+    if callable(message):
+        log = message(new_pct, current, total)
+    else:
+        log = message
+    if log and not log.endswith('\n'):
+        log = f'{log}\n'
+    _ingest_job_progress(job, current, total, log=log)
+    return new_pct
 
 
 def find_oldest_bulk_import_item(root_folder):
@@ -957,7 +1087,7 @@ def persist_bulk_updates_item(user, root_folder, updates):
     return item
 
 
-def bulk_metadata_process_file(user, root_folder, updates, replace=False):
+def bulk_metadata_process_file(user, root_folder, updates, replace=False, job=None):
     """
     Snapshot current metadata, apply bulk updates, and write history on full success.
     """
@@ -970,7 +1100,9 @@ def bulk_metadata_process_file(user, root_folder, updates, replace=False):
         export_item['DIVEDataset'] = str(item['DIVEDataset'])
         previous_data.append(export_item)
 
-    results = bulk_metadata_update_process(user, root_folder, updates, replace)
+    results = bulk_metadata_update_process(
+        user, root_folder, updates, replace, job=job
+    )
     failed = any(
         item.get('status') in ('not_found', 'error', 'partial_success') for item in results
     )
@@ -1072,7 +1204,16 @@ def run_process_metadata_core(
     root_name = folder['name']
     key_import_descriptions = {}
     total = len(data)
-    _ingest_job_progress(job, 0, total, log=f'Processing {total} metadata rows\n')
+    last_pct = -1
+    _ingest_job_progress(
+        job,
+        0,
+        max(total, 1),
+        log=(
+            f'Processing {total} metadata rows from "{data_file_name}" '
+            f'(matcher={matcher}, path_key={path_key}, additive={additive})\n'
+        ),
+    )
 
     for idx, raw_row in enumerate(data):
         item, row_desc = normalize_metadata_row_for_storage(raw_row)
@@ -1168,8 +1309,17 @@ def run_process_metadata_core(
         else:
             error_log.append(f"Could not find any results for Video file {item[matcher]}")
         _accumulate_flat_metadata_key_stats(metadata_keys, item)
-        if job is not None and (idx + 1) % 100 == 0:
-            _ingest_job_progress(job, idx + 1, total)
+        current = idx + 1
+        last_pct = _maybe_ingest_percent_progress(
+            job,
+            current,
+            total,
+            last_pct,
+            message=lambda pct, cur, tot: (
+                f'Progress {pct}% ({cur}/{tot} rows): '
+                f'added={added}, errors={len(error_log)}'
+            ),
+        )
 
     _finalize_metadata_keys_categories(metadata_keys, categorical_limit)
     _apply_imported_descriptions_to_metadata_keys(metadata_keys, key_import_descriptions)
@@ -1179,7 +1329,16 @@ def run_process_metadata_core(
     _ensure_filter_lists_in_display_config(display_config)
     folder['meta'][DIVEMetadataFilter] = display_config
     Folder().save(folder)
-    _ingest_job_progress(job, total, total, log=f'Added {added} folders\n')
+    _ingest_job_progress(
+        job,
+        max(total, 1),
+        max(total, 1),
+        log=(
+            f'Finished process_metadata: added={added}, '
+            f'errors={len(error_log)}, keys={len(metadata_keys)}, '
+            f'file="{data_file_name}"\n'
+        ),
+    )
 
     return {
         "dataFileName": data_file_name,
@@ -1218,7 +1377,15 @@ def run_create_metadata_folder_core(
         display_config,
         ffprobe_metadata,
     )
-    _ingest_job_progress(job, 0, 1, log='Indexing datasets into metadata folder\n')
+    _ingest_job_progress(
+        job,
+        0,
+        1,
+        log=(
+            f'Creating/reusing metadata folder "{name}" under parent '
+            f'{parent_folder_id}; scanning root {root_folder_id}\n'
+        ),
+    )
     populate_result = _populate_dive_metadata_folder(
         base_folder,
         root_folder,
@@ -1227,9 +1394,9 @@ def run_create_metadata_folder_core(
         ffprobe_metadata,
         categorical_limit,
         replace_metadata=False,
+        job=job,
     )
     added = populate_result['added']
-    _ingest_job_progress(job, 1, 1)
     return {
         "results": f"added {added} datasets",
         "errors": [],
@@ -1292,7 +1459,9 @@ def run_create_metadata_recursive_core(
         if resource_type == 'collection':
             if not scan_roots:
                 errors.append(f'No folders under collection {resource["name"]}')
-            for child in scan_roots:
+            scan_total = max(len(scan_roots), 1)
+            last_pct = -1
+            for scan_idx, child in enumerate(scan_roots):
                 extra = _populate_dive_metadata_folder(
                     base_folder,
                     child,
@@ -1301,9 +1470,21 @@ def run_create_metadata_recursive_core(
                     ffprobe_metadata,
                     categorical_limit,
                     replace_metadata=False,
+                    job=None,
                 )
                 populate_result['added'] += extra['added']
                 populate_result['existing'] += extra['existing']
+                last_pct = _maybe_ingest_percent_progress(
+                    job,
+                    scan_idx + 1,
+                    scan_total,
+                    last_pct,
+                    message=lambda pct, cur, tot: (
+                        f'Progress {pct}% ({cur}/{tot} collection folders): '
+                        f'added={populate_result["added"]}, '
+                        f'skipped_existing={populate_result["existing"]}'
+                    ),
+                )
         else:
             populate_result = _populate_dive_metadata_folder(
                 base_folder,
@@ -1313,6 +1494,7 @@ def run_create_metadata_recursive_core(
                 ffprobe_metadata,
                 categorical_limit,
                 replace_metadata=False,
+                job=job,
             )
         entry = {
             'rootFolderId': str(resource['_id']),
@@ -1329,8 +1511,14 @@ def run_create_metadata_recursive_core(
     else:
         child_folders = _list_immediate_child_folders(resource, parent_type, user)
         total = max(len(child_folders), 1)
+        last_pct = -1
+        _ingest_job_progress(
+            job,
+            0,
+            total,
+            log=f'Recursive subfolder scope: scanning {len(child_folders)} child folders\n',
+        )
         for idx, child in enumerate(child_folders):
-            _ingest_job_progress(job, idx, total)
             if _is_dive_metadata_folder(child):
                 existing_results.append(
                     {
@@ -1338,49 +1526,71 @@ def run_create_metadata_recursive_core(
                         'reason': 'folder_is_metadata_root',
                     }
                 )
-                continue
-            if not _folder_has_recursive_datasets(child, user):
+            elif not _folder_has_recursive_datasets(child, user):
                 existing_results.append(
                     {
                         'rootFolderId': str(child['_id']),
                         'reason': 'no_datasets',
                     }
                 )
-                continue
-            metadata_name = _metadata_folder_name_for_dataset_folder(child, name)
-            metadata_folder = _find_existing_dive_metadata_sibling(child, user, metadata_name)
-            if metadata_folder is None:
-                metadata_folder = _find_existing_dive_metadata_child(child, user)
-            reused_existing = metadata_folder is not None
-            try:
-                base_folder = metadata_folder or _create_dive_metadata_sibling_folder(
-                    child, metadata_name, user
-                )
-            except RestException as exc:
-                errors.append(f'{child["name"]}: {exc}')
-                continue
-            populate_result = _populate_dive_metadata_folder(
-                base_folder,
-                child,
-                user,
-                display_config,
-                ffprobe_metadata,
-                categorical_limit,
-                replace_metadata=False,
-            )
-            entry = {
-                'rootFolderId': str(child['_id']),
-                'metadataFolderId': str(base_folder['_id']),
-                'added': populate_result['added'],
-                'existing': populate_result['existing'],
-            }
-            if reused_existing:
-                entry['reusedExisting'] = True
-            if reused_existing and populate_result['added'] == 0:
-                existing_results.append({**entry, 'reason': 'existing_metadata_folder'})
             else:
-                created.append(entry)
-        _ingest_job_progress(job, total, total)
+                metadata_name = _metadata_folder_name_for_dataset_folder(child, name)
+                metadata_folder = _find_existing_dive_metadata_sibling(child, user, metadata_name)
+                if metadata_folder is None:
+                    metadata_folder = _find_existing_dive_metadata_child(child, user)
+                reused_existing = metadata_folder is not None
+                try:
+                    base_folder = metadata_folder or _create_dive_metadata_sibling_folder(
+                        child, metadata_name, user
+                    )
+                except RestException as exc:
+                    errors.append(f'{child["name"]}: {exc}')
+                    base_folder = None
+                if base_folder is not None:
+                    populate_result = _populate_dive_metadata_folder(
+                        base_folder,
+                        child,
+                        user,
+                        display_config,
+                        ffprobe_metadata,
+                        categorical_limit,
+                        replace_metadata=False,
+                        job=None,
+                    )
+                    entry = {
+                        'rootFolderId': str(child['_id']),
+                        'metadataFolderId': str(base_folder['_id']),
+                        'added': populate_result['added'],
+                        'existing': populate_result['existing'],
+                    }
+                    if reused_existing:
+                        entry['reusedExisting'] = True
+                    if reused_existing and populate_result['added'] == 0:
+                        existing_results.append(
+                            {**entry, 'reason': 'existing_metadata_folder'}
+                        )
+                    else:
+                        created.append(entry)
+            last_pct = _maybe_ingest_percent_progress(
+                job,
+                idx + 1,
+                total,
+                last_pct,
+                message=lambda pct, cur, tot: (
+                    f'Progress {pct}% ({cur}/{tot} child folders): '
+                    f'created={len(created)}, existing={len(existing_results)}, '
+                    f'errors={len(errors)}'
+                ),
+            )
+        _ingest_job_progress(
+            job,
+            total,
+            total,
+            log=(
+                f'Finished recursive create: created={len(created)}, '
+                f'existing={len(existing_results)}, errors={len(errors)}\n'
+            ),
+        )
 
     return {
         'scope': scope_norm,
@@ -1419,7 +1629,15 @@ def run_index_metadata_folder_core(
         _CREATE_METADATA_FFPROBE_DEFAULT,
     )
     categorical_limit = _categorical_limit_from_metadata_folder(folder, display_config)
-    _ingest_job_progress(job, 0, 1, log='Indexing folder into metadata root\n')
+    _ingest_job_progress(
+        job,
+        0,
+        1,
+        log=(
+            f'Indexing datasets from root {root_folder_id} into metadata folder '
+            f'{metadata_folder_id} (replace={replace_metadata is True})\n'
+        ),
+    )
     populate_result = _populate_dive_metadata_folder(
         folder,
         root_folder,
@@ -1428,8 +1646,8 @@ def run_index_metadata_folder_core(
         ffprobe_metadata,
         categorical_limit,
         replace_metadata=replace_metadata is True,
+        job=job,
     )
-    _ingest_job_progress(job, 1, 1)
     return {
         'results': (
             f"indexed {populate_result['datasetCount']} datasets: "
@@ -1460,12 +1678,23 @@ def run_bulk_update_from_item_core(
     item = Item().load(item_id, level=AccessType.WRITE, user=user, force=True)
     if item is None:
         raise RestException('Import item not found', code=404)
-    _ingest_job_progress(job, 0, 2, log=f'Loading bulk update file {item.get("name")}\n')
+    _ingest_job_progress(
+        job,
+        0,
+        1,
+        log=f'Loading bulk update file "{item.get("name")}"\n',
+    )
     updates = load_updates_from_item(item, girder_client=girder_client)
     Item().remove(item)
-    _ingest_job_progress(job, 1, 2, log=f'Applying {len(updates)} bulk update rows\n')
-    results = bulk_metadata_process_file(user, root_folder, updates, replace)
-    _ingest_job_progress(job, 2, 2)
+    _ingest_job_progress(
+        job,
+        0,
+        max(len(updates), 1),
+        log=f'Loaded {len(updates)} rows; applying bulk updates (replace={replace})\n',
+    )
+    results = bulk_metadata_process_file(
+        user, root_folder, updates, replace, job=job
+    )
     return {
         'results': results,
         'folderId': str(root_folder['_id']),

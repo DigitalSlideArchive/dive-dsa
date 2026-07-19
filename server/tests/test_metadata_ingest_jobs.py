@@ -14,6 +14,9 @@ from dive_server.crud_metadata_jobs import (  # noqa: E402
     JOB_TYPE_PROCESS,
     enqueue_metadata_ingest_job,
 )
+from dive_server.crud_metadata_ingest import (  # noqa: E402
+    _should_log_percent_milestone,
+)
 from dive_tasks.dive_metadata_ingest import _summarize_for_log  # noqa: E402
 
 
@@ -76,3 +79,28 @@ def test_summarize_for_log_trims_large_fields():
     assert summary['resultRowCount'] == 5
     assert 'results' not in summary
     assert len(summary['errors']) == 21  # 20 + ellipsis
+
+
+def test_should_log_percent_milestone_every_ten_percent():
+    last = -1
+    logged = []
+    total = 100
+    for current in range(1, total + 1):
+        should, last = _should_log_percent_milestone(current, total, last, step=10)
+        if should:
+            logged.append((current, last))
+    assert [pct for _cur, pct in logged] == [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    assert logged[0][0] == 10
+    assert logged[-1][0] == 100
+
+
+def test_should_log_percent_milestone_small_totals():
+    last = -1
+    events = []
+    total = 3
+    for current in range(1, total + 1):
+        should, last = _should_log_percent_milestone(current, total, last, step=10)
+        if should:
+            events.append((current, last))
+    # 1/3 -> 33% -> milestone 30; 2/3 -> 66% -> 60; 3/3 -> 100
+    assert events == [(1, 30), (2, 60), (3, 100)]
