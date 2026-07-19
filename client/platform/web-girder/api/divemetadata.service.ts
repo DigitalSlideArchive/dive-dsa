@@ -255,21 +255,97 @@ async function waitForMetadataIngestJob(
   },
 ): Promise<Record<string, unknown>> {
   const intervalMs = options?.intervalMs ?? 2000;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+
+  const finishFromJob = (job: DiveMetadataIngestJob): Record<string, unknown> => {
+    if (job.status !== 3) {
+      const logTail = (job.log || '').trim().split('\n').slice(-5).join('\n');
+      throw new Error(
+        logTail || `Metadata job ${jobId} failed (status=${job.status})`,
+      );
+    }
+    return (job.meta?.diveMetadataIngestResult || {}) as Record<string, unknown>;
+  };
+
+  const fetchJob = async (): Promise<DiveMetadataIngestJob> => {
     const { data: job } = await girderRest.get<DiveMetadataIngestJob>(`job/${jobId}`);
     options?.onProgress?.(job);
-    if (TERMINAL_JOB_STATUSES.has(job.status)) {
-      if (job.status !== 3) {
-        const logTail = (job.log || '').trim().split('\n').slice(-5).join('\n');
-        throw new Error(
-          logTail || `Metadata job ${jobId} failed (status=${job.status})`,
-        );
+    return job;
+  };
+
+  return new Promise<Record<string, unknown>>((resolve, reject) => {
+    let settled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const cleanup = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
       }
-      return (job.meta?.diveMetadataIngestResult || {}) as Record<string, unknown>;
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
+      girderRest.$off('message:job_status', onJobMessage);
+    };
+
+    const settle = (fn: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      try {
+        fn();
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    const handleTerminal = async () => {
+      try {
+        // Status events often omit log/meta; re-fetch for the ingest result payload.
+        const job = await fetchJob();
+        if (!TERMINAL_JOB_STATUSES.has(job.status)) {
+          return;
+        }
+        settle(() => {
+          resolve(finishFromJob(job));
+        });
+      } catch (err) {
+        settle(() => {
+          reject(err);
+        });
+      }
+    };
+
+    const onJobMessage = ({ data: job }: { data: DiveMetadataIngestJob }) => {
+      if (job._id !== jobId) {
+        return;
+      }
+      options?.onProgress?.(job);
+      if (TERMINAL_JOB_STATUSES.has(job.status)) {
+        handleTerminal();
+      }
+    };
+
+    girderRest.$on('message:job_status', onJobMessage);
+
+    const pollOnce = async () => {
+      try {
+        const job = await fetchJob();
+        if (!TERMINAL_JOB_STATUSES.has(job.status)) {
+          return;
+        }
+        settle(() => {
+          resolve(finishFromJob(job));
+        });
+      } catch (err) {
+        settle(() => {
+          reject(err);
+        });
+      }
+    };
+
+    // Immediate check + polling fallback if websocket events are missed.
+    pollOnce();
+    pollTimer = setInterval(pollOnce, intervalMs);
+  });
 }
 
 function createDiveMetadataFolder(
@@ -545,7 +621,7 @@ interface HTMLFile extends File {
 
 async function importMetadataFile(parentId: string, path: string, file?: HTMLFile, replace = false) {
   if (file === undefined) {
-    return false;
+    return false as const;
   }
   const resp = await girderRest.post('/file', null, {
     params: {
@@ -566,11 +642,10 @@ async function importMetadataFile(parentId: string, path: string, file?: HTMLFil
     });
     if (uploadResponse.status === 200) {
       const { data: job } = await processImportedFile(parentId, replace);
-      await waitForMetadataIngestJob(job._id);
-      return true;
+      return job;
     }
   }
-  return false;
+  return false as const;
 }
 
 export {

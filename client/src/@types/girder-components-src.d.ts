@@ -20,9 +20,13 @@ declare module '@girder/components/src/utils/notifications' {
         maxReconnectAttempts?: number;
       },
     );
+
     $rest: RestClient;
+
     connect(): void;
+
     disconnect(): void;
+
     _emitNotification(notification: Record<string, unknown>): void;
   }
 }
