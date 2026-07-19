@@ -30,6 +30,7 @@ class DIVEPlugin(GirderWorkerPluginABC):
             'dive_tasks.tasks',
             'dive_tasks.local_tasks',
             'dive_tasks.dive_metadata_slicer_cli',
+            'dive_tasks.dive_metadata_ingest',
             'dive_tasks.sam_tasks',
             'dive_tasks.dive_batch_postprocess',
         ]

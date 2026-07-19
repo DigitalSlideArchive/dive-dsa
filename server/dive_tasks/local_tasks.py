@@ -24,3 +24,17 @@ def run_batch_postprocess_job(job_id: str):
 
     job = Job().load(job_id, force=True)
     batch_postprocess_task(job)
+
+
+@app.task(queue='local', acks_late=True, ignore_result=True)
+def run_metadata_ingest_job(job_id: str):
+    """
+    Run DIVE metadata ingest (folder index, process_metadata, bulk update)
+    for an existing Girder job document on the ``local`` queue.
+    """
+    from girder_jobs.models.job import Job
+
+    from dive_tasks.dive_metadata_ingest import metadata_ingest_task
+
+    job = Job().load(job_id, force=True)
+    metadata_ingest_task(job)

@@ -160,7 +160,8 @@ def convert_video_recrusive(folder, user):
     )
     from dive_tasks.local_tasks import run_batch_postprocess_job
 
-    run_batch_postprocess_job.delay(str(job['_id']))
+    # createLocalJob is the job of record; suppress duplicate Celery "<unnamed job>".
+    run_batch_postprocess_job.delay(str(job['_id']), girder_job_disable=True)
 
 
 def run_post_assetstore_import(event):

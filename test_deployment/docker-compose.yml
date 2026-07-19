@@ -59,7 +59,7 @@ services:
       GIRDER_STATIC_ROOT_DIR: /opt/dive/clients/girder
       CORS_ALLOWED_ORIGINS: http://localhost:8010
 
-  # Girder 5 local queue (assetstore import follow-up, etc.)
+  # Girder 5 local queue (assetstore import follow-up, metadata ingest, etc.)
   localworker:
     image: dive-dsa-wheel-test:local
     init: true
