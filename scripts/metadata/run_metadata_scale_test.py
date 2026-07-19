@@ -6,10 +6,10 @@
 #     "setuptools",
 # ]
 # ///
-"""Time metadata ingest (folder index + NDJSON process) on the request thread.
+"""Time metadata ingest (folder index + NDJSON process) via local-worker jobs.
 
-Use against a root created by seed_metadata_scale.py. Captures wall time, HTTP
-status / errors, and writes a JSON report for worker-vs-request-thread decisions.
+Use against a root created by seed_metadata_scale.py. Captures enqueue latency,
+job wall time to SUCCESS, and writes a JSON report.
 """
 from __future__ import annotations
 
@@ -24,6 +24,12 @@ import click
 import girder_client
 import requests
 
+# Girder JobStatus numeric values
+JOB_SUCCESS = 3
+JOB_ERROR = 4
+JOB_CANCELED = 5
+TERMINAL_JOB_STATUSES = {JOB_SUCCESS, JOB_ERROR, JOB_CANCELED}
+
 
 def login(
     api_url: str, port: int, api_key: str | None, timeout: float
@@ -36,8 +42,6 @@ def login(
     else:
         gc.authenticate(interactive=True)
 
-    # GirderClient only has _session inside `with gc.session()`; outside that it
-    # calls requests.* directly. Inject timeout via sendRestRequest (**kwargs).
     original_send = gc.sendRestRequest
 
     def send_with_timeout(*args, **kwargs):
@@ -48,7 +52,7 @@ def login(
     return gc
 
 
-def summarize_response(payload: Any) -> dict[str, Any]:
+def summarize_ingest_result(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return {"raw_type": type(payload).__name__, "raw": str(payload)[:500]}
 
@@ -64,37 +68,77 @@ def summarize_response(payload: Any) -> dict[str, Any]:
     }
     if isinstance(errors, list) and errors:
         summary["error_sample"] = errors[:5]
-    # metadataKeys can be huge at 10k — only record key count
     keys = payload.get("metadataKeys")
     if isinstance(keys, dict):
-        summary["metadata_key_count"] = len(keys)
+        if "_keyCount" in keys:
+            summary["metadata_key_count"] = keys["_keyCount"]
+        else:
+            summary["metadata_key_count"] = len(keys)
     return summary
 
 
-def timed_post(
-    gc: girder_client.GirderClient, path: str, *, parameters: dict | None = None
+def wait_for_job(
+    gc: girder_client.GirderClient,
+    job_id: str,
+    *,
+    poll_interval: float = 2.0,
 ) -> dict[str, Any]:
+    """Poll until the job reaches a terminal status; return final job doc."""
+    while True:
+        job = gc.get(f"job/{job_id}")
+        status = job.get("status")
+        if status in TERMINAL_JOB_STATUSES:
+            return job
+        time.sleep(poll_interval)
+
+
+def timed_ingest_post(
+    gc: girder_client.GirderClient,
+    path: str,
+    *,
+    parameters: dict | None = None,
+    poll_interval: float = 2.0,
+) -> dict[str, Any]:
+    """POST ingest endpoint (returns job), then poll until SUCCESS/ERROR."""
     started = time.perf_counter()
     result: dict[str, Any] = {
         "path": path,
         "ok": False,
         "http_status": None,
+        "enqueue_time_s": None,
         "wall_time_s": None,
+        "job_id": None,
+        "job_status": None,
         "exception": None,
         "response_summary": None,
     }
     try:
-        response = gc.post(path, parameters=parameters or {})
-        result["ok"] = True
+        enqueue_started = time.perf_counter()
+        job = gc.post(path, parameters=parameters or {})
+        result["enqueue_time_s"] = round(time.perf_counter() - enqueue_started, 3)
         result["http_status"] = 200
-        result["response_summary"] = summarize_response(response)
-        # Prefer folder id from response for filter sanity checks
-        if isinstance(response, dict):
-            result["_folder_id"] = (
-                response.get("folderId")
-                or response.get("metadataFolderId")
-                or None
-            )
+        if not isinstance(job, dict) or not job.get("_id"):
+            result["exception"] = f"Expected Girder job document, got: {type(job).__name__}"
+            return result
+        job_id = str(job["_id"])
+        result["job_id"] = job_id
+        click.echo(f"  job={job_id} (enqueue {result['enqueue_time_s']}s)")
+
+        final_job = wait_for_job(gc, job_id, poll_interval=poll_interval)
+        result["job_status"] = final_job.get("status")
+        ingest_result = (final_job.get("meta") or {}).get("diveMetadataIngestResult") or {}
+        result["response_summary"] = summarize_ingest_result(ingest_result)
+        if final_job.get("status") == JOB_SUCCESS:
+            result["ok"] = True
+            if isinstance(ingest_result, dict):
+                result["_folder_id"] = (
+                    ingest_result.get("folderId")
+                    or ingest_result.get("metadataFolderId")
+                    or None
+                )
+        else:
+            log = (final_job.get("log") or "")[-1000:]
+            result["exception"] = f"Job status={final_job.get('status')}: {log}"
     except requests.exceptions.Timeout as exc:
         result["exception"] = f"Timeout: {exc}"
         result["http_status"] = None
@@ -106,10 +150,10 @@ def timed_post(
         if hasattr(exc, "response") and exc.response is not None:
             result["http_status"] = getattr(exc.response, "status_code", result["http_status"])
             try:
-                result["response_summary"] = summarize_response(exc.response.json())
+                result["response_summary"] = summarize_ingest_result(exc.response.json())
             except Exception:
                 result["response_body"] = getattr(exc.response, "text", "")[:1000]
-    except Exception as exc:  # noqa: BLE001 — report any failure mode
+    except Exception as exc:  # noqa: BLE001
         result["exception"] = f"{type(exc).__name__}: {exc}"
     finally:
         result["wall_time_s"] = round(time.perf_counter() - started, 3)
@@ -144,14 +188,14 @@ def filter_sanity(
 
 
 def run_phase_a(gc: girder_client.GirderClient, root_folder_id: str) -> dict[str, Any]:
-    """Folder indexing via create_metadata_folder (request thread)."""
+    """Folder indexing via create_metadata_folder (local worker job)."""
     display_config = {"display": ["DIVE_DatasetId", "DIVE_Name"], "hide": []}
     ffprobe_metadata = {
         "import": False,
         "keys": ["width", "height", "display_aspect_ratio"],
     }
-    click.echo("Phase A: POST dive_metadata/create_metadata_folder/...")
-    result = timed_post(
+    click.echo("Phase A: POST dive_metadata/create_metadata_folder/ (job)...")
+    result = timed_ingest_post(
         gc,
         f"dive_metadata/create_metadata_folder/{root_folder_id}",
         parameters={
@@ -171,7 +215,7 @@ def run_phase_a(gc: girder_client.GirderClient, root_folder_id: str) -> dict[str
 
 
 def run_phase_b(gc: girder_client.GirderClient, root_folder_id: str) -> dict[str, Any]:
-    """NDJSON matching via process_metadata (request thread)."""
+    """NDJSON matching via process_metadata (local worker job)."""
     params = {
         "displayConfig": {
             "display": [
@@ -194,7 +238,6 @@ def run_phase_b(gc: girder_client.GirderClient, root_folder_id: str) -> dict[str
         "fileType": "ndjson",
         "sibling_path": "info",
     }
-    # Match generateMetadata.py query encoding (json params URL-quoted).
     query = {
         "displayConfig": urllib.parse.quote(json.dumps(params["displayConfig"])),
         "ffprobeMetadata": urllib.parse.quote(json.dumps(params["ffprobeMetadata"])),
@@ -205,11 +248,10 @@ def run_phase_b(gc: girder_client.GirderClient, root_folder_id: str) -> dict[str
     }
     query_string = "&".join(f"{key}={value}" for key, value in query.items())
     path = f"dive_metadata/process_metadata/{root_folder_id}?{query_string}"
-    click.echo("Phase B: POST dive_metadata/process_metadata/...")
-    result = timed_post(gc, path)
+    click.echo("Phase B: POST dive_metadata/process_metadata/ (job)...")
+    result = timed_ingest_post(gc, path)
     result.pop("_folder_id", None)
     if result["ok"]:
-        # process_metadata marks the seed root itself as the metadata folder
         result["filter_sanity"] = filter_sanity(gc, root_folder_id)
         result["metadata_folder_id"] = root_folder_id
         summary = result.get("response_summary") or {}
@@ -220,36 +262,40 @@ def run_phase_b(gc: girder_client.GirderClient, root_folder_id: str) -> dict[str
 
 
 def interpret(phases: dict[str, Any]) -> list[str]:
-    """Heuristic notes for request-thread vs worker decision."""
+    """Heuristic notes for local-worker ingest health."""
     notes: list[str] = []
     for name, phase in phases.items():
         if not phase:
             continue
         wall = phase.get("wall_time_s") or 0
+        enqueue = phase.get("enqueue_time_s")
         if phase.get("exception") and "Timeout" in str(phase.get("exception")):
             notes.append(
-                f"{name}: client timeout — request-thread ingest likely insufficient "
-                "(move to local worker job, or raise proxy/client timeouts only as a stopgap)."
+                f"{name}: client timeout during enqueue or poll — check localworker / RabbitMQ."
             )
         elif not phase.get("ok"):
             notes.append(
                 f"{name}: failed ({phase.get('exception') or phase.get('http_status')}) "
-                "— investigate server logs for OOM / proxy / CherryPy errors."
+                "— investigate job log and localworker."
+            )
+        elif enqueue is not None and enqueue > 5:
+            notes.append(
+                f"{name}: enqueue took {enqueue}s — request path should stay fast; "
+                "check Girder overload."
             )
         elif wall > 300:
             notes.append(
-                f"{name}: completed in {wall}s (>5 min) — too slow for interactive UX; "
-                "prefer a local worker with progress/cancel even if sync eventually succeeds."
+                f"{name}: job completed in {wall}s (>5 min) — still slow at scale; "
+                "consider chunking/streaming next."
             )
         elif wall > 120:
             notes.append(
-                f"{name}: completed in {wall}s (>2 min) — borderline for interactive import; "
-                "consider worker for UX."
+                f"{name}: job completed in {wall}s (>2 min) — acceptable off-request-thread "
+                "if Girder stayed responsive."
             )
         else:
             notes.append(
-                f"{name}: completed in {wall}s — sync may be acceptable short-term; "
-                "still consider worker for progress/cancel."
+                f"{name}: completed in {wall}s (enqueue {enqueue}s) — healthy worker path."
             )
 
         summary = phase.get("response_summary") or {}
@@ -276,7 +322,7 @@ def interpret(phases: dict[str, Any]) -> list[str]:
     default=3600,
     show_default=True,
     type=float,
-    help="Client HTTP read timeout in seconds",
+    help="Client HTTP read timeout in seconds (enqueue + polls)",
 )
 @click.option(
     "--phases",
@@ -298,7 +344,7 @@ def run_metadata_scale_test(
     phases: str,
     report: str | None,
 ) -> None:
-    """Time Phase A (folder index) and/or Phase B (NDJSON process_metadata)."""
+    """Time Phase A (folder index) and/or Phase B (NDJSON process_metadata) as jobs."""
     selected = {p.strip().upper() for p in phases.split(",") if p.strip()}
     unknown = selected - {"A", "B"}
     if unknown:
