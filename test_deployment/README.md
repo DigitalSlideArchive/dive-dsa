@@ -18,7 +18,7 @@ DIVE follows those patterns: the annotator SPA is an additional mount at `/dive`
 | Package | How |
 |---------|-----|
 | `girder==5.0.12` | `pip` / `uv pip` from PyPI |
-| `dive_server` (includes `dive_tasks`) | Wheel built in Docker with frontends embedded |
+| `dive-dsa` (imports `dive_server` / `dive_tasks`) | Wheel built in Docker with frontends embedded |
 | Girder core web UI | Built from `girder/girder` at tag `v5.0.12` with `npx vite build --base=/girder/`, then `GIRDER_STATIC_ROOT_DIR` |
 
 ## Where the DIVE SPA lives in the package
@@ -48,8 +48,12 @@ docker compose -f test_deployment/docker-compose.yml up --build
 Useful if you already have Node/uv and want to inspect `server/dist/*.whl`:
 
 ```bash
-bash test_deployment/prepare.sh   # runs build_release_assets.sh + uv build
+bash test_deployment/prepare.sh          # → server/scripts/build_wheel.sh
+# or, with the same flags as build_wheel.sh:
+bash server/scripts/build_wheel.sh
+bash server/scripts/build_wheel.sh --publish   # needs UV_PUBLISH_TOKEN
 ```
 
-The compose file above still builds the wheel inside Docker; host wheels are
-for local inspection or CI artifact checks.
+See `server/README.md` (PyPI release build) for full CLI and GitHub Actions
+instructions. The compose file above still builds the wheel inside Docker; host
+wheels are for local inspection, publish, or CI artifact checks.

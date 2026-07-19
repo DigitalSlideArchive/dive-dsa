@@ -54,16 +54,81 @@ To work on the Vue client, see development instructions in `../client`.
 
 ## PyPI release build
 
-The `dive_server` wheel bundles the DIVE annotator SPA and the Girder plugin web client.
-Build both frontends before creating a release wheel:
+The **`dive-dsa`** distribution (PyPI name) bundles the DIVE annotator SPA and the
+Girder plugin web client. Import packages remain `dive_server`, `dive_tasks`, and
+`dive_utils`. Use one script for local build, verify, and optional publish.
+
+### Prerequisites
+
+- Node.js 20+ (24 recommended) and npm
+- [uv](https://docs.astral.sh/uv/)
+- Git history in the checkout (version comes from `uv-dynamic-versioning`)
+
+### Local build
+
+From the repository root:
 
 ```bash
-bash scripts/build_release_assets.sh
-uv build
+bash server/scripts/build_wheel.sh
 ```
 
-Publishing is automated via `.github/workflows/release-dive-server.yml` on GitHub
-release (requires [PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/) for this repository).
+This stages frontends (`scripts/build_release_assets.sh`), runs `uv build`, and
+checks that the wheel contains `dive_client` and the plugin UI. The wheel lands
+in `server/dist/dive_dsa-*.whl` (hyphens in the PyPI name become underscores in
+the wheel filename).
+
+Useful flags:
+
+```bash
+# Reuse already-built dive_client/ and web_client/dist/
+bash server/scripts/build_wheel.sh --skip-assets
+
+# Build + verify only; do not upload (even with --publish)
+bash server/scripts/build_wheel.sh --publish --dry-run
+```
+
+Equivalent from `test_deployment/`:
+
+```bash
+bash test_deployment/prepare.sh
+```
+
+### Local publish
+
+PyPI rejects [local versions](https://packaging.python.org/en/latest/specifications/version-specifiers/#local-version-identifiers)
+(`1.0.0.postN.dev0+gHASH`). Those are produced when the checkout is **not**
+exactly on a version tag. Either tag a release:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+export UV_PUBLISH_TOKEN=pypi-...
+bash server/scripts/build_wheel.sh --publish
+```
+
+or force a clean version without tagging (uses
+`UV_DYNAMIC_VERSIONING_BYPASS`):
+
+```bash
+export UV_PUBLISH_TOKEN=pypi-...
+bash server/scripts/build_wheel.sh --version 1.2.3 --publish
+# also accepts: --version v1.2.3
+```
+
+`build_wheel.sh --publish` clears `server/dist/`, rebuilds, refuses versions
+containing `+...`, and uploads only the new wheel + sdist.
+
+`UV_PUBLISH_TOKEN` is the preferred auth for `uv publish`. Alternatively set
+`UV_PUBLISH_USERNAME=__token__` and `UV_PUBLISH_PASSWORD` to the same token.
+See [uv packaging docs](https://docs.astral.sh/uv/guides/package/#publishing-your-package).
+
+### GitHub Actions publish
+
+Publishing is automated via `.github/workflows/release-dive-server.yml` on
+GitHub Release (or workflow_dispatch). CI uses
+[PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/) (OIDC) —
+no `UV_PUBLISH_TOKEN` secret required. Pull requests also run a wheel build
+smoke job in `.github/workflows/CI.yml` and upload the wheel as an artifact.
 
 ### Test wheel install in Docker (Girder 5 package path)
 
@@ -77,7 +142,7 @@ docker compose -f test_deployment/docker-compose.yml up --build
 ```
 
 See `test_deployment/README.md` for SPA placement details and optional host
-wheel builds (`bash test_deployment/prepare.sh`).
+wheel builds (`bash test_deployment/prepare.sh` → `server/scripts/build_wheel.sh`).
 
 - Girder UI: http://localhost:8010/girder (login `admin` / `letmein`)
 - DIVE SPA: http://localhost:8010/dive

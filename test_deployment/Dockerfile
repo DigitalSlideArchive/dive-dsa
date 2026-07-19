@@ -79,7 +79,7 @@ RUN uv build && ls -la dist/ && python - <<'PY'
 from pathlib import Path
 import zipfile
 
-wheels = sorted(Path("dist").glob("dive_server-*.whl"))
+wheels = sorted(Path("dist").glob("dive_dsa-*.whl"))
 assert wheels, "no wheel produced"
 with zipfile.ZipFile(wheels[-1]) as zf:
     names = set(zf.namelist())
@@ -114,9 +114,9 @@ ENV GIRDER_STATIC_ROOT_DIR=/opt/dive/clients/girder
 
 RUN uv venv "${VIRTUAL_ENV}"
 
-COPY --from=wheel-builder /src/dist/dive_server-*.whl /tmp/wheels/
-# Explicit girder install matches upstream docs; dive_server also depends on it.
-RUN uv pip install "girder==${PYTHON_GIRDER}" /tmp/wheels/dive_server-*.whl && \
+COPY --from=wheel-builder /src/dist/dive_dsa-*.whl /tmp/wheels/
+# Explicit girder install matches upstream docs; dive-dsa also depends on it.
+RUN uv pip install "girder==${PYTHON_GIRDER}" /tmp/wheels/dive_dsa-*.whl && \
     rm -rf /tmp/wheels
 
 RUN python - <<'PY'
@@ -172,8 +172,8 @@ ENV GIT_PYTHON_REFRESH=quiet
 
 RUN uv venv "${VIRTUAL_ENV}"
 
-COPY --from=wheel-builder /src/dist/dive_server-*.whl /tmp/wheels/
-RUN uv pip install /tmp/wheels/dive_server-*.whl && rm -rf /tmp/wheels
+COPY --from=wheel-builder /src/dist/dive_dsa-*.whl /tmp/wheels/
+RUN uv pip install /tmp/wheels/dive_dsa-*.whl && rm -rf /tmp/wheels
 RUN python -c "import dive_tasks; print('dive_tasks OK')"
 RUN ffmpeg -version >/dev/null && ffprobe -version >/dev/null
 
