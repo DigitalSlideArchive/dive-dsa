@@ -1,0 +1,110 @@
+# Girder 5 + DIVE installed entirely from PyPI (release smoke test).
+#
+# Unlike Dockerfile (which builds dive-dsa from this checkout), this image:
+#   pip/uv install girder==… dive-dsa==…
+# and only builds the Girder *core* web client from the matching git tag
+# (not shipped on PyPI; see Girder 5 migration guide / GIRDER_STATIC_ROOT_DIR).
+#
+#   docker compose -f test_deployment/docker-compose.pypi.yml up --build
+
+ARG GIRDER_VERSION=v5.0.12
+ARG PYTHON_GIRDER=5.0.12
+ARG DIVE_DSA_VERSION=0.0.1
+
+# ---------------------------------------------------------------------------
+# Girder core web client
+# ---------------------------------------------------------------------------
+FROM node:20 AS girder-web
+WORKDIR /app
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
+ARG GIRDER_VERSION
+RUN git clone --depth 1 --branch "${GIRDER_VERSION}" https://github.com/girder/girder.git
+WORKDIR /app/girder/girder/web
+RUN npm install --include=optional && npx vite build --base=/girder/
+
+# ---------------------------------------------------------------------------
+# Runtime: girder + dive-dsa from PyPI
+# ---------------------------------------------------------------------------
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS girder
+ARG PYTHON_GIRDER
+ARG DIVE_DSA_VERSION
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates libgomp1 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+ENV VIRTUAL_ENV=/opt/dive/venv
+ENV PATH="/opt/dive/venv/bin:$PATH"
+ENV GIT_PYTHON_REFRESH=quiet
+ENV GIRDER_STATIC_ROOT_DIR=/opt/dive/clients/girder
+
+RUN uv venv "${VIRTUAL_ENV}"
+
+# Explicit pins match a published release pair; dive-dsa also depends on girder.
+RUN uv pip install "girder==${PYTHON_GIRDER}" "dive-dsa==${DIVE_DSA_VERSION}"
+
+RUN python - <<'PY'
+from pathlib import Path
+import dive_server
+
+root = Path(dive_server.__file__).parent
+required = [
+    root / "dive_client" / "index.html",
+    root / "web_client" / "dist" / "girder-plugin-dive.umd.cjs",
+    root / "web_client" / "dist" / "style.css",
+]
+missing = [p for p in required if not p.is_file()]
+if missing:
+    raise SystemExit("Missing assets after pip install:\n" + "\n".join(map(str, missing)))
+print("installed dive_server package OK at", root)
+PY
+
+COPY --from=girder-web /app/girder/girder/web/dist /opt/dive/clients/girder
+COPY docker/server_setup.py /server_setup.py
+COPY test_deployment/entrypoint_girder.sh /entrypoint_girder.sh
+RUN chmod +x /entrypoint_girder.sh
+
+EXPOSE 8080
+ENTRYPOINT ["/entrypoint_girder.sh"]
+CMD ["--mode", "production"]
+
+# ---------------------------------------------------------------------------
+# Runtime: Celery worker (same PyPI packages + ffmpeg)
+# ---------------------------------------------------------------------------
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS ffmpeg-builder
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget tar xz-utils && \
+    rm -rf /var/lib/apt/lists/*
+RUN wget -q -O ffmpeg.tar.xz \
+      https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
+    mkdir /tmp/ffextracted && \
+    tar -xf ffmpeg.tar.xz -C /tmp/ffextracted --strip-components 1
+
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS worker
+ARG DIVE_DSA_VERSION
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates libgomp1 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ffmpeg-builder /tmp/ffextracted/ffmpeg /tmp/ffextracted/ffprobe /usr/local/bin/
+RUN chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+ENV VIRTUAL_ENV=/opt/dive/venv
+ENV PATH="/opt/dive/venv/bin:$PATH"
+ENV GIT_PYTHON_REFRESH=quiet
+
+RUN uv venv "${VIRTUAL_ENV}"
+RUN uv pip install "dive-dsa==${DIVE_DSA_VERSION}"
+RUN python -c "import dive_tasks; print('dive_tasks OK')"
+RUN ffmpeg -version >/dev/null && ffprobe -version >/dev/null
+
+COPY test_deployment/entrypoint_worker.sh /entrypoint_worker.sh
+RUN chmod +x /entrypoint_worker.sh
+
+ENTRYPOINT ["/entrypoint_worker.sh"]

@@ -10,7 +10,7 @@ import pytest
 
 pytest.importorskip('girder')
 
-from dive_server.views_metadata import (  # noqa: E402
+from dive_server.crud_metadata_ingest import (  # noqa: E402
     _PROCESS_METADATA_DISPLAY_DEFAULT,
     _PROCESS_METADATA_FFPROBE_DEFAULT,
     _accumulate_flat_metadata_key_stats,

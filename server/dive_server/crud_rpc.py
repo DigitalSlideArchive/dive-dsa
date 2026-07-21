@@ -6,8 +6,9 @@ from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.token import Token
+from girder.notification import Notification
 from girder_jobs.models.job import Job, JobStatus
-from girder_worker.girder_plugin.status import CustomJobStatus
+from girder_plugin_worker.status import CustomJobStatus
 from pydantic import BaseModel
 import pymongo
 
@@ -51,6 +52,14 @@ def _persist_async_job_metadata(
     job = Job().save(job)
     async_result._job = job
     return job
+
+
+def _notify_job_status(job: types.GirderModel, user: types.GirderUserModel) -> None:
+    """Push a job_status notification that includes dataset_id for the web client."""
+    filtered = Job().filter(job, user)
+    filtered.pop('kwargs', None)
+    filtered.pop('log', None)
+    Notification(type='job_status', data=filtered, user=user).flush()
 
 
 def _check_running_jobs(folder_id_str: str):
@@ -288,6 +297,7 @@ def postprocess(
                     constants.JOBCONST_CREATOR: str(user['_id']),
                 },
             )
+            _notify_job_status(job, user)
             created_job_ids.append(job['_id'])
             return {'folder': dsFolder, 'job_ids': created_job_ids}
 
@@ -316,9 +326,12 @@ def postprocess(
                     newjob,
                     **{
                         constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
-                        constants.JOBCONST_DATASET_ID: dsFolder["_id"],
+                        # Always persist as str so client Jobs store + running-job
+                        # lookups match folder ids from the browser.
+                        constants.JOBCONST_DATASET_ID: str(dsFolder["_id"]),
                     },
                 )
+                _notify_job_status(job, user)
                 created_job_ids.append(job['_id'])
 
             # transcode IMAGERY if necessary
@@ -345,9 +358,10 @@ def postprocess(
                     newjob,
                     **{
                         constants.JOBCONST_PRIVATE_QUEUE: job_is_private,
-                        constants.JOBCONST_DATASET_ID: dsFolder["_id"],
+                        constants.JOBCONST_DATASET_ID: str(dsFolder["_id"]),
                     },
                 )
+                _notify_job_status(job, user)
                 created_job_ids.append(job['_id'])
 
             elif imageItems.count() > 0:
