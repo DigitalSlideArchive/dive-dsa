@@ -77,7 +77,6 @@
         @apply bg-backgroundColor text-linkColor border-solid border-l-2 border-r-2 border-t-2 border-borderColor;
         flex-shrink: 0;
         min-height: 2.5rem;
-        align-items: center;
       }
     .gsu-disabled-icon {
       @apply text-bgMutedColor;
@@ -194,3 +193,67 @@
       @apply text-textColor bg-backgroundColor  hover:bg-highlightedColor hover:cursor-pointer border-2 border-borderColor;
     }
   }
+
+/*
+ * Unlayered on purpose: Tailwind @layer components loses to unlayered host CSS
+ * (Vuetify/Bootstrap in DIVE), even when both use !important.
+ */
+.gsu-breadcrumb {
+  position: relative !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding-right: 6.5rem !important;
+  overflow: hidden !important;
+}
+.gsu-breadcrumb-path-wrap {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.gsu-breadcrumb-path {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.gsu-breadcrumb-path svg {
+  display: inline !important;
+  vertical-align: middle;
+}
+.gsu-breadcrumb-counts {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 1;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  box-sizing: border-box !important;
+  padding: 0 0.25rem !important;
+  white-space: nowrap !important;
+}
+.gsu-breadcrumb-count,
+.gsu-breadcrumb-up {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+.gsu-breadcrumb-up {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}

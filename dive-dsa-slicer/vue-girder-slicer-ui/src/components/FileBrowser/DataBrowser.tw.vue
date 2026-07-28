@@ -492,96 +492,90 @@ export default defineComponent({
                 class="grow my-1"
               />
             </div>
-            <div class="gsu-breadcrumb mb-0 shrink-0 flex">
-              <div class="grid grid-cols-7 rounded mb-0 w-full items-center">
-                <div class="col-start-1 col-span-4 flex flex-row items-center min-w-0">
-                  <div
-                    class="relative grow min-w-0"
-                    @mouseenter="showBreadcrumbTooltip"
-                    @mouseleave="hideBreadcrumbTooltip"
-                    @focusin="showBreadcrumbTooltip"
-                    @focusout="hideBreadcrumbTooltip"
+            <div class="gsu-breadcrumb mb-0 shrink-0">
+              <div
+                class="gsu-breadcrumb-path-wrap relative"
+                @mouseenter="showBreadcrumbTooltip"
+                @mouseleave="hideBreadcrumbTooltip"
+                @focusin="showBreadcrumbTooltip"
+                @focusout="hideBreadcrumbTooltip"
+              >
+                <div
+                  ref="breadcrumbPathEl"
+                  class="gsu-breadcrumb-path"
+                >
+                  <span
+                    v-for="(item, index) in breadCrumb.path"
+                    :key="`breadCrumb_${item.id}`"
                   >
-                    <div
-                      ref="breadcrumbPathEl"
-                      class="truncate"
+                    <span
+                      v-if="index === 0"
+                      @click="updateMainView(item.id, breadCrumb.type, item.name, true);"
                     >
+                      <svg-icon
+                        type="mdi"
+                        :path="iconMap[breadCrumb.type]"
+                        color="lightblue"
+                        :size="30"
+                        class="pb-2 gsu-icon gsu-clickable"
+                        style="display:inline"
+                      />
                       <span
-                        v-for="(item, index) in breadCrumb.path"
-                        :key="`breadCrumb_${item.id}`"
+                        class="gsu-clickable"
                       >
-                        <span
-                          v-if="index === 0"
-                          @click="updateMainView(item.id, breadCrumb.type, item.name, true);"
-                        >
-                          <svg-icon
-                            type="mdi"
-                            :path="iconMap[breadCrumb.type]"
-                            color="lightblue"
-                            :size="30"
-                            class="pb-2 gsu-icon gsu-clickable"
-                            style="display:inline"
-                          />
-                          <span
-                            class="gsu-clickable"
-                          > 
-                            {{ item.name }}
-                          </span>
-                        </span>
-                        <span
-                          v-else-if="index !== breadCrumb.path. length - 1"
-                          class="gsu-clickable"
-                          @click="updateMainView(item.id, 'folder', item.name, true)"
-                        > 
-                          {{ item.name }}
-                        </span>
-                        <span v-else> 
-                          {{ item.name }}
-                        </span>
-                        <span class="px-2">
-                          /
-                        </span>
+                        {{ item.name }}
                       </span>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-start-7 col-span-3 shrink-0">
-                <div class="flex flex-row items-center justify-end">
-                  <div class="flex flex-row items-center">
-                    <svg-icon
-                      type="mdi"
-                      :path="iconMap['folder']"
-                      color="gray"
-                      :size="30"
-                      class="pb-2 gsu-icon"
-                    />
+                    </span>
                     <span
-                      class="number-badge"
-                    >{{ countFormatter(folderCount) }}</span>
-                  </div>
-                  <div class="flex flex-row items-center">
-                    <svg-icon
-                      type="mdi"
-                      :path="iconMap['item']"
-                      color="gray"
-                      :size="30"
-                      class="pb-2 gsu-icon"
-                    />
-                    <span
-                      class="number-badge"
-                    >{{ countFormatter(itemCount) }}</span>
-                  </div>
-                  <div class="px-2">
-                    <svg-icon
-                      type="mdi"
-                      :path="mdiArrowUpRightBold"
-                      color="blue"
-                      :size="25"
-                      class="pb-2 gsu-icon gsu-clickable"
-                      @click="upLevel()"
-                    />
-                  </div>
+                      v-else-if="index !== breadCrumb.path.length - 1"
+                      class="gsu-clickable"
+                      @click="updateMainView(item.id, 'folder', item.name, true)"
+                    >
+                      {{ item.name }}
+                    </span>
+                    <span v-else>
+                      {{ item.name }}
+                    </span>
+                    <span class="px-2">
+                      /
+                    </span>
+                  </span>
                 </div>
+              </div>
+              <div class="gsu-breadcrumb-counts">
+                <div class="gsu-breadcrumb-count">
+                  <svg-icon
+                    type="mdi"
+                    :path="iconMap['folder']"
+                    color="gray"
+                    :size="30"
+                    class="pb-2 gsu-icon"
+                  />
+                  <span
+                    class="number-badge"
+                  >{{ countFormatter(folderCount) }}</span>
+                </div>
+                <div class="gsu-breadcrumb-count">
+                  <svg-icon
+                    type="mdi"
+                    :path="iconMap['item']"
+                    color="gray"
+                    :size="30"
+                    class="pb-2 gsu-icon"
+                  />
+                  <span
+                    class="number-badge"
+                  >{{ countFormatter(itemCount) }}</span>
+                </div>
+                <div class="gsu-breadcrumb-up">
+                  <svg-icon
+                    type="mdi"
+                    :path="mdiArrowUpRightBold"
+                    color="blue"
+                    :size="25"
+                    class="pb-2 gsu-icon gsu-clickable"
+                    @click="upLevel()"
+                  />
                 </div>
               </div>
             </div>
@@ -920,6 +914,52 @@ export default defineComponent({
     </teleport>
   </div>
 </template>
-<style scoped>
-
+<style>
+/* Keep breadcrumb layout unscoped + unlayered so DIVE host CSS cannot win via cascade layers. */
+.gsu-breadcrumb {
+  position: relative !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding-right: 6.5rem !important;
+  overflow: hidden !important;
+}
+.gsu-breadcrumb-path-wrap,
+.gsu-breadcrumb-path {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.gsu-breadcrumb-path {
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.gsu-breadcrumb-path svg {
+  display: inline !important;
+  vertical-align: middle;
+}
+.gsu-breadcrumb-counts {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 1;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  white-space: nowrap !important;
+}
+.gsu-breadcrumb-count,
+.gsu-breadcrumb-up {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
 </style>
