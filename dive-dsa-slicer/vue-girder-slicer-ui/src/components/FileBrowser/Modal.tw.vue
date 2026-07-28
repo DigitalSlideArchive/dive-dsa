@@ -2,6 +2,7 @@
   import {defineComponent} from 'vue';
   import { mdiClose } from '@mdi/js';
   import SvgIcon from '@jamescoyle/vue-icon';
+  import { useMountToBody } from '../../useMountToBody';
 
 export default defineComponent({
     components: {
@@ -18,6 +19,7 @@ export default defineComponent({
         }
     },
     setup(_, { emit}) {
+        useMountToBody();
         const cancel = () => {
             emit('cancel')
         }
@@ -35,11 +37,13 @@ export default defineComponent({
 </script>
 
 <template>
-<div v-if="isVisible">
-    <div class="fixed inset-0 z-50 flex justify-center items-center ">
-      <div class="gsu-card flex flex-col max-w-5xl rounded-lg shadow-lg">
+<!-- Outer root must always be an element so useMountToBody can move it to document.body -->
+<div>
+  <div v-if="isVisible">
+    <div class="gsu-modal-layer fixed inset-0 flex justify-center items-center p-4">
+      <div class="gsu-card gsu-modal-panel flex flex-col rounded-lg shadow-lg">
         <!-- Header -->
-        <div class="p-5">
+        <div class="p-5 shrink-0">
           <div class="grid grid-cols-12">
             <span class="col-span-10 text-xl my-2 ml-5">
               <slot name="header">
@@ -61,13 +65,15 @@ export default defineComponent({
           </div>
         </div>
         
-        <slot name="body">
-          <div class="p-6">
-            <p>This is a modal body content. Let's make this line a bit longer to see the width.</p>
-          </div>
-        </slot>
+        <div class="gsu-modal-body-scroll">
+          <slot name="body">
+            <div class="p-6">
+              <p>This is a modal body content. Let's make this line a bit longer to see the width.</p>
+            </div>
+          </slot>
+        </div>
         
-        <div class="p-6 flex justify-end items-center">
+        <div class="p-6 flex justify-end items-center shrink-0">
           <button class="bg-red-500 border-solid border-2 border-borderColor font-bold py-2 px-4 rounded" @click="cancel">Cancel</button>
           <button 
             class=" btn ml-2 font-bold py-2 px-4 rounded"
@@ -77,6 +83,7 @@ export default defineComponent({
         </div>
       </div>
     </div>
-    <div class="opacity-25 fixed inset-0 z-40 bg-black"></div>
+    <div class="gsu-modal-backdrop opacity-25 fixed inset-0 bg-black"></div>
   </div>
+</div>
 </template>
