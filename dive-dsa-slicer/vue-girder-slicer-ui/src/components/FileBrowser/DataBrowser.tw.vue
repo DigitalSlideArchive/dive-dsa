@@ -1,5 +1,5 @@
 <script lang="ts">
-import { PropType, Ref, defineComponent, onMounted, ref, watch } from 'vue'
+import { PropType, Ref, computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import RestClient from '../../api/girderRest';
 import { GirderModel, GirderModelType } from '../../girderTypes';
 import { mdiAccount, mdiArrowUpRightBold, mdiChevronDoubleLeft, mdiChevronDoubleRight, mdiChevronDown, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
@@ -7,6 +7,7 @@ mdiClose, mdiEarth, mdiFile, mdiFolder, mdiLock, mdiSitemap } from '@mdi/js';
 import SvgIcon from '@jamescoyle/vue-icon';
 import { convertInputNumber, convertInputString, countFormatter, isValidRegex, sizeFormatter } from './utils'
 import RootSelection from './RootSelection.tw.vue';
+import { useMountToBody } from '../../useMountToBody';
 export default defineComponent({
   components: {
     SvgIcon,
@@ -54,6 +55,7 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
+    useMountToBody();
     const errorMsg = ref('');
     const submit = async () => {
       if (selectedModel.value === null) {
@@ -98,12 +100,57 @@ export default defineComponent({
     const folderOffset: Ref<number> = ref(0);
     const itemOffset: Ref<number> = ref(0);
     const breadCrumb: Ref<{type: GirderModelType, path: {name:string, id: string}[]}> = ref({type: 'user' as GirderModelType, path:[]})
+    const breadcrumbPathEl: Ref<HTMLElement | null> = ref(null);
+    const breadcrumbTruncated = ref(false);
+    const breadcrumbTooltipVisible = ref(false);
+    const breadcrumbTooltipStyle: Ref<Record<string, string>> = ref({});
+    const breadcrumbFullPath = computed(() =>
+      breadCrumb.value.path.map((item) => item.name).join(' / ')
+    );
+    const updateBreadcrumbTruncation = () => {
+      const el = breadcrumbPathEl.value;
+      if (!el) {
+        breadcrumbTruncated.value = false;
+        return;
+      }
+      breadcrumbTruncated.value = el.scrollWidth > el.clientWidth;
+    };
+    const showBreadcrumbTooltip = () => {
+      updateBreadcrumbTruncation();
+      const el = breadcrumbPathEl.value;
+      if (!breadcrumbTruncated.value || !el) {
+        breadcrumbTooltipVisible.value = false;
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const maxWidth = Math.min(Math.max(rect.width, 24 * 16), window.innerWidth - 16);
+      let left = rect.left;
+      if (left + maxWidth > window.innerWidth - 8) {
+        left = Math.max(8, window.innerWidth - maxWidth - 8);
+      }
+      breadcrumbTooltipStyle.value = {
+        left: `${left}px`,
+        top: `${rect.bottom + 4}px`,
+        maxWidth: `${maxWidth}px`,
+      };
+      breadcrumbTooltipVisible.value = true;
+    };
+    const hideBreadcrumbTooltip = () => {
+      breadcrumbTooltipVisible.value = false;
+    };
+    let breadcrumbResizeObserver: ResizeObserver | null = null;
     const currentParentId = ref('');
     const currentParentType = ref('user');
     const selected: Ref<null | {name: string, girderId: string, parentId?: string, fileId?: string}> = ref(null);
     const selectedModel: Ref<null | GirderModel> = ref(null);
     onMounted(async () => {
       await getData();
+      await nextTick();
+      updateBreadcrumbTruncation();
+      if (typeof ResizeObserver !== 'undefined' && breadcrumbPathEl.value) {
+        breadcrumbResizeObserver = new ResizeObserver(() => updateBreadcrumbTruncation());
+        breadcrumbResizeObserver.observe(breadcrumbPathEl.value);
+      }
       if (props.parentId && props.girderId && props.name) {
         currentParentId.value = props.parentId;
         currentParentType.value = 'user';
@@ -129,6 +176,14 @@ export default defineComponent({
         recalculatedSelected();
       }
     })
+    onUnmounted(() => {
+      breadcrumbResizeObserver?.disconnect();
+      breadcrumbResizeObserver = null;
+    });
+    watch(breadCrumb, async () => {
+      await nextTick();
+      updateBreadcrumbTruncation();
+    }, { deep: true });
     const updateFolders = async (parentId: string, parentType: string) => {
       const responseFolders = await girderRest.get(`folder`, {
                 params: {
@@ -354,6 +409,13 @@ export default defineComponent({
       itemOffset,
       iconMap,
       breadCrumb,
+      breadcrumbPathEl,
+      breadcrumbTruncated,
+      breadcrumbTooltipVisible,
+      breadcrumbTooltipStyle,
+      breadcrumbFullPath,
+      showBreadcrumbTooltip,
+      hideBreadcrumbTooltip,
       selected,
       selectedItems,
       selectedModel,
@@ -392,10 +454,10 @@ export default defineComponent({
 </script>
 <template>
   <div>
-    <div class="fixed inset-0 z-50 flex justify-center items-center">
-      <div class="flex flex-col max-w-5xl rounded-lg shadow-lg bg-backgroundColor text-textColor">
+    <div class="gsu-modal-layer fixed inset-0 flex justify-center items-center p-4">
+      <div class="gsu-modal-panel flex flex-col rounded-lg shadow-lg bg-backgroundColor text-textColor">
         <!-- Header -->
-        <div class="grid grid-cols-12">
+        <div class="grid grid-cols-12 shrink-0">
           <span class="col-span-10 text-xl my-2 ml-5">
             File Browser
           </span>
@@ -414,11 +476,11 @@ export default defineComponent({
         </div>
         
         <!-- Body -->
-        <div class="py-2 px-6">
-          <div class="modal-body">
-          <div class="mx-auto mx-auto">
+        <div class="py-2 px-6 flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div class="modal-body flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div class="mx-auto flex flex-col min-h-0 flex-1 overflow-hidden w-full">
             <div
-              class="flex flex-nowrap"
+              class="flex flex-nowrap shrink-0"
             >
               <root-selection
                 v-if="home && user && collections && users"
@@ -430,51 +492,62 @@ export default defineComponent({
                 class="grow my-1"
               />
             </div>
-            <div class="gsu-breadcrumb mb-0">
-              <div class="grid grid-cols-7 rounded mb-0 ">
-                <div class="col-start-1 col-span-4 flex flex-row">
-                  <div class="grow">
-                  <span
-                    v-for="(item, index) in breadCrumb.path"
-                    :key="`breadCrumb_${item.id}`"
+            <div class="gsu-breadcrumb mb-0 shrink-0 flex">
+              <div class="grid grid-cols-7 rounded mb-0 w-full items-center">
+                <div class="col-start-1 col-span-4 flex flex-row items-center min-w-0">
+                  <div
+                    class="relative grow min-w-0"
+                    @mouseenter="showBreadcrumbTooltip"
+                    @mouseleave="hideBreadcrumbTooltip"
+                    @focusin="showBreadcrumbTooltip"
+                    @focusout="hideBreadcrumbTooltip"
                   >
-                    <span
-                      v-if="index === 0"
-                      @click="updateMainView(item.id, breadCrumb.type, item.name, true);"
+                    <div
+                      ref="breadcrumbPathEl"
+                      class="truncate"
                     >
-                      <svg-icon
-                        type="mdi"
-                        :path="iconMap[breadCrumb.type]"
-                        color="lightblue"
-                        :size="30"
-                        class="pb-2 gsu-icon gsu-clickable"
-                        style="display:inline"
-                      />
                       <span
-                        class="gsu-clickable"
-                      > 
-                        {{ item.name }}
+                        v-for="(item, index) in breadCrumb.path"
+                        :key="`breadCrumb_${item.id}`"
+                      >
+                        <span
+                          v-if="index === 0"
+                          @click="updateMainView(item.id, breadCrumb.type, item.name, true);"
+                        >
+                          <svg-icon
+                            type="mdi"
+                            :path="iconMap[breadCrumb.type]"
+                            color="lightblue"
+                            :size="30"
+                            class="pb-2 gsu-icon gsu-clickable"
+                            style="display:inline"
+                          />
+                          <span
+                            class="gsu-clickable"
+                          > 
+                            {{ item.name }}
+                          </span>
+                        </span>
+                        <span
+                          v-else-if="index !== breadCrumb.path. length - 1"
+                          class="gsu-clickable"
+                          @click="updateMainView(item.id, 'folder', item.name, true)"
+                        > 
+                          {{ item.name }}
+                        </span>
+                        <span v-else> 
+                          {{ item.name }}
+                        </span>
+                        <span class="px-2">
+                          /
+                        </span>
                       </span>
-                    </span>
-                    <span
-                      v-else-if="index !== breadCrumb.path. length - 1"
-                      class="gsu-clickable"
-                      @click="updateMainView(item.id, 'folder', item.name, true)"
-                    > 
-                      {{ item.name }}
-                    </span>
-                    <span v-else> 
-                      {{ item.name }}
-                    </span>
-                    <span class="px-2">
-                      /
-                    </span>
-                  </span>
+                    </div>
                   </div>
                 </div>
-                <div class="col-start-7 col-span-3">
-                <div class="flex flex-row">
-                  <div class="flex flex-row">
+                <div class="col-start-7 col-span-3 shrink-0">
+                <div class="flex flex-row items-center justify-end">
+                  <div class="flex flex-row items-center">
                     <svg-icon
                       type="mdi"
                       :path="iconMap['folder']"
@@ -486,7 +559,7 @@ export default defineComponent({
                       class="number-badge"
                     >{{ countFormatter(folderCount) }}</span>
                   </div>
-                  <div class="flex flex-row">
+                  <div class="flex flex-row items-center">
                     <svg-icon
                       type="mdi"
                       :path="iconMap['item']"
@@ -512,7 +585,6 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          </div>
           <div class="data-list">
             <div
               v-if="(folderCount > limit || itemCount > limit) && folderCount"
@@ -771,7 +843,7 @@ export default defineComponent({
         </div>
         <div
           v-if="['directory', 'file'].includes(type)"
-          class="mx-5 gsu-selection mb-2"
+          class="mx-5 gsu-selection mb-2 shrink-0"
         >
           <div v-if="!multi">
             <span> Selected {{ type === 'directory' ? 'folder' : 'file' }}:</span>
@@ -806,14 +878,15 @@ export default defineComponent({
         </div>
         <div
           v-if="errorMsg"
-          class="mx-5 error-msg"
+          class="mx-5 error-msg shrink-0"
         >
           {{ errorMsg }}
         </div>
         </div>
+        </div>
         
         <!-- Footer -->
-        <div class="p-6 flex justify-end items-center">
+        <div class="p-6 flex justify-end items-center shrink-0">
           <button
             type="button"
             class="gsu-btn inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal no-underline mx-3"
@@ -834,7 +907,17 @@ export default defineComponent({
         </div>
       </div>
     </div>
-    <div class="opacity-25 fixed inset-0 z-40 bg-black"></div>
+    <div class="gsu-modal-backdrop opacity-25 fixed inset-0 bg-black"></div>
+    <teleport to="body">
+      <div
+        v-if="breadcrumbTooltipVisible"
+        class="gsu-breadcrumb-tooltip pointer-events-none fixed z-[10001] whitespace-normal break-all rounded border border-borderColor bg-backgroundColor px-2 py-1 text-sm text-textColor shadow-lg"
+        role="tooltip"
+        :style="breadcrumbTooltipStyle"
+      >
+        {{ breadcrumbFullPath }}
+      </div>
+    </teleport>
   </div>
 </template>
 <style scoped>

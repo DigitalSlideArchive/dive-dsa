@@ -75,6 +75,9 @@
 
     .gsu-breadcrumb {
         @apply bg-backgroundColor text-linkColor border-solid border-l-2 border-r-2 border-t-2 border-borderColor;
+        flex-shrink: 0;
+        min-height: 2.5rem;
+        align-items: center;
       }
     .gsu-disabled-icon {
       @apply text-bgMutedColor;
@@ -122,8 +125,29 @@
       @apply text-textColor;
       padding-right: 10px;
     }
+    .gsu-modal-layer {
+      z-index: 10000;
+    }
+    .gsu-modal-backdrop {
+      z-index: 9999;
+    }
+    .gsu-modal-panel {
+      max-height: 90vh;
+      max-width: min(64rem, calc(100vw - 2rem));
+      width: 100%;
+      overflow: hidden;
+    }
+    .gsu-modal-body-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
     .data-list {
-      max-height: 70vh;
+      flex: 1 1 auto;
+      min-height: 0;
+      /* Only the folder/item list grows and scrolls; chrome stays fixed height */
+      max-height: none;
       overflow-y: auto;
       overflow-x: hidden;
       @apply border-solid border-b-2 border-borderColor;
