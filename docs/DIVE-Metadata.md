@@ -295,7 +295,7 @@ There are two endpoitns that can be used to bulk update DIVE Metadata.  One is a
 | `rootId` | Path Parameter | The root metadata folder ID. |
 | `updates` | Body Parameter | An array of metadata key/value pairs to update |
 
-This system requires that either `DIVEDataset` or `Filename` be in each object to match up the correct Metadata Item.  Additionally if there are multiple `Filename` matches within the dataset it requires that `DIVE_Path` also be included in upload.  It will attempt to use `DIVEDataset` first followed by `Filename` and `DIVE_Path`.
+This system requires that either `DIVEDataset`, `DIVE_DatasetId`, or `Filename` be in each object to match up the correct Metadata Item.  Additionally if there are multiple `Filename` matches within the dataset it requires that `DIVE_Path` also be included in upload.  Match order is `DIVEDataset`, then `DIVE_DatasetId` (same Girder folder id lookup), then `Filename` with `DIVE_Path` when needed.
 This creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
 
 ### Example
@@ -354,6 +354,6 @@ In addition to the Direct POSTing of JSON metadata there is another endpoint tha
 **POST** `/dive_metadata/bulk_update_file/{rootId}`
 
 Once a file is uploaded to the DIVEMetadata Root Folder hitting this endpoint will process this file to update the metadata.
-Similar to the JSON format this file can be either JSON, NDJSON or CSV.  With CSV it requires columns that have `DIVEDataset`, `Filename`, `DIVE_Path` if required.
+Similar to the JSON format this file can be either JSON, NDJSON or CSV.  With CSV it requires columns that have `DIVEDataset` or `DIVE_DatasetId` or `Filename`, plus `DIVE_Path` when Filename alone is ambiguous.
 Similar to the POST endpoint with JSON this creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
 
