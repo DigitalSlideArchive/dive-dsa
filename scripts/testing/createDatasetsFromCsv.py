@@ -326,7 +326,6 @@ def main(
             unique_filenames, label="Creating datasets", show_pos=True
         ) as bar:
             for name in bar:
-                name = name.replace("Video_SITE_", "Video SITE ")
                 folder_id, was_created = create_dive_dataset(
                     gc,
                     root_folder_id,
