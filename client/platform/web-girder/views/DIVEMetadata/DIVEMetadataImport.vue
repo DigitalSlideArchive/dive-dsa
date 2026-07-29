@@ -133,7 +133,7 @@ export default defineComponent({
             <li> Metadata NDJSON </li>
             <li> Metadata CSV </li>
           </ul>
-          <p>The Import matching requires that either the key/column 'DIVEDataset' or 'Filename' is present.  If there are multiple 'Filename' matches in the DIVEMetadata it will then rely on the field 'DIVE_Path' to match the path.</p>
+          <p>Import matching uses 'DIVEDataset', then 'DIVE_DatasetId', then 'Filename'. If there are multiple 'Filename' matches in the DIVEMetadata it will then rely on the field 'DIVE_Path' to match the path.</p>
           <v-card-actions>
             <v-checkbox
               v-model="replace"
