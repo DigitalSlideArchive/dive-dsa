@@ -4,7 +4,7 @@
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
   },
-  "version": "0.1.4",
+  "version": "0.1.6",
   "type": "module",
   "files": [
     "dist",
@@ -70,10 +70,10 @@
     "autoprefixer": "^10.4.16",
     "eslint": "^8.50.0",
     "eslint-plugin-vue": "^9.17.0",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.24",
     "sass": "^1.69.5",
     "tailwindcss": "^3.3.6",
-    "typescript": "^5.2.2",
+    "typescript": "~5.4.5",
     "vite": "^6.4.3",
     "vite-plugin-dts": "^3.6.3",
     "vue-eslint-parser": "^9.0.3",

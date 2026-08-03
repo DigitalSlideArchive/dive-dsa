@@ -1262,7 +1262,7 @@ class DIVEMetadata(Resource):
         )
         .jsonParam(
             "updates",
-            description="Array of objects but requires that the user have 'DIVEDataset' or 'Filename' that matches a filename in the system",
+            description="Array of objects; match with DIVEDataset, DIVE_DatasetId, or Filename (plus DIVE_Path when Filename is ambiguous)",
             required=True,
             paramType="body",
             requireArray=True,

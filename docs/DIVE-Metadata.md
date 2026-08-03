@@ -309,7 +309,7 @@ One is a direct Endpoint that takes in JSON data:
 The request thread persists the body as a temporary item under the metadata
 root, then the worker loads and deletes that item while applying updates.
 
-This system requires that either `DIVEDataset` or `Filename` be in each object to match up the correct Metadata Item.  Additionally if there are multiple `Filename` matches within the dataset it requires that `DIVE_Path` also be included in upload.  It will attempt to use `DIVEDataset` first followed by `Filename` and `DIVE_Path`.
+This system requires that either `DIVEDataset`, `DIVE_DatasetId`, or `Filename` be in each object to match up the correct Metadata Item.  Additionally if there are multiple `Filename` matches within the dataset it requires that `DIVE_Path` also be included in upload.  Match order is `DIVEDataset`, then `DIVE_DatasetId` (same Girder folder id lookup), then `Filename` with `DIVE_Path` when needed.
 This creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
 
 ### Example
@@ -370,6 +370,6 @@ In addition to the Direct POSTing of JSON metadata there is another endpoint tha
 Once a file is uploaded to the DIVEMetadata Root Folder hitting this endpoint
 enqueues a job that processes the oldest JSON/NDJSON/CSV item in the folder
 (the item is removed after the worker loads it).
-Similar to the JSON format this file can be either JSON, NDJSON or CSV.  With CSV it requires columns that have `DIVEDataset`, `Filename`, `DIVE_Path` if required.
+Similar to the JSON format this file can be either JSON, NDJSON or CSV.  With CSV it requires columns that have `DIVEDataset` or `DIVE_DatasetId` or `Filename`, plus `DIVE_Path` when Filename alone is ambiguous.
 Similar to the POST endpoint with JSON this creates a Folder within the Root folder called `DIVEMetadataHistory` that will create a backup of the current metadata each time it is updated using this endpoint.
 

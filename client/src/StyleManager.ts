@@ -4,8 +4,8 @@ import {
   ref, Ref, computed, set as VueSet,
 } from 'vue';
 import * as d3 from 'd3';
+import type { ScaleOrdinal } from 'd3';
 import { noop, merge } from 'lodash';
-import { ScaleOrdinal } from 'd3';
 
 interface Style {
   strokeWidth: number;

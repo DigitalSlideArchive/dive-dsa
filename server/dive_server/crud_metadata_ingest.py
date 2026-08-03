@@ -393,7 +393,13 @@ def load_metadata_json(search_folder, type='ndjson', girder_client=None):
 
 
 _BULK_IMPORT_SKIP_KEYS = frozenset(
-    {'divedataset', 'filename', 'dive_path', 'divemetadatakeydescriptions'}
+    {
+        'divedataset',
+        'dive_datasetid',
+        'filename',
+        'dive_path',
+        'divemetadatakeydescriptions',
+    }
 )
 
 
@@ -822,15 +828,18 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False, job=N
 
     for row_idx, entry in enumerate(normalized_updates):
         reason = None
-        # Try to find by DIVEDataset by the matchers
+        # Match order: DIVEDataset → DIVE_DatasetId → Filename (+ DIVE_Path if ambiguous)
         dive_metadata = None
         matcher = None
+        dataset_id = None
+        video_name = None
         if entry.get('DIVEDataset', False):
             dataset_id = entry['DIVEDataset']
-            video_name = None
             matcher = 'DIVEDataset'
+        elif entry.get('DIVE_DatasetId', False):
+            dataset_id = entry['DIVE_DatasetId']
+            matcher = 'DIVE_DatasetId'
         elif entry.get('Filename', False):
-            dataset_id = None
             video_name = entry['Filename']
             matcher = 'Filename'
         if dataset_id:
@@ -867,7 +876,9 @@ def bulk_metadata_update_process(user, rootFolder, updates, replace=False, job=N
             if not dive_metadata and not reason:
                 reason = f"No dataset found with videoName or DIVE_Name {video_name}"
         else:
-            raise RestException('Metadata Updates need either DIVEDataset or Filename', code=400)
+            raise RestException(
+                'Metadata Updates need DIVEDataset, DIVE_DatasetId, or Filename', code=400
+            )
         if dive_metadata:
             # Find the DIVE_Metadata entry for this dataset and root
             dataset = Folder().load(dive_metadata['DIVEDataset'], level=AccessType.READ, user=user)
