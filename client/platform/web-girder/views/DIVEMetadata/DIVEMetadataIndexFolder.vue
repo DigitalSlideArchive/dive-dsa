@@ -8,6 +8,8 @@ import { RootlessLocationType } from 'platform/web-girder/store/types';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { indexDiveMetadataFromFolder } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { notifyAndWatchMetadataIngestJob } from 'platform/web-girder/utils/metadataIngestJobUi';
+import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
   name: 'DIVEMetadataIndexFolder',
@@ -37,6 +39,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const girderRest = useGirderRest();
     const { prompt } = usePrompt();
+    const router = useRouter();
     const open = ref(false);
     const replaceMetadata = ref(false);
     const location: Ref<RootlessLocationType> = ref({
@@ -56,17 +59,20 @@ export default defineComponent({
       if (!locationIsFolder.value) {
         throw new Error('Choose a folder to index');
       }
-      const { data } = await indexDiveMetadataFromFolder(
+      const { data: job } = await indexDiveMetadataFromFolder(
         props.metadataRoot,
         location.value._id,
         replaceMetadata.value,
       );
       open.value = false;
-      emit('updated');
-      await prompt({
-        title: 'Folder indexed',
-        text: [data.results],
-        positiveButton: 'OK',
+      await notifyAndWatchMetadataIngestJob({
+        job,
+        prompt,
+        router,
+        fallbackFolderId: props.metadataRoot,
+        onSuccess: () => {
+          emit('updated');
+        },
       });
     });
 

@@ -4,6 +4,8 @@ import { useApi } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { getResponseError } from 'vue-media-annotator/utils';
 import { importMetadataFile } from 'platform/web-girder/api/divemetadata.service';
+import { notifyAndWatchMetadataIngestJob } from 'platform/web-girder/utils/metadataIngestJobUi';
+import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
   name: 'DIVEMetadataImport',
@@ -33,6 +35,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { openFromDisk } = useApi();
     const { prompt } = usePrompt();
+    const router = useRouter();
     const processing = ref(false);
     const menuOpen = ref(false);
     const replace = ref(false);
@@ -42,27 +45,32 @@ export default defineComponent({
         if (!ret.canceled) {
           menuOpen.value = false;
           const path = ret.filePaths[0];
-          let importFile = false;
           processing.value = true;
-          if (ret.fileList?.length) {
-            importFile = await importMetadataFile(
+          const job = ret.fileList?.length
+            ? await importMetadataFile(
               props.metadataRoot,
               path,
               ret.fileList[0],
               replace.value,
-            );
-          } else {
-            importFile = await importMetadataFile(
+            )
+            : await importMetadataFile(
               props.metadataRoot,
               path,
               undefined,
               replace.value,
             );
+          if (job) {
+            await notifyAndWatchMetadataIngestJob({
+              job,
+              prompt,
+              router,
+              fallbackFolderId: props.metadataRoot,
+              onSuccess: () => {
+                emit('updated');
+              },
+            });
           }
-          if (importFile) {
-            processing.value = false;
-            emit('updated');
-          }
+          processing.value = false;
         }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
