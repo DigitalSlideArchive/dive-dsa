@@ -158,7 +158,9 @@ export default function (vuetify: Vuetify) {
 
     Vue.prototype.$promptAttach = function () {
       const div = document.createElement('div');
-      this.$el.appendChild(div);
+      // Mount outside the app tree so dialogs are not affected by app layout
+      // (overflow / sticky / transform containing blocks).
+      document.body.appendChild(div);
       if (promptService) {
         promptService.mount(div);
       }
