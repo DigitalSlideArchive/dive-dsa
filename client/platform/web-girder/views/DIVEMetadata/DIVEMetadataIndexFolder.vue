@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, Ref, ref,
+  computed, defineComponent, nextTick, Ref, ref,
 } from 'vue';
 import { GirderFileManager, GirderModelType } from '@girder/components/src';
 import useRequest from 'dive-common/use/useRequest';
@@ -39,6 +39,7 @@ export default defineComponent({
     const { prompt } = usePrompt();
     const open = ref(false);
     const replaceMetadata = ref(false);
+    const combineMetadataFolders = ref(false);
     const location: Ref<RootlessLocationType> = ref({
       _modelType: ('user' as GirderModelType),
       _id: girderRest.user._id,
@@ -60,12 +61,24 @@ export default defineComponent({
         props.metadataRoot,
         location.value._id,
         replaceMetadata.value,
+        combineMetadataFolders.value,
       );
       open.value = false;
       emit('updated');
+      const statusLines = combineMetadataFolders.value
+        ? [
+          `DIVE Metadata folders found: ${data.metadataFoldersFound}`,
+          `Datasets added: ${data.added}`,
+          `Datasets skipped (already present): ${data.existing}`,
+        ]
+        : [data.results];
+      // Let the index dialog finish closing before opening the status prompt.
+      await nextTick();
       await prompt({
-        title: 'Folder indexed',
-        text: [data.results],
+        title: combineMetadataFolders.value
+          ? 'DIVE Metadata folders combined'
+          : 'Folder indexed',
+        text: statusLines,
         positiveButton: 'OK',
       });
     });
@@ -73,6 +86,7 @@ export default defineComponent({
     return {
       open,
       replaceMetadata,
+      combineMetadataFolders,
       location,
       locationIsFolder,
       indexLoading,
@@ -123,37 +137,66 @@ export default defineComponent({
         >
           {{ indexError }}
         </v-alert>
-        <p>
+        <p v-if="!combineMetadataFolders">
           Scan a Girder folder (and its subfolders) for DIVE datasets and add them to this
           metadata collection. Datasets already in the collection are skipped unless you enable
           replace below.
         </p>
+        <p v-else>
+          Recursively find DIVE Metadata folders under the selected folder and merge all of their
+          datasets and columns into this collection. Datasets already present are skipped unless
+          you enable replace below.
+        </p>
         <v-checkbox
-          v-model="replaceMetadata"
-          label="Replace default metadata for datasets found in this folder"
+          v-model="combineMetadataFolders"
+          label="Only combine nested DIVE Metadata folders"
           :disabled="indexLoading || readOnlyMode"
           hide-details
           class="mb-2"
         />
-        <GirderFileManager
-          new-folder-enabled
-          no-access-control-w
-          :location="location"
-          @update:location="setLocation"
+        <v-checkbox
+          v-model="replaceMetadata"
+          :label="combineMetadataFolders
+            ? 'Replace existing rows with metadata from source folders'
+            : 'Replace default metadata for datasets found in this folder'"
+          :disabled="indexLoading || readOnlyMode"
+          hide-details
+          class="mb-2"
+        />
+        <v-card
+          outlined
+          flat
+          class="mt-2"
         >
-          <template #row="{ item }">
-            <span>{{ item.name }}</span>
-            <v-chip
-              v-if="(item.meta && item.meta.annotate)"
-              color="white"
-              x-small
-              outlined
-              class="mx-3"
-            >
-              dataset
-            </v-chip>
-          </template>
-        </GirderFileManager>
+          <GirderFileManager
+            new-folder-enabled
+            no-access-control-w
+            :location="location"
+            @update:location="setLocation"
+          >
+            <template #row="{ item }">
+              <span>{{ item.name }}</span>
+              <v-chip
+                v-if="(item.meta && item.meta.annotate)"
+                color="white"
+                x-small
+                outlined
+                class="mx-3"
+              >
+                dataset
+              </v-chip>
+              <v-chip
+                v-if="(item.meta && item.meta.DIVEMetadata)"
+                color="primary"
+                x-small
+                outlined
+                class="mx-3"
+              >
+                metadata
+              </v-chip>
+            </template>
+          </GirderFileManager>
+        </v-card>
         <v-btn
           depressed
           block
@@ -165,6 +208,9 @@ export default defineComponent({
         >
           <span v-if="!locationIsFolder">
             Choose a folder...
+          </span>
+          <span v-else-if="'name' in location && combineMetadataFolders">
+            Combine DIVE Metadata under {{ location.name }}
           </span>
           <span v-else-if="'name' in location">
             Index datasets under {{ location.name }}

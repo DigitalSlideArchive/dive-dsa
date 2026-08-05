@@ -65,7 +65,6 @@ export default defineComponent({
 <style lang="scss">
 html {
   overflow-y: auto;
-  transform-style: preserve-3d;
 }
 
 .text-xs-center {
