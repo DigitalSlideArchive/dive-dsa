@@ -3,7 +3,10 @@ import { defineComponent, ref } from 'vue';
 import { useApi } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { getResponseError } from 'vue-media-annotator/utils';
-import { importMetadataFile } from 'platform/web-girder/api/divemetadata.service';
+import {
+  BulkMetadataImportSummary,
+  importMetadataFile,
+} from 'platform/web-girder/api/divemetadata.service';
 
 export default defineComponent({
   name: 'DIVEMetadataImport',
@@ -36,32 +39,40 @@ export default defineComponent({
     const processing = ref(false);
     const menuOpen = ref(false);
     const replace = ref(false);
+
+    const importSummaryText = (summary: BulkMetadataImportSummary) => {
+      const lines = [
+        `Updated ${summary.updatedCount} of ${summary.totalCount} DIVEMetadata item${summary.totalCount === 1 ? '' : 's'}.`,
+      ];
+      if (summary.notFoundCount > 0) {
+        lines.push(`${summary.notFoundCount} row${summary.notFoundCount === 1 ? '' : 's'} not found.`);
+      }
+      if (summary.errorCount > 0) {
+        lines.push(`${summary.errorCount} row${summary.errorCount === 1 ? '' : 's'} failed with errors.`);
+      }
+      return lines;
+    };
+
     const openUpload = async () => {
       try {
         const ret = await openFromDisk('annotation');
         if (!ret.canceled) {
           menuOpen.value = false;
           const path = ret.filePaths[0];
-          let importFile = false;
           processing.value = true;
-          if (ret.fileList?.length) {
-            importFile = await importMetadataFile(
-              props.metadataRoot,
-              path,
-              ret.fileList[0],
-              replace.value,
-            );
-          } else {
-            importFile = await importMetadataFile(
-              props.metadataRoot,
-              path,
-              undefined,
-              replace.value,
-            );
-          }
-          if (importFile) {
-            processing.value = false;
+          const importResult = await importMetadataFile(
+            props.metadataRoot,
+            path,
+            ret.fileList?.length ? ret.fileList[0] : undefined,
+            replace.value,
+          );
+          if (importResult) {
             emit('updated');
+            await prompt({
+              title: 'Import Complete',
+              text: importSummaryText(importResult),
+              positiveButton: 'OK',
+            });
           }
         }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,6 +83,7 @@ export default defineComponent({
           text,
           positiveButton: 'OK',
         });
+      } finally {
         processing.value = false;
       }
     };

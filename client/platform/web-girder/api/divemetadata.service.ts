@@ -462,6 +462,47 @@ async function putDiveMetadataLastModified(folderId:string, rootId: string) {
   return girderRest.put(`dive_metadata/${folderId}/last_modified`, null, { params: { rootId } });
 }
 
+export interface BulkMetadataImportRowResult {
+  matcher?: string;
+  status: 'success' | 'partial_success' | 'error' | 'not_found';
+  datasetId?: string;
+  updatedKeys?: string[];
+  errors?: string[];
+  error?: string;
+}
+
+export interface BulkMetadataImportSummary {
+  updatedCount: number;
+  notFoundCount: number;
+  errorCount: number;
+  totalCount: number;
+  results: BulkMetadataImportRowResult[];
+}
+
+function summarizeBulkImportResults(
+  results: BulkMetadataImportRowResult[],
+): BulkMetadataImportSummary {
+  let updatedCount = 0;
+  let notFoundCount = 0;
+  let errorCount = 0;
+  for (const row of results) {
+    if (row.status === 'success' || row.status === 'partial_success') {
+      updatedCount += 1;
+    } else if (row.status === 'not_found') {
+      notFoundCount += 1;
+    } else {
+      errorCount += 1;
+    }
+  }
+  return {
+    updatedCount,
+    notFoundCount,
+    errorCount,
+    totalCount: results.length,
+    results,
+  };
+}
+
 async function processImportedFile(rootId:string, replace = false) {
   return girderRest.post(`dive_metadata/bulk_update_file/${rootId}`, null, { params: { replace } });
 }
@@ -470,7 +511,12 @@ interface HTMLFile extends File {
   webkitRelativePath?: string;
 }
 
-async function importMetadataFile(parentId: string, path: string, file?: HTMLFile, replace = false) {
+async function importMetadataFile(
+  parentId: string,
+  path: string,
+  file?: HTMLFile,
+  replace = false,
+): Promise<BulkMetadataImportSummary | false> {
   if (file === undefined) {
     return false;
   }
@@ -493,7 +539,9 @@ async function importMetadataFile(parentId: string, path: string, file?: HTMLFil
     });
     if (uploadResponse.status === 200) {
       const final = await processImportedFile(parentId, replace);
-      return final.status === 200;
+      if (final.status === 200) {
+        return summarizeBulkImportResults(final.data as BulkMetadataImportRowResult[]);
+      }
     }
   }
   return false;
@@ -522,4 +570,5 @@ export {
   putDiveMetadataLastModified,
   processImportedFile,
   importMetadataFile,
+  summarizeBulkImportResults,
 };
