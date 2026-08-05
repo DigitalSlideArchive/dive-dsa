@@ -17,6 +17,7 @@ from dive_server.views_metadata import (  # noqa: E402
     _categorical_limit_from_metadata_folder,
     _display_config_from_metadata_folder,
     _finalize_metadata_keys_categories,
+    _get_recursive_dive_metadata_folders,
     _is_blank_metadata_value_for_stats,
     _is_dive_metadata_folder,
     _metadata_folder_name_for_dataset_folder,
@@ -178,3 +179,43 @@ def test_merge_recomputed_metadata_key_stats_matches_process_metadata_shape():
     assert merged['note']['set'] == []
     assert merged['note']['unique'] == 0
     assert merged['note']['description'] == 'kept'
+
+
+def test_get_recursive_dive_metadata_folders_finds_nested_and_skips_target(monkeypatch):
+    """Walk a small folder tree and collect DIVEMetadata folders, skipping the destination."""
+    root = {'_id': 'root', 'meta': {}}
+    meta_a = {'_id': 'meta-a', 'meta': {'DIVEMetadata': True}}
+    plain = {'_id': 'plain', 'meta': {}}
+    meta_b = {'_id': 'meta-b', 'meta': {'DIVEMetadata': True}}
+    target = {'_id': 'target', 'meta': {'DIVEMetadata': True}}
+    children = {
+        'root': [meta_a, plain, target],
+        'meta-a': [],
+        'plain': [meta_b],
+        'meta-b': [],
+        'target': [],
+    }
+
+    class FakeFolder:
+        def childFolders(self, folder, _parent_type, user=None):
+            return list(children.get(str(folder['_id']), []))
+
+    monkeypatch.setattr('dive_server.views_metadata.Folder', FakeFolder)
+
+    found = []
+    _get_recursive_dive_metadata_folders(root, user=None, results=found, skip_ids={'target'})
+    assert [f['_id'] for f in found] == ['meta-a', 'meta-b']
+
+
+def test_get_recursive_dive_metadata_folders_includes_root_when_marked(monkeypatch):
+    root = {'_id': 'meta-root', 'meta': {'DIVEMetadata': True}}
+
+    class FakeFolder:
+        def childFolders(self, folder, _parent_type, user=None):
+            return []
+
+    monkeypatch.setattr('dive_server.views_metadata.Folder', FakeFolder)
+
+    found = []
+    _get_recursive_dive_metadata_folders(root, user=None, results=found)
+    assert [f['_id'] for f in found] == ['meta-root']
