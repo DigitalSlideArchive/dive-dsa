@@ -485,7 +485,7 @@ function summarizeBulkImportResults(
   let updatedCount = 0;
   let notFoundCount = 0;
   let errorCount = 0;
-  for (const row of results) {
+  results.forEach((row) => {
     if (row.status === 'success' || row.status === 'partial_success') {
       updatedCount += 1;
     } else if (row.status === 'not_found') {
@@ -493,7 +493,7 @@ function summarizeBulkImportResults(
     } else {
       errorCount += 1;
     }
-  }
+  });
   return {
     updatedCount,
     notFoundCount,
