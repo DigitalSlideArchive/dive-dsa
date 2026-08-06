@@ -12,8 +12,8 @@ import {
   createDiveMetadataFolder,
   createDiveMetadataRecursive,
 } from 'platform/web-girder/api/divemetadata.service';
-import eventBus from '../eventBus';
 import type { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
+import eventBus from '../eventBus';
 
 export default defineComponent({
   components: { GirderFileManager },
