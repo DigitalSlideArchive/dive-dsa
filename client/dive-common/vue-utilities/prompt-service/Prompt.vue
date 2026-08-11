@@ -142,6 +142,7 @@ export default defineComponent({
 <template>
   <v-dialog
     v-model="show"
+    content-class="theme--dark"
     :max-width="maxWidth"
   >
     <v-card>
