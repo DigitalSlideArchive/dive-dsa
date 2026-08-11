@@ -38,6 +38,7 @@ from dive_utils.metadata.numeric import (
 )
 from dive_utils.types import DiveDatasetList, DIVEMetadataSlicerCLITaskParams
 
+from dive_server import crud_dataset
 from dive_server.crud_metadata_ingest import (
     _CREATE_METADATA_DISPLAY_DEFAULT,
     _CREATE_METADATA_FFPROBE_DEFAULT,

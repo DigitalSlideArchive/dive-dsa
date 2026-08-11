@@ -22,7 +22,7 @@ from girder_jobs.models.job import Job
 from pandas import pandas as pd
 import pymongo
 
-from dive_utils import FALSY_META_VALUES, TRUTHY_META_VALUES
+from dive_utils import TRUTHY_META_VALUES
 from dive_utils.constants import (
     DIVEMetadataFilter,
     DIVEMetadataHistoryMarker,
@@ -1958,5 +1958,3 @@ def run_bulk_update_from_item_core(
         'folderId': str(root_folder['_id']),
         'rowCount': len(updates) if isinstance(updates, list) else None,
     }
-
-
