@@ -98,6 +98,7 @@ def metadata_ingest_task(base_job) -> None:
                 display_config=params.get('displayConfig'),
                 ffprobe_metadata=params.get('ffprobeMetadata'),
                 categorical_limit=params.get('categoricalLimit', 50),
+                combine_metadata_folders=params.get('combineMetadataFolders', False),
                 job=base_job,
             )
         elif operation == 'create_metadata_recursive':
@@ -120,6 +121,7 @@ def metadata_ingest_task(base_job) -> None:
                 root_folder_id=params['rootFolderId'],
                 replace_metadata=params.get('replaceMetadata', False),
                 ffprobe_metadata=params.get('ffprobeMetadata'),
+                combine_metadata_folders=params.get('combineMetadataFolders', False),
                 job=base_job,
             )
         elif operation == 'process_metadata':

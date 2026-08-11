@@ -195,10 +195,12 @@ export interface createDiveMetadataResponse {
   'results': string,
   'errors': string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  'metadataKeys': any;
+  'metadataKeys': any[] | Record<string, unknown>;
   'folderId': string;
   existing?: number;
   added?: number;
+  metadataFoldersFound?: number;
+  combineMetadataFolders?: boolean;
 }
 
 export interface CreateDiveMetadataRecursiveEntry {
@@ -227,6 +229,8 @@ export interface IndexDiveMetadataFolderResponse {
   added: number;
   existing: number;
   datasetCount: number;
+  metadataFoldersFound: number;
+  combineMetadataFolders: boolean;
 }
 
 /** Girder job returned immediately by metadata ingest endpoints. */
@@ -353,6 +357,7 @@ function createDiveMetadataFolder(
   name: string,
   rootFolderId: string,
   categoricalLimit = 50,
+  combineMetadataFolders = false,
   displayConfig = {
     display: ['DIVE_DatasetId', 'DIVE_Name'],
   },
@@ -365,6 +370,7 @@ function createDiveMetadataFolder(
       name,
       rootFolderId,
       categoricalLimit,
+      combineMetadataFolders,
       displayConfig: toJsonParam(displayConfig),
       ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
@@ -419,6 +425,7 @@ function indexDiveMetadataFromFolder(
   metadataFolderId: string,
   rootFolderId: string,
   replaceMetadata = false,
+  combineMetadataFolders = false,
   ffprobeMetadata = {
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
@@ -430,6 +437,7 @@ function indexDiveMetadataFromFolder(
       params: {
         rootFolderId,
         replaceMetadata,
+        combineMetadataFolders,
         ffprobeMetadata: toJsonParam(ffprobeMetadata),
       },
     },

@@ -74,6 +74,14 @@ ERROR / CANCELED. When finished successfully, a compact summary is stored at
 
 Creates a DIVE metadata folder under `parentFolderId` and indexes datasets under `rootFolderId`. If a metadata folder already exists under the parent, it is reused. Existing per-dataset metadata rows are not overwritten.
 
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Metadata folder name |
+| `rootFolderId` | Folder to scan for DIVE datasets (or nested DIVE metadata folders when combining) |
+| `categoricalLimit` | Unique-value threshold before a string field becomes search instead of categorical |
+| `displayConfig` / `ffprobeMetadata` | Display layout and optional ffprobe key import |
+| `combineMetadataFolders` | When `true` (default `false`), only recursively find nested **DIVE Metadata** folders and merge their dataset rows and columns (does not index bare datasets). Job result includes `metadataFoldersFound` and `added`. |
+
 **POST** `/dive_metadata/create_metadata_recursive`
 
 Creates metadata for a Girder **folder** or **collection** without replacing existing metadata.
@@ -97,11 +105,14 @@ Indexes DIVE datasets from a Girder folder into an **existing** DIVE metadata fo
 
 | Parameter | Description |
 |-----------|-------------|
-| `rootFolderId` | Folder to scan recursively for DIVE datasets |
-| `replaceMetadata` | When `true`, overwrite default metadata rows (`DIVE_*`, ffprobe fields) for datasets found under `rootFolderId`; custom keys from CSV/JSON import are unchanged unless you re-import those files |
-| `ffprobeMetadata` | Same object as `create_metadata_folder` (optional) |
+| `rootFolderId` | Folder to scan recursively for DIVE datasets (or nested DIVE metadata folders when combining) |
+| `replaceMetadata` | When `true`, overwrite metadata rows for datasets found under `rootFolderId` (default `DIVE_*` / ffprobe fields in dataset mode; full source rows in combine mode) |
+| `combineMetadataFolders` | When `true`, only recursively find nested **DIVE Metadata** folders and merge all of their dataset rows and columns into this collection (does not index bare datasets) |
+| `ffprobeMetadata` | Same object as `create_metadata_folder` (optional; ignored when `combineMetadataFolders` is true) |
 
 Only datasets not yet in the metadata root are added by default. Use this after importing new media into a sibling or child folder, or to attach a second dataset tree to one metadata collection.
+
+When `combineMetadataFolders` is true, `job.meta.diveMetadataIngestResult` includes `metadataFoldersFound` (count of source DIVE Metadata folders) and `added` (datasets merged into the target).
 
 ### Ingesting DIVE Metadata
 

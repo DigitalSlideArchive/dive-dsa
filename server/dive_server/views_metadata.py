@@ -216,7 +216,9 @@ class DIVEMetadata(Resource):
     @autoDescribeRoute(
         Description(
             "Enqueue creation/indexing of a DIVE metadata folder on the local worker. "
-            "Returns a Girder job immediately; poll the job for results."
+            "Returns a Girder job immediately; poll the job for results. "
+            "When combineMetadataFolders is true, only nested DIVE metadata folders are merged "
+            "(full rows and columns), not bare datasets."
         )
         .modelParam(
             "id",
@@ -250,7 +252,8 @@ class DIVEMetadata(Resource):
         )
         .jsonParam(
             "ffprobeMetadata",
-            "List Metadata keys to extract from the ffprobe metadata from videos.  Setting 'import' to 'true' will import the data",
+            "List Metadata keys to extract from the ffprobe metadata from videos.  Setting 'import' to 'true' will import the data "
+            "(ignored when combineMetadataFolders is true)",
             required=True,
             default={
                 "import": True,
@@ -264,9 +267,25 @@ class DIVEMetadata(Resource):
             dataType="integer",
             default=50,
         )
+        .param(
+            "combineMetadataFolders",
+            "When true, recursively find DIVE metadata folders under rootFolderId and merge "
+            "all of their dataset rows and columns into the new metadata collection",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
     )
     def create_metadata_folder(
-        self, folder, name, rootFolderId, displayConfig, ffprobeMetadata, categoricalLimit
+        self,
+        folder,
+        name,
+        rootFolderId,
+        displayConfig,
+        ffprobeMetadata,
+        categoricalLimit,
+        combineMetadataFolders,
     ):
         """Enqueue folder indexing on the local worker; returns a Girder job."""
         from dive_server.crud_metadata_jobs import enqueue_metadata_ingest_job
@@ -294,6 +313,7 @@ class DIVEMetadata(Resource):
                 'displayConfig': display_config,
                 'ffprobeMetadata': ffprobe_metadata,
                 'categoricalLimit': categoricalLimit,
+                'combineMetadataFolders': combineMetadataFolders is True,
             },
         )
 
@@ -410,7 +430,9 @@ class DIVEMetadata(Resource):
         Description(
             "Index DIVE datasets from another folder into an existing DIVE metadata folder. "
             "Adds rows for datasets not yet in the metadata root; optionally replaces default "
-            "fields for datasets already indexed from the same scan."
+            "fields for datasets already indexed from the same scan. "
+            "When combineMetadataFolders is true, only nested DIVE metadata folders are merged "
+            "(full rows and columns), not bare datasets."
         )
         .modelParam(
             "id",
@@ -420,14 +442,24 @@ class DIVEMetadata(Resource):
         )
         .param(
             "rootFolderId",
-            "Folder to scan recursively for DIVE datasets to add or refresh",
+            "Folder to scan recursively for DIVE datasets (or DIVE metadata folders when combining)",
             paramType="formData",
             dataType="string",
             required=True,
         )
         .param(
             "replaceMetadata",
-            "When true, overwrite default metadata rows for datasets found under rootFolderId",
+            "When true, overwrite metadata rows for datasets found under rootFolderId "
+            "(default fields in dataset mode; full source rows in combine mode)",
+            paramType="formData",
+            dataType="boolean",
+            default=False,
+            required=False,
+        )
+        .param(
+            "combineMetadataFolders",
+            "When true, recursively find DIVE metadata folders under rootFolderId and merge "
+            "all of their dataset rows and columns into this metadata collection",
             paramType="formData",
             dataType="boolean",
             default=False,
@@ -435,12 +467,20 @@ class DIVEMetadata(Resource):
         )
         .jsonParam(
             "ffprobeMetadata",
-            "ffprobe keys to import for newly indexed or replaced rows",
+            "ffprobe keys to import for newly indexed or replaced rows "
+            "(ignored when combineMetadataFolders is true)",
             required=False,
             default=_CREATE_METADATA_FFPROBE_DEFAULT,
         )
     )
-    def index_metadata_folder(self, folder, rootFolderId, replaceMetadata, ffprobeMetadata):
+    def index_metadata_folder(
+        self,
+        folder,
+        rootFolderId,
+        replaceMetadata,
+        combineMetadataFolders,
+        ffprobeMetadata,
+    ):
         """Enqueue indexing into an existing metadata folder; returns a Girder job."""
         from dive_server.crud_metadata_jobs import enqueue_metadata_ingest_job
 
@@ -466,6 +506,7 @@ class DIVEMetadata(Resource):
                 'metadataFolderId': str(folder['_id']),
                 'rootFolderId': str(rootFolderId),
                 'replaceMetadata': replaceMetadata is True,
+                'combineMetadataFolders': combineMetadataFolders is True,
                 'ffprobeMetadata': ffprobe_metadata,
             },
         )

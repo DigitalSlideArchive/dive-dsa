@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, Ref, ref, PropType,
+  computed, defineComponent, Ref, ref, PropType, watch,
 } from 'vue';
 import { GirderFileManager, GirderModelType } from '@girder/components/src';
 import useRequest from 'dive-common/use/useRequest';
@@ -55,6 +55,7 @@ export default defineComponent({
     const open = ref(false);
     const categoricalLimit = ref(50);
     const perSubfolder = ref(false);
+    const combineMetadataFolders = ref(false);
     const scope = ref<'single' | 'subfolders'>('single');
     const location: Ref<RootlessLocationType> = ref({
       _modelType: ('user' as GirderModelType),
@@ -74,6 +75,18 @@ export default defineComponent({
       return perSubfolder.value ? 'subfolders' : 'single';
     });
 
+    watch(useRecursiveApi, (recursive) => {
+      if (recursive) {
+        combineMetadataFolders.value = false;
+      }
+    });
+
+    watch(combineMetadataFolders, (combine) => {
+      if (combine) {
+        perSubfolder.value = false;
+      }
+    });
+
     async function click() {
       if (!props.datasetId) {
         return;
@@ -86,12 +99,14 @@ export default defineComponent({
         };
         scope.value = 'subfolders';
         perSubfolder.value = true;
+        combineMetadataFolders.value = false;
         newName.value = 'DIVE Metadata';
       } else {
         source.value = (await getFolder(props.datasetId)).data;
         newName.value = `DiveMetadata of ${source.value.name}`;
         scope.value = 'single';
         perSubfolder.value = false;
+        combineMetadataFolders.value = false;
       }
       open.value = true;
     }
@@ -134,6 +149,7 @@ export default defineComponent({
         newName.value,
         props.datasetId,
         categoricalLimit.value,
+        combineMetadataFolders.value,
       );
       open.value = false;
       await notifyAndWatchMetadataIngestJob({
@@ -156,6 +172,7 @@ export default defineComponent({
       source,
       categoricalLimit,
       perSubfolder,
+      combineMetadataFolders,
       scope,
       isCollection,
       useRecursiveApi,
@@ -216,6 +233,11 @@ export default defineComponent({
             collection or one per top-level folder (as a sibling folder next to each one). Existing
             metadata folders are reused and only missing datasets are indexed.
           </p>
+          <p v-else-if="combineMetadataFolders">
+            Recursively find DIVE Metadata folders under the current folder and merge all of their
+            datasets and columns into a new metadata collection. Existing metadata rows are not
+            replaced.
+          </p>
           <p v-else>
             This indexes DIVE datasets under the current folder. Existing metadata rows are not
             replaced. Choose a destination folder, or enable per-subfolder creation below.
@@ -249,12 +271,21 @@ export default defineComponent({
               value="subfolders"
             />
           </v-radio-group>
-          <v-checkbox
-            v-else
-            v-model="perSubfolder"
-            label="Create a sibling metadata folder for each immediate subfolder"
-            class="mt-2"
-          />
+          <template v-else>
+            <v-checkbox
+              v-model="combineMetadataFolders"
+              label="Only combine nested DIVE Metadata folders"
+              :disabled="createLoading"
+              hide-details
+              class="mt-2"
+            />
+            <v-checkbox
+              v-model="perSubfolder"
+              label="Create a sibling metadata folder for each immediate subfolder"
+              :disabled="createLoading || combineMetadataFolders"
+              class="mt-2"
+            />
+          </template>
 
           <v-card
             v-if="!useRecursiveApi"
@@ -280,6 +311,15 @@ export default defineComponent({
                 >
                   dataset
                 </v-chip>
+                <v-chip
+                  v-if="(item.meta && item.meta.DIVEMetadata)"
+                  color="primary"
+                  x-small
+                  outlined
+                  class="mx-3"
+                >
+                  metadata
+                </v-chip>
               </template>
             </GirderFileManager>
           </v-card>
@@ -300,6 +340,9 @@ export default defineComponent({
             </span>
             <span v-else-if="useRecursiveApi">
               Create metadata for {{ source.name }}
+            </span>
+            <span v-else-if="'name' in location && combineMetadataFolders">
+              Combine DIVE Metadata into folder in {{ location.name }}
             </span>
             <span v-else-if="'name' in location">
               Create metadata folder in {{ location.name }}

@@ -730,6 +730,189 @@ def _populate_dive_metadata_folder(
     }
 
 
+def _get_recursive_dive_metadata_folders(
+    folder,
+    user,
+    results,
+    skip_ids=None,
+):
+    """
+    Recursively collect Girder folders marked as DIVE metadata under ``folder``.
+
+    Includes ``folder`` itself when it is a DIVE metadata folder. Skip ids in
+    ``skip_ids`` (e.g. the destination metadata root being combined into).
+    """
+    skip = {str(sid) for sid in (skip_ids or [])}
+    folder_id = str(folder['_id'])
+    if folder_id not in skip and _is_dive_metadata_folder(folder):
+        results.append(folder)
+    for child in Folder().childFolders(folder, 'folder', user=user):
+        _get_recursive_dive_metadata_folders(child, user, results, skip_ids=skip)
+
+
+def _combine_dive_metadata_folders(
+    base_folder,
+    root_folder,
+    user,
+    display_config,
+    categorical_limit,
+    replace_metadata=False,
+    job=None,
+):
+    """
+    Find nested DIVE metadata folders under ``root_folder`` and merge their rows
+    (full metadata dicts / columns) into ``base_folder``.
+
+    Does not scan for bare DIVE datasets — only folders marked as DIVE metadata.
+    """
+    target_id = str(base_folder['_id'])
+    source_folders = []
+    _get_recursive_dive_metadata_folders(
+        root_folder,
+        user,
+        source_folders,
+        skip_ids={target_id},
+    )
+
+    added = 0
+    existing_count = 0
+    datasets_seen = set()
+    key_descriptions = {}
+    unlocked_keys = set()
+    folder_total = max(len(source_folders), 1)
+    last_pct = -1
+    _ingest_job_progress(
+        job,
+        0,
+        folder_total,
+        log=(
+            f'Combining {len(source_folders)} DIVE Metadata folders from '
+            f'"{root_folder.get("name", root_folder.get("_id"))}" into '
+            f'"{base_folder.get("name", target_id)}"\n'
+        ),
+    )
+
+    for folder_idx, source_folder in enumerate(source_folders):
+        source_root = str(source_folder['_id'])
+        source_keys_doc = DIVE_MetadataKeys().findOne({'root': source_root})
+        if source_keys_doc:
+            for key, bucket in (source_keys_doc.get('metadataKeys') or {}).items():
+                desc = bucket.get('description') if isinstance(bucket, dict) else None
+                if (
+                    isinstance(desc, str)
+                    and desc.strip()
+                    and key not in key_descriptions
+                ):
+                    key_descriptions[key] = desc.strip()
+            for unlocked_key in source_keys_doc.get('unlocked') or []:
+                unlocked_keys.add(unlocked_key)
+
+        for row in DIVE_Metadata().find({'root': source_root}):
+            dataset_id = str(row.get('DIVEDataset') or '')
+            if not dataset_id:
+                continue
+            if dataset_id in datasets_seen and not replace_metadata:
+                continue
+
+            existing_row = DIVE_Metadata().findOne(
+                {'DIVEDataset': dataset_id, 'root': target_id}
+            )
+            if existing_row and not replace_metadata:
+                existing_count += 1
+                datasets_seen.add(dataset_id)
+                continue
+
+            dataset_folder = Folder().load(
+                dataset_id,
+                level=AccessType.READ,
+                user=user,
+                force=True,
+            )
+            if dataset_folder is None:
+                continue
+
+            data = dict(row.get('metadata') or {})
+            data['DIVE_DatasetId'] = dataset_id
+            data['DIVE_Name'] = str(
+                dataset_folder.get('lowerName', dataset_folder.get('name', ''))
+            )
+            data['DIVE_Path'] = path_util.getResourcePath(
+                'folder', dataset_folder, user=user
+            )
+            sanitize_value_tree_for_girder_json(data, minmax_keys_to_zero=False)
+            DIVE_Metadata().createMetadata(
+                dataset_folder,
+                base_folder,
+                user,
+                data,
+                replace=replace_metadata or existing_row is None,
+            )
+            added += 1
+            datasets_seen.add(dataset_id)
+
+        last_pct = _maybe_ingest_percent_progress(
+            job,
+            folder_idx + 1,
+            folder_total,
+            last_pct,
+            message=lambda pct, cur, tot: (
+                f'Progress {pct}% ({cur}/{tot} metadata folders): '
+                f'added={added}, skipped_existing={existing_count}'
+            ),
+        )
+
+    keys_doc = DIVE_MetadataKeys().findOne({'root': target_id})
+    if keys_doc is None:
+        DIVE_MetadataKeys().createMetadataKeys(base_folder, user, {}, replace=True)
+    if added > 0 or keys_doc is None:
+        refresh_metadata_keys_stats_from_stored_dive_metadata(
+            base_folder, categorical_limit
+        )
+
+    if key_descriptions:
+        try:
+            DIVE_MetadataKeys().mergeImportedKeyDescriptions(
+                base_folder, user, key_descriptions
+            )
+        except Exception:
+            # Destination owner checks may block description merge for non-owners;
+            # row/column data is already combined.
+            pass
+
+    if unlocked_keys:
+        dest_keys = DIVE_MetadataKeys().findOne({'root': target_id})
+        if dest_keys is not None:
+            current_unlocked = list(dest_keys.get('unlocked') or [])
+            changed = False
+            for key in unlocked_keys:
+                if key in (dest_keys.get('metadataKeys') or {}) and key not in current_unlocked:
+                    current_unlocked.append(key)
+                    changed = True
+            if changed:
+                dest_keys['unlocked'] = current_unlocked
+                DIVE_MetadataKeys().save(dest_keys)
+
+    if not _is_dive_metadata_folder(base_folder):
+        _apply_dive_metadata_folder_marker(base_folder, display_config, categorical_limit)
+
+    _ingest_job_progress(
+        job,
+        folder_total,
+        folder_total,
+        log=(
+            f'Finished combine: found={len(source_folders)} metadata folders, '
+            f'added={added}, skipped_existing={existing_count}\n'
+        ),
+    )
+
+    return {
+        'metadataFoldersFound': len(source_folders),
+        'added': added,
+        'existing': existing_count,
+        'datasetCount': len(datasets_seen),
+    }
+
+
 def _resolve_create_metadata_targets(resource_id, resource_type, user):
     if resource_type == 'collection':
         collection = Collection().load(
@@ -1369,6 +1552,7 @@ def run_create_metadata_folder_core(
     display_config,
     ffprobe_metadata,
     categorical_limit,
+    combine_metadata_folders=False,
     job=None,
 ):
     parent = Folder().load(parent_folder_id, level=AccessType.WRITE, user=user, force=True)
@@ -1388,15 +1572,43 @@ def run_create_metadata_folder_core(
         display_config,
         ffprobe_metadata,
     )
+    combine = combine_metadata_folders is True
     _ingest_job_progress(
         job,
         0,
         1,
         log=(
             f'Creating/reusing metadata folder "{name}" under parent '
-            f'{parent_folder_id}; scanning root {root_folder_id}\n'
+            f'{parent_folder_id}; scanning root {root_folder_id}'
+            f'{" (combine metadata folders)" if combine else ""}\n'
         ),
     )
+    if combine:
+        populate_result = _combine_dive_metadata_folders(
+            base_folder,
+            root_folder,
+            user,
+            display_config,
+            categorical_limit,
+            replace_metadata=False,
+            job=job,
+        )
+        added = populate_result['added']
+        metadata_folders_found = populate_result['metadataFoldersFound']
+        return {
+            "results": (
+                f"found {metadata_folders_found} DIVE Metadata folders; "
+                f"added {added} datasets, skipped {populate_result['existing']} existing"
+            ),
+            "errors": [],
+            "metadataKeys": {},
+            "folderId": str(base_folder['_id']),
+            "existing": populate_result['existing'],
+            "added": added,
+            "metadataFoldersFound": metadata_folders_found,
+            "combineMetadataFolders": True,
+        }
+
     populate_result = _populate_dive_metadata_folder(
         base_folder,
         root_folder,
@@ -1415,6 +1627,8 @@ def run_create_metadata_folder_core(
         "folderId": str(base_folder['_id']),
         "existing": populate_result['existing'],
         "added": added,
+        "metadataFoldersFound": 0,
+        "combineMetadataFolders": False,
     }
 
 
@@ -1619,6 +1833,7 @@ def run_index_metadata_folder_core(
     root_folder_id,
     replace_metadata,
     ffprobe_metadata,
+    combine_metadata_folders=False,
     job=None,
 ):
     folder = Folder().load(metadata_folder_id, level=AccessType.WRITE, user=user, force=True)
@@ -1635,19 +1850,49 @@ def run_index_metadata_folder_core(
     if root_folder is None:
         raise RestException('Root folder not found', code=404)
     display_config = _display_config_from_metadata_folder(folder)
-    ffprobe_metadata = _normalize_metadata_config(
-        ffprobe_metadata,
-        _CREATE_METADATA_FFPROBE_DEFAULT,
-    )
     categorical_limit = _categorical_limit_from_metadata_folder(folder, display_config)
+    combine = combine_metadata_folders is True
+    replace = replace_metadata is True
     _ingest_job_progress(
         job,
         0,
         1,
         log=(
-            f'Indexing datasets from root {root_folder_id} into metadata folder '
-            f'{metadata_folder_id} (replace={replace_metadata is True})\n'
+            f'Indexing from root {root_folder_id} into metadata folder '
+            f'{metadata_folder_id} (replace={replace}'
+            f'{", combine metadata folders" if combine else ""})\n'
         ),
+    )
+    if combine:
+        populate_result = _combine_dive_metadata_folders(
+            folder,
+            root_folder,
+            user,
+            display_config,
+            categorical_limit,
+            replace_metadata=replace,
+            job=job,
+        )
+        metadata_folders_found = populate_result['metadataFoldersFound']
+        return {
+            'results': (
+                f"found {metadata_folders_found} DIVE Metadata folders; "
+                f"added {populate_result['added']} datasets, "
+                f"skipped {populate_result['existing']} existing"
+            ),
+            'metadataFolderId': str(folder['_id']),
+            'folderId': str(folder['_id']),
+            'rootFolderId': str(root_folder['_id']),
+            'added': populate_result['added'],
+            'existing': populate_result['existing'],
+            'datasetCount': populate_result['datasetCount'],
+            'metadataFoldersFound': metadata_folders_found,
+            'combineMetadataFolders': True,
+        }
+
+    ffprobe_metadata = _normalize_metadata_config(
+        ffprobe_metadata,
+        _CREATE_METADATA_FFPROBE_DEFAULT,
     )
     populate_result = _populate_dive_metadata_folder(
         folder,
@@ -1656,7 +1901,7 @@ def run_index_metadata_folder_core(
         display_config,
         ffprobe_metadata,
         categorical_limit,
-        replace_metadata=replace_metadata is True,
+        replace_metadata=replace,
         job=job,
     )
     return {
@@ -1670,6 +1915,8 @@ def run_index_metadata_folder_core(
         'added': populate_result['added'],
         'existing': populate_result['existing'],
         'datasetCount': populate_result['datasetCount'],
+        'metadataFoldersFound': 0,
+        'combineMetadataFolders': False,
     }
 
 

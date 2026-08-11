@@ -28,13 +28,29 @@ export function summarizeIngestResult(result: Record<string, unknown>): string[]
   if (result.results && typeof result.results === 'object' && !Array.isArray(result.results)) {
     const bulk = result.results as { rowCount?: number; statusCounts?: Record<string, number> };
     if (bulk.rowCount != null) {
-      lines.push(`Bulk rows: ${bulk.rowCount}`);
-    }
-    if (bulk.statusCounts) {
+      const counts = bulk.statusCounts || {};
+      const updated = (counts.success || 0) + (counts.partial_success || 0);
+      const notFound = counts.not_found || 0;
+      const errors = Object.entries(counts)
+        .filter(([status]) => !['success', 'partial_success', 'not_found'].includes(status))
+        .reduce((sum, [, count]) => sum + count, 0);
+      lines.push(
+        `Updated ${updated} of ${bulk.rowCount} DIVEMetadata item${bulk.rowCount === 1 ? '' : 's'}.`,
+      );
+      if (notFound > 0) {
+        lines.push(`${notFound} row${notFound === 1 ? '' : 's'} not found.`);
+      }
+      if (errors > 0) {
+        lines.push(`${errors} row${errors === 1 ? '' : 's'} failed with errors.`);
+      }
+    } else if (bulk.statusCounts) {
       Object.entries(bulk.statusCounts).forEach(([status, count]) => {
         lines.push(`  ${status}: ${count}`);
       });
     }
+  }
+  if (typeof result.metadataFoldersFound === 'number') {
+    lines.push(`DIVE Metadata folders found: ${result.metadataFoldersFound}`);
   }
   if (typeof result.added === 'number') {
     lines.push(`Added: ${result.added}`);

@@ -60,9 +60,9 @@ export default defineComponent({
     show-expand
   >
     <template
-      #expanded-item="{ headers, item }"
+      #expanded-item="{ headers: itemHeaders, item }"
     >
-      <td :colspan="headers.length">
+      <td :colspan="itemHeaders.length">
         <v-chip
           v-for="dataset in item.datasets"
           :key="`${dataset.id}-${item._id}`"
