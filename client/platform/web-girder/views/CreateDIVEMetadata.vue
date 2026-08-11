@@ -13,8 +13,8 @@ import {
   createDiveMetadataRecursive,
 } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
-import eventBus from '../eventBus';
 import type { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
+import eventBus from '../eventBus';
 
 export default defineComponent({
   components: { GirderFileManager },
@@ -159,7 +159,7 @@ export default defineComponent({
         categoricalLimit.value,
         combineMetadataFolders.value,
       );
-      const folderId = newDataset.data.folderId;
+      const { folderId } = newDataset.data;
       open.value = false;
       if (combineMetadataFolders.value) {
         await prompt({

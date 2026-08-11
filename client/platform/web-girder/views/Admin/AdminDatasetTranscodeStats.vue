@@ -113,109 +113,109 @@ export default defineComponent({
       :overlay-opacity="0.95"
     >
       <v-card>
-      <v-card-title>Dataset Transcoding Stats</v-card-title>
-      <v-card-text>
-        <span class="text-caption text--secondary">
-          Select a folder or collection to count DIVE datasets and how many are marked
-          PreventTranscoding (non-transcoded) versus transcoded.
-        </span>
-        <v-alert
-          v-if="transcodeStatsError"
-          type="error"
-          dismissible
-          class="mt-4"
-        >
-          {{ transcodeStatsError }}
-        </v-alert>
-        <v-card
-          outlined
-          flat
-          class="mt-4"
-        >
-          <GirderFileManager
-            new-folder-enabled
-            no-access-control
-            :location="location"
-            @update:location="setLocation"
+        <v-card-title>Dataset Transcoding Stats</v-card-title>
+        <v-card-text>
+          <span class="text-caption text--secondary">
+            Select a folder or collection to count DIVE datasets and how many are marked
+            PreventTranscoding (non-transcoded) versus transcoded.
+          </span>
+          <v-alert
+            v-if="transcodeStatsError"
+            type="error"
+            dismissible
+            class="mt-4"
           >
-            <template #row="{ item }">
-              <span>{{ item.name }}</span>
-              <v-chip
-                v-if="(item.meta && item.meta.annotate)"
-                color="white"
-                x-small
-                outlined
-                class="mx-3"
-              >
-                dataset
-              </v-chip>
-            </template>
-          </GirderFileManager>
-        </v-card>
-        <v-btn
-          depressed
-          block
-          color="primary"
-          class="mt-4"
-          :loading="transcodeStatsLoading"
-          :disabled="!locationIsAnalyzable || transcodeStatsLoading"
-          @click="fetchTranscodeStats"
-        >
-          <span v-if="!locationIsAnalyzable">
-            Choose a folder or collection to analyze...
-          </span>
-          <span v-else-if="'name' in location">
-            Analyze {{ location.name }}
-          </span>
-          <span v-else>
-            Something went wrong
-          </span>
-        </v-btn>
-        <v-card
-          v-if="transcodeStats"
-          outlined
-          flat
-          class="mt-4"
-        >
-          <v-card-text>
-            <div class="text-subtitle-1 mb-2">
-              Results for {{ transcodeStats.resourceName }}
-            </div>
-            <v-row dense>
-              <v-col cols="12" sm="4">
-                <div class="text-caption text--secondary">
-                  Total video folders
-                </div>
-                <div class="text-h6">
-                  {{ transcodeStats.totalCount }}
-                </div>
-              </v-col>
-              <v-col cols="12" sm="4">
-                <div class="text-caption text--secondary">
-                  DIVE datasets (transcoded)
-                </div>
-                <div class="text-h6">
-                  {{ transcodeStats.transcodedCount }} ({{ transcodedPercent }}%)
-                </div>
-              </v-col>
-              <v-col cols="12" sm="4">
-                <div class="text-caption text--secondary">
-                  PreventTranscoding
-                </div>
-                <div class="text-h6">
-                  {{ transcodeStats.preventTranscodingCount }} ({{ preventTranscodingPercent }}%)
-                </div>
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn text @click="open = false">
-          Close
-        </v-btn>
-      </v-card-actions>
+            {{ transcodeStatsError }}
+          </v-alert>
+          <v-card
+            outlined
+            flat
+            class="mt-4"
+          >
+            <GirderFileManager
+              new-folder-enabled
+              no-access-control
+              :location="location"
+              @update:location="setLocation"
+            >
+              <template #row="{ item }">
+                <span>{{ item.name }}</span>
+                <v-chip
+                  v-if="(item.meta && item.meta.annotate)"
+                  color="white"
+                  x-small
+                  outlined
+                  class="mx-3"
+                >
+                  dataset
+                </v-chip>
+              </template>
+            </GirderFileManager>
+          </v-card>
+          <v-btn
+            depressed
+            block
+            color="primary"
+            class="mt-4"
+            :loading="transcodeStatsLoading"
+            :disabled="!locationIsAnalyzable || transcodeStatsLoading"
+            @click="fetchTranscodeStats"
+          >
+            <span v-if="!locationIsAnalyzable">
+              Choose a folder or collection to analyze...
+            </span>
+            <span v-else-if="'name' in location">
+              Analyze {{ location.name }}
+            </span>
+            <span v-else>
+              Something went wrong
+            </span>
+          </v-btn>
+          <v-card
+            v-if="transcodeStats"
+            outlined
+            flat
+            class="mt-4"
+          >
+            <v-card-text>
+              <div class="text-subtitle-1 mb-2">
+                Results for {{ transcodeStats.resourceName }}
+              </div>
+              <v-row dense>
+                <v-col cols="12" sm="4">
+                  <div class="text-caption text--secondary">
+                    Total video folders
+                  </div>
+                  <div class="text-h6">
+                    {{ transcodeStats.totalCount }}
+                  </div>
+                </v-col>
+                <v-col cols="12" sm="4">
+                  <div class="text-caption text--secondary">
+                    DIVE datasets (transcoded)
+                  </div>
+                  <div class="text-h6">
+                    {{ transcodeStats.transcodedCount }} ({{ transcodedPercent }}%)
+                  </div>
+                </v-col>
+                <v-col cols="12" sm="4">
+                  <div class="text-caption text--secondary">
+                    PreventTranscoding
+                  </div>
+                  <div class="text-h6">
+                    {{ transcodeStats.preventTranscodingCount }} ({{ preventTranscodingPercent }}%)
+                  </div>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="open = false">
+            Close
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
