@@ -1,11 +1,10 @@
 import $ from 'jquery';
 import _ from 'underscore';
 
-import PluginConfigBreadcrumbWidget from '@girder/core/views/widgets/PluginConfigBreadcrumbWidget';
-import View from '@girder/core/views/View';
+const PluginConfigBreadcrumbWidget = girder.views.widgets.PluginConfigBreadcrumbWidget;
+const View  = girder.views.View;
 
 import template from '../templates/configView.pug';
-import '@girder/core/utilities/jquery/girderEnable';
 
 
 var ConfigView = View.extend({

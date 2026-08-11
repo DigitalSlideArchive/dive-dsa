@@ -14,7 +14,7 @@ import pytest
 
 pytest.importorskip('girder')
 
-from dive_server.views_metadata import (  # noqa: E402
+from dive_server.crud_metadata_ingest import (  # noqa: E402
     _loads_metadata_import_json,
     normalize_metadata_row_for_storage,
 )

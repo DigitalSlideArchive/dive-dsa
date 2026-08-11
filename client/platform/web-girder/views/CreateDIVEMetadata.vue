@@ -13,6 +13,7 @@ import {
   createDiveMetadataRecursive,
 } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { notifyAndWatchMetadataIngestJob } from 'platform/web-girder/utils/metadataIngestJobUi';
 import type { GirderModel } from 'vue-girder-slicer-cli-ui/dist/girderTypes';
 import eventBus from '../eventBus';
 
@@ -48,8 +49,8 @@ export default defineComponent({
 
   setup(props) {
     const router = useRouter();
-    const girderRest = useGirderRest();
     const { prompt } = usePrompt();
+    const girderRest = useGirderRest();
     const source = ref(null as GirderModel | { _id: string; _modelType: string; name: string } | null);
     const open = ref(false);
     const categoricalLimit = ref(50);
@@ -122,57 +123,43 @@ export default defineComponent({
         throw new Error('no source resource');
       }
       if (useRecursiveApi.value) {
-        const result = await createDiveMetadataRecursive(
+        const { data: job } = await createDiveMetadataRecursive(
           props.datasetId,
           isCollection.value ? 'collection' : 'folder',
           effectiveScope.value,
           newName.value,
           categoricalLimit.value,
         );
-        const { created, existing, errors } = result.data;
-        const hasWork = created.length > 0
-          || existing.some((entry) => entry.metadataFolderId);
-        if (!hasWork) {
-          throw new Error(
-            errors.join('; ')
-            || 'No metadata folders were created or updated',
-          );
-        }
-        if (effectiveScope.value === 'subfolders') {
-          open.value = false;
-          eventBus.$emit('refresh-data-browser');
-          return;
-        }
-        const first = created.find((entry) => entry.metadataFolderId)
-          || existing.find((entry) => entry.metadataFolderId);
         open.value = false;
-        router.push({ name: 'metadata', params: { id: first!.metadataFolderId! } });
+        await notifyAndWatchMetadataIngestJob({
+          job,
+          prompt,
+          router,
+          onSuccess: () => {
+            eventBus.$emit('refresh-data-browser');
+          },
+        });
         return;
       }
       if (!locationIsFolder.value) {
         throw new Error('Choose a destination folder');
       }
-      const newDataset = await createDiveMetadataFolder(
+      const { data: job } = await createDiveMetadataFolder(
         location.value._id,
         newName.value,
         props.datasetId,
         categoricalLimit.value,
         combineMetadataFolders.value,
       );
-      const { folderId } = newDataset.data;
       open.value = false;
-      if (combineMetadataFolders.value) {
-        await prompt({
-          title: 'DIVE Metadata folders combined',
-          text: [
-            `DIVE Metadata folders found: ${newDataset.data.metadataFoldersFound ?? 0}`,
-            `Datasets added: ${newDataset.data.added ?? 0}`,
-            `Datasets skipped (already present): ${newDataset.data.existing ?? 0}`,
-          ],
-          positiveButton: 'OK',
-        });
-      }
-      router.push({ name: 'metadata', params: { id: folderId } });
+      await notifyAndWatchMetadataIngestJob({
+        job,
+        prompt,
+        router,
+        onSuccess: () => {
+          eventBus.$emit('refresh-data-browser');
+        },
+      });
     });
 
     return {

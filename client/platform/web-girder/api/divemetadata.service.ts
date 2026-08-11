@@ -224,12 +224,132 @@ export interface createDiveMetadataRecursiveResponse {
 export interface IndexDiveMetadataFolderResponse {
   results: string;
   metadataFolderId: string;
+  folderId?: string;
   rootFolderId: string;
   added: number;
   existing: number;
   datasetCount: number;
   metadataFoldersFound: number;
   combineMetadataFolders: boolean;
+}
+
+/** Girder job returned immediately by metadata ingest endpoints. */
+export interface DiveMetadataIngestJob {
+  _id: string;
+  title?: string;
+  type?: string;
+  status: number;
+  log?: string;
+  progress?: { current: number; total: number };
+  meta?: {
+    diveMetadataIngestResult?: Record<string, unknown>;
+  };
+}
+
+const TERMINAL_JOB_STATUSES = new Set([
+  // Girder JobStatus: SUCCESS=3, ERROR=4, CANCELED=5 (numeric values from @girder/components)
+  3, 4, 5,
+]);
+
+async function waitForMetadataIngestJob(
+  jobId: string,
+  options?: {
+    intervalMs?: number;
+    onProgress?: (job: DiveMetadataIngestJob) => void;
+  },
+): Promise<Record<string, unknown>> {
+  const intervalMs = options?.intervalMs ?? 2000;
+
+  const finishFromJob = (job: DiveMetadataIngestJob): Record<string, unknown> => {
+    if (job.status !== 3) {
+      const logTail = (job.log || '').trim().split('\n').slice(-5).join('\n');
+      throw new Error(
+        logTail || `Metadata job ${jobId} failed (status=${job.status})`,
+      );
+    }
+    return (job.meta?.diveMetadataIngestResult || {}) as Record<string, unknown>;
+  };
+
+  const fetchJob = async (): Promise<DiveMetadataIngestJob> => {
+    const { data: job } = await girderRest.get<DiveMetadataIngestJob>(`job/${jobId}`);
+    options?.onProgress?.(job);
+    return job;
+  };
+
+  return new Promise<Record<string, unknown>>((resolve, reject) => {
+    let settled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const cleanup = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      girderRest.$off('message:job_status', onJobMessage);
+    };
+
+    const settle = (fn: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      try {
+        fn();
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    const handleTerminal = async () => {
+      try {
+        // Status events often omit log/meta; re-fetch for the ingest result payload.
+        const job = await fetchJob();
+        if (!TERMINAL_JOB_STATUSES.has(job.status)) {
+          return;
+        }
+        settle(() => {
+          resolve(finishFromJob(job));
+        });
+      } catch (err) {
+        settle(() => {
+          reject(err);
+        });
+      }
+    };
+
+    const onJobMessage = ({ data: job }: { data: DiveMetadataIngestJob }) => {
+      if (job._id !== jobId) {
+        return;
+      }
+      options?.onProgress?.(job);
+      if (TERMINAL_JOB_STATUSES.has(job.status)) {
+        handleTerminal();
+      }
+    };
+
+    girderRest.$on('message:job_status', onJobMessage);
+
+    const pollOnce = async () => {
+      try {
+        const job = await fetchJob();
+        if (!TERMINAL_JOB_STATUSES.has(job.status)) {
+          return;
+        }
+        settle(() => {
+          resolve(finishFromJob(job));
+        });
+      } catch (err) {
+        settle(() => {
+          reject(err);
+        });
+      }
+    };
+
+    // Immediate check + polling fallback if websocket events are missed.
+    pollOnce();
+    pollTimer = setInterval(pollOnce, intervalMs);
+  });
 }
 
 function createDiveMetadataFolder(
@@ -245,7 +365,7 @@ function createDiveMetadataFolder(
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
-  return girderRest.post<createDiveMetadataResponse>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
+  return girderRest.post<DiveMetadataIngestJob>(`dive_metadata/create_metadata_folder/${parentFolder}`, null, {
     params: {
       name,
       rootFolderId,
@@ -255,6 +375,14 @@ function createDiveMetadataFolder(
       ffprobeMetadata: toJsonParam(ffprobeMetadata),
     },
   });
+}
+
+async function createDiveMetadataFolderAndWait(
+  ...args: Parameters<typeof createDiveMetadataFolder>
+): Promise<createDiveMetadataResponse> {
+  const { data: job } = await createDiveMetadataFolder(...args);
+  const result = await waitForMetadataIngestJob(job._id);
+  return result as unknown as createDiveMetadataResponse;
 }
 
 function createDiveMetadataRecursive(
@@ -271,7 +399,7 @@ function createDiveMetadataRecursive(
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
-  return girderRest.post<createDiveMetadataRecursiveResponse>('dive_metadata/create_metadata_recursive', null, {
+  return girderRest.post<DiveMetadataIngestJob>('dive_metadata/create_metadata_recursive', null, {
     params: {
       resourceId,
       resourceType,
@@ -285,6 +413,14 @@ function createDiveMetadataRecursive(
   });
 }
 
+async function createDiveMetadataRecursiveAndWait(
+  ...args: Parameters<typeof createDiveMetadataRecursive>
+): Promise<createDiveMetadataRecursiveResponse> {
+  const { data: job } = await createDiveMetadataRecursive(...args);
+  const result = await waitForMetadataIngestJob(job._id);
+  return result as unknown as createDiveMetadataRecursiveResponse;
+}
+
 function indexDiveMetadataFromFolder(
   metadataFolderId: string,
   rootFolderId: string,
@@ -294,7 +430,7 @@ function indexDiveMetadataFromFolder(
     import: true, keys: ['width', 'height', 'display_aspect_ratio', 'nb_frames', 'duration'],
   },
 ) {
-  return girderRest.post<IndexDiveMetadataFolderResponse>(
+  return girderRest.post<DiveMetadataIngestJob>(
     `dive_metadata/${metadataFolderId}/index_folder`,
     null,
     {
@@ -306,6 +442,14 @@ function indexDiveMetadataFromFolder(
       },
     },
   );
+}
+
+async function indexDiveMetadataFromFolderAndWait(
+  ...args: Parameters<typeof indexDiveMetadataFromFolder>
+): Promise<IndexDiveMetadataFolderResponse> {
+  const { data: job } = await indexDiveMetadataFromFolder(...args);
+  const result = await waitForMetadataIngestJob(job._id);
+  return result as unknown as IndexDiveMetadataFolderResponse;
 }
 
 function modifyDiveMetadataPermission(rootMetadataFolder: string, key: string, unlocked: boolean) {
@@ -471,63 +615,21 @@ async function putDiveMetadataLastModified(folderId:string, rootId: string) {
   return girderRest.put(`dive_metadata/${folderId}/last_modified`, null, { params: { rootId } });
 }
 
-export interface BulkMetadataImportRowResult {
-  matcher?: string;
-  status: 'success' | 'partial_success' | 'error' | 'not_found';
-  datasetId?: string;
-  updatedKeys?: string[];
-  errors?: string[];
-  error?: string;
-}
-
-export interface BulkMetadataImportSummary {
-  updatedCount: number;
-  notFoundCount: number;
-  errorCount: number;
-  totalCount: number;
-  results: BulkMetadataImportRowResult[];
-}
-
-function summarizeBulkImportResults(
-  results: BulkMetadataImportRowResult[],
-): BulkMetadataImportSummary {
-  let updatedCount = 0;
-  let notFoundCount = 0;
-  let errorCount = 0;
-  results.forEach((row) => {
-    if (row.status === 'success' || row.status === 'partial_success') {
-      updatedCount += 1;
-    } else if (row.status === 'not_found') {
-      notFoundCount += 1;
-    } else {
-      errorCount += 1;
-    }
-  });
-  return {
-    updatedCount,
-    notFoundCount,
-    errorCount,
-    totalCount: results.length,
-    results,
-  };
-}
-
 async function processImportedFile(rootId:string, replace = false) {
-  return girderRest.post(`dive_metadata/bulk_update_file/${rootId}`, null, { params: { replace } });
+  return girderRest.post<DiveMetadataIngestJob>(
+    `dive_metadata/bulk_update_file/${rootId}`,
+    null,
+    { params: { replace } },
+  );
 }
 
 interface HTMLFile extends File {
   webkitRelativePath?: string;
 }
 
-async function importMetadataFile(
-  parentId: string,
-  path: string,
-  file?: HTMLFile,
-  replace = false,
-): Promise<BulkMetadataImportSummary | false> {
+async function importMetadataFile(parentId: string, path: string, file?: HTMLFile, replace = false) {
   if (file === undefined) {
-    return false;
+    return false as const;
   }
   const resp = await girderRest.post('/file', null, {
     params: {
@@ -547,13 +649,11 @@ async function importMetadataFile(
       headers: { 'Content-Type': 'application/octet-stream' },
     });
     if (uploadResponse.status === 200) {
-      const final = await processImportedFile(parentId, replace);
-      if (final.status === 200) {
-        return summarizeBulkImportResults(final.data as BulkMetadataImportRowResult[]);
-      }
+      const { data: job } = await processImportedFile(parentId, replace);
+      return job;
     }
   }
-  return false;
+  return false as const;
 }
 
 export {
@@ -562,8 +662,12 @@ export {
   getDiveDatasetMetadataRow,
   createDiveMetadataClone,
   createDiveMetadataFolder,
+  createDiveMetadataFolderAndWait,
   createDiveMetadataRecursive,
+  createDiveMetadataRecursiveAndWait,
   indexDiveMetadataFromFolder,
+  indexDiveMetadataFromFolderAndWait,
+  waitForMetadataIngestJob,
   modifyDiveMetadataPermission,
   addDiveMetadataKey,
   updateDiveMetadataKeyDescription,
@@ -579,5 +683,4 @@ export {
   putDiveMetadataLastModified,
   processImportedFile,
   importMetadataFile,
-  summarizeBulkImportResults,
 };

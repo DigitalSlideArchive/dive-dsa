@@ -3,10 +3,9 @@ import { defineComponent, ref } from 'vue';
 import { useApi } from 'dive-common/apispec';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { getResponseError } from 'vue-media-annotator/utils';
-import {
-  BulkMetadataImportSummary,
-  importMetadataFile,
-} from 'platform/web-girder/api/divemetadata.service';
+import { importMetadataFile } from 'platform/web-girder/api/divemetadata.service';
+import { notifyAndWatchMetadataIngestJob } from 'platform/web-girder/utils/metadataIngestJobUi';
+import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
   name: 'DIVEMetadataImport',
@@ -36,23 +35,10 @@ export default defineComponent({
   setup(props, { emit }) {
     const { openFromDisk } = useApi();
     const { prompt } = usePrompt();
+    const router = useRouter();
     const processing = ref(false);
     const menuOpen = ref(false);
     const replace = ref(false);
-
-    const importSummaryText = (summary: BulkMetadataImportSummary) => {
-      const lines = [
-        `Updated ${summary.updatedCount} of ${summary.totalCount} DIVEMetadata item${summary.totalCount === 1 ? '' : 's'}.`,
-      ];
-      if (summary.notFoundCount > 0) {
-        lines.push(`${summary.notFoundCount} row${summary.notFoundCount === 1 ? '' : 's'} not found.`);
-      }
-      if (summary.errorCount > 0) {
-        lines.push(`${summary.errorCount} row${summary.errorCount === 1 ? '' : 's'} failed with errors.`);
-      }
-      return lines;
-    };
-
     const openUpload = async () => {
       try {
         const ret = await openFromDisk('annotation');
@@ -60,20 +46,31 @@ export default defineComponent({
           menuOpen.value = false;
           const path = ret.filePaths[0];
           processing.value = true;
-          const importResult = await importMetadataFile(
-            props.metadataRoot,
-            path,
-            ret.fileList?.length ? ret.fileList[0] : undefined,
-            replace.value,
-          );
-          if (importResult) {
-            emit('updated');
-            await prompt({
-              title: 'Import Complete',
-              text: importSummaryText(importResult),
-              positiveButton: 'OK',
+          const job = ret.fileList?.length
+            ? await importMetadataFile(
+              props.metadataRoot,
+              path,
+              ret.fileList[0],
+              replace.value,
+            )
+            : await importMetadataFile(
+              props.metadataRoot,
+              path,
+              undefined,
+              replace.value,
+            );
+          if (job) {
+            await notifyAndWatchMetadataIngestJob({
+              job,
+              prompt,
+              router,
+              fallbackFolderId: props.metadataRoot,
+              onSuccess: () => {
+                emit('updated');
+              },
             });
           }
+          processing.value = false;
         }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -83,7 +80,6 @@ export default defineComponent({
           text,
           positiveButton: 'OK',
         });
-      } finally {
         processing.value = false;
       }
     };

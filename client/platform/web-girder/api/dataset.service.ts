@@ -139,6 +139,11 @@ async function importAnnotationFile(parentId: string, path: string, file?: HTMLF
         skipJobs = true;
       }
       const final = await postProcess(parentId, skipJobs, false, additive, additivePrepend, maskLogic);
+      if ((final.data?.job_ids || []).length) {
+        // Lazy import avoids circular deps with the Vuex store module graph.
+        const { default: store } = await import('platform/web-girder/store');
+        store.dispatch('Jobs/updateJobs');
+      }
       return final.status === 200;
     }
   }

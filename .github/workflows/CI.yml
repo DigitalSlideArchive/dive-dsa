@@ -69,3 +69,34 @@ jobs:
     - name: Run tests
       run: tox -e testunit
       working-directory: server
+
+  build-wheel:
+    name: Build dive_server wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/dive_server/web_client/package-lock.json
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+
+      - name: Build and verify wheel
+        run: bash server/scripts/build_wheel.sh
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dive-dsa-wheel
+          path: server/dist/dive_dsa-*.whl
+          if-no-files-found: error
