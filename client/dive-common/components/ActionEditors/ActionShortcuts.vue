@@ -4,9 +4,11 @@ import {
   computed,
   defineComponent, ref, Ref,
 } from 'vue';
+import draggable from 'vuedraggable';
 import {
   DIVEAction, DIVEActionShortcut, TrackSelectAction,
 } from 'dive-common/use/useActions';
+import { ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import {
   useAttributes, useConfiguration, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
@@ -22,6 +24,7 @@ export default defineComponent({
     GetShortcut,
     ActionEditor,
     ButtonShortcutEditor,
+    draggable,
   },
   props: {
     disabled: {
@@ -40,6 +43,8 @@ export default defineComponent({
           tempList.push(item);
         });
         shortcutList.value = tempList;
+      } else {
+        shortcutList.value = [];
       }
     };
     updateShortCutList();
@@ -53,6 +58,31 @@ export default defineComponent({
     const actionList: Ref<DIVEAction[]> = ref([]);
     const updateActionList = () => {
       actionList.value = editingShortcut.value?.actions || [];
+    };
+
+    const getShortcutDisplay = (item: DIVEActionShortcut) => {
+      const { key, modifiers } = item.shortcut;
+      if (!key) {
+        return '';
+      }
+      if (modifiers?.length) {
+        return `${key}+${modifiers.join('+')}`;
+      }
+      return key;
+    };
+
+    const hasKeyboardShortcut = (item: DIVEActionShortcut) => !!(item.shortcut.key && item.shortcut.key.length);
+
+    const isIconOnlyButton = (button: ButtonShortcut) => {
+      const hasText = !!(button.buttonText && button.buttonText.trim());
+      return !hasText && !!(button.iconPrepend || button.iconAppend);
+    };
+
+    const onShortcutOrderEnd = () => {
+      if (!configMan.configuration.value) {
+        configMan.configuration.value = {};
+      }
+      configMan.configuration.value.shortcuts = [...shortcutList.value];
     };
 
     const editShortcut = (index?: number) => {
@@ -188,6 +218,10 @@ export default defineComponent({
       addEditActionindex,
       saveAction,
       saveShortcutDisabled,
+      getShortcutDisplay,
+      hasKeyboardShortcut,
+      isIconOnlyButton,
+      onShortcutOrderEnd,
     };
   },
 
@@ -220,78 +254,140 @@ export default defineComponent({
                 Add Shortcut
               </v-btn>
             </v-row>
-            <v-row dense style="border-bottom: 1px solid gray;">
-              <v-col>
-                <span>
-                  <v-icon class="mr-2">mdi-keyboard-outline</v-icon><b>Keyboard</b>
-                </span>
-              </v-col>
-              <v-col>
-                <span>
-                  <v-icon class="mr-2">mdi-button-cursor</v-icon><b>Button</b>
-                </span>
-              </v-col>
-              <v-col>
-                <span>
-                  <b>Description</b>
-                </span>
-              </v-col>
-              <v-col>
-                <span>
-                  <b>Actions</b>
-                </span>
-              </v-col>
-              <v-col cols="1">
-                <span>
-                  <b>Edit</b>
-                </span>
-              </v-col>
-            </v-row>
-
             <v-row
-              v-for="item, index in shortcutList"
-              :key="`shortcut_${item.shortcut.key}_${index}`"
+              v-if="shortcutList.length"
               dense
+              class="px-2 pb-1 font-weight-bold text-caption grey--text text--darken-1"
               align="center"
-              justify="center"
             >
-              <v-col>
-                <span v-if="item.shortcut.key">
-                  <v-icon class="mr-2">mdi-keyboard-outline</v-icon>{{ item.shortcut.key }}{{ item.shortcut.modifiers && item.shortcut.modifiers.length ? `+${item.shortcut.modifiers.join('+')}` : '' }}
-                </span>
-              </v-col>
-              <v-col>
-                <span v-if="item.button">
-                  <v-icon class="mr-2">mdi-button-cursor</v-icon>
-                  <v-icon v-if="item.button.iconPrepend">{{ item.button.iconPrepend }}</v-icon>
-                  <span v-if="item.button.buttonText">{{ item.button.buttonText }}</span>
-                  <v-icon v-if="item.button.iconAppend">{{ item.button.iconAppend }}</v-icon>
-                </span>
-              </v-col>
-              <v-col>
-                {{ item.description }}
-              </v-col>
-              <v-col>
-                <v-row
-                  v-for="action in item.actions"
-                  :key="`shortcut_action-${item.shortcut.key}-${action.action.type}`"
-                  dense
-                >
-                  {{ action.action.type }}
-                </v-row>
-              </v-col>
               <v-col cols="1">
-                <v-icon @click="editShortcut(index)">
-                  mdi-pencil
-                </v-icon>
-                <v-icon
-                  color="error"
-                  @click="removeShortcut(index)"
-                >
-                  mdi-delete
-                </v-icon>
+                Drag
+              </v-col>
+              <v-col cols="2">
+                Shortcut
+              </v-col>
+              <v-col cols="2">
+                Button
+              </v-col>
+              <v-col cols="3">
+                Description
+              </v-col>
+              <v-col cols="2">
+                Actions
+              </v-col>
+              <v-col cols="2" class="text-right">
+                Edit
               </v-col>
             </v-row>
+            <draggable
+              :list="shortcutList"
+              handle=".drag-handle"
+              @end="onShortcutOrderEnd"
+            >
+              <v-row
+                v-for="(item, index) in shortcutList"
+                :key="`shortcut_${item.shortcut.key}_${index}`"
+                dense
+                align="center"
+                class="px-2 py-1 action-shortcut-list-row"
+              >
+                <v-col cols="1">
+                  <v-icon class="drag-handle">
+                    mdi-drag
+                  </v-icon>
+                </v-col>
+                <v-col cols="2">
+                  <template v-if="hasKeyboardShortcut(item)">
+                    <v-tooltip open-delay="200" bottom>
+                      <template #activator="{ on }">
+                        <v-icon small class="mr-1" color="primary" v-on="on">
+                          mdi-keyboard-outline
+                        </v-icon>
+                      </template>
+                      <span>Keyboard shortcut in use</span>
+                    </v-tooltip>
+                    <v-chip small>
+                      {{ getShortcutDisplay(item) }}
+                    </v-chip>
+                  </template>
+                  <v-tooltip
+                    v-else
+                    open-delay="200"
+                    bottom
+                  >
+                    <template #activator="{ on }">
+                      <v-icon small v-on="on">
+                        mdi-keyboard-off-outline
+                      </v-icon>
+                    </template>
+                    <span>No keyboard shortcut</span>
+                  </v-tooltip>
+                </v-col>
+                <v-col cols="2">
+                  <v-tooltip
+                    v-if="item.button"
+                    open-delay="200"
+                    bottom
+                  >
+                    <template #activator="{ on }">
+                      <v-btn
+                        x-small
+                        outlined
+                        :class="{ 'shortcut-button-preview--icon-only': isIconOnlyButton(item.button) }"
+                        :color="item.button.buttonColor || 'primary'"
+                        v-on="on"
+                        @click.stop.prevent
+                      >
+                        <v-icon
+                          v-if="item.button.iconPrepend"
+                          x-small
+                          :left="!!item.button.buttonText"
+                        >
+                          {{ item.button.iconPrepend }}
+                        </v-icon>
+                        <template v-if="item.button.buttonText">
+                          {{ item.button.buttonText }}
+                        </template>
+                        <v-icon
+                          v-if="item.button.iconAppend"
+                          x-small
+                          :right="!!item.button.buttonText"
+                        >
+                          {{ item.button.iconAppend }}
+                        </v-icon>
+                      </v-btn>
+                    </template>
+                    <span>Custom UI button</span>
+                  </v-tooltip>
+                  <span v-else class="text-caption grey--text">—</span>
+                </v-col>
+                <v-col cols="3">
+                  {{ item.description || '—' }}
+                </v-col>
+                <v-col cols="2">
+                  <v-chip
+                    v-for="action in item.actions"
+                    :key="`shortcut_action-${item.shortcut.key}-${action.action.type}`"
+                    small
+                    class="ma-1"
+                  >
+                    {{ action.action.type }}
+                  </v-chip>
+                </v-col>
+                <v-col cols="2" class="text-right">
+                  <v-btn icon x-small class="ma-0" @click="editShortcut(index)">
+                    <v-icon small>
+                      mdi-pencil
+                    </v-icon>
+                  </v-btn>
+                  <v-btn icon x-small class="ma-0" color="error" @click="removeShortcut(index)">
+                    <v-icon small>
+                      mdi-delete
+                    </v-icon>
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </draggable>
           </div>
           <div v-else-if="editingShortcut !== null">
             <v-row dense>
@@ -476,5 +572,23 @@ export default defineComponent({
     max-width: 15px;
     min-height: 15px;
     max-height: 15px;
+  }
+
+  .drag-handle {
+    cursor: grab;
+  }
+
+  .action-shortcut-list-row {
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  }
+
+  .shortcut-button-preview--icon-only {
+    min-width: 28px !important;
+    padding: 0 6px !important;
+
+    .v-icon {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
   }
 </style>
