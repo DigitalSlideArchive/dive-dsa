@@ -440,6 +440,18 @@ export default defineComponent({
           }
         }
       });
+      const order = configMan.configuration.value?.customUI?.attributeButtonOrder || [];
+      if (order.length) {
+        attributeButtonList.sort((a, b) => {
+          const keyA = `${a.type}_${a.attrName}`;
+          const keyB = `${b.type}_${b.attrName}`;
+          const idxA = order.indexOf(keyA);
+          const idxB = order.indexOf(keyB);
+          const sortA = idxA === -1 ? Number.MAX_SAFE_INTEGER : idxA;
+          const sortB = idxB === -1 ? Number.MAX_SAFE_INTEGER : idxB;
+          return sortA - sortB;
+        });
+      }
       return attributeButtonList;
     });
 

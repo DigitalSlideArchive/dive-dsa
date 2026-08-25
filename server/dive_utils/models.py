@@ -536,6 +536,8 @@ class CustomUISettings(BaseModel):
     title: Optional[str]
     information: Optional[List[str]]
     width: Optional[int]
+    # Attribute keys (`{belongs}_{name}`) controlling Custom UI attribute button group order
+    attributeButtonOrder: Optional[List[str]]
 
 
 class VisualMask(BaseModel):

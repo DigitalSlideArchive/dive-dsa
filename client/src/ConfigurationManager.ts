@@ -140,6 +140,8 @@ export interface CustomUISettings {
   title?: string;
   information?: string[]; // multiple markdown pages of information to be displayed if it exists
   width? : number;
+  /** Attribute keys (`${belongs}_${name}`) controlling Custom UI attribute button group order */
+  attributeButtonOrder?: string[];
   }
 
 export interface ConfigurationUser {

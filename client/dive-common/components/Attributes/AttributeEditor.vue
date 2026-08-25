@@ -535,6 +535,8 @@ export default defineComponent({
             <attribute-shortcuts
               v-model="shortcuts"
               :value-type="datatype"
+              :attribute-name="displayText || name"
+              :attribute-color="color || tempColor"
             />
           </v-tab-item>
           <v-tab-item>

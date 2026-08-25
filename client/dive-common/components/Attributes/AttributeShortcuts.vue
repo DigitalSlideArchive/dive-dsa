@@ -3,6 +3,7 @@ import {
   computed, defineComponent, ref, PropType, Ref,
   watch,
 } from 'vue';
+import draggable from 'vuedraggable';
 import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import usedShortcuts from 'dive-common/use/usedShortcuts';
 import { useAttributes } from 'vue-media-annotator/provides';
@@ -13,6 +14,7 @@ export default defineComponent({
   name: 'AttributeShortcuts',
   components: {
     ButtonShortcutEditor,
+    draggable,
   },
   props: {
     value: {
@@ -22,6 +24,14 @@ export default defineComponent({
     valueType: {
       type: String as PropType<'text' | 'number' | 'boolean'>,
       required: true,
+    },
+    attributeName: {
+      type: String,
+      default: '',
+    },
+    attributeColor: {
+      type: String,
+      default: '',
     },
   },
   setup(props, { emit }) {
@@ -74,10 +84,31 @@ export default defineComponent({
       return `${base}${shorcut.key}`;
     };
 
+    const defaultDescription = (type: AttributeShortcut['type']) => {
+      if (type === 'remove') {
+        return 'Remove the value';
+      }
+      return 'Set the Value';
+    };
+
+    const isDefaultDescription = (description: string) => [
+      'Set the Value',
+      'Remove the value',
+      'Enter a Description',
+      '',
+    ].includes(description);
+
+    const hasKeyboardShortcut = (shortcut: AttributeShortcut) => !!(shortcut.key && shortcut.key.length);
+
+    const isIconOnlyButton = (button: ButtonShortcut) => {
+      const hasText = !!(button.buttonText && button.buttonText.trim());
+      return !hasText && !!(button.iconPrepend || button.iconAppend);
+    };
+
     const editShortcut = (shortcut: AttributeShortcut, index: number) => {
       selectedShortcut.value = index;
       selectedShortcutType.value = shortcut.type;
-      selectedShortcutDescription.value = shortcut.description || 'Enter a Description';
+      selectedShortcutDescription.value = shortcut.description || defaultDescription(shortcut.type);
       selectedShortcutValue.value = shortcut.value || 0;
       selectedShortcutKey.value = getShortcutDisplay(shortcut);
       selectedShortcutButton.value = shortcut.button || undefined;
@@ -125,7 +156,7 @@ export default defineComponent({
     const addShortcut = () => {
       selectedShortcut.value = props.value.length;
       selectedShortcutType.value = 'set';
-      selectedShortcutDescription.value = 'Enter a Description';
+      selectedShortcutDescription.value = defaultDescription('set');
       if (props.valueType === 'boolean') {
         selectedShortcutValue.value = false;
       }
@@ -223,6 +254,15 @@ export default defineComponent({
       }
     });
 
+    watch(selectedShortcutType, (type) => {
+      if (!editShortcutDialog.value) {
+        return;
+      }
+      if (isDefaultDescription(selectedShortcutDescription.value)) {
+        selectedShortcutDescription.value = defaultDescription(type);
+      }
+    });
+
     const selectedDisplayKey = computed(() => {
       let base = '';
       if (selectedShortcutModifiers.value.length) {
@@ -231,6 +271,15 @@ export default defineComponent({
       }
       return `${base}${selectedShortcutKey.value}`;
     });
+
+    const onShortcutOrderEnd = () => {
+      emit('input', copy.value);
+    };
+
+    watch(() => props.value, (val) => {
+      copy.value = val;
+    });
+
     return {
       editShortcutDialog,
       selectedShortcutType,
@@ -247,6 +296,8 @@ export default defineComponent({
       awaitingKeyPress,
       shortcutError,
       getShortcutDisplay,
+      hasKeyboardShortcut,
+      isIconOnlyButton,
       cancel,
       save,
       addShortcut,
@@ -254,54 +305,166 @@ export default defineComponent({
       editShortcut,
       editKeyPress,
       copy,
+      onShortcutOrderEnd,
     };
   },
 });
 </script>
-awaitingKeyPress
+
 <template>
   <div>
-    <v-btn @click="addShortcut">
+    <v-btn class="mb-2" @click="addShortcut">
       Add Shortcut
     </v-btn>
-    <v-list>
-      <v-list-item
+    <v-row
+      v-if="copy.length"
+      dense
+      class="px-2 pb-1 font-weight-bold text-caption grey--text text--darken-1"
+      align="center"
+    >
+      <v-col cols="1">
+        Drag
+      </v-col>
+      <v-col cols="2">
+        Shortcut
+      </v-col>
+      <v-col cols="2">
+        Type
+      </v-col>
+      <v-col cols="2">
+        Value
+      </v-col>
+      <v-col cols="2">
+        Button
+      </v-col>
+      <v-col cols="1">
+        Info
+      </v-col>
+      <v-col cols="2" class="text-right">
+        Edit
+      </v-col>
+    </v-row>
+    <draggable
+      :list="copy"
+      handle=".drag-handle"
+      @end="onShortcutOrderEnd"
+    >
+      <v-row
         v-for="(shortcut, index) in copy"
-        :key="`${shortcut.type}_shorcut_${shortcut.key}`"
+        :key="`${shortcut.type}_shortcut_${index}_${shortcut.key}`"
+        dense
+        align="center"
+        class="px-2 py-1 shortcut-list-row"
       >
-        <span>Key:</span><v-chip>{{ getShortcutDisplay(shortcut) }}</v-chip>
-        <v-spacer />
-        <span>Type:</span><v-chip>{{ shortcut.type }}</v-chip>
-        <v-spacer />
-        <div v-if="shortcut.type === 'set'">
-          <span>Value:</span> <v-chip> {{ shortcut.value }}</v-chip>
-        </div>
-        <v-spacer />
-        <v-tooltip
-          open-delay="200"
-          bottom
-          max-width="200"
-        >
-          <template #activator="{ on }">
-            <v-icon v-on="on">
-              mdi-card-text-outline
-            </v-icon>
+        <v-col cols="1">
+          <v-icon class="drag-handle">
+            mdi-drag
+          </v-icon>
+        </v-col>
+        <v-col cols="2">
+          <template v-if="hasKeyboardShortcut(shortcut)">
+            <v-tooltip open-delay="200" bottom>
+              <template #activator="{ on }">
+                <v-icon small class="mr-1" color="primary" v-on="on">
+                  mdi-keyboard-outline
+                </v-icon>
+              </template>
+              <span>Keyboard shortcut in use</span>
+            </v-tooltip>
+            <v-chip small>
+              {{ getShortcutDisplay(shortcut) }}
+            </v-chip>
           </template>
-          <span>{{ shortcut.description }}</span>
-        </v-tooltip>
-        <v-spacer />
-        <v-icon @click="editShortcut(shortcut, index)">
-          mdi-pencil
-        </v-icon>
-        <v-spacer />
-        <v-icon
-          color="error"
-          @click="deleteShortcut(index)"
-        >
-          mdi-delete
-        </v-icon>
-      </v-list-item>
-    </v-list>
+          <v-tooltip
+            v-else
+            open-delay="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon small v-on="on">
+                mdi-keyboard-off-outline
+              </v-icon>
+            </template>
+            <span>No keyboard shortcut</span>
+          </v-tooltip>
+        </v-col>
+        <v-col cols="2">
+          <v-chip small>
+            {{ shortcut.type }}
+          </v-chip>
+        </v-col>
+        <v-col cols="2">
+          <v-chip v-if="shortcut.type === 'set'" small>
+            {{ shortcut.value }}
+          </v-chip>
+          <span v-else class="text-caption grey--text">—</span>
+        </v-col>
+        <v-col cols="2">
+          <v-tooltip
+            v-if="shortcut.button"
+            open-delay="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-btn
+                x-small
+                outlined
+                :class="{ 'shortcut-button-preview--icon-only': isIconOnlyButton(shortcut.button) }"
+                :color="shortcut.button.buttonColor || 'primary'"
+                v-on="on"
+                @click.stop.prevent
+              >
+                <v-icon
+                  v-if="shortcut.button.iconPrepend"
+                  x-small
+                  :left="!!shortcut.button.buttonText"
+                >
+                  {{ shortcut.button.iconPrepend }}
+                </v-icon>
+                <template v-if="shortcut.button.buttonText">
+                  {{ shortcut.button.buttonText }}
+                </template>
+                <v-icon
+                  v-if="shortcut.button.iconAppend"
+                  x-small
+                  :right="!!shortcut.button.buttonText"
+                >
+                  {{ shortcut.button.iconAppend }}
+                </v-icon>
+              </v-btn>
+            </template>
+            <span>Custom UI button</span>
+          </v-tooltip>
+          <span v-else class="text-caption grey--text">—</span>
+        </v-col>
+        <v-col cols="1">
+          <v-tooltip
+            open-delay="200"
+            bottom
+            max-width="200"
+          >
+            <template #activator="{ on }">
+              <v-icon small v-on="on">
+                mdi-card-text-outline
+              </v-icon>
+            </template>
+            <span>{{ shortcut.description || 'No description' }}</span>
+          </v-tooltip>
+        </v-col>
+        <v-col cols="2" class="text-right">
+          <v-btn icon x-small class="ma-0" @click="editShortcut(shortcut, index)">
+            <v-icon small>
+              mdi-pencil
+            </v-icon>
+          </v-btn>
+          <v-btn icon x-small class="ma-0" color="error" @click="deleteShortcut(index)">
+            <v-icon small>
+              mdi-delete
+            </v-icon>
+          </v-btn>
+        </v-col>
+      </v-row>
+    </draggable>
     <v-dialog
       v-model="editShortcutDialog"
       max-width="600"
@@ -446,6 +609,9 @@ awaitingKeyPress
           </v-row>
           <button-shortcut-editor
             v-model="selectedShortcutButton"
+            :attribute-name="attributeName"
+            :attribute-color="attributeColor"
+            :shortcut-type="selectedShortcutType"
           />
         </v-card-text>
         <v-card-actions>
@@ -473,4 +639,21 @@ awaitingKeyPress
 </template>
 
 <style lang="scss">
+.drag-handle {
+  cursor: grab;
+}
+
+.shortcut-list-row {
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.shortcut-button-preview--icon-only {
+  min-width: 28px !important;
+  padding: 0 6px !important;
+
+  .v-icon {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
 </style>

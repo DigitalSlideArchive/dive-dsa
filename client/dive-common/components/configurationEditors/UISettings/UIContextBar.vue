@@ -1,15 +1,23 @@
 <script lang="ts">
 import {
-  defineComponent, ref, watch,
+  defineComponent, ref, watch, Ref,
 } from 'vue';
-import { useConfiguration } from 'vue-media-annotator/provides';
+import draggable from 'vuedraggable';
+import { useAttributes, useConfiguration } from 'vue-media-annotator/provides';
+
+interface AttributeButtonOrderItem {
+  key: string;
+  label: string;
+}
 
 export default defineComponent({
   name: 'UIContextBar',
   components: {
+    draggable,
   },
   setup() {
     const configMan = useConfiguration();
+    const attributes = useAttributes();
     const UIContextBarDefaultNotOpen = ref(configMan.getUISetting('UIContextBarDefaultNotOpen') as boolean);
     const UIContextBarNotStatic = ref(configMan.getUISetting('UIContextBarNotStatic') as boolean);
     const UIThresholdControls = ref(configMan.getUISetting('UIThresholdControls') as boolean);
@@ -24,6 +32,10 @@ export default defineComponent({
     const customUITitle = ref(configMan.configuration.value?.customUI?.title || 'Custom UI');
     const customUIInformation = ref(configMan.configuration.value?.customUI?.information || ['Custom UI Information']);
     const customUIWidth = ref(configMan.configuration.value?.customUI?.width || 300);
+    const customUIAttributeButtonOrder = ref<string[]>(
+      [...(configMan.configuration.value?.customUI?.attributeButtonOrder || [])],
+    );
+    const attributeButtonOrderList: Ref<AttributeButtonOrderItem[]> = ref([]);
 
     watch([UIThresholdControls, UIImageEnhancements,
       UIGroupManager, UIAttributeDetails, UIRevisionHistory, UIDatasetInfo, UIAttributeUserReview, UIContextBarDefaultNotOpen, UIContextBarNotStatic], () => {
@@ -47,7 +59,40 @@ export default defineComponent({
     const removeInformation = (index: number) => {
       customUIInformation.value.splice(index, 1);
     };
-    watch([CustomUIEnabled, customUITitle, customUIInformation, customUIWidth], () => {
+
+    function syncAttributeButtonOrderList() {
+      const withButtons = attributes.value
+        .filter((attr) => attr.shortcuts?.some((shortcut) => !!shortcut.button))
+        .map((attr) => ({
+          key: attr.key || `${attr.belongs}_${attr.name}`,
+          label: attr.displayText || attr.name,
+        }));
+      const byKey = new Map(withButtons.map((item) => [item.key, item]));
+      const ordered: AttributeButtonOrderItem[] = [];
+      customUIAttributeButtonOrder.value.forEach((key) => {
+        const item = byKey.get(key);
+        if (item) {
+          ordered.push(item);
+          byKey.delete(key);
+        }
+      });
+      byKey.forEach((item) => ordered.push(item));
+      attributeButtonOrderList.value = ordered;
+      const newOrder = ordered.map((item) => item.key);
+      if (JSON.stringify(newOrder) !== JSON.stringify(customUIAttributeButtonOrder.value)) {
+        customUIAttributeButtonOrder.value = newOrder;
+      }
+    }
+
+    const onAttributeButtonOrderEnd = () => {
+      customUIAttributeButtonOrder.value = attributeButtonOrderList.value.map((item) => item.key);
+    };
+
+    watch(attributes, () => {
+      syncAttributeButtonOrderList();
+    }, { deep: true, immediate: true });
+
+    watch([CustomUIEnabled, customUITitle, customUIInformation, customUIWidth, customUIAttributeButtonOrder], () => {
       if (!CustomUIEnabled.value) {
         configMan.setCustomUI(undefined);
         return;
@@ -56,9 +101,12 @@ export default defineComponent({
         title: customUITitle.value,
         information: customUIInformation.value,
         width: customUIWidth.value,
+        attributeButtonOrder: customUIAttributeButtonOrder.value.length
+          ? customUIAttributeButtonOrder.value
+          : undefined,
       };
       configMan.setCustomUI(data);
-    });
+    }, { deep: true });
 
     return {
       UIContextBarDefaultNotOpen,
@@ -73,6 +121,8 @@ export default defineComponent({
       customUITitle,
       customUIInformation,
       customUIWidth,
+      attributeButtonOrderList,
+      onAttributeButtonOrderEnd,
       addNewInformation,
       removeInformation,
       UIAttributeUserReview,
@@ -175,6 +225,45 @@ export default defineComponent({
               </v-btn>
             </v-col>
           </v-row>
+          <v-expansion-panels class="mt-3" flat>
+            <v-expansion-panel>
+              <v-expansion-panel-header>
+                Attribute button order
+              </v-expansion-panel-header>
+              <v-expansion-panel-content>
+                <p
+                  v-if="!attributeButtonOrderList.length"
+                  class="text-caption grey--text"
+                >
+                  No attribute buttons configured. Enable a button on an attribute shortcut to order it here.
+                </p>
+                <draggable
+                  v-else
+                  :list="attributeButtonOrderList"
+                  handle=".drag-handle"
+                  @end="onAttributeButtonOrderEnd"
+                >
+                  <v-row
+                    v-for="item in attributeButtonOrderList"
+                    :key="item.key"
+                    align="center"
+                    dense
+                    class="mb-1"
+                  >
+                    <v-col cols="auto">
+                      <v-icon class="drag-handle">
+                        mdi-drag
+                      </v-icon>
+                    </v-col>
+                    <v-col>
+                      {{ item.label }}
+                      <span class="text-caption grey--text ml-1">({{ item.key }})</span>
+                    </v-col>
+                  </v-row>
+                </draggable>
+              </v-expansion-panel-content>
+            </v-expansion-panel>
+          </v-expansion-panels>
         </div>
       </div>
     </v-card-text>
@@ -182,4 +271,7 @@ export default defineComponent({
 </template>
 
 <style lang="scss">
+.drag-handle {
+  cursor: grab;
+}
 </style>
