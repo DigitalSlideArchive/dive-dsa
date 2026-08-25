@@ -25,6 +25,14 @@ export default defineComponent({
       type: String as PropType<'text' | 'number' | 'boolean'>,
       required: true,
     },
+    attributeName: {
+      type: String,
+      default: '',
+    },
+    attributeColor: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { emit }) {
     const editShortcutDialog = ref(false);
@@ -76,6 +84,20 @@ export default defineComponent({
       return `${base}${shorcut.key}`;
     };
 
+    const defaultDescription = (type: AttributeShortcut['type']) => {
+      if (type === 'remove') {
+        return 'Remove the value';
+      }
+      return 'Set the Value';
+    };
+
+    const isDefaultDescription = (description: string) => [
+      'Set the Value',
+      'Remove the value',
+      'Enter a Description',
+      '',
+    ].includes(description);
+
     const hasKeyboardShortcut = (shortcut: AttributeShortcut) => !!(shortcut.key && shortcut.key.length);
 
     const isIconOnlyButton = (button: ButtonShortcut) => {
@@ -86,7 +108,7 @@ export default defineComponent({
     const editShortcut = (shortcut: AttributeShortcut, index: number) => {
       selectedShortcut.value = index;
       selectedShortcutType.value = shortcut.type;
-      selectedShortcutDescription.value = shortcut.description || 'Enter a Description';
+      selectedShortcutDescription.value = shortcut.description || defaultDescription(shortcut.type);
       selectedShortcutValue.value = shortcut.value || 0;
       selectedShortcutKey.value = getShortcutDisplay(shortcut);
       selectedShortcutButton.value = shortcut.button || undefined;
@@ -134,7 +156,7 @@ export default defineComponent({
     const addShortcut = () => {
       selectedShortcut.value = props.value.length;
       selectedShortcutType.value = 'set';
-      selectedShortcutDescription.value = 'Enter a Description';
+      selectedShortcutDescription.value = defaultDescription('set');
       if (props.valueType === 'boolean') {
         selectedShortcutValue.value = false;
       }
@@ -229,6 +251,15 @@ export default defineComponent({
       }
       if (newVal === 'percent' && segmentSize.value >= 1) {
         segmentSize.value = 0.99;
+      }
+    });
+
+    watch(selectedShortcutType, (type) => {
+      if (!editShortcutDialog.value) {
+        return;
+      }
+      if (isDefaultDescription(selectedShortcutDescription.value)) {
+        selectedShortcutDescription.value = defaultDescription(type);
       }
     });
 
@@ -578,6 +609,9 @@ export default defineComponent({
           </v-row>
           <button-shortcut-editor
             v-model="selectedShortcutButton"
+            :attribute-name="attributeName"
+            :attribute-color="attributeColor"
+            :shortcut-type="selectedShortcutType"
           />
         </v-card-text>
         <v-card-actions>
