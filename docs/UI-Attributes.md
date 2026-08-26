@@ -148,26 +148,43 @@ The info icon next to it will display a list of possible shortcuts that are set 
 
 ![Edit Attribute Value Colors](images/Attributes/AttributeValueColors.png)
 
-Attributes that are of type text can have their colors preset and saved in the configuration file.  If your Attribute type is of type Text you have an additional tab that allows you to set the color for each state that is calculated to be in the system.
+Attributes of type **Text** and **Number** can have custom colors configured in the attribute editor under the **Value Colors** tab. These colors affect how attribute values appear in **[Attribute Rendering](UI-AttributeRendering.md)** and **[Attribute Swimlanes](UI-AttributeSwimlanes.md)**.
 
-These colors can be used in the Attribute Rendering or the Swimlane views for attributes to properly render the system.
+### Text attributes
 
-For text attributes, color selection follows this order:
+If your attribute type is **Text**, the Value Colors tab lets you assign a color for each known text value in the dataset.
+
+Color selection for each value follows this order:
 
 1. If the value is missing (`undefined`/`null`) or empty (`''`), use **None Color** when enabled.
 1. If the value is empty (`''`) and a color is set for the empty string key in Value Colors, that color can be used when None Color is not set.
 1. If **Static Color** is enabled, all non-empty text values use the attribute base color.
-1. Otherwise, per-value color mappings are used.
+1. Otherwise, per-value color mappings from Value Colors are used.
+
+### Number attributes
+
+![Edit Attribute Value Number Colors](images/Attributes/AttributeValueNumberColors.png)
+
+Numerical attributes can use a color gradient. Configure numerical values and assign each a color; DIVE automatically generates a gradient between them. Swimlanes and Attribute Rendering use these gradients when value color is set to **auto**.
+
+### None Color
+
+**None Color** is an optional background color for missing or empty values (`undefined`, `null`, or `''`).
+
+When enabled, None Color is used in two ways:
+
+1. **Swimlane row background** — fills the full background of that attribute's swimlane row for the length of the track. Value segment colors are drawn on top of this background.
+1. **Missing/empty value color** — used when resolving the color for a missing or empty value in swimlanes and attribute rendering.
+
+The swimlane row outline uses the attribute's base **Color** setting. Per-frame value regions use Value Colors, Static Color, or the number gradient as appropriate.
 
 !!! info
 
     Empty/missing aliases like `NA`, `N/A`, or `__EMPTY__` are not used for automatic empty handling. Use **None Color** and/or the empty string (`''`) value key.
 
-![Edit Attribute Value Number Colors](images/Attributes/AttributeValueNumberColors.png)
+### Static Color
 
-Added the capability to create color gradients for Attribute Values.  This will allow numerical values to have custom color gradients which can be used in swimlanes, or in displaying the values of attributes as well.
-
-This works by configuring numerical values and assigning them a color.  The color gradient will be automatically generated from the values.  If the options for color is left as auto in Attribute Rendering, or if a Swimlane is chosen it will utilize these color gradient scales.
+When **Static Color** is enabled, all non-empty values use the attribute's base **Color** instead of individual Value Color mappings. This applies in swimlanes and attribute rendering.
 
 ## Setting Attribute Values
 
