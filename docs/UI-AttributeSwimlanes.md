@@ -7,7 +7,7 @@ Attributes of type string can also be graphed in the timeline where each attribu
 ![Swimlane Graph](images/AttributeTimeline/SwimlaneAttributesIcon.png)
 
 
-Swimlanes are configured similar to the Numerical Timelines for Detection attributes.  In the Attributes setting there is a simlane icon ==:material-chart-timeline:== which can be clicked to open the side bar to the swimlane attributes settings.
+Swimlanes are configured similar to the Numerical Timelines for Detection attributes.  In the Attributes setting there is a swimlane icon ==:material-chart-timeline:== which can be clicked to open the side bar to the swimlane attributes settings.
 
 
 ## Swimlane Timeline Graphs
@@ -20,19 +20,41 @@ Clicking on the settings will bring up the Settings Editor for attributes.
 
 ## Display Settings
 
-Display settings allows you to limit the timeline display based on the track types that are available.  You can set it so that the timeline will only display when specific track types are selected.  This means you can have different graphs for different track types.
+Display settings control when a swimlane appears and how values are drawn in the timeline.
+
+### Track type visibility
+
+You can limit the timeline display based on track type. Set the display mode to **Selected** and choose which track types should show the swimlane. This lets you use different swimlane graphs for different track types.
+
+Other display options:
+
+* **Display Set Value Indicators** — show diamond markers on frames where values are set.
+* **Display Swimlane Tooltip** — show attribute name and value when hovering over the swimlane.
+
+### Render Mode
+
+Each swimlane has a **Render Mode** that controls how value colors are drawn across frames. Use the help icon next to **Render Mode** in the swimlane settings dialog for a quick summary.
+
+* **Classic** — Extends each value's color forward from the keyframe where it was set until the value changes on a later keyframe. This is the default and works well when sparse keyframe data should visually persist across frames.
+* **Segments** — Shows explicit start/end regions for each value. Supports **Highlight Segments** and **Edit Segments** so regions can be adjusted directly in the timeline. **Minimum Frame Segment Size** controls behavior when a segment is resized to zero.
+* **Discrete** — Shows color only on keyframes where a value is explicitly set. Does not extend color across intermediate frames.
+
+!!! tip
+
+    Use **Discrete** when you only want to see exactly where values were annotated. Use **Classic** when you want to see how a value persists over time. Use **Segments** when you need to view or edit value regions with explicit boundaries.
 
 ## Swimlane Settings
 
 ![Swimlane Settings](images/AttributeTimeline/SwimlaneSettings.png)
 
-Simply use the key filter to select the attributes you whish to graph and configure it to be enabled or default to show the graph button in the timeline area.
+Use the key filter to select the attributes you wish to graph and configure the swimlane to be enabled or set as the default graph shown in the timeline area.
 
-If you are creating a swimlane for a numerical attribute, utilize the value colors to create a color gradient which can be used to represent the values.
+If you are creating a swimlane for a numerical attribute, use **[Value Colors](UI-Attributes.md#attribute-value-colors)** to create a color gradient for the values.
 
-For text attributes in swimlanes, color resolution follows the Attribute Value Colors settings:
+For text attributes in swimlanes, color resolution follows the **[Attribute Value Colors](UI-Attributes.md#attribute-value-colors)** settings:
 
-1. Missing (`undefined`/`null`) or empty (`''`) values use **None Color** when enabled.
+1. The full swimlane row background uses **None Color** when enabled (see [None Color](UI-Attributes.md#none-color)).
+1. Missing (`undefined`/`null`) or empty (`''`) value segments also use **None Color** when enabled.
 1. If **Static Color** is enabled, non-empty values use the attribute base color.
 1. Otherwise, per-value text color mappings are used.
 

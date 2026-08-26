@@ -344,7 +344,9 @@ export default defineComponent({
               right = x.value(dragData.draggingCurrentLocation);
             }
           }
-          const width = right - left;
+          const width = props.displaySettings?.renderMode === 'discrete'
+            ? Math.max(right - left, bar.minWidth)
+            : right - left;
           ctx.fillStyle = sub.color || 'white';
           ctx.fillRect(left, bar.top, width, barHeight);
           if (showSymbols.value) {
@@ -384,7 +386,13 @@ export default defineComponent({
         dragData.dragBarName = bar.name;
         dragData.draggingValue = sub.value || 'None';
       }
-      const subIndex = bar.subSections.findIndex((s) => offsetX >= x.value(s.begin) && offsetX <= x.value(s.end));
+      const subIndex = bar.subSections.findIndex((s) => {
+        const left = x.value(s.begin);
+        const right = props.displaySettings?.renderMode === 'discrete'
+          ? left + bar.minWidth
+          : x.value(s.end);
+        return offsetX >= left && offsetX <= right;
+      });
       if (subIndex !== -1) {
         const sub = bar.subSections[subIndex];
         tooltip.value = {

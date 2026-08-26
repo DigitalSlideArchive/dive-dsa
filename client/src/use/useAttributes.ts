@@ -562,6 +562,7 @@ export default function UseAttributes(
     settings?: Record<string, SwimlaneGraphSettings>,
     colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
     lastValue?: string | boolean | number,
+    renderMode?: SwimlaneGraph['displaySettings']['renderMode'],
   ): string | boolean | number | undefined | null {
     if (key === 'userAttributes') {
       return null;
@@ -615,6 +616,16 @@ export default function UseAttributes(
       } else if (baseAttribute && baseAttribute.datatype === 'boolean') {
         color = val === 'true' ? 'green' : 'red';
       }
+      if (renderMode === 'discrete') {
+        valueMap[key].data.push({
+          begin: frame,
+          end: frame + 1,
+          singleVal: true,
+          value: val,
+          color,
+        });
+        return val;
+      }
       if (valueMap[key].data.length === 0) {
         // First value
         valueMap[key].data.push({
@@ -653,6 +664,7 @@ export default function UseAttributes(
     filter: SwimlaneFilter,
     settings?: Record<string, SwimlaneGraphSettings>,
     colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
+    renderMode?: SwimlaneGraph['displaySettings']['renderMode'],
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, SwimlaneAttribute> = { };
@@ -668,7 +680,7 @@ export default function UseAttributes(
               return;
             }
             if (feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
-              const val = processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, lastValue);
+              const val = processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, lastValue, renderMode);
               if (val !== null) {
                 lastValue = val;
               }
@@ -680,7 +692,7 @@ export default function UseAttributes(
           if (baseAttribute?.user) {
             return;
           }
-          const val = processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, lastValue);
+          const val = processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, lastValue, renderMode);
           if (val !== null) {
             lastValue = val;
           }
@@ -707,7 +719,13 @@ export default function UseAttributes(
                 }
                 swimlaneGraphs.value[key].filtered = false;
               }
-              const swimlaneData = generateDetectionSwimlaneData(selectedTrack, graph.filter, graph.settings, numericalColorScaling.value);
+              const swimlaneData = generateDetectionSwimlaneData(
+                selectedTrack,
+                graph.filter,
+                graph.settings,
+                numericalColorScaling.value,
+                graph.displaySettings?.renderMode,
+              );
               results[key] = swimlaneData;
             }
           } else if (graph.displaySettings && graph.displaySettings.display === 'selected') {

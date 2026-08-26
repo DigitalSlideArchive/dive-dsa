@@ -31,6 +31,10 @@ export default defineComponent({
       type: Object as PropType<SwimlaneGraph>,
       required: true,
     },
+    isNew: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit }) {
     const {
@@ -72,6 +76,26 @@ export default defineComponent({
     });
 
     const editingGraphSettings = ref(false);
+    const dialogTitle = computed(() => (props.isNew ? 'Add Swimlane' : 'Edit Swimlane'));
+    const renderModeHelp = [
+      { title: 'Classic', description: 'Extends each color from the keyframe where a value is set until the value changes.' },
+      { title: 'Segments', description: 'Shows explicit start/end regions that can be highlighted and edited in the timeline.' },
+      { title: 'Discrete', description: 'Shows color only on keyframes where a value is explicitly set.' },
+    ];
+    const swimlaneBackgroundColors = computed(() => {
+      const applied = editSwimlaneFilter.value.appliedTo;
+      const detectionAttributes = attributesList.value.filter((item) => item.belongs === 'detection');
+      const names = applied.includes('all')
+        ? detectionAttributes.map((attribute) => attribute.name)
+        : applied.filter((name) => name !== 'all');
+      return names.map((name) => {
+        const attribute = detectionAttributes.find((item) => item.name === name);
+        return {
+          name,
+          noneColor: typeof attribute?.noneColor === 'string' ? attribute.noneColor : null,
+        };
+      });
+    });
 
     const saveChanges = () => {
       if (editSwimlaneName.value !== originalName) {
@@ -120,6 +144,9 @@ export default defineComponent({
       showGraphSettings,
       showRangeSettings,
       showDisplaySettings,
+      dialogTitle,
+      renderModeHelp,
+      swimlaneBackgroundColors,
     };
   },
 });
@@ -127,12 +154,12 @@ export default defineComponent({
 
 <template>
   <v-card>
-    <v-card-title> Add Timeline </v-card-title>
+    <v-card-title>{{ dialogTitle }}</v-card-title>
     <v-card-text>
       <v-row>
         <v-text-field
           v-model="editSwimlaneName"
-          label="Timeline Name"
+          label="Swimlane Name"
         />
       </v-row>
       <v-row>
@@ -217,16 +244,48 @@ export default defineComponent({
               class="mx-2"
             />
           </v-row>
-          <v-row dense>
+          <v-row
+            dense
+            align="center"
+          >
             <v-select
               v-model="editSwimlaneDisplay.renderMode"
               style="max-width: 200px"
               outlined
-              :items="[{ value: 'classic', title: 'Classic' }, { value: 'segments', title: 'Segments' }]"
+              :items="[
+                { value: 'classic', title: 'Classic' },
+                { value: 'segments', title: 'Segments' },
+                { value: 'discrete', title: 'Discrete' },
+              ]"
               item-text="title"
               item-value="value"
               label="Render Mode"
             />
+            <v-tooltip
+              open-delay="200"
+              top
+              max-width="340"
+            >
+              <template #activator="{ on }">
+                <v-btn
+                  icon
+                  small
+                  class="ml-1"
+                  v-on="on"
+                >
+                  <v-icon>mdi-help-circle-outline</v-icon>
+                </v-btn>
+              </template>
+              <div class="render-mode-help">
+                <div
+                  v-for="mode in renderModeHelp"
+                  :key="mode.title"
+                  class="render-mode-help-item"
+                >
+                  <strong>{{ mode.title }}:</strong> {{ mode.description }}
+                </div>
+              </div>
+            </v-tooltip>
             <v-checkbox
               v-if="editSwimlaneDisplay.renderMode === 'segments'"
               v-model="editSwimlaneDisplay.highlightSegments"
@@ -264,18 +323,74 @@ export default defineComponent({
               <span>When a segment is resized to 0 if this value is zero it will remove the segment, if the value is greater it will make the segment this minimum size.</span>
             </v-tooltip>
           </v-row>
+          <v-row
+            v-if="swimlaneBackgroundColors.length"
+            dense
+            class="mt-2"
+          >
+            <v-col cols="12">
+              <div class="d-flex align-center">
+                <span class="text-subtitle-2 mr-2">Swimlane Row Background</span>
+                <v-tooltip
+                  open-delay="200"
+                  top
+                  max-width="320"
+                >
+                  <template #activator="{ on }">
+                    <v-btn
+                      icon
+                      x-small
+                      v-on="on"
+                    >
+                      <v-icon small>
+                        mdi-information-outline
+                      </v-icon>
+                    </v-btn>
+                  </template>
+                  <div>
+                    The swimlane row background uses each attribute's
+                    <strong>None Color</strong> from the attribute editor's
+                    <strong>Value Colors</strong> tab.
+                    Value segment colors are drawn on top of this background.
+                  </div>
+                </v-tooltip>
+              </div>
+            </v-col>
+            <v-col
+              v-for="item in swimlaneBackgroundColors"
+              :key="item.name"
+              cols="12"
+              class="py-1"
+            >
+              <div class="d-flex align-center swimlane-bg-row">
+                <span
+                  class="swimlane-bg-preview mr-3"
+                  :class="{ 'swimlane-bg-preview-empty': !item.noneColor }"
+                  :style="item.noneColor ? { backgroundColor: item.noneColor } : undefined"
+                  :title="item.noneColor ? item.noneColor.toString() : 'None Color not set'"
+                />
+                <span class="swimlane-bg-name">{{ item.name }}</span>
+                <span
+                  v-if="!item.noneColor"
+                  class="text-caption ml-2 swimlane-bg-unset"
+                >
+                  None Color not set
+                </span>
+              </div>
+            </v-col>
+          </v-row>
         </div>
       </div>
       <v-row
         class="pt-2"
       >
         <p>
-          One Timeline can be labeled and the Default timeline which will
+          One swimlane can be labeled as the default, which will
           automatically be open when loading the dataset
         </p>
         <v-switch
           v-model="editSwimlaneDefault"
-          label="Default Visible Timeline"
+          label="Default Visible Swimlane"
           class="pa-0 ma-0"
         />
       </v-row>
@@ -300,6 +415,48 @@ export default defineComponent({
 </template>
 
 <style scoped lang='scss'>
+
+.render-mode-help {
+  max-width: 320px;
+  text-align: left;
+}
+
+.render-mode-help-item + .render-mode-help-item {
+  margin-top: 8px;
+}
+
+.swimlane-bg-row {
+  min-height: 24px;
+}
+
+.swimlane-bg-preview {
+  display: inline-block;
+  min-width: 48px;
+  max-width: 48px;
+  min-height: 18px;
+  max-height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 2px;
+}
+
+.swimlane-bg-preview-empty {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.08) 4px,
+      rgba(255, 255, 255, 0.16) 4px,
+      rgba(255, 255, 255, 0.16) 8px
+    );
+}
+
+.swimlane-bg-name {
+  min-width: 120px;
+}
+
+.swimlane-bg-unset {
+  opacity: 0.7;
+}
 
 .border-highlight {
    border-bottom: 1px solid gray;
