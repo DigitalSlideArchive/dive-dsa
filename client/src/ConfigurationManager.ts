@@ -558,8 +558,7 @@ export default class ConfigurationManager {
       if (shortcuts.length === 1) {
         this.configuration.value.shortcuts = [];
       } else if (shortcuts[index]) {
-        const newShortcuts = shortcuts.splice(index, 1);
-        this.configuration.value.shortcuts = newShortcuts;
+        shortcuts.splice(index, 1);
       }
     }
   }
