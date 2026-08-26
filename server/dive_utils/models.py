@@ -194,7 +194,7 @@ class DisplayTrackFilterSettings(BaseModel):
     trackFilter: List[str]
     displayFrameIndicators: Optional[bool]
     displayTooltip: Optional[bool]
-    renderMode: Optional[Literal['classic', 'segments']]
+    renderMode: Optional[Literal['classic', 'segments', 'discrete']]
     highlightSegments: Optional[bool]
     editSegments: Optional[bool]
     minSegmentSize: Optional[int]
