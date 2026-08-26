@@ -39,12 +39,15 @@ export default defineComponent({
       swimlaneGraphs,
     } = useAttributesFilters();
     const addEditSwimlaneDialog = ref(false);
+    const isNewSwimlane = ref(false);
 
     const currentlyEditingSwimlane: Ref<undefined | SwimlaneGraph> = ref();
     const addEditSwimlane = (item?: SwimlaneGraph) => {
       if (item) {
         currentlyEditingSwimlane.value = item;
+        isNewSwimlane.value = false;
       } else {
+        isNewSwimlane.value = true;
         currentlyEditingSwimlane.value = {
           name: 'swimlane',
           filter: {
@@ -77,6 +80,7 @@ export default defineComponent({
       addEditSwimlaneDialog,
       currentlyEditingSwimlane,
       closeSwimlaneDialog,
+      isNewSwimlane,
     };
   },
 });
@@ -143,6 +147,7 @@ export default defineComponent({
       <attribute-swimlane-graph
         v-if="currentlyEditingSwimlane !== undefined"
         :swimlane-graph="currentlyEditingSwimlane"
+        :is-new="isNewSwimlane"
         @close="closeSwimlaneDialog()"
       />
     </v-dialog>

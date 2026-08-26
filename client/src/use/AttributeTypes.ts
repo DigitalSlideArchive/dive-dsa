@@ -10,7 +10,7 @@ export interface SwimlaneGraph {
     trackFilter: string[];
     displayFrameIndicators?: boolean;
     displayTooltip?: boolean;
-    renderMode?: 'classic' | 'segments';
+    renderMode?: 'classic' | 'segments' | 'discrete';
     highlightSegments?: boolean;
     editSegments?: boolean;
     minSegmentSize?: number;
