@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  defineComponent, PropType, ref, watch,
+  defineComponent, PropType, ref, watch, nextTick,
 } from 'vue';
 import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 
@@ -20,6 +20,10 @@ function defaultButtonForType(
     buttonText: attributeName || 'Button Name',
     buttonColor: attributeColor || '#FF00FF',
   };
+}
+
+function cloneButton(button: ButtonShortcut): ButtonShortcut {
+  return { ...button };
 }
 
 export default defineComponent({
@@ -49,11 +53,13 @@ export default defineComponent({
   setup(props, { emit }) {
     const buttonShortcutEnabled = ref(!!props.value);
     const buttonShortcut = ref<ButtonShortcut>(
-      props.value || defaultButtonForType(
-        props.shortcutType,
-        props.attributeName,
-        props.attributeColor,
-      ),
+      props.value
+        ? cloneButton(props.value)
+        : defaultButtonForType(
+          props.shortcutType,
+          props.attributeName,
+          props.attributeColor,
+        ),
     );
     let syncingFromProps = false;
 
@@ -70,44 +76,60 @@ export default defineComponent({
 
     const applyTypeDefaults = () => {
       syncingFromProps = true;
-      buttonShortcut.value = defaultButtonForType(
-        props.shortcutType,
-        props.attributeName,
-        props.attributeColor,
-      );
+      const { displayValue, buttonToolTip } = buttonShortcut.value;
+      buttonShortcut.value = {
+        ...defaultButtonForType(
+          props.shortcutType,
+          props.attributeName,
+          props.attributeColor,
+        ),
+        ...(buttonToolTip !== undefined ? { buttonToolTip } : {}),
+        ...(displayValue !== undefined ? { displayValue } : {}),
+      };
       syncingFromProps = false;
       updateButtonShortcut();
     };
 
-    watch(() => props.value, (newValue) => {
-      syncingFromProps = true;
-      buttonShortcutEnabled.value = !!newValue;
-      buttonShortcut.value = newValue
-        || defaultButtonForType(
-          props.shortcutType,
-          props.attributeName,
-          props.attributeColor,
-        );
-      syncingFromProps = false;
-    });
+    watch(
+      () => [props.value, props.shortcutType] as const,
+      ([newValue, shortcutType], [oldValue, oldShortcutType]) => {
+        const valueChanged = newValue !== oldValue;
+        const typeChanged = shortcutType !== oldShortcutType;
+
+        if (valueChanged) {
+          syncingFromProps = true;
+          buttonShortcutEnabled.value = !!newValue;
+          buttonShortcut.value = newValue
+            ? cloneButton(newValue)
+            : defaultButtonForType(
+              shortcutType,
+              props.attributeName,
+              props.attributeColor,
+            );
+          nextTick(() => {
+            syncingFromProps = false;
+          });
+          return;
+        }
+
+        if (typeChanged && buttonShortcutEnabled.value && oldShortcutType) {
+          applyTypeDefaults();
+        }
+      },
+    );
 
     watch(buttonShortcutEnabled, (enabled, wasEnabled) => {
       if (syncingFromProps) {
         return;
       }
       if (enabled && !wasEnabled) {
-        applyTypeDefaults();
+        if (props.value) {
+          buttonShortcut.value = cloneButton(props.value);
+        } else {
+          applyTypeDefaults();
+        }
       } else {
         updateButtonShortcut();
-      }
-    });
-
-    watch(() => props.shortcutType, (type, prevType) => {
-      if (syncingFromProps) {
-        return;
-      }
-      if (buttonShortcutEnabled.value && type && prevType && type !== prevType) {
-        applyTypeDefaults();
       }
     });
 

@@ -133,20 +133,22 @@ export default defineComponent({
       segmentSizeType.value = 'percent';
     };
     const save = () => {
-      editShortcutDialog.value = false;
       copy.value[selectedShortcut.value] = {
         type: selectedShortcutType.value,
         key: selectedShortcutKey.value,
         modifiers: selectedShortcutModifiers.value,
         value: selectedShortcutValue.value,
         description: selectedShortcutDescription.value,
-        button: selectedShortcutButton.value,
+        button: selectedShortcutButton.value
+          ? { ...selectedShortcutButton.value }
+          : undefined,
         segment: isSegment.value || undefined,
         segmentEditable: isSegment.value ? (segmentEditable.value || undefined) : undefined,
         segmentSize: isSegment.value ? segmentSize.value : undefined,
         segmentSizeType: isSegment.value ? segmentSizeType.value : undefined,
       };
       selectedShortcutButton.value = undefined;
+      editShortcutDialog.value = false;
       emit('input', copy.value);
     };
     const deleteShortcut = (index: number) => {
@@ -334,9 +336,9 @@ export default defineComponent({
       <v-col cols="2">
         Value
       </v-col>
-      <v-col cols="2">
-        Button
-      </v-col>
+        <v-col cols="2" class="shortcut-list-col-button">
+          Button
+        </v-col>
       <v-col cols="1">
         Info
       </v-col>
@@ -399,41 +401,46 @@ export default defineComponent({
           </v-chip>
           <span v-else class="text-caption grey--text">—</span>
         </v-col>
-        <v-col cols="2">
+        <v-col cols="2" class="shortcut-list-col-button">
           <v-tooltip
             v-if="shortcut.button"
             open-delay="200"
             bottom
           >
             <template #activator="{ on }">
-              <v-btn
-                x-small
-                outlined
-                :class="{ 'shortcut-button-preview--icon-only': isIconOnlyButton(shortcut.button) }"
-                :color="shortcut.button.buttonColor || 'primary'"
-                v-on="on"
-                @click.stop.prevent
-              >
-                <v-icon
-                  v-if="shortcut.button.iconPrepend"
+              <div class="shortcut-button-preview-wrapper" v-on="on">
+                <v-btn
                   x-small
-                  :left="!!shortcut.button.buttonText"
+                  outlined
+                  class="shortcut-button-preview"
+                  :class="{ 'shortcut-button-preview--icon-only': isIconOnlyButton(shortcut.button) }"
+                  :color="shortcut.button.buttonColor || 'primary'"
+                  @click.stop.prevent
                 >
-                  {{ shortcut.button.iconPrepend }}
-                </v-icon>
-                <template v-if="shortcut.button.buttonText">
-                  {{ shortcut.button.buttonText }}
-                </template>
-                <v-icon
-                  v-if="shortcut.button.iconAppend"
-                  x-small
-                  :right="!!shortcut.button.buttonText"
-                >
-                  {{ shortcut.button.iconAppend }}
-                </v-icon>
-              </v-btn>
+                  <v-icon
+                    v-if="shortcut.button.iconPrepend"
+                    x-small
+                    :left="!!shortcut.button.buttonText"
+                  >
+                    {{ shortcut.button.iconPrepend }}
+                  </v-icon>
+                  <span
+                    v-if="shortcut.button.buttonText"
+                    class="shortcut-button-preview__text"
+                  >
+                    {{ shortcut.button.buttonText }}
+                  </span>
+                  <v-icon
+                    v-if="shortcut.button.iconAppend"
+                    x-small
+                    :right="!!shortcut.button.buttonText"
+                  >
+                    {{ shortcut.button.iconAppend }}
+                  </v-icon>
+                </v-btn>
+              </div>
             </template>
-            <span>Custom UI button</span>
+            <span>{{ shortcut.button.buttonText || 'Custom UI button' }}</span>
           </v-tooltip>
           <span v-else class="text-caption grey--text">—</span>
         </v-col>
@@ -608,6 +615,8 @@ export default defineComponent({
             />
           </v-row>
           <button-shortcut-editor
+            v-if="editShortcutDialog"
+            :key="selectedShortcut"
             v-model="selectedShortcutButton"
             :attribute-name="attributeName"
             :attribute-color="attributeColor"
@@ -645,6 +654,33 @@ export default defineComponent({
 
 .shortcut-list-row {
   border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.shortcut-list-col-button {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shortcut-button-preview-wrapper {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.shortcut-button-preview {
+  max-width: 100%;
+
+  .v-btn__content {
+    max-width: 100%;
+    overflow: hidden;
+  }
+}
+
+.shortcut-button-preview__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .shortcut-button-preview--icon-only {
