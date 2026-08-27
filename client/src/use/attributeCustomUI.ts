@@ -1,19 +1,53 @@
-import { Attribute, AttributeCustomUI, AttributeShortcut } from './AttributeTypes';
+import { Attribute, AttributeCustomUI, AttributeCustomUIStickyIndicator, AttributeShortcut } from './AttributeTypes';
 
 export const LONG_VALUE_EXPAND_THRESHOLD = 50;
+
+export interface ResolvedAttributeCustomUIStickyIndicator {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  highlightColor?: string;
+  fontSizeScale: number;
+  opacity: number;
+}
 
 export interface ResolvedAttributeCustomUI {
   enabled: boolean;
   showWithoutButtons: boolean;
   displayValue: boolean;
+  stickyValue: boolean;
+  stickyValueIndicator: ResolvedAttributeCustomUIStickyIndicator;
   valuePosition: NonNullable<AttributeCustomUI['valuePosition']>;
   longValueMode: NonNullable<AttributeCustomUI['longValueMode']>;
   emptyValueLabel?: string;
   showDescription: boolean;
 }
 
+export interface AttributeDisplayValueInfo {
+  value: unknown;
+  inherited: boolean;
+}
+
+interface StickyValueTrack {
+  getFeature(frame: number): unknown[];
+  getPreviousKeyframe(frame: number): number | undefined;
+}
+
 export function hadLegacyDisplayValue(shortcuts?: AttributeShortcut[]): boolean {
   return !!shortcuts?.some((shortcut) => shortcut.button?.displayValue);
+}
+
+function resolveStickyValueIndicator(
+  indicator?: AttributeCustomUIStickyIndicator,
+): ResolvedAttributeCustomUIStickyIndicator {
+  return {
+    bold: indicator?.bold ?? false,
+    italic: indicator?.italic ?? true,
+    underline: indicator?.underline ?? false,
+    highlightColor: indicator?.highlightColor,
+    fontSizeScale: indicator?.fontSizeScale ?? 1,
+    opacity: indicator?.opacity ?? 1,
+  };
 }
 
 export function resolveAttributeCustomUI(
@@ -25,6 +59,8 @@ export function resolveAttributeCustomUI(
     enabled: customUI?.enabled ?? true,
     showWithoutButtons: customUI?.showWithoutButtons ?? false,
     displayValue: customUI?.displayValue ?? legacyDisplayValue ?? false,
+    stickyValue: customUI?.stickyValue ?? false,
+    stickyValueIndicator: resolveStickyValueIndicator(customUI?.stickyValueIndicator),
     valuePosition: customUI?.valuePosition ?? 'below',
     longValueMode: customUI?.longValueMode ?? 'expand',
     emptyValueLabel: customUI?.emptyValueLabel,
@@ -39,12 +75,16 @@ export function resolvedCustomUIToEditorValue(
     enabled: resolved.enabled,
     showWithoutButtons: resolved.showWithoutButtons,
     displayValue: resolved.displayValue,
+    stickyValue: resolved.stickyValue,
     valuePosition: resolved.valuePosition,
     longValueMode: resolved.longValueMode,
     showDescription: resolved.showDescription,
   };
   if (resolved.emptyValueLabel) {
     value.emptyValueLabel = resolved.emptyValueLabel;
+  }
+  if (resolved.stickyValue) {
+    value.stickyValueIndicator = { ...resolved.stickyValueIndicator };
   }
   return value;
 }
@@ -60,6 +100,19 @@ export function shouldShowAttributeInCustomUI(
   return buttonCount > 0 || customUI.showWithoutButtons;
 }
 
+function stickyIndicatorDiffersFromDefault(
+  indicator: AttributeCustomUIStickyIndicator,
+): boolean {
+  return !!(
+    indicator.bold
+    || indicator.italic === false
+    || indicator.underline
+    || indicator.highlightColor
+    || (indicator.fontSizeScale !== undefined && indicator.fontSizeScale !== 1)
+    || (indicator.opacity !== undefined && indicator.opacity !== 1)
+  );
+}
+
 export function buildCustomUIPayload(
   customUI: AttributeCustomUI,
 ): AttributeCustomUI | undefined {
@@ -72,15 +125,21 @@ export function buildCustomUIPayload(
   }
   if (customUI.displayValue) {
     payload.displayValue = true;
-  }
-  if (customUI.valuePosition && customUI.valuePosition !== 'below') {
-    payload.valuePosition = customUI.valuePosition;
-  }
-  if (customUI.longValueMode && customUI.longValueMode !== 'expand') {
-    payload.longValueMode = customUI.longValueMode;
-  }
-  if (customUI.emptyValueLabel?.length) {
-    payload.emptyValueLabel = customUI.emptyValueLabel;
+    if (customUI.stickyValue) {
+      payload.stickyValue = true;
+      if (customUI.stickyValueIndicator && stickyIndicatorDiffersFromDefault(customUI.stickyValueIndicator)) {
+        payload.stickyValueIndicator = { ...customUI.stickyValueIndicator };
+      }
+    }
+    if (customUI.valuePosition && customUI.valuePosition !== 'below') {
+      payload.valuePosition = customUI.valuePosition;
+    }
+    if (customUI.longValueMode && customUI.longValueMode !== 'expand') {
+      payload.longValueMode = customUI.longValueMode;
+    }
+    if (customUI.emptyValueLabel?.length) {
+      payload.emptyValueLabel = customUI.emptyValueLabel;
+    }
   }
   if (customUI.showDescription === false) {
     payload.showDescription = false;
@@ -118,4 +177,115 @@ export function formatAttributeDisplayValue(
     return emptyValueLabel ?? '';
   }
   return String(value);
+}
+
+export function readAttributeFromFeatureAttributes(
+  attributes: {
+    userAttributes?: Record<string, Record<string, unknown>>;
+    [key: string]: unknown;
+  } | undefined,
+  attribute: Pick<Attribute, 'name' | 'user'>,
+  userLogin: string | null,
+): unknown {
+  if (!attributes) {
+    return undefined;
+  }
+  if (attribute.user && userLogin && attributes.userAttributes?.[userLogin]) {
+    return attributes.userAttributes[userLogin][attribute.name];
+  }
+  return attributes[attribute.name];
+}
+
+export function resolveStickyAttributeValue(
+  attribute: Attribute,
+  options: {
+    frame: number | undefined;
+    track: StickyValueTrack | null;
+    userLogin: string | null;
+    stickyValue: boolean;
+    currentValue: unknown;
+  },
+): AttributeDisplayValueInfo {
+  if (!options.stickyValue || !isEmptyAttributeValue(options.currentValue)) {
+    return { value: options.currentValue, inherited: false };
+  }
+  if (attribute.belongs !== 'detection' || !options.track || options.frame === undefined) {
+    return { value: options.currentValue, inherited: false };
+  }
+  let previousFrame = options.frame;
+  while (previousFrame >= 0) {
+    const previousKeyframe = options.track.getPreviousKeyframe(previousFrame);
+    if (previousKeyframe === undefined) {
+      break;
+    }
+    const [feature] = options.track.getFeature(previousKeyframe) as [{
+      attributes?: {
+        userAttributes?: Record<string, Record<string, unknown>>;
+        [key: string]: unknown;
+      };
+    } | null | undefined];
+    const value = readAttributeFromFeatureAttributes(feature?.attributes ?? undefined, attribute, options.userLogin);
+    if (!isEmptyAttributeValue(value)) {
+      return { value, inherited: true };
+    }
+    previousFrame = previousKeyframe - 1;
+  }
+  return { value: options.currentValue, inherited: false };
+}
+
+export function getStickyValueIndicatorStyle(
+  indicator: ResolvedAttributeCustomUIStickyIndicator,
+  inherited: boolean,
+  attributeColor?: string,
+): Record<string, string> {
+  if (!inherited) {
+    return {};
+  }
+  const style: Record<string, string> = {};
+  if (indicator.bold) {
+    style.fontWeight = 'bold';
+  }
+  if (indicator.italic) {
+    style.fontStyle = 'italic';
+  }
+  if (indicator.underline) {
+    style.textDecoration = 'underline';
+  }
+  if (indicator.highlightColor) {
+    style.color = indicator.highlightColor === 'auto'
+      ? attributeColor || '#F57C00'
+      : indicator.highlightColor;
+  }
+  if (indicator.fontSizeScale !== 1) {
+    style.fontSize = `${Math.round(indicator.fontSizeScale * 100)}%`;
+  }
+  if (indicator.opacity !== 1) {
+    style.opacity = String(indicator.opacity);
+  }
+  return style;
+}
+
+export function getStickyValueTooltip(inherited: boolean, value: string): string {
+  if (!inherited) {
+    return value;
+  }
+  return value ? `${value} (inherited from previous keyframe)` : 'Inherited from previous keyframe';
+}
+
+export function getTruncatedCustomUIDisplayValue(
+  value: string,
+  rawLength: number,
+  longValueMode: ResolvedAttributeCustomUI['longValueMode'],
+): string {
+  if (longValueMode === 'truncate' && rawLength >= LONG_VALUE_EXPAND_THRESHOLD) {
+    return `${value.slice(0, LONG_VALUE_EXPAND_THRESHOLD)}...`;
+  }
+  return value;
+}
+
+export function shouldUseCustomUIValueExpansion(
+  rawLength: number,
+  longValueMode: ResolvedAttributeCustomUI['longValueMode'],
+): boolean {
+  return longValueMode === 'expand' && rawLength >= LONG_VALUE_EXPAND_THRESHOLD;
 }

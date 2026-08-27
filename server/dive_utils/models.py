@@ -139,10 +139,21 @@ class ButtonShortcut(BaseModel):
     displayValue: Optional[bool]  # deprecated: use AttributeCustomUI.displayValue
 
 
+class AttributeCustomUIStickyIndicator(BaseModel):
+    bold: Optional[bool]
+    italic: Optional[bool]
+    underline: Optional[bool]
+    highlightColor: Optional[str]
+    fontSizeScale: Optional[float]
+    opacity: Optional[float]
+
+
 class AttributeCustomUI(BaseModel):
     enabled: Optional[bool]
     showWithoutButtons: Optional[bool]
     displayValue: Optional[bool]
+    stickyValue: Optional[bool]
+    stickyValueIndicator: Optional[AttributeCustomUIStickyIndicator]
     valuePosition: Optional[Literal['below', 'above', 'header']]
     longValueMode: Optional[Literal['truncate', 'expand', 'scroll']]
     emptyValueLabel: Optional[str]

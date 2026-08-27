@@ -62,11 +62,26 @@ export interface ButtonShortcut {
     displayValue?: boolean;
   }
 
+export interface AttributeCustomUIStickyIndicator {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    /** Font color for inherited values. Use 'auto' for the attribute color. */
+    highlightColor?: string;
+    /** Multiplier for font size when value is inherited (1 = same size). */
+    fontSizeScale?: number;
+    /** Opacity when value is inherited (0–1). */
+    opacity?: number;
+  }
+
 export interface AttributeCustomUI {
     enabled?: boolean;
     /** Show this attribute in Custom UI even when it has no button shortcuts. */
     showWithoutButtons?: boolean;
     displayValue?: boolean;
+    /** Carry forward the last non-empty value from previous keyframes. */
+    stickyValue?: boolean;
+    stickyValueIndicator?: AttributeCustomUIStickyIndicator;
     valuePosition?: 'below' | 'above' | 'header';
     longValueMode?: 'truncate' | 'expand' | 'scroll';
     emptyValueLabel?: string;

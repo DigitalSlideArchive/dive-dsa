@@ -6,6 +6,7 @@ import {
 } from 'vue';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
+import CustomUIAttributeValueDisplay from 'dive-common/components/CustomUI/CustomUIAttributeValueDisplay.vue';
 import {
   useAttributes, useCameraStore, useConfiguration, useSelectedTrackId, useTime,
   useHandler,
@@ -16,11 +17,17 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import {
   formatAttributeDisplayValue,
+  getStickyValueIndicatorStyle,
+  getStickyValueTooltip,
+  getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
   resolveAttributeCustomUI,
+  resolveStickyAttributeValue,
   shouldShowAttributeInCustomUI,
+  shouldUseCustomUIValueExpansion,
 } from 'vue-media-annotator/use/attributeCustomUI';
+import type { AttributeDisplayValueInfo } from 'vue-media-annotator/use/attributeCustomUI';
 import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
@@ -68,6 +75,7 @@ export default defineComponent({
   components: {
     StackedVirtualSidebarContainer,
     AttributeSubsection,
+    CustomUIAttributeValueDisplay,
   },
 
   props: {
@@ -411,9 +419,11 @@ export default defineComponent({
       return handler;
     };
 
-    const getAttributeDisplayValue = (
+    const getAttributeDisplayValueInfo = (
       attribute: Attribute,
-    ): string | boolean | number | unknown => {
+    ): AttributeDisplayValueInfo => {
+      const customUI = resolveAttributeCustomUI(attribute);
+      let currentValue: unknown;
       const hasSegmentShortcut = attribute.shortcuts?.some((shortcut) => shortcut.segment);
       if (hasSegmentShortcut && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
         const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
@@ -432,16 +442,30 @@ export default defineComponent({
                 if (attribute.user && real.attributes.userAttributes) {
                   const user = store.state.User.user?.login;
                   if (user && real.attributes.userAttributes[user]) {
-                    return (real.attributes.userAttributes[user] as StringKeyObject)[attribute.name];
+                    currentValue = (real.attributes.userAttributes[user] as StringKeyObject)[attribute.name];
                   }
+                } else {
+                  currentValue = real.attributes[attribute.name];
                 }
-                return real.attributes[attribute.name];
               }
+              break;
             }
           }
         }
       }
-      return getAttributeValue(attribute.name, attribute.belongs, !!attribute.user);
+      if (currentValue === undefined) {
+        currentValue = getAttributeValue(attribute.name, attribute.belongs, !!attribute.user);
+      }
+      const track = selectedTrackIdRef.value !== null
+        ? cameraStore.getAnyTrack(selectedTrackIdRef.value)
+        : null;
+      return resolveStickyAttributeValue(attribute, {
+        frame: frameRef.value,
+        track,
+        userLogin: store.state.User.user?.login || null,
+        stickyValue: customUI.stickyValue,
+        currentValue,
+      });
     };
 
     const attributeButtons = computed(() => {
@@ -614,6 +638,9 @@ export default defineComponent({
       value: string;
       rawLength: number;
       longValueMode: ResolvedAttributeCustomUI['longValueMode'];
+      inherited: boolean;
+      indicatorStyle: Record<string, string>;
+      tooltip: string;
     }>> = ref({});
 
     const updateButtonMap = () => {
@@ -622,6 +649,9 @@ export default defineComponent({
         value: string;
         rawLength: number;
         longValueMode: ResolvedAttributeCustomUI['longValueMode'];
+        inherited: boolean;
+        indicatorStyle: Record<string, string>;
+        tooltip: string;
       }> = {};
       attributeButtons.value.forEach((attributeGroup) => {
         if (!attributeGroup.customUI.displayValue) {
@@ -633,7 +663,7 @@ export default defineComponent({
         if (!attribute) {
           return;
         }
-        const rawValue = getAttributeDisplayValue(attribute);
+        const { value: rawValue, inherited } = getAttributeDisplayValueInfo(attribute);
         const displayText = formatAttributeDisplayValue(
           rawValue,
           attributeGroup.customUI.emptyValueLabel,
@@ -643,6 +673,13 @@ export default defineComponent({
           value: displayText,
           rawLength: displayText.length,
           longValueMode: attributeGroup.customUI.longValueMode,
+          inherited,
+          indicatorStyle: getStickyValueIndicatorStyle(
+            attributeGroup.customUI.stickyValueIndicator,
+            inherited,
+            attribute.color,
+          ),
+          tooltip: getStickyValueTooltip(inherited, displayText),
         };
       });
       buttonValueMap.value = buttonMapping;
@@ -732,33 +769,12 @@ export default defineComponent({
                     && buttonValueMap[attribute.attrName]"
                   class="custom-ui-attribute-value custom-ui-attribute-value--header"
                 >
-                  <template
-                    v-if="buttonValueMap[attribute.attrName].longValueMode === 'expand'
-                      && buttonValueMap[attribute.attrName].rawLength >= LONG_VALUE_EXPAND_THRESHOLD"
-                  >
-                    <v-expansion-panels :value="panelExpanded[attribute.attrName]">
-                      <v-expansion-panel class="border" @change="expandPanel(attribute.attrName)">
-                        <v-expansion-panel-header>{{ attribute.name }} Value</v-expansion-panel-header>
-                        <v-expansion-panel-content>
-                          {{ buttonValueMap[attribute.attrName].value }}
-                        </v-expansion-panel-content>
-                      </v-expansion-panel>
-                    </v-expansion-panels>
-                  </template>
-                  <span
-                    v-else-if="buttonValueMap[attribute.attrName].longValueMode === 'scroll'"
-                    class="custom-ui-attribute-value--scroll"
-                  >
-                    {{ buttonValueMap[attribute.attrName].value }}
-                  </span>
-                  <span v-else>
-                    {{
-                      buttonValueMap[attribute.attrName].longValueMode === 'truncate'
-                        && buttonValueMap[attribute.attrName].rawLength >= LONG_VALUE_EXPAND_THRESHOLD
-                        ? `${buttonValueMap[attribute.attrName].value.slice(0, LONG_VALUE_EXPAND_THRESHOLD)}...`
-                        : buttonValueMap[attribute.attrName].value
-                    }}
-                  </span>
+                  <CustomUIAttributeValueDisplay
+                    :entry="buttonValueMap[attribute.attrName]"
+                    :attribute-name="attribute.name"
+                    :panel-expanded="panelExpanded[attribute.attrName]"
+                    @toggle-panel="expandPanel"
+                  />
                 </span>
               </v-col>
             </v-row>
@@ -772,33 +788,12 @@ export default defineComponent({
             class="mx-1"
           >
             <v-col cols="12">
-              <template
-                v-if="buttonValueMap[attribute.attrName].longValueMode === 'expand'
-                  && buttonValueMap[attribute.attrName].rawLength >= LONG_VALUE_EXPAND_THRESHOLD"
-              >
-                <v-expansion-panels :value="panelExpanded[attribute.attrName]">
-                  <v-expansion-panel class="border" @change="expandPanel(attribute.attrName)">
-                    <v-expansion-panel-header>{{ attribute.name }} Value</v-expansion-panel-header>
-                    <v-expansion-panel-content>
-                      {{ buttonValueMap[attribute.attrName].value }}
-                    </v-expansion-panel-content>
-                  </v-expansion-panel>
-                </v-expansion-panels>
-              </template>
-              <span
-                v-else-if="buttonValueMap[attribute.attrName].longValueMode === 'scroll'"
-                class="custom-ui-attribute-value--scroll"
-              >
-                {{ buttonValueMap[attribute.attrName].value }}
-              </span>
-              <span v-else>
-                {{
-                  buttonValueMap[attribute.attrName].longValueMode === 'truncate'
-                    && buttonValueMap[attribute.attrName].rawLength >= LONG_VALUE_EXPAND_THRESHOLD
-                    ? `${buttonValueMap[attribute.attrName].value.slice(0, LONG_VALUE_EXPAND_THRESHOLD)}...`
-                    : buttonValueMap[attribute.attrName].value
-                }}
-              </span>
+              <CustomUIAttributeValueDisplay
+                :entry="buttonValueMap[attribute.attrName]"
+                :attribute-name="attribute.name"
+                :panel-expanded="panelExpanded[attribute.attrName]"
+                @toggle-panel="expandPanel"
+              />
             </v-col>
           </v-row>
           <v-row v-if="attribute.buttons.length">
@@ -831,33 +826,12 @@ export default defineComponent({
             class="mx-1"
           >
             <v-col cols="12">
-              <template
-                v-if="buttonValueMap[attribute.attrName].longValueMode === 'expand'
-                  && buttonValueMap[attribute.attrName].rawLength >= LONG_VALUE_EXPAND_THRESHOLD"
-              >
-                <v-expansion-panels :value="panelExpanded[attribute.attrName]">
-                  <v-expansion-panel class="border" @change="expandPanel(attribute.attrName)">
-                    <v-expansion-panel-header>{{ attribute.name }} Value</v-expansion-panel-header>
-                    <v-expansion-panel-content>
-                      {{ buttonValueMap[attribute.attrName].value }}
-                    </v-expansion-panel-content>
-                  </v-expansion-panel>
-                </v-expansion-panels>
-              </template>
-              <span
-                v-else-if="buttonValueMap[attribute.attrName].longValueMode === 'scroll'"
-                class="custom-ui-attribute-value--scroll"
-              >
-                {{ buttonValueMap[attribute.attrName].value }}
-              </span>
-              <span v-else>
-                {{
-                  buttonValueMap[attribute.attrName].longValueMode === 'truncate'
-                    && buttonValueMap[attribute.attrName].rawLength >= LONG_VALUE_EXPAND_THRESHOLD
-                    ? `${buttonValueMap[attribute.attrName].value.slice(0, LONG_VALUE_EXPAND_THRESHOLD)}...`
-                    : buttonValueMap[attribute.attrName].value
-                }}
-              </span>
+              <CustomUIAttributeValueDisplay
+                :entry="buttonValueMap[attribute.attrName]"
+                :attribute-name="attribute.name"
+                :panel-expanded="panelExpanded[attribute.attrName]"
+                @toggle-panel="expandPanel"
+              />
             </v-col>
           </v-row>
         </v-row>
@@ -867,14 +841,6 @@ export default defineComponent({
 </template>
 
 <style scoped lang="scss">
-.custom-ui-attribute-value--scroll {
-  display: block;
-  max-height: 120px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .custom-ui-attribute-value--header {
   display: block;
   margin-top: 4px;
