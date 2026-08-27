@@ -58,7 +58,17 @@ export interface ButtonShortcut {
     iconAppend?: string;
     iconPrepend?: string;
     buttonColor?: string; // 'auto' or can be overridden
+    /** @deprecated Use attribute customUI.displayValue. Kept for legacy configs. */
     displayValue?: boolean;
+  }
+
+export interface AttributeCustomUI {
+    enabled?: boolean;
+    displayValue?: boolean;
+    valuePosition?: 'below' | 'above' | 'header';
+    longValueMode?: 'truncate' | 'expand' | 'scroll';
+    emptyValueLabel?: string;
+    showDescription?: boolean;
   }
 export interface AttributeShortcut {
     key?: string;
@@ -155,6 +165,7 @@ export interface Attribute {
     lockedValues?: boolean;
     editor?: NumericAttributeEditorOptions | StringAttributeEditorOptions;
     shortcuts?: AttributeShortcut[];
+    customUI?: AttributeCustomUI;
     render?: AttributeRendering;
     colorKey?: boolean;
     colorKeySettings?: {display: 'static' | 'selected'; trackFilter: string[] };
