@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  defineComponent, PropType, ref, watch,
+  defineComponent, PropType, ref, watch, nextTick,
 } from 'vue';
 import { AttributeShortcut, ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 
@@ -79,35 +79,45 @@ export default defineComponent({
       updateButtonShortcut();
     };
 
-    watch(() => props.value, (newValue) => {
-      syncingFromProps = true;
-      buttonShortcutEnabled.value = !!newValue;
-      buttonShortcut.value = newValue
-        || defaultButtonForType(
-          props.shortcutType,
-          props.attributeName,
-          props.attributeColor,
-        );
-      syncingFromProps = false;
-    });
+    watch(
+      () => [props.value, props.shortcutType] as const,
+      ([newValue, shortcutType], [oldValue, oldShortcutType]) => {
+        const valueChanged = newValue !== oldValue;
+        const typeChanged = shortcutType !== oldShortcutType;
+
+        if (valueChanged) {
+          syncingFromProps = true;
+          buttonShortcutEnabled.value = !!newValue;
+          buttonShortcut.value = newValue
+            || defaultButtonForType(
+              shortcutType,
+              props.attributeName,
+              props.attributeColor,
+            );
+          nextTick(() => {
+            syncingFromProps = false;
+          });
+          return;
+        }
+
+        if (typeChanged && buttonShortcutEnabled.value && oldShortcutType) {
+          applyTypeDefaults();
+        }
+      },
+    );
 
     watch(buttonShortcutEnabled, (enabled, wasEnabled) => {
       if (syncingFromProps) {
         return;
       }
       if (enabled && !wasEnabled) {
-        applyTypeDefaults();
+        if (props.value) {
+          buttonShortcut.value = props.value;
+        } else {
+          applyTypeDefaults();
+        }
       } else {
         updateButtonShortcut();
-      }
-    });
-
-    watch(() => props.shortcutType, (type, prevType) => {
-      if (syncingFromProps) {
-        return;
-      }
-      if (buttonShortcutEnabled.value && type && prevType && type !== prevType) {
-        applyTypeDefaults();
       }
     });
 
