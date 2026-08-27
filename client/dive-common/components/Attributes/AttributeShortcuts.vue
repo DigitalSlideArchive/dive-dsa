@@ -133,20 +133,22 @@ export default defineComponent({
       segmentSizeType.value = 'percent';
     };
     const save = () => {
-      editShortcutDialog.value = false;
       copy.value[selectedShortcut.value] = {
         type: selectedShortcutType.value,
         key: selectedShortcutKey.value,
         modifiers: selectedShortcutModifiers.value,
         value: selectedShortcutValue.value,
         description: selectedShortcutDescription.value,
-        button: selectedShortcutButton.value,
+        button: selectedShortcutButton.value
+          ? { ...selectedShortcutButton.value }
+          : undefined,
         segment: isSegment.value || undefined,
         segmentEditable: isSegment.value ? (segmentEditable.value || undefined) : undefined,
         segmentSize: isSegment.value ? segmentSize.value : undefined,
         segmentSizeType: isSegment.value ? segmentSizeType.value : undefined,
       };
       selectedShortcutButton.value = undefined;
+      editShortcutDialog.value = false;
       emit('input', copy.value);
     };
     const deleteShortcut = (index: number) => {
@@ -608,6 +610,8 @@ export default defineComponent({
             />
           </v-row>
           <button-shortcut-editor
+            v-if="editShortcutDialog"
+            :key="selectedShortcut"
             v-model="selectedShortcutButton"
             :attribute-name="attributeName"
             :attribute-color="attributeColor"

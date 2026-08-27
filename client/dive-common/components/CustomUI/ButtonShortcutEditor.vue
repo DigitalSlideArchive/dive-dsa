@@ -22,6 +22,10 @@ function defaultButtonForType(
   };
 }
 
+function cloneButton(button: ButtonShortcut): ButtonShortcut {
+  return { ...button };
+}
+
 export default defineComponent({
   name: 'ButtonShortcutEditor',
   props: {
@@ -49,11 +53,13 @@ export default defineComponent({
   setup(props, { emit }) {
     const buttonShortcutEnabled = ref(!!props.value);
     const buttonShortcut = ref<ButtonShortcut>(
-      props.value || defaultButtonForType(
-        props.shortcutType,
-        props.attributeName,
-        props.attributeColor,
-      ),
+      props.value
+        ? cloneButton(props.value)
+        : defaultButtonForType(
+          props.shortcutType,
+          props.attributeName,
+          props.attributeColor,
+        ),
     );
     let syncingFromProps = false;
 
@@ -70,11 +76,16 @@ export default defineComponent({
 
     const applyTypeDefaults = () => {
       syncingFromProps = true;
-      buttonShortcut.value = defaultButtonForType(
-        props.shortcutType,
-        props.attributeName,
-        props.attributeColor,
-      );
+      const { displayValue, buttonToolTip } = buttonShortcut.value;
+      buttonShortcut.value = {
+        ...defaultButtonForType(
+          props.shortcutType,
+          props.attributeName,
+          props.attributeColor,
+        ),
+        ...(buttonToolTip !== undefined ? { buttonToolTip } : {}),
+        ...(displayValue !== undefined ? { displayValue } : {}),
+      };
       syncingFromProps = false;
       updateButtonShortcut();
     };
@@ -89,7 +100,8 @@ export default defineComponent({
           syncingFromProps = true;
           buttonShortcutEnabled.value = !!newValue;
           buttonShortcut.value = newValue
-            || defaultButtonForType(
+            ? cloneButton(newValue)
+            : defaultButtonForType(
               shortcutType,
               props.attributeName,
               props.attributeColor,
@@ -112,7 +124,7 @@ export default defineComponent({
       }
       if (enabled && !wasEnabled) {
         if (props.value) {
-          buttonShortcut.value = props.value;
+          buttonShortcut.value = cloneButton(props.value);
         } else {
           applyTypeDefaults();
         }
