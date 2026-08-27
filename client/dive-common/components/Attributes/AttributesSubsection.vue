@@ -247,6 +247,18 @@ export default defineComponent({
       }
     };
 
+    const truncatedAttributeNames = ref<Record<string, boolean>>({});
+
+    const checkAttributeNameTruncation = (event: MouseEvent, key: string) => {
+      const el = event.currentTarget as HTMLElement;
+      truncatedAttributeNames.value = {
+        ...truncatedAttributeNames.value,
+        [key]: el.scrollWidth > el.clientWidth,
+      };
+    };
+
+    const isAttributeNameTruncated = (key: string) => !!truncatedAttributeNames.value[key];
+
     const clearFeatureAttributes = async (attribute: Attribute) => {
       const result = await prompt({
         title: 'Confirm',
@@ -298,6 +310,8 @@ export default defineComponent({
       selectAttributeRow,
       seekToAttribute,
       clearFeatureAttributes,
+      checkAttributeNameTruncation,
+      isAttributeNameTruncated,
     };
   },
 });
@@ -496,13 +510,30 @@ export default defineComponent({
             align="center"
             @click="selectAttributeRow(attribute)"
           >
-            <v-col class="attribute-name"> <div
-              class="type-color-box"
-              :style="{
-                backgroundColor: attribute.color,
-              }"
-            /><span>{{ attribute.name }}:
-            </span>
+            <v-col class="attribute-name">
+              <div class="attribute-name-inner">
+                <div
+                  class="type-color-box"
+                  :style="{
+                    backgroundColor: attribute.color,
+                  }"
+                />
+                <v-tooltip
+                  bottom
+                  open-delay="200"
+                  max-width="300"
+                  :disabled="!isAttributeNameTruncated(attribute.key)"
+                >
+                  <template #activator="{ on }">
+                    <span
+                      class="attribute-name-text"
+                      v-on="on"
+                      @mouseenter="checkAttributeNameTruncation($event, attribute.key)"
+                    >{{ attribute.name }}:</span>
+                  </template>
+                  <span>{{ attribute.name }}</span>
+                </v-tooltip>
+              </div>
             </v-col>
             <v-col class="px-1">
               <AttributeInput
@@ -580,12 +611,30 @@ export default defineComponent({
 }
 .attribute-name {
   font-size: 0.8em;
+  flex: 0 0 50%;
   max-width: 50%;
-  min-width: 50%;
+  min-width: 0;
+  overflow: hidden;
 }
+
+.attribute-name-inner {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+}
+
+.attribute-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .type-color-box {
+  flex-shrink: 0;
   display: inline-block;
-  margin-right: 5px;
+  margin-right: 0;
   min-width: 8px;
   max-width: 8px;
   min-height: 8px;
