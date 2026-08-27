@@ -405,61 +405,63 @@ export default defineComponent({
         />
       </v-row>
       <v-row
-        v-if="highlightedAttribute !== null "
-        class="align-center selected-section"
+        v-if="highlightedAttribute !== null"
+        class="selected-section"
         no-gutters
+        dense
       >
-        <v-col dense>
+        <v-col
+          cols="12"
+          class="text-center py-1"
+        >
           <b class="attribute-header">Selected Attribute:</b>
-          <div
-            no-gutters
-            class="text-caption"
-          >
+          <div class="text-caption selected-attribute-name">
             <div
               class="type-color-box"
               :style="{
                 backgroundColor: highlightedAttribute.color,
               }"
-            /><span>{{ highlightedAttribute.name }}:
-            </span>
+            />
+            <span class="selected-attribute-label">{{ highlightedAttribute.name }}</span>
           </div>
         </v-col>
-        <tooltip-btn
-          icon="mdi-close-octagon-outline"
-          color="error"
-          tooltip-text="Deselect Attribute"
-          @click="highlightedAttribute = null"
-        />
-
-        <tooltip-btn
-          icon="mdi-chevron-double-left"
-          tooltip-text="Seek to First Value"
-          @click="seekToAttribute(highlightedAttribute, 'first')"
-        />
-
-        <tooltip-btn
-          icon="mdi-chevron-left"
-          tooltip-text="Seek to previous Value"
-          @click="seekToAttribute(highlightedAttribute, 'prev')"
-        />
-
-        <tooltip-btn
-          icon="mdi-chevron-right"
-          tooltip-text="Seek to next Value"
-          @click="seekToAttribute(highlightedAttribute, 'next')"
-        />
-
-        <tooltip-btn
-          icon="mdi-chevron-double-right"
-          tooltip-text="Seek to end Value"
-          @click="seekToAttribute(highlightedAttribute, 'last')"
-        />
-        <tooltip-btn
-          icon="mdi-delete-alert"
-          color="yellow"
-          tooltip-text="Clear all attribute values"
-          @click="clearFeatureAttributes(highlightedAttribute)"
-        />
+        <v-col
+          cols="12"
+          class="selected-attribute-actions py-1"
+        >
+          <tooltip-btn
+            icon="mdi-close-octagon-outline"
+            color="error"
+            tooltip-text="Deselect Attribute"
+            @click="highlightedAttribute = null"
+          />
+          <tooltip-btn
+            icon="mdi-chevron-double-left"
+            tooltip-text="Seek to First Value"
+            @click="seekToAttribute(highlightedAttribute, 'first')"
+          />
+          <tooltip-btn
+            icon="mdi-chevron-left"
+            tooltip-text="Seek to previous Value"
+            @click="seekToAttribute(highlightedAttribute, 'prev')"
+          />
+          <tooltip-btn
+            icon="mdi-chevron-right"
+            tooltip-text="Seek to next Value"
+            @click="seekToAttribute(highlightedAttribute, 'next')"
+          />
+          <tooltip-btn
+            icon="mdi-chevron-double-right"
+            tooltip-text="Seek to end Value"
+            @click="seekToAttribute(highlightedAttribute, 'last')"
+          />
+          <tooltip-btn
+            icon="mdi-delete-alert"
+            color="yellow"
+            tooltip-text="Clear all attribute values"
+            @click="clearFeatureAttributes(highlightedAttribute)"
+          />
+        </v-col>
       </v-row>
     </template>
 
@@ -608,6 +610,26 @@ export default defineComponent({
 
 .selected-section {
   border-top: 1px solid gray;
+}
+
+.selected-attribute-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 8px;
+}
+
+.selected-attribute-label {
+  word-break: break-word;
+}
+
+.selected-attribute-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 </style>
