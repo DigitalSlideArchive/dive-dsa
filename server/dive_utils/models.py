@@ -157,6 +157,10 @@ class AttributeCustomUI(BaseModel):
     valuePosition: Optional[Literal['below', 'above', 'header']]
     longValueMode: Optional[Literal['truncate', 'expand', 'scroll']]
     emptyValueLabel: Optional[str]
+    valuePrepend: Optional[str]
+    valueAppend: Optional[str]
+    showHeader: Optional[bool]
+    valueFontSizeScale: Optional[float]
     showDescription: Optional[bool]
 
 

@@ -5,8 +5,8 @@ import {
 import { AttributeCustomUI, AttributeCustomUIStickyIndicator } from 'vue-media-annotator/use/AttributeTypes';
 
 const defaultStickyIndicator = (): AttributeCustomUIStickyIndicator => ({
-  bold: false,
-  italic: true,
+  bold: true,
+  italic: false,
   underline: false,
   highlightColor: undefined,
   fontSizeScale: 1,
@@ -22,12 +22,17 @@ function buildCustomUIEditorPayload(
   valuePosition: AttributeCustomUI['valuePosition'],
   longValueMode: AttributeCustomUI['longValueMode'],
   emptyValueLabel: string,
+  valuePrepend: string,
+  valueAppend: string,
+  showHeader: boolean,
+  valueFontSizeScale: number,
   showDescription: boolean,
 ): AttributeCustomUI {
   const payload: AttributeCustomUI = {
     enabled,
     showWithoutButtons,
     displayValue,
+    showHeader,
     showDescription,
   };
   if (displayValue) {
@@ -35,6 +40,11 @@ function buildCustomUIEditorPayload(
     payload.valuePosition = valuePosition;
     payload.longValueMode = longValueMode;
     payload.emptyValueLabel = emptyValueLabel || undefined;
+    payload.valuePrepend = valuePrepend || undefined;
+    payload.valueAppend = valueAppend || undefined;
+    if (valueFontSizeScale !== 1) {
+      payload.valueFontSizeScale = valueFontSizeScale;
+    }
     if (stickyValue) {
       payload.stickyValueIndicator = { ...stickyIndicator };
     }
@@ -67,13 +77,17 @@ export default defineComponent({
     const valuePosition = ref(props.value.valuePosition ?? 'below');
     const longValueMode = ref(props.value.longValueMode ?? 'expand');
     const emptyValueLabel = ref(props.value.emptyValueLabel ?? '');
+    const valuePrepend = ref(props.value.valuePrepend ?? '');
+    const valueAppend = ref(props.value.valueAppend ?? '');
+    const showHeader = ref(props.value.showHeader ?? true);
+    const valueFontSizeScale = ref(props.value.valueFontSizeScale ?? 1);
     const showDescription = ref(props.value.showDescription ?? true);
     let syncingFromProps = false;
 
     const valuePositionOptions = [
       { text: 'Below buttons', value: 'below' },
       { text: 'Above buttons', value: 'above' },
-      { text: 'In header', value: 'header' },
+      { text: 'Below title', value: 'header' },
     ];
 
     const longValueModeOptions = [
@@ -101,6 +115,10 @@ export default defineComponent({
         valuePosition.value,
         longValueMode.value,
         emptyValueLabel.value,
+        valuePrepend.value,
+        valueAppend.value,
+        showHeader.value,
+        valueFontSizeScale.value,
         showDescription.value,
       );
       if (customUIPayloadsEqual(payload, props.value)) {
@@ -123,6 +141,10 @@ export default defineComponent({
         valuePosition.value = newValue.valuePosition ?? 'below';
         longValueMode.value = newValue.longValueMode ?? 'expand';
         emptyValueLabel.value = newValue.emptyValueLabel ?? '';
+        valuePrepend.value = newValue.valuePrepend ?? '';
+        valueAppend.value = newValue.valueAppend ?? '';
+        showHeader.value = newValue.showHeader ?? true;
+        valueFontSizeScale.value = newValue.valueFontSizeScale ?? 1;
         showDescription.value = newValue.showDescription ?? true;
         nextTick(() => {
           syncingFromProps = false;
@@ -147,6 +169,10 @@ export default defineComponent({
         valuePosition,
         longValueMode,
         emptyValueLabel,
+        valuePrepend,
+        valueAppend,
+        showHeader,
+        valueFontSizeScale,
         showDescription,
       ],
       emitValue,
@@ -194,6 +220,10 @@ export default defineComponent({
       valuePosition,
       longValueMode,
       emptyValueLabel,
+      valuePrepend,
+      valueAppend,
+      showHeader,
+      valueFontSizeScale,
       showDescription,
       valuePositionOptions,
       longValueModeOptions,
@@ -238,19 +268,12 @@ export default defineComponent({
         </template>
         <span>When disabled, this attribute is hidden from the Custom UI panel.</span>
       </v-tooltip>
-    </v-row>
-    <v-row
-      dense
-      align="center"
-      no-gutters
-      class="custom-ui-option"
-    >
       <v-checkbox
         v-model="showWithoutButtons"
         label="Show Without Buttons"
         hide-details
         dense
-        class="mt-0 pt-0"
+        class="mt-0 pt-0 ml-4"
       />
       <v-tooltip
         open-delay="200"
@@ -432,6 +455,31 @@ export default defineComponent({
               class="mb-4"
             />
             <v-text-field
+              v-model.number="valueFontSizeScale"
+              label="Font Size Multiplier"
+              type="number"
+              min="0.5"
+              max="3"
+              step="0.05"
+              hint="Multiplier for the displayed value size. 1 is the default."
+              persistent-hint
+              class="mb-4"
+            />
+            <v-text-field
+              v-model="valuePrepend"
+              label="Value Prepend Text"
+              hint="Text shown before the attribute value."
+              persistent-hint
+              class="mb-4"
+            />
+            <v-text-field
+              v-model="valueAppend"
+              label="Value Append Text"
+              hint="Text shown after the attribute value."
+              persistent-hint
+              class="mb-4"
+            />
+            <v-text-field
               v-model="emptyValueLabel"
               label="Empty Value Label"
               hide-details
@@ -463,38 +511,79 @@ export default defineComponent({
         </v-expansion-panel>
       </v-expansion-panels>
     </template>
-    <v-row
-      dense
-      align="center"
-      no-gutters
-      class="custom-ui-option mb-4 pb-2"
-    >
-      <v-checkbox
-        v-model="showDescription"
-        label="Show Description"
-        hide-details
-        dense
-        class="mt-0 pt-0"
-      />
-      <v-tooltip
-        open-delay="200"
-        bottom
-        max-width="280"
-      >
-        <template #activator="{ on, attrs }">
-          <v-icon
-            small
-            color="grey"
-            class="custom-ui-option__info ml-1"
-            v-bind="attrs"
-            v-on="on"
+    <v-expansion-panels class="mb-4">
+      <v-expansion-panel outlined>
+        <v-expansion-panel-header>
+          Header
+        </v-expansion-panel-header>
+        <v-expansion-panel-content>
+          <v-row
+            dense
+            align="center"
+            no-gutters
+            class="custom-ui-option"
           >
-            mdi-information-outline
-          </v-icon>
-        </template>
-        <span>Show the attribute description above the buttons in the Custom UI panel.</span>
-      </v-tooltip>
-    </v-row>
+            <v-checkbox
+              v-model="showHeader"
+              label="Show Header"
+              hide-details
+              dense
+              class="mt-0 pt-0"
+            />
+            <v-tooltip
+              open-delay="200"
+              bottom
+              max-width="280"
+            >
+              <template #activator="{ on, attrs }">
+                <v-icon
+                  small
+                  color="grey"
+                  class="custom-ui-option__info ml-1"
+                  v-bind="attrs"
+                  v-on="on"
+                >
+                  mdi-information-outline
+                </v-icon>
+              </template>
+              <span>Show the attribute name as a heading in the Custom UI panel.</span>
+            </v-tooltip>
+          </v-row>
+          <v-row
+            dense
+            align="center"
+            no-gutters
+            class="custom-ui-option"
+          >
+            <v-checkbox
+              v-model="showDescription"
+              label="Show Description"
+              hide-details
+              dense
+              class="mt-0 pt-0"
+            />
+            <v-tooltip
+              open-delay="200"
+              bottom
+              max-width="280"
+            >
+              <template #activator="{ on, attrs }">
+                <v-icon
+                  small
+                  color="grey"
+                  class="custom-ui-option__info ml-1"
+                  v-bind="attrs"
+                  v-on="on"
+                >
+                  mdi-information-outline
+                </v-icon>
+              </template>
+              <span>Show the attribute description above the buttons in the Custom UI panel.</span>
+            </v-tooltip>
+          </v-row>
+        </v-expansion-panel-content>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </div>
 </template>
 

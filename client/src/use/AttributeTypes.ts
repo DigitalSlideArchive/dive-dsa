@@ -85,6 +85,14 @@ export interface AttributeCustomUI {
     valuePosition?: 'below' | 'above' | 'header';
     longValueMode?: 'truncate' | 'expand' | 'scroll';
     emptyValueLabel?: string;
+    /** Text shown before the displayed attribute value. */
+    valuePrepend?: string;
+    /** Text shown after the displayed attribute value. */
+    valueAppend?: string;
+    /** Show the attribute name heading in the Custom UI panel. */
+    showHeader?: boolean;
+    /** Font size multiplier for the displayed attribute value (1 = default). */
+    valueFontSizeScale?: number;
     showDescription?: boolean;
   }
 export interface AttributeShortcut {

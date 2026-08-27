@@ -1,6 +1,7 @@
 <script lang="ts">
 import { defineComponent, PropType } from 'vue';
 import {
+  getCustomUIDisplayValueFontSizeStyle,
   getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
@@ -15,6 +16,9 @@ export interface CustomUIValueEntry {
   inherited: boolean;
   indicatorStyle: Record<string, string>;
   tooltip: string;
+  valuePrepend?: string;
+  valueAppend?: string;
+  valueFontSizeScale: number;
 }
 
 export default defineComponent({
@@ -36,6 +40,7 @@ export default defineComponent({
   setup() {
     return {
       LONG_VALUE_EXPAND_THRESHOLD,
+      getCustomUIDisplayValueFontSizeStyle,
       getTruncatedCustomUIDisplayValue,
       shouldUseCustomUIValueExpansion,
     };
@@ -49,9 +54,13 @@ export default defineComponent({
 </script>
 
 <template>
-  <div>
+  <div
+    class="custom-ui-attribute-value-display"
+    :style="getCustomUIDisplayValueFontSizeStyle(entry.valueFontSizeScale)"
+  >
+    <span v-if="entry.valuePrepend">{{ entry.valuePrepend }}</span>
     <template v-if="shouldUseCustomUIValueExpansion(entry.rawLength, entry.longValueMode)">
-      <v-expansion-panels :value="panelExpanded">
+      <v-expansion-panels :value="panelExpanded" class="custom-ui-attribute-value-display__panel">
         <v-expansion-panel class="border" @change="onPanelChange">
           <v-expansion-panel-header>{{ attributeName }} Value</v-expansion-panel-header>
           <v-expansion-panel-content>
@@ -88,15 +97,31 @@ export default defineComponent({
       </template>
       <span>{{ entry.tooltip }}</span>
     </v-tooltip>
+    <span v-if="entry.valueAppend">{{ entry.valueAppend }}</span>
   </div>
 </template>
 
 <style scoped lang="scss">
-.custom-ui-attribute-value--scroll {
+.custom-ui-attribute-value-display {
   display: block;
+  width: 100%;
+  word-break: break-word;
+}
+
+.custom-ui-attribute-value-display__panel {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+  max-width: 100%;
+}
+
+.custom-ui-attribute-value--scroll {
+  display: inline-block;
   max-height: 120px;
+  max-width: 100%;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
+  vertical-align: top;
 }
 </style>

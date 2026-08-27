@@ -641,6 +641,9 @@ export default defineComponent({
       inherited: boolean;
       indicatorStyle: Record<string, string>;
       tooltip: string;
+      valuePrepend?: string;
+      valueAppend?: string;
+      valueFontSizeScale: number;
     }>> = ref({});
 
     const updateButtonMap = () => {
@@ -652,6 +655,9 @@ export default defineComponent({
         inherited: boolean;
         indicatorStyle: Record<string, string>;
         tooltip: string;
+        valuePrepend?: string;
+        valueAppend?: string;
+        valueFontSizeScale: number;
       }> = {};
       attributeButtons.value.forEach((attributeGroup) => {
         if (!attributeGroup.customUI.displayValue) {
@@ -680,6 +686,9 @@ export default defineComponent({
             attribute.color,
           ),
           tooltip: getStickyValueTooltip(inherited, displayText),
+          valuePrepend: attributeGroup.customUI.valuePrepend,
+          valueAppend: attributeGroup.customUI.valueAppend,
+          valueFontSizeScale: attributeGroup.customUI.valueFontSizeScale,
         };
       });
       buttonValueMap.value = buttonMapping;
@@ -759,81 +768,93 @@ export default defineComponent({
         <p v-else>
           Attribute Buttons
         </p>
-        <v-row v-for="(attribute, index) in attributeButtons" :key="`attribute_${index}`">
+        <v-row
+          v-for="(attribute, index) in attributeButtons"
+          :key="`attribute_${index}`"
+          class="custom-ui-attribute-group"
+        >
           <v-col cols="12">
-            <v-row>
-              <v-col cols="12">
-                <h4>{{ attribute.name }}</h4>
-                <span
-                  v-if="attribute.customUI.valuePosition === 'header'
-                    && buttonValueMap[attribute.attrName]"
-                  class="custom-ui-attribute-value custom-ui-attribute-value--header"
-                >
-                  <CustomUIAttributeValueDisplay
-                    :entry="buttonValueMap[attribute.attrName]"
-                    :attribute-name="attribute.name"
-                    :panel-expanded="panelExpanded[attribute.attrName]"
-                    @toggle-panel="expandPanel"
-                  />
-                </span>
+            <h4
+              v-if="attribute.customUI.showHeader"
+              class="custom-ui-attribute-title"
+            >
+              {{ attribute.name }}
+            </h4>
+            <div
+              v-if="attribute.customUI.valuePosition === 'header'
+                && buttonValueMap[attribute.attrName]"
+              class="custom-ui-attribute-value-row"
+            >
+              <CustomUIAttributeValueDisplay
+                :entry="buttonValueMap[attribute.attrName]"
+                :attribute-name="attribute.name"
+                :panel-expanded="panelExpanded[attribute.attrName]"
+                @toggle-panel="expandPanel"
+              />
+            </div>
+            <p
+              v-if="attribute.description && attribute.customUI.showDescription"
+              class="custom-ui-attribute-description"
+            >
+              {{ attribute.description }}
+            </p>
+            <div
+              v-if="attribute.customUI.valuePosition === 'above'
+                && buttonValueMap[attribute.attrName]"
+              class="custom-ui-attribute-value-row"
+            >
+              <CustomUIAttributeValueDisplay
+                :entry="buttonValueMap[attribute.attrName]"
+                :attribute-name="attribute.name"
+                :panel-expanded="panelExpanded[attribute.attrName]"
+                @toggle-panel="expandPanel"
+              />
+            </div>
+            <v-row
+              v-if="attribute.buttons.length"
+              dense
+              class="custom-ui-attribute-buttons-row mx-0"
+            >
+              <v-col
+                v-for="(button, subIndex) in attribute.buttons"
+                :key="`button_${subIndex}`"
+                cols="auto"
+                class="py-1 px-1"
+              >
+                <v-tooltip bottom>
+                  <template #activator="{ on }">
+                    <v-btn
+                      :color="button.disabled ? 'rgba(255, 255, 255, 0.3)' : button.color"
+                      outlined
+                      v-on="button.buttonToolTip && on"
+                      @click="!button.disabled ? button.action() : () => undefined"
+                    >
+                      <template v-if="button.prependIcon !== undefined">
+                        <v-icon>{{ button.prependIcon }}</v-icon>
+                      </template>
+                      {{ button.name }}
+                      <template v-if="button.appendIcon !== undefined">
+                        <v-icon>{{ button.appendIcon }}</v-icon>
+                      </template>
+                    </v-btn>
+                  </template>
+                  <span>{{ button.buttonToolTip }}</span>
+                </v-tooltip>
               </v-col>
             </v-row>
-            <v-row v-if="attribute.description && attribute.customUI.showDescription" class="mx-1">
-              <p>{{ attribute.description }}</p>
-            </v-row>
+            <div
+              v-if="attribute.customUI.valuePosition === 'below'
+                && buttonValueMap[attribute.attrName]"
+              class="custom-ui-attribute-value-row"
+            >
+              <CustomUIAttributeValueDisplay
+                :entry="buttonValueMap[attribute.attrName]"
+                :attribute-name="attribute.name"
+                :panel-expanded="panelExpanded[attribute.attrName]"
+                @toggle-panel="expandPanel"
+              />
+            </div>
           </v-col>
-          <v-row
-            v-if="attribute.customUI.valuePosition === 'above'
-              && buttonValueMap[attribute.attrName]"
-            class="mx-1"
-          >
-            <v-col cols="12">
-              <CustomUIAttributeValueDisplay
-                :entry="buttonValueMap[attribute.attrName]"
-                :attribute-name="attribute.name"
-                :panel-expanded="panelExpanded[attribute.attrName]"
-                @toggle-panel="expandPanel"
-              />
-            </v-col>
-          </v-row>
-          <v-row v-if="attribute.buttons.length">
-            <v-col v-for="(button, subIndex) in attribute.buttons" :key="`button_${subIndex}`">
-              <v-tooltip bottom>
-                <template #activator="{ on }">
-                  <v-btn
-                    :color="button.disabled ? 'rgba(255, 255, 255, 0.3)' : button.color"
-                    outlined
-                    class="mx-2"
-                    v-on="button.buttonToolTip && on"
-                    @click="!button.disabled ? button.action() : () => undefined"
-                  >
-                    <template v-if="button.prependIcon !== undefined">
-                      <v-icon>{{ button.prependIcon }}</v-icon>
-                    </template>
-                    {{ button.name }}
-                    <template v-if="button.appendIcon !== undefined">
-                      <v-icon>{{ button.appendIcon }}</v-icon>
-                    </template>
-                  </v-btn>
-                </template>
-                <span>{{ button.buttonToolTip }}</span>
-              </v-tooltip>
-            </v-col>
-          </v-row>
-          <v-row
-            v-if="attribute.customUI.valuePosition === 'below'
-              && buttonValueMap[attribute.attrName]"
-            class="mx-1"
-          >
-            <v-col cols="12">
-              <CustomUIAttributeValueDisplay
-                :entry="buttonValueMap[attribute.attrName]"
-                :attribute-name="attribute.name"
-                :panel-expanded="panelExpanded[attribute.attrName]"
-                @toggle-panel="expandPanel"
-              />
-            </v-col>
-          </v-row>
         </v-row>
       </v-container>
     </template>
@@ -841,8 +862,26 @@ export default defineComponent({
 </template>
 
 <style scoped lang="scss">
-.custom-ui-attribute-value--header {
+.custom-ui-attribute-group {
+  margin-bottom: 12px;
+}
+
+.custom-ui-attribute-title {
+  margin-bottom: 4px;
+}
+
+.custom-ui-attribute-description {
+  margin: 0 0 8px;
+}
+
+.custom-ui-attribute-value-row {
   display: block;
-  margin-top: 4px;
+  width: 100%;
+  min-height: 1.25rem;
+  margin: 4px 0 8px;
+}
+
+.custom-ui-attribute-buttons-row {
+  flex-wrap: wrap;
 }
 </style>

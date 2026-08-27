@@ -20,6 +20,10 @@ export interface ResolvedAttributeCustomUI {
   valuePosition: NonNullable<AttributeCustomUI['valuePosition']>;
   longValueMode: NonNullable<AttributeCustomUI['longValueMode']>;
   emptyValueLabel?: string;
+  valuePrepend?: string;
+  valueAppend?: string;
+  showHeader: boolean;
+  valueFontSizeScale: number;
   showDescription: boolean;
 }
 
@@ -41,8 +45,8 @@ function resolveStickyValueIndicator(
   indicator?: AttributeCustomUIStickyIndicator,
 ): ResolvedAttributeCustomUIStickyIndicator {
   return {
-    bold: indicator?.bold ?? false,
-    italic: indicator?.italic ?? true,
+    bold: indicator?.bold ?? true,
+    italic: indicator?.italic ?? false,
     underline: indicator?.underline ?? false,
     highlightColor: indicator?.highlightColor,
     fontSizeScale: indicator?.fontSizeScale ?? 1,
@@ -64,6 +68,10 @@ export function resolveAttributeCustomUI(
     valuePosition: customUI?.valuePosition ?? 'below',
     longValueMode: customUI?.longValueMode ?? 'expand',
     emptyValueLabel: customUI?.emptyValueLabel,
+    valuePrepend: customUI?.valuePrepend,
+    valueAppend: customUI?.valueAppend,
+    showHeader: customUI?.showHeader ?? true,
+    valueFontSizeScale: customUI?.valueFontSizeScale ?? 1,
     showDescription: customUI?.showDescription ?? true,
   };
 }
@@ -78,10 +86,24 @@ export function resolvedCustomUIToEditorValue(
     stickyValue: resolved.stickyValue,
     valuePosition: resolved.valuePosition,
     longValueMode: resolved.longValueMode,
+    showHeader: resolved.showHeader,
+    valueFontSizeScale: resolved.valueFontSizeScale,
     showDescription: resolved.showDescription,
   };
   if (resolved.emptyValueLabel) {
     value.emptyValueLabel = resolved.emptyValueLabel;
+  }
+  if (resolved.valuePrepend) {
+    value.valuePrepend = resolved.valuePrepend;
+  }
+  if (resolved.valueAppend) {
+    value.valueAppend = resolved.valueAppend;
+  }
+  if (resolved.valueFontSizeScale !== 1) {
+    value.valueFontSizeScale = resolved.valueFontSizeScale;
+  }
+  if (resolved.showHeader === false) {
+    value.showHeader = false;
   }
   if (resolved.stickyValue) {
     value.stickyValueIndicator = { ...resolved.stickyValueIndicator };
@@ -104,8 +126,8 @@ function stickyIndicatorDiffersFromDefault(
   indicator: AttributeCustomUIStickyIndicator,
 ): boolean {
   return !!(
-    indicator.bold
-    || indicator.italic === false
+    indicator.bold === false
+    || indicator.italic
     || indicator.underline
     || indicator.highlightColor
     || (indicator.fontSizeScale !== undefined && indicator.fontSizeScale !== 1)
@@ -140,6 +162,18 @@ export function buildCustomUIPayload(
     if (customUI.emptyValueLabel?.length) {
       payload.emptyValueLabel = customUI.emptyValueLabel;
     }
+    if (customUI.valuePrepend?.length) {
+      payload.valuePrepend = customUI.valuePrepend;
+    }
+    if (customUI.valueAppend?.length) {
+      payload.valueAppend = customUI.valueAppend;
+    }
+    if (customUI.valueFontSizeScale !== undefined && customUI.valueFontSizeScale !== 1) {
+      payload.valueFontSizeScale = customUI.valueFontSizeScale;
+    }
+  }
+  if (customUI.showHeader === false) {
+    payload.showHeader = false;
   }
   if (customUI.showDescription === false) {
     payload.showDescription = false;
@@ -231,6 +265,17 @@ export function resolveStickyAttributeValue(
     previousFrame = previousKeyframe - 1;
   }
   return { value: options.currentValue, inherited: false };
+}
+
+export function getCustomUIDisplayValueFontSizeStyle(
+  fontSizeScale: number,
+): Record<string, string> {
+  if (fontSizeScale === 1) {
+    return {};
+  }
+  return {
+    fontSize: `${Math.round(fontSizeScale * 100)}%`,
+  };
 }
 
 export function getStickyValueIndicatorStyle(
