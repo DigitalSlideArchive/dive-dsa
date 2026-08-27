@@ -19,6 +19,7 @@ import {
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
   resolveAttributeCustomUI,
+  shouldShowAttributeInCustomUI,
 } from 'vue-media-annotator/use/attributeCustomUI';
 import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
@@ -447,11 +448,8 @@ export default defineComponent({
       const attributeButtonList: AttributeButtonList = [];
       attributes.value.forEach((attribute) => {
         const customUI = resolveAttributeCustomUI(attribute);
-        if (!customUI.enabled) {
-          return;
-        }
-        if (attribute.shortcuts && attribute.shortcuts.length > 0) {
-          const buttons: AttributeDisplayButton[] = [];
+        const buttons: AttributeDisplayButton[] = [];
+        if (attribute.shortcuts?.length) {
           attribute.shortcuts.forEach((shortcut) => {
             if (shortcut.button) {
               const { disabled, tooltip } = getButtonDisabled(attribute, shortcut);
@@ -471,16 +469,16 @@ export default defineComponent({
               });
             }
           });
-          if (buttons.length > 0) {
-            attributeButtonList.push({
-              name: attribute.displayText || attribute.name,
-              attrName: attribute.name,
-              description: attribute.description,
-              type: attribute.belongs,
-              buttons,
-              customUI,
-            });
-          }
+        }
+        if (shouldShowAttributeInCustomUI(attribute, buttons.length)) {
+          attributeButtonList.push({
+            name: attribute.displayText || attribute.name,
+            attrName: attribute.name,
+            description: attribute.description,
+            type: attribute.belongs,
+            buttons,
+            customUI,
+          });
         }
       });
       const order = configMan.configuration.value?.customUI?.attributeButtonOrder || [];
@@ -803,7 +801,7 @@ export default defineComponent({
               </span>
             </v-col>
           </v-row>
-          <v-row>
+          <v-row v-if="attribute.buttons.length">
             <v-col v-for="(button, subIndex) in attribute.buttons" :key="`button_${subIndex}`">
               <v-tooltip bottom>
                 <template #activator="{ on }">

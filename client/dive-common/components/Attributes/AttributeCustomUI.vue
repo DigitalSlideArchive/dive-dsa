@@ -14,6 +14,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const enabled = ref(props.value.enabled ?? true);
+    const showWithoutButtons = ref(props.value.showWithoutButtons ?? false);
     const displayValue = ref(props.value.displayValue ?? false);
     const valuePosition = ref(props.value.valuePosition ?? 'below');
     const longValueMode = ref(props.value.longValueMode ?? 'expand');
@@ -35,6 +36,7 @@ export default defineComponent({
     const emitValue = () => {
       emit('input', {
         enabled: enabled.value,
+        showWithoutButtons: showWithoutButtons.value,
         displayValue: displayValue.value,
         valuePosition: valuePosition.value,
         longValueMode: longValueMode.value,
@@ -47,6 +49,7 @@ export default defineComponent({
       () => props.value,
       (newValue) => {
         enabled.value = newValue.enabled ?? true;
+        showWithoutButtons.value = newValue.showWithoutButtons ?? false;
         displayValue.value = newValue.displayValue ?? false;
         valuePosition.value = newValue.valuePosition ?? 'below';
         longValueMode.value = newValue.longValueMode ?? 'expand';
@@ -57,12 +60,13 @@ export default defineComponent({
     );
 
     watch(
-      [enabled, displayValue, valuePosition, longValueMode, emptyValueLabel, showDescription],
+      [enabled, showWithoutButtons, displayValue, valuePosition, longValueMode, emptyValueLabel, showDescription],
       emitValue,
     );
 
     return {
       enabled,
+      showWithoutButtons,
       displayValue,
       valuePosition,
       longValueMode,
@@ -80,7 +84,14 @@ export default defineComponent({
     <v-switch
       v-model="enabled"
       label="Show in Custom UI"
-      hint="When disabled, this attribute's button group is hidden in the Custom UI panel."
+      hint="When disabled, this attribute is hidden from the Custom UI panel."
+      persistent-hint
+      class="mb-4"
+    />
+    <v-switch
+      v-model="showWithoutButtons"
+      label="Show Without Buttons"
+      hint="Display this attribute in Custom UI even when it has no button shortcuts."
       persistent-hint
       class="mb-4"
     />

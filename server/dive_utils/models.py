@@ -141,6 +141,7 @@ class ButtonShortcut(BaseModel):
 
 class AttributeCustomUI(BaseModel):
     enabled: Optional[bool]
+    showWithoutButtons: Optional[bool]
     displayValue: Optional[bool]
     valuePosition: Optional[Literal['below', 'above', 'header']]
     longValueMode: Optional[Literal['truncate', 'expand', 'scroll']]

@@ -4,6 +4,7 @@ export const LONG_VALUE_EXPAND_THRESHOLD = 50;
 
 export interface ResolvedAttributeCustomUI {
   enabled: boolean;
+  showWithoutButtons: boolean;
   displayValue: boolean;
   valuePosition: NonNullable<AttributeCustomUI['valuePosition']>;
   longValueMode: NonNullable<AttributeCustomUI['longValueMode']>;
@@ -22,6 +23,7 @@ export function resolveAttributeCustomUI(
   const { customUI } = attribute;
   return {
     enabled: customUI?.enabled ?? true,
+    showWithoutButtons: customUI?.showWithoutButtons ?? false,
     displayValue: customUI?.displayValue ?? legacyDisplayValue ?? false,
     valuePosition: customUI?.valuePosition ?? 'below',
     longValueMode: customUI?.longValueMode ?? 'expand',
@@ -35,6 +37,7 @@ export function resolvedCustomUIToEditorValue(
 ): AttributeCustomUI {
   const value: AttributeCustomUI = {
     enabled: resolved.enabled,
+    showWithoutButtons: resolved.showWithoutButtons,
     displayValue: resolved.displayValue,
     valuePosition: resolved.valuePosition,
     longValueMode: resolved.longValueMode,
@@ -46,12 +49,26 @@ export function resolvedCustomUIToEditorValue(
   return value;
 }
 
+export function shouldShowAttributeInCustomUI(
+  attribute: Pick<Attribute, 'shortcuts' | 'customUI'>,
+  buttonCount: number,
+): boolean {
+  const customUI = resolveAttributeCustomUI(attribute);
+  if (!customUI.enabled) {
+    return false;
+  }
+  return buttonCount > 0 || customUI.showWithoutButtons;
+}
+
 export function buildCustomUIPayload(
   customUI: AttributeCustomUI,
 ): AttributeCustomUI | undefined {
   const payload: AttributeCustomUI = {};
   if (customUI.enabled === false) {
     payload.enabled = false;
+  }
+  if (customUI.showWithoutButtons) {
+    payload.showWithoutButtons = true;
   }
   if (customUI.displayValue) {
     payload.displayValue = true;

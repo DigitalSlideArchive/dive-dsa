@@ -4,6 +4,7 @@ import {
 } from 'vue';
 import draggable from 'vuedraggable';
 import { useAttributes, useConfiguration } from 'vue-media-annotator/provides';
+import { shouldShowAttributeInCustomUI } from 'vue-media-annotator/use/attributeCustomUI';
 
 interface AttributeButtonOrderItem {
   key: string;
@@ -62,7 +63,10 @@ export default defineComponent({
 
     function syncAttributeButtonOrderList() {
       const withButtons = attributes.value
-        .filter((attr) => attr.shortcuts?.some((shortcut) => !!shortcut.button))
+        .filter((attr) => {
+          const buttonCount = attr.shortcuts?.filter((shortcut) => !!shortcut.button).length ?? 0;
+          return shouldShowAttributeInCustomUI(attr, buttonCount);
+        })
         .map((attr) => ({
           key: attr.key || `${attr.belongs}_${attr.name}`,
           label: attr.displayText || attr.name,

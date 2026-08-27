@@ -64,6 +64,8 @@ export interface ButtonShortcut {
 
 export interface AttributeCustomUI {
     enabled?: boolean;
+    /** Show this attribute in Custom UI even when it has no button shortcuts. */
+    showWithoutButtons?: boolean;
     displayValue?: boolean;
     valuePosition?: 'below' | 'above' | 'header';
     longValueMode?: 'truncate' | 'expand' | 'scroll';
