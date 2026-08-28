@@ -7,7 +7,7 @@ import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import * as d3 from 'd3';
 import StyleManager, { Track } from '..';
-import { createGetAttributeValueColor } from './attributeValueColor';
+import createGetAttributeValueColor from './attributeValueColor';
 import CameraStore from '../CameraStore';
 import { LineChartData } from './useLineChart';
 import {

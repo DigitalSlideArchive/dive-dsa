@@ -5,7 +5,7 @@ function getMissingValueColor(attribute?: Attribute) {
   return attribute?.valueColors?.[''];
 }
 
-export function createGetAttributeValueColor(trackStyleManager: StyleManager) {
+export default function createGetAttributeValueColor(trackStyleManager: StyleManager) {
   return (attribute: Attribute, val?: string | number | boolean) => {
     if (val === undefined || val === null || val === '') {
       if (attribute.noneColor) {

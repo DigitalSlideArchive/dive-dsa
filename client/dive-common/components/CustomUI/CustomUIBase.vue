@@ -20,17 +20,15 @@ import {
   getCustomUIDisplayValueColorStyle,
   getStickyValueIndicatorStyle,
   getStickyValueTooltip,
-  getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
   resolveAttributeCustomUI,
   resolveCustomUIDisplayValueColor,
   resolveStickyAttributeValue,
   shouldShowAttributeInCustomUI,
-  shouldUseCustomUIValueExpansion,
 } from 'vue-media-annotator/use/attributeCustomUI';
 import type { AttributeDisplayValueInfo } from 'vue-media-annotator/use/attributeCustomUI';
-import { createGetAttributeValueColor } from 'vue-media-annotator/use/attributeValueColor';
+import createGetAttributeValueColor from 'vue-media-annotator/use/attributeValueColor';
 import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';

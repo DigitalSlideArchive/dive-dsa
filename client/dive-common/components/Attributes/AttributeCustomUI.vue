@@ -3,7 +3,7 @@ import {
   computed, defineComponent, PropType, ref, watch, nextTick,
 } from 'vue';
 import { AttributeCustomUI, AttributeCustomUIStickyIndicator, Attribute } from 'vue-media-annotator/use/AttributeTypes';
-import { createGetAttributeValueColor } from 'vue-media-annotator/use/attributeValueColor';
+import createGetAttributeValueColor from 'vue-media-annotator/use/attributeValueColor';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 
 const defaultStickyIndicator = (): AttributeCustomUIStickyIndicator => ({

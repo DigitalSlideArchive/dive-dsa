@@ -1,4 +1,7 @@
-import { Attribute, AttributeCustomUI, AttributeCustomUIStickyIndicator, AttributeShortcut } from './AttributeTypes';
+import { omit } from 'lodash';
+import {
+  Attribute, AttributeCustomUI, AttributeCustomUIStickyIndicator, AttributeShortcut,
+} from './AttributeTypes';
 
 export const LONG_VALUE_EXPAND_THRESHOLD = 50;
 
@@ -209,7 +212,7 @@ export function stripLegacyDisplayValueFromShortcuts(
       return shortcut;
     }
     changed = true;
-    const { displayValue, ...button } = shortcut.button;
+    const button = omit(shortcut.button, 'displayValue');
     return { ...shortcut, button };
   });
   return changed ? cleaned : shortcuts;
