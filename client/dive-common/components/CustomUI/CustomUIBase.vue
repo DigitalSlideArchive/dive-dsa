@@ -9,7 +9,7 @@ import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtua
 import CustomUIAttributeValueDisplay from 'dive-common/components/CustomUI/CustomUIAttributeValueDisplay.vue';
 import {
   useAttributes, useCameraStore, useConfiguration, useSelectedTrackId, useTime,
-  useHandler,
+  useHandler, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 import AttributeSubsection from 'dive-common/components/Attributes/AttributesSubsection.vue';
 import { useStore } from 'platform/web-girder/store/types';
@@ -17,17 +17,20 @@ import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { Attribute, AttributeShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import {
   formatAttributeDisplayValue,
+  getCustomUIDisplayValueColorStyle,
   getStickyValueIndicatorStyle,
   getStickyValueTooltip,
   getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
   resolveAttributeCustomUI,
+  resolveCustomUIDisplayValueColor,
   resolveStickyAttributeValue,
   shouldShowAttributeInCustomUI,
   shouldUseCustomUIValueExpansion,
 } from 'vue-media-annotator/use/attributeCustomUI';
 import type { AttributeDisplayValueInfo } from 'vue-media-annotator/use/attributeCustomUI';
+import { createGetAttributeValueColor } from 'vue-media-annotator/use/attributeValueColor';
 import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
@@ -88,6 +91,7 @@ export default defineComponent({
   setup(props) {
     const configMan = useConfiguration();
     const attributes = useAttributes();
+    const getAttributeValueColor = createGetAttributeValueColor(useTrackStyleManager());
     const { inputValue } = usePrompt();
     const { frame: frameRef, frameRate } = useTime();
     const store = useStore();
@@ -644,6 +648,8 @@ export default defineComponent({
       valuePrepend?: string;
       valueAppend?: string;
       valueFontSizeScale: number;
+      valueAlign: ResolvedAttributeCustomUI['valueAlign'];
+      valueColorStyle: Record<string, string>;
     }>> = ref({});
 
     const updateButtonMap = () => {
@@ -658,6 +664,8 @@ export default defineComponent({
         valuePrepend?: string;
         valueAppend?: string;
         valueFontSizeScale: number;
+        valueAlign: ResolvedAttributeCustomUI['valueAlign'];
+        valueColorStyle: Record<string, string>;
       }> = {};
       attributeButtons.value.forEach((attributeGroup) => {
         if (!attributeGroup.customUI.displayValue) {
@@ -674,6 +682,12 @@ export default defineComponent({
           rawValue,
           attributeGroup.customUI.emptyValueLabel,
         );
+        const resolvedValueColor = resolveCustomUIDisplayValueColor(
+          attributeGroup.customUI.valueColor,
+          rawValue,
+          attribute,
+          getAttributeValueColor,
+        );
         buttonMapping[attributeGroup.attrName] = {
           attribute: attributeGroup.name,
           value: displayText,
@@ -689,6 +703,8 @@ export default defineComponent({
           valuePrepend: attributeGroup.customUI.valuePrepend,
           valueAppend: attributeGroup.customUI.valueAppend,
           valueFontSizeScale: attributeGroup.customUI.valueFontSizeScale,
+          valueAlign: attributeGroup.customUI.valueAlign,
+          valueColorStyle: getCustomUIDisplayValueColorStyle(resolvedValueColor),
         };
       });
       buttonValueMap.value = buttonMapping;

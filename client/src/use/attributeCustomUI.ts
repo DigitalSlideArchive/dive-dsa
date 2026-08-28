@@ -24,6 +24,8 @@ export interface ResolvedAttributeCustomUI {
   valueAppend?: string;
   showHeader: boolean;
   valueFontSizeScale: number;
+  valueAlign: NonNullable<AttributeCustomUI['valueAlign']>;
+  valueColor?: 'auto' | string;
   showDescription: boolean;
 }
 
@@ -72,6 +74,8 @@ export function resolveAttributeCustomUI(
     valueAppend: customUI?.valueAppend,
     showHeader: customUI?.showHeader ?? true,
     valueFontSizeScale: customUI?.valueFontSizeScale ?? 1,
+    valueAlign: customUI?.valueAlign ?? 'left',
+    valueColor: customUI?.valueColor,
     showDescription: customUI?.showDescription ?? true,
   };
 }
@@ -90,6 +94,12 @@ export function resolvedCustomUIToEditorValue(
     valueFontSizeScale: resolved.valueFontSizeScale,
     showDescription: resolved.showDescription,
   };
+  if (resolved.valueAlign !== 'left') {
+    value.valueAlign = resolved.valueAlign;
+  }
+  if (resolved.valueColor) {
+    value.valueColor = resolved.valueColor;
+  }
   if (resolved.emptyValueLabel) {
     value.emptyValueLabel = resolved.emptyValueLabel;
   }
@@ -170,6 +180,12 @@ export function buildCustomUIPayload(
     }
     if (customUI.valueFontSizeScale !== undefined && customUI.valueFontSizeScale !== 1) {
       payload.valueFontSizeScale = customUI.valueFontSizeScale;
+    }
+    if (customUI.valueAlign && customUI.valueAlign !== 'left') {
+      payload.valueAlign = customUI.valueAlign;
+    }
+    if (customUI.valueColor) {
+      payload.valueColor = customUI.valueColor;
     }
   }
   if (customUI.showHeader === false) {
@@ -267,15 +283,50 @@ export function resolveStickyAttributeValue(
   return { value: options.currentValue, inherited: false };
 }
 
+export function resolveCustomUIDisplayValueColor(
+  configuredColor: 'auto' | string | undefined,
+  rawValue: unknown,
+  attribute: Attribute,
+  getAttributeValueColor: (attr: Attribute, val?: string | number | boolean) => string,
+): string | undefined {
+  if (!configuredColor) {
+    return undefined;
+  }
+  if (configuredColor === 'auto') {
+    if (isEmptyAttributeValue(rawValue)) {
+      return getAttributeValueColor(attribute);
+    }
+    return getAttributeValueColor(attribute, rawValue as string | number | boolean);
+  }
+  return configuredColor;
+}
+
+export function getCustomUIDisplayValueColorStyle(
+  color?: string,
+): Record<string, string> {
+  if (!color) {
+    return {};
+  }
+  return { color };
+}
+
+export function getCustomUIDisplayValueStyle(
+  fontSizeScale: number,
+  valueAlign: NonNullable<AttributeCustomUI['valueAlign']>,
+): Record<string, string> {
+  const style: Record<string, string> = {
+    textAlign: valueAlign,
+  };
+  if (fontSizeScale !== 1) {
+    style.fontSize = `${Math.round(fontSizeScale * 100)}%`;
+  }
+  return style;
+}
+
 export function getCustomUIDisplayValueFontSizeStyle(
   fontSizeScale: number,
 ): Record<string, string> {
-  if (fontSizeScale === 1) {
-    return {};
-  }
-  return {
-    fontSize: `${Math.round(fontSizeScale * 100)}%`,
-  };
+  return getCustomUIDisplayValueStyle(fontSizeScale, 'left');
 }
 
 export function getStickyValueIndicatorStyle(

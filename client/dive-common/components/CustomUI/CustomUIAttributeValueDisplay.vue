@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineComponent, PropType } from 'vue';
 import {
-  getCustomUIDisplayValueFontSizeStyle,
+  getCustomUIDisplayValueStyle,
   getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
@@ -19,6 +19,8 @@ export interface CustomUIValueEntry {
   valuePrepend?: string;
   valueAppend?: string;
   valueFontSizeScale: number;
+  valueAlign: NonNullable<ResolvedAttributeCustomUI['valueAlign']>;
+  valueColorStyle: Record<string, string>;
 }
 
 export default defineComponent({
@@ -40,7 +42,7 @@ export default defineComponent({
   setup() {
     return {
       LONG_VALUE_EXPAND_THRESHOLD,
-      getCustomUIDisplayValueFontSizeStyle,
+      getCustomUIDisplayValueStyle,
       getTruncatedCustomUIDisplayValue,
       shouldUseCustomUIValueExpansion,
     };
@@ -49,6 +51,12 @@ export default defineComponent({
     onPanelChange() {
       this.$emit('toggle-panel', this.attributeName);
     },
+    getValueTextStyle(entry: CustomUIValueEntry) {
+      return {
+        ...entry.valueColorStyle,
+        ...entry.indicatorStyle,
+      };
+    },
   },
 });
 </script>
@@ -56,7 +64,7 @@ export default defineComponent({
 <template>
   <div
     class="custom-ui-attribute-value-display"
-    :style="getCustomUIDisplayValueFontSizeStyle(entry.valueFontSizeScale)"
+    :style="getCustomUIDisplayValueStyle(entry.valueFontSizeScale, entry.valueAlign)"
   >
     <span v-if="entry.valuePrepend">{{ entry.valuePrepend }}</span>
     <template v-if="shouldUseCustomUIValueExpansion(entry.rawLength, entry.longValueMode)">
@@ -66,7 +74,7 @@ export default defineComponent({
           <v-expansion-panel-content>
             <v-tooltip bottom :disabled="!entry.inherited">
               <template #activator="{ on }">
-                <span :style="entry.indicatorStyle" v-on="entry.inherited ? on : undefined">
+                <span :style="getValueTextStyle(entry)" v-on="entry.inherited ? on : undefined">
                   {{ entry.value }}
                 </span>
               </template>
@@ -82,7 +90,7 @@ export default defineComponent({
     >
       <v-tooltip bottom :disabled="!entry.inherited">
         <template #activator="{ on }">
-          <span :style="entry.indicatorStyle" v-on="entry.inherited ? on : undefined">
+          <span :style="getValueTextStyle(entry)" v-on="entry.inherited ? on : undefined">
             {{ entry.value }}
           </span>
         </template>
@@ -91,7 +99,7 @@ export default defineComponent({
     </span>
     <v-tooltip v-else bottom :disabled="!entry.inherited">
       <template #activator="{ on }">
-        <span :style="entry.indicatorStyle" v-on="entry.inherited ? on : undefined">
+        <span :style="getValueTextStyle(entry)" v-on="entry.inherited ? on : undefined">
           {{ getTruncatedCustomUIDisplayValue(entry.value, entry.rawLength, entry.longValueMode) }}
         </span>
       </template>

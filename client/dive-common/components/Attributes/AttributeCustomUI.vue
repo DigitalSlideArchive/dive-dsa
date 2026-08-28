@@ -2,7 +2,9 @@
 import {
   computed, defineComponent, PropType, ref, watch, nextTick,
 } from 'vue';
-import { AttributeCustomUI, AttributeCustomUIStickyIndicator } from 'vue-media-annotator/use/AttributeTypes';
+import { AttributeCustomUI, AttributeCustomUIStickyIndicator, Attribute } from 'vue-media-annotator/use/AttributeTypes';
+import { createGetAttributeValueColor } from 'vue-media-annotator/use/attributeValueColor';
+import { useTrackStyleManager } from 'vue-media-annotator/provides';
 
 const defaultStickyIndicator = (): AttributeCustomUIStickyIndicator => ({
   bold: true,
@@ -26,6 +28,8 @@ function buildCustomUIEditorPayload(
   valueAppend: string,
   showHeader: boolean,
   valueFontSizeScale: number,
+  valueAlign: AttributeCustomUI['valueAlign'],
+  valueColor: string | undefined,
   showDescription: boolean,
 ): AttributeCustomUI {
   const payload: AttributeCustomUI = {
@@ -45,6 +49,12 @@ function buildCustomUIEditorPayload(
     if (valueFontSizeScale !== 1) {
       payload.valueFontSizeScale = valueFontSizeScale;
     }
+    if (valueAlign && valueAlign !== 'left') {
+      payload.valueAlign = valueAlign;
+    }
+    if (valueColor) {
+      payload.valueColor = valueColor;
+    }
     if (stickyValue) {
       payload.stickyValueIndicator = { ...stickyIndicator };
     }
@@ -63,8 +73,13 @@ export default defineComponent({
       type: Object as PropType<AttributeCustomUI>,
       required: true,
     },
+    attribute: {
+      type: Object as PropType<Attribute>,
+      default: undefined,
+    },
   },
   setup(props, { emit }) {
+    const getAttributeValueColor = createGetAttributeValueColor(useTrackStyleManager());
     const enabled = ref(props.value.enabled ?? true);
     const showWithoutButtons = ref(props.value.showWithoutButtons ?? false);
     const displayValue = ref(props.value.displayValue ?? false);
@@ -81,6 +96,15 @@ export default defineComponent({
     const valueAppend = ref(props.value.valueAppend ?? '');
     const showHeader = ref(props.value.showHeader ?? true);
     const valueFontSizeScale = ref(props.value.valueFontSizeScale ?? 1);
+    const valueAlign = ref(props.value.valueAlign ?? 'left');
+    const valueColor = ref<string | undefined>(props.value.valueColor);
+    const valueColorCustom = ref(
+      props.value.valueColor && props.value.valueColor !== 'auto'
+        ? props.value.valueColor
+        : '#FFFFFF',
+    );
+    const editingValueColor = ref(false);
+    const editingHighlightColor = ref(false);
     const showDescription = ref(props.value.showDescription ?? true);
     let syncingFromProps = false;
 
@@ -94,6 +118,12 @@ export default defineComponent({
       { text: 'Expand (panel for long values)', value: 'expand' },
       { text: 'Truncate', value: 'truncate' },
       { text: 'Scroll', value: 'scroll' },
+    ];
+
+    const valueAlignOptions = [
+      { text: 'Left', value: 'left' },
+      { text: 'Center', value: 'center' },
+      { text: 'Right', value: 'right' },
     ];
 
     const fontSizeScaleOptions = [
@@ -119,6 +149,8 @@ export default defineComponent({
         valueAppend.value,
         showHeader.value,
         valueFontSizeScale.value,
+        valueAlign.value,
+        valueColor.value,
         showDescription.value,
       );
       if (customUIPayloadsEqual(payload, props.value)) {
@@ -145,6 +177,11 @@ export default defineComponent({
         valueAppend.value = newValue.valueAppend ?? '';
         showHeader.value = newValue.showHeader ?? true;
         valueFontSizeScale.value = newValue.valueFontSizeScale ?? 1;
+        valueAlign.value = newValue.valueAlign ?? 'left';
+        valueColor.value = newValue.valueColor;
+        valueColorCustom.value = newValue.valueColor && newValue.valueColor !== 'auto'
+          ? newValue.valueColor
+          : '#FFFFFF';
         showDescription.value = newValue.showDescription ?? true;
         nextTick(() => {
           syncingFromProps = false;
@@ -173,6 +210,8 @@ export default defineComponent({
         valueAppend,
         showHeader,
         valueFontSizeScale,
+        valueAlign,
+        valueColor,
         showDescription,
       ],
       emitValue,
@@ -211,6 +250,47 @@ export default defineComponent({
       },
     });
 
+    const valueColorEnabled = computed({
+      get: () => valueColor.value !== undefined,
+      set: (enabled: boolean) => {
+        if (!enabled) {
+          valueColor.value = undefined;
+          return;
+        }
+        valueColor.value = valueColor.value || 'auto';
+      },
+    });
+
+    const valueColorAuto = computed({
+      get: () => valueColor.value === 'auto',
+      set: (auto: boolean) => {
+        if (auto) {
+          valueColor.value = 'auto';
+          return;
+        }
+        valueColor.value = valueColorCustom.value;
+      },
+    });
+
+    const computedValueColorPreview = computed(() => {
+      if (!valueColor.value) {
+        return '#FFFFFF';
+      }
+      if (valueColor.value === 'auto') {
+        if (props.attribute) {
+          return getAttributeValueColor(props.attribute);
+        }
+        return '#FFFFFF';
+      }
+      return valueColor.value;
+    });
+
+    watch(valueColorCustom, (color) => {
+      if (valueColor.value !== undefined && valueColor.value !== 'auto') {
+        valueColor.value = color;
+      }
+    });
+
     return {
       enabled,
       showWithoutButtons,
@@ -224,9 +304,18 @@ export default defineComponent({
       valueAppend,
       showHeader,
       valueFontSizeScale,
+      valueAlign,
+      valueColor,
+      valueColorEnabled,
+      valueColorAuto,
+      valueColorCustom,
+      editingValueColor,
+      editingHighlightColor,
+      computedValueColorPreview,
       showDescription,
       valuePositionOptions,
       longValueModeOptions,
+      valueAlignOptions,
       fontSizeScaleOptions,
       highlightEnabled,
       highlightColorValue,
@@ -397,22 +486,32 @@ export default defineComponent({
                 />
               </v-col>
             </v-row>
-            <div class="d-flex align-center mt-2 mb-2">
-              <v-checkbox
-                v-model="highlightEnabled"
-                label="Font Color"
-                hide-details
-                dense
-                class="mt-0 pt-0 shrink"
-              />
-              <v-color-picker
+            <v-row
+              dense
+              align="center"
+              class="mt-2 mb-2"
+            >
+              <v-col cols="auto" class="py-0">
+                <v-checkbox
+                  v-model="highlightEnabled"
+                  label="Font Color"
+                  hide-details
+                  dense
+                  class="mt-0 pt-0"
+                />
+              </v-col>
+              <v-col
                 v-if="highlightEnabled"
-                v-model="highlightColorValue"
-                hide-inputs
-                hide-mode-switch
-                class="ml-2 highlight-color-picker"
-              />
-            </div>
+                cols="auto"
+                class="py-0"
+              >
+                <div
+                  class="value-color-box edit-color-box"
+                  :style="{ backgroundColor: highlightColorValue }"
+                  @click="editingHighlightColor = true"
+                />
+              </v-col>
+            </v-row>
             <v-select
               v-model="stickyIndicator.fontSizeScale"
               :items="fontSizeScaleOptions"
@@ -465,6 +564,61 @@ export default defineComponent({
               persistent-hint
               class="mb-4"
             />
+            <v-select
+              v-model="valueAlign"
+              :items="valueAlignOptions"
+              item-text="text"
+              item-value="value"
+              label="Value Alignment"
+              class="mb-4"
+            />
+            <v-row
+              dense
+              align="center"
+              class="mb-4"
+            >
+              <v-col cols="auto" class="py-0">
+                <v-checkbox
+                  v-model="valueColorEnabled"
+                  label="Value Color"
+                  hide-details
+                  dense
+                  class="mt-0 pt-0"
+                />
+              </v-col>
+              <template v-if="valueColorEnabled">
+                <v-col cols="auto" class="py-0">
+                  <v-switch
+                    v-model="valueColorAuto"
+                    label="Attribute Value Color"
+                    hide-details
+                    dense
+                    class="mt-0 pt-0"
+                  />
+                </v-col>
+                <v-col
+                  v-if="valueColorAuto"
+                  cols="auto"
+                  class="py-0"
+                >
+                  <div
+                    class="value-color-box"
+                    :style="{ backgroundColor: computedValueColorPreview }"
+                  />
+                </v-col>
+                <v-col
+                  v-if="!valueColorAuto"
+                  cols="auto"
+                  class="py-0"
+                >
+                  <div
+                    class="value-color-box edit-color-box"
+                    :style="{ backgroundColor: computedValueColorPreview }"
+                    @click="editingValueColor = true"
+                  />
+                </v-col>
+              </template>
+            </v-row>
             <v-text-field
               v-model="valuePrepend"
               label="Value Prepend Text"
@@ -584,6 +738,58 @@ export default defineComponent({
         </v-expansion-panel-content>
       </v-expansion-panel>
     </v-expansion-panels>
+    <v-dialog
+      v-model="editingValueColor"
+      max-width="300"
+    >
+      <v-card>
+        <v-card-title>
+          Edit Value Color
+        </v-card-title>
+        <v-card-text>
+          <v-color-picker
+            v-model="valueColorCustom"
+            hide-inputs
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            depressed
+            text
+            @click="editingValueColor = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog
+      v-model="editingHighlightColor"
+      max-width="300"
+    >
+      <v-card>
+        <v-card-title>
+          Edit Inherited Font Color
+        </v-card-title>
+        <v-card-text>
+          <v-color-picker
+            v-model="highlightColorValue"
+            hide-inputs
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            depressed
+            text
+            @click="editingHighlightColor = false"
+          >
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -599,7 +805,17 @@ export default defineComponent({
   }
 }
 
-.highlight-color-picker {
-  max-width: 200px;
+.value-color-box {
+  display: inline-block;
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.edit-color-box:hover {
+  cursor: pointer;
+  border: 2px solid white;
 }
 </style>

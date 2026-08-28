@@ -6,7 +6,8 @@ import {
 import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import * as d3 from 'd3';
-import { StyleManager, Track } from '..';
+import StyleManager, { Track } from '..';
+import { createGetAttributeValueColor } from './attributeValueColor';
 import CameraStore from '../CameraStore';
 import { LineChartData } from './useLineChart';
 import {
@@ -494,29 +495,7 @@ export default function UseAttributes(
     return null;
   });
 
-  const getAttributeValueColor = (attribute: Attribute, val?: string | number | boolean) => {
-    if (val === undefined || val === null || val === '') {
-      if (attribute.noneColor) {
-        return attribute.noneColor;
-      }
-      return getMissingValueColor(attribute)
-        || attribute.color
-        || trackStyleManager.typeStyling.value.color(attribute.name);
-    }
-    if (attribute.datatype === 'text') {
-      if (attribute.staticColor) {
-        if (attribute.color) {
-          return attribute.color;
-        }
-        return trackStyleManager.typeStyling.value.color(attribute.name);
-      }
-      const strVal = val.toString();
-      if (attribute.valueColors && attribute.valueColors[strVal]) {
-        return attribute.valueColors[strVal];
-      }
-    }
-    return trackStyleManager.typeStyling.value.color(val.toString());
-  };
+  const getAttributeValueColor = createGetAttributeValueColor(trackStyleManager);
 
   const numericalColorScaling = computed(() => {
     const autoColorIndex: Record<string, (data: string | number | boolean) => string> = {};

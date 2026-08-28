@@ -562,7 +562,7 @@ export default defineComponent({
             />
           </v-tab-item>
           <v-tab-item>
-            <AttributeCustomUIEditor v-model="customUI" />
+            <AttributeCustomUIEditor v-model="customUI" :attribute="selectedAttribute" />
           </v-tab-item>
           <v-tab-item>
             <v-switch

@@ -161,6 +161,8 @@ class AttributeCustomUI(BaseModel):
     valueAppend: Optional[str]
     showHeader: Optional[bool]
     valueFontSizeScale: Optional[float]
+    valueAlign: Optional[Literal['left', 'center', 'right']]
+    valueColor: Optional[str]
     showDescription: Optional[bool]
 
 

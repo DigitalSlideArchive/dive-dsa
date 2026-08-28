@@ -93,6 +93,10 @@ export interface AttributeCustomUI {
     showHeader?: boolean;
     /** Font size multiplier for the displayed attribute value (1 = default). */
     valueFontSizeScale?: number;
+    /** Horizontal alignment for the displayed attribute value. */
+    valueAlign?: 'left' | 'center' | 'right';
+    /** Value text color. Use 'auto' for the attribute value color mapping. */
+    valueColor?: 'auto' | string;
     showDescription?: boolean;
   }
 export interface AttributeShortcut {
