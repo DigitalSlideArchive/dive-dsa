@@ -5,6 +5,7 @@ import {
   getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
+  shouldShowCustomUIValueTooltip,
   shouldUseCustomUIValueExpansion,
 } from 'vue-media-annotator/use/attributeCustomUI';
 
@@ -44,6 +45,7 @@ export default defineComponent({
       LONG_VALUE_EXPAND_THRESHOLD,
       getCustomUIDisplayValueStyle,
       getTruncatedCustomUIDisplayValue,
+      shouldShowCustomUIValueTooltip,
       shouldUseCustomUIValueExpansion,
     };
   },
@@ -56,6 +58,13 @@ export default defineComponent({
         ...entry.valueColorStyle,
         ...entry.indicatorStyle,
       };
+    },
+    showValueTooltip(entry: CustomUIValueEntry) {
+      return shouldShowCustomUIValueTooltip(
+        entry.inherited,
+        entry.rawLength,
+        entry.longValueMode,
+      );
     },
   },
 });
@@ -72,9 +81,9 @@ export default defineComponent({
         <v-expansion-panel class="border" @change="onPanelChange">
           <v-expansion-panel-header>{{ attributeName }} Value</v-expansion-panel-header>
           <v-expansion-panel-content>
-            <v-tooltip bottom :disabled="!entry.inherited">
+            <v-tooltip bottom :disabled="!showValueTooltip(entry)">
               <template #activator="{ on }">
-                <span :style="getValueTextStyle(entry)" v-on="entry.inherited ? on : undefined">
+                <span :style="getValueTextStyle(entry)" v-on="showValueTooltip(entry) ? on : undefined">
                   {{ entry.value }}
                 </span>
               </template>
@@ -88,18 +97,18 @@ export default defineComponent({
       v-else-if="entry.longValueMode === 'scroll'"
       class="custom-ui-attribute-value--scroll"
     >
-      <v-tooltip bottom :disabled="!entry.inherited">
+      <v-tooltip bottom :disabled="!showValueTooltip(entry)">
         <template #activator="{ on }">
-          <span :style="getValueTextStyle(entry)" v-on="entry.inherited ? on : undefined">
+          <span :style="getValueTextStyle(entry)" v-on="showValueTooltip(entry) ? on : undefined">
             {{ entry.value }}
           </span>
         </template>
         <span>{{ entry.tooltip }}</span>
       </v-tooltip>
     </span>
-    <v-tooltip v-else bottom :disabled="!entry.inherited">
+    <v-tooltip v-else bottom :disabled="!showValueTooltip(entry)">
       <template #activator="{ on }">
-        <span :style="getValueTextStyle(entry)" v-on="entry.inherited ? on : undefined">
+        <span :style="getValueTextStyle(entry)" v-on="showValueTooltip(entry) ? on : undefined">
           {{ getTruncatedCustomUIDisplayValue(entry.value, entry.rawLength, entry.longValueMode) }}
         </span>
       </template>

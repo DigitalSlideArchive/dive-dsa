@@ -5,6 +5,28 @@ import {
 
 export const LONG_VALUE_EXPAND_THRESHOLD = 50;
 
+const FONT_SIZE_SCALE_MIN = 0.5;
+const FONT_SIZE_SCALE_MAX = 3;
+
+export function normalizeFontSizeScale(value: unknown, fallback = 1): number {
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) {
+    return fallback;
+  }
+  return Math.min(FONT_SIZE_SCALE_MAX, Math.max(FONT_SIZE_SCALE_MIN, num));
+}
+
+export function shouldShowCustomUIValueTooltip(
+  inherited: boolean,
+  rawLength: number,
+  longValueMode: ResolvedAttributeCustomUI['longValueMode'],
+): boolean {
+  if (inherited) {
+    return true;
+  }
+  return longValueMode === 'truncate' && rawLength >= LONG_VALUE_EXPAND_THRESHOLD;
+}
+
 export interface ResolvedAttributeCustomUIStickyIndicator {
   bold: boolean;
   italic: boolean;
@@ -54,21 +76,22 @@ function resolveStickyValueIndicator(
     italic: indicator?.italic ?? false,
     underline: indicator?.underline ?? false,
     highlightColor: indicator?.highlightColor,
-    fontSizeScale: indicator?.fontSizeScale ?? 1,
+    fontSizeScale: normalizeFontSizeScale(indicator?.fontSizeScale),
     opacity: indicator?.opacity ?? 1,
   };
 }
 
 export function resolveAttributeCustomUI(
-  attribute: Pick<Attribute, 'customUI' | 'shortcuts'>,
+  attribute: Pick<Attribute, 'customUI' | 'shortcuts' | 'belongs'>,
 ): ResolvedAttributeCustomUI {
   const legacyDisplayValue = hadLegacyDisplayValue(attribute.shortcuts);
   const { customUI } = attribute;
+  const supportsStickyValue = attribute.belongs === 'detection';
   return {
     enabled: customUI?.enabled ?? true,
     showWithoutButtons: customUI?.showWithoutButtons ?? false,
     displayValue: customUI?.displayValue ?? legacyDisplayValue ?? false,
-    stickyValue: customUI?.stickyValue ?? false,
+    stickyValue: supportsStickyValue ? (customUI?.stickyValue ?? false) : false,
     stickyValueIndicator: resolveStickyValueIndicator(customUI?.stickyValueIndicator),
     valuePosition: customUI?.valuePosition ?? 'below',
     longValueMode: customUI?.longValueMode ?? 'expand',
@@ -76,7 +99,7 @@ export function resolveAttributeCustomUI(
     valuePrepend: customUI?.valuePrepend,
     valueAppend: customUI?.valueAppend,
     showHeader: customUI?.showHeader ?? true,
-    valueFontSizeScale: customUI?.valueFontSizeScale ?? 1,
+    valueFontSizeScale: normalizeFontSizeScale(customUI?.valueFontSizeScale),
     valueAlign: customUI?.valueAlign ?? 'left',
     valueColor: customUI?.valueColor,
     showDescription: customUI?.showDescription ?? true,
@@ -94,7 +117,6 @@ export function resolvedCustomUIToEditorValue(
     valuePosition: resolved.valuePosition,
     longValueMode: resolved.longValueMode,
     showHeader: resolved.showHeader,
-    valueFontSizeScale: resolved.valueFontSizeScale,
     showDescription: resolved.showDescription,
   };
   if (resolved.valueAlign !== 'left') {
@@ -112,8 +134,9 @@ export function resolvedCustomUIToEditorValue(
   if (resolved.valueAppend) {
     value.valueAppend = resolved.valueAppend;
   }
-  if (resolved.valueFontSizeScale !== 1) {
-    value.valueFontSizeScale = resolved.valueFontSizeScale;
+  const valueFontSizeScale = normalizeFontSizeScale(resolved.valueFontSizeScale);
+  if (valueFontSizeScale !== 1) {
+    value.valueFontSizeScale = valueFontSizeScale;
   }
   if (resolved.showHeader === false) {
     value.showHeader = false;
@@ -181,8 +204,9 @@ export function buildCustomUIPayload(
     if (customUI.valueAppend?.length) {
       payload.valueAppend = customUI.valueAppend;
     }
-    if (customUI.valueFontSizeScale !== undefined && customUI.valueFontSizeScale !== 1) {
-      payload.valueFontSizeScale = customUI.valueFontSizeScale;
+    const valueFontSizeScale = normalizeFontSizeScale(customUI.valueFontSizeScale);
+    if (valueFontSizeScale !== 1) {
+      payload.valueFontSizeScale = valueFontSizeScale;
     }
     if (customUI.valueAlign && customUI.valueAlign !== 'left') {
       payload.valueAlign = customUI.valueAlign;
@@ -317,11 +341,12 @@ export function getCustomUIDisplayValueStyle(
   fontSizeScale: number,
   valueAlign: NonNullable<AttributeCustomUI['valueAlign']>,
 ): Record<string, string> {
+  const normalizedScale = normalizeFontSizeScale(fontSizeScale);
   const style: Record<string, string> = {
     textAlign: valueAlign,
   };
-  if (fontSizeScale !== 1) {
-    style.fontSize = `${Math.round(fontSizeScale * 100)}%`;
+  if (normalizedScale !== 1) {
+    style.fontSize = `${Math.round(normalizedScale * 100)}%`;
   }
   return style;
 }
@@ -356,7 +381,7 @@ export function getStickyValueIndicatorStyle(
       : indicator.highlightColor;
   }
   if (indicator.fontSizeScale !== 1) {
-    style.fontSize = `${Math.round(indicator.fontSizeScale * 100)}%`;
+    style.fontSize = `${Math.round(normalizeFontSizeScale(indicator.fontSizeScale) * 100)}%`;
   }
   if (indicator.opacity !== 1) {
     style.opacity = String(indicator.opacity);

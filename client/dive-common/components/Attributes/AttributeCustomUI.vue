@@ -3,6 +3,7 @@ import {
   computed, defineComponent, PropType, ref, watch, nextTick,
 } from 'vue';
 import { AttributeCustomUI, AttributeCustomUIStickyIndicator, Attribute } from 'vue-media-annotator/use/AttributeTypes';
+import { normalizeFontSizeScale } from 'vue-media-annotator/use/attributeCustomUI';
 import createGetAttributeValueColor from 'vue-media-annotator/use/attributeValueColor';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 
@@ -31,6 +32,7 @@ function buildCustomUIEditorPayload(
   valueAlign: AttributeCustomUI['valueAlign'],
   valueColor: string | undefined,
   showDescription: boolean,
+  supportsStickyValue: boolean,
 ): AttributeCustomUI {
   const payload: AttributeCustomUI = {
     enabled,
@@ -40,23 +42,26 @@ function buildCustomUIEditorPayload(
     showDescription,
   };
   if (displayValue) {
-    payload.stickyValue = stickyValue;
+    if (supportsStickyValue) {
+      payload.stickyValue = stickyValue;
+      if (stickyValue) {
+        payload.stickyValueIndicator = { ...stickyIndicator };
+      }
+    }
     payload.valuePosition = valuePosition;
     payload.longValueMode = longValueMode;
     payload.emptyValueLabel = emptyValueLabel || undefined;
     payload.valuePrepend = valuePrepend || undefined;
     payload.valueAppend = valueAppend || undefined;
-    if (valueFontSizeScale !== 1) {
-      payload.valueFontSizeScale = valueFontSizeScale;
+    const normalizedFontSizeScale = normalizeFontSizeScale(valueFontSizeScale);
+    if (normalizedFontSizeScale !== 1) {
+      payload.valueFontSizeScale = normalizedFontSizeScale;
     }
     if (valueAlign && valueAlign !== 'left') {
       payload.valueAlign = valueAlign;
     }
     if (valueColor) {
       payload.valueColor = valueColor;
-    }
-    if (stickyValue) {
-      payload.stickyValueIndicator = { ...stickyIndicator };
     }
   }
   return payload;
@@ -108,6 +113,8 @@ export default defineComponent({
     const showDescription = ref(props.value.showDescription ?? true);
     let syncingFromProps = false;
 
+    const supportsStickyValue = computed(() => props.attribute?.belongs === 'detection');
+
     const valuePositionOptions = [
       { text: 'Below buttons', value: 'below' },
       { text: 'Above buttons', value: 'above' },
@@ -152,6 +159,7 @@ export default defineComponent({
         valueAlign.value,
         valueColor.value,
         showDescription.value,
+        supportsStickyValue.value,
       );
       if (customUIPayloadsEqual(payload, props.value)) {
         return;
@@ -166,7 +174,6 @@ export default defineComponent({
         enabled.value = newValue.enabled ?? true;
         showWithoutButtons.value = newValue.showWithoutButtons ?? false;
         displayValue.value = newValue.displayValue ?? false;
-        stickyValue.value = newValue.stickyValue ?? false;
         stickyIndicator.value = newValue.stickyValueIndicator
           ? { ...defaultStickyIndicator(), ...newValue.stickyValueIndicator }
           : defaultStickyIndicator();
@@ -176,8 +183,13 @@ export default defineComponent({
         valuePrepend.value = newValue.valuePrepend ?? '';
         valueAppend.value = newValue.valueAppend ?? '';
         showHeader.value = newValue.showHeader ?? true;
-        valueFontSizeScale.value = newValue.valueFontSizeScale ?? 1;
+        valueFontSizeScale.value = normalizeFontSizeScale(newValue.valueFontSizeScale);
         valueAlign.value = newValue.valueAlign ?? 'left';
+        if (!supportsStickyValue.value) {
+          stickyValue.value = false;
+        } else {
+          stickyValue.value = newValue.stickyValue ?? false;
+        }
         valueColor.value = newValue.valueColor;
         valueColorCustom.value = newValue.valueColor && newValue.valueColor !== 'auto'
           ? newValue.valueColor
@@ -195,6 +207,16 @@ export default defineComponent({
         stickyValue.value = false;
       }
     });
+
+    watch(supportsStickyValue, (supported) => {
+      if (!supported) {
+        stickyValue.value = false;
+      }
+    });
+
+    const normalizeEditorFontSizeScale = () => {
+      valueFontSizeScale.value = normalizeFontSizeScale(valueFontSizeScale.value);
+    };
 
     watch(
       [
@@ -319,6 +341,8 @@ export default defineComponent({
       fontSizeScaleOptions,
       highlightEnabled,
       highlightColorValue,
+      supportsStickyValue,
+      normalizeEditorFontSizeScale,
     };
   },
 });
@@ -416,6 +440,7 @@ export default defineComponent({
       </v-tooltip>
     </v-row>
     <template v-if="displayValue">
+      <template v-if="supportsStickyValue">
       <v-row
         dense
         align="center"
@@ -531,6 +556,7 @@ export default defineComponent({
           </v-expansion-panel-content>
         </v-expansion-panel>
       </v-expansion-panels>
+      </template>
       <v-expansion-panels class="mb-4">
         <v-expansion-panel outlined>
           <v-expansion-panel-header>
@@ -563,6 +589,7 @@ export default defineComponent({
               hint="Multiplier for the displayed value size. 1 is the default."
               persistent-hint
               class="mb-4"
+              @blur="normalizeEditorFontSizeScale"
             />
             <v-select
               v-model="valueAlign"
