@@ -82,7 +82,6 @@ interface UITrackDetails {
 }
 
 interface UIControls {
-    UILegendControls?: boolean;
     UITimelineSelection?: boolean;
     UIPlaybackControls? : boolean;
     UIAudioControls? : boolean;
@@ -97,6 +96,11 @@ interface UIControls {
 interface UITimeline {
     UIDetections? : boolean;
     UIEvents? : boolean;
+    UILegendControls?: boolean;
+    UILegendForceOpen?: boolean;
+    UILegendHideToggle?: boolean;
+    UILegendKeyMinWidth?: number;
+    UILegendKeyMaxWidth?: number;
 }
 
 interface UIInteractions {
