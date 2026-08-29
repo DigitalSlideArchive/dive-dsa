@@ -63,5 +63,20 @@ Customize the interface on the playback controls to hide interfaces not needed.
 ## Timeline
 ![Timeline](images/Configuration/UISettings/TimelineSettings.png)
 
+* **Detections Timeline** — show or hide the Detections timeline view button.
+* **Events Timeline** — show or hide the Events timeline view button.
 
+### Legend / Key
+
+These settings control the inline legend column rendered to the left of timeline charts. See [Swimlane Key](UI-AttributeSwimlanes.md#swimlane-key) for behavior across timeline types.
+
+* **Legend Controls** — show or hide the key toggle button in the timeline control bar (default: on).
+* **Legend Force Open** — always show the legend and prevent users from closing it (default: off).
+* **Legend Hide Toggle** — hide the key toggle button while the legend may still be shown (default: off; often used with Force Open).
+* **Key Min Width (px)** — minimum legend column width (default: 80).
+* **Key Max Width (px)** — maximum legend column width (default: 150).
+
+!!! note
+
+    Legend settings were previously under Playback Controls. Saving Timeline settings in the UI migrates `UILegendControls`, `UILegendForceOpen`, and `UILegendHideToggle` from `UIControls` to `UITimeline` automatically.
 
