@@ -961,6 +961,7 @@ export default defineComponent({
 .customTooltip {
   background: black;
   border: 1px solid white;
+  padding: 6px 8px 10px;
 }
 
 .key-tooltip-title {
