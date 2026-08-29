@@ -14,7 +14,9 @@ export interface SwimlaneGraph {
     highlightSegments?: boolean;
     editSegments?: boolean;
     minSegmentSize?: number;
-
+    hideTitle?: boolean;
+    hideKeyTitle?: boolean;
+    hideKeyAttributeLabels?: boolean;
   };
   settings?: Record<string, SwimlaneGraphSettings>;
 }
