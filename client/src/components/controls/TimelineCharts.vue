@@ -12,9 +12,19 @@ import {
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
+import TimelineKeySection from './TimelineKeySection.vue';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId, useTimelineFilters,
 } from '../../provides';
+import {
+  buildFilteredTimelineList,
+  computeKeyPanelWidth,
+  getSectionContentHeight,
+  getTimelineChartAreaInsets,
+  isDetectionsTimeline,
+  KeyPanelWidthOptions,
+  shouldHideTimelineSectionTitle,
+} from './timelineLayout';
 
 export default defineComponent({
   components: {
@@ -23,6 +33,7 @@ export default defineComponent({
     Timeline,
     AttributeSwimlaneGraph,
     TooltipBtn,
+    TimelineKeySection,
   },
   props: {
     dismissedButtons: {
@@ -30,7 +41,7 @@ export default defineComponent({
       required: true,
     },
     lineChartData: {
-      type: Array as PropType<unknown[]>,
+      type: Array as PropType<LineChartData[]>,
       required: true,
     },
     eventChartData: {
@@ -46,6 +57,10 @@ export default defineComponent({
       required: true,
     },
     collapsed: {
+      type: Boolean,
+      default: false,
+    },
+    showKey: {
       type: Boolean,
       default: false,
     },
@@ -74,15 +89,14 @@ export default defineComponent({
       required: true,
     },
   },
-  setup(props) {
+  emits: ['select-track', 'select-group', 'dismiss', 'chart-area-insets'],
+  setup(props, { emit }) {
     const configMan = useConfiguration();
-    const enabledKey = ref(true);
     const {
       timelineEnabled, attributeTimelineData,
-      swimlaneEnabled, swimlaneDisplaySettings, attributeSwimlaneData,
+      swimlaneEnabled, swimlaneDisplaySettings, attributeSwimlaneData, swimlaneGraphs,
     } = useAttributesFilters();
     const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
-    // Format the Attribute data if it is available
     const selectedTrackIdRef = useSelectedTrackId();
 
     const enabledTimelines = computed(() => {
@@ -122,18 +136,15 @@ export default defineComponent({
       nudge.value += 1;
     });
     const timelineList = computed(() => {
-      const list: TimelineDisplay[] = [];
-      const activeConfig = configMan.getActiveTimelineConfig();
-      if (nudge.value !== null && activeConfig?.timelines) {
-        activeConfig.timelines.forEach((item) => {
-          if (checkTimelineEnabled(item)) {
-            list.push(item);
-          }
-        });
+      // nudge forces recompute when timeline config changes
+      if (nudge.value === null) {
+        return [];
       }
-      list.sort((a, b) => (a.order - b.order));
-      const updatedList = list.filter((item) => !props.dismissedButtons.includes(item.name));
-      return updatedList;
+      return buildFilteredTimelineList(
+        configMan,
+        checkTimelineEnabled,
+        props.dismissedButtons,
+      );
     });
     const attributeDataTimeline = computed(() => {
       const data: {
@@ -157,22 +168,108 @@ export default defineComponent({
       return data;
     });
 
-    const getTimelineHeight = (timeline: TimelineDisplay) => {
-      if (timeline.maxHeight === -1 && timelineList.value.length) {
-        // We really want the total height minus the defined heights
-        let definedHeights = 0;
-        let count = 1;
-        timelineList.value.forEach((item) => {
-          if (item.name !== timeline.name && item.maxHeight !== -1) {
-            definedHeights += item.maxHeight;
-          } else if (item.name !== timeline.name) {
-            count += 1;
-          }
-        });
-        return ((props.clientHeight - definedHeights) / count) - 20;
+    const swimlaneGraphSettings = computed(() => {
+      const settings: Record<string, Record<string, import('vue-media-annotator/use/AttributeTypes').SwimlaneGraphSettings>> = {};
+      Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
+        settings[key] = graph.settings || {};
+      });
+      return settings;
+    });
+
+    const swimlaneScrollOffsets = ref<Record<string, number>>({});
+
+    const keyPanelWidthOptions = computed<KeyPanelWidthOptions>(() => {
+      const flatMap = configMan.getFlatUISettingMap();
+      const options: KeyPanelWidthOptions = {};
+      if (typeof flatMap.UILegendKeyMinWidth === 'number') {
+        options.minWidth = flatMap.UILegendKeyMinWidth;
       }
-      return timeline.maxHeight - 20;
+      if (typeof flatMap.UILegendKeyMaxWidth === 'number') {
+        options.maxWidth = flatMap.UILegendKeyMaxWidth;
+      }
+      return options;
+    });
+
+    const keyPanelWidth = computed(() => {
+      if (!props.showKey) {
+        return 0;
+      }
+      return computeKeyPanelWidth(
+        timelineList.value,
+        attributeSwimlaneData.value,
+        swimlaneDisplaySettings.value,
+        swimlaneGraphSettings.value,
+        props.currentView,
+        keyPanelWidthOptions.value,
+      );
+    });
+
+    const chartAreaInsets = computed(() => getTimelineChartAreaInsets(
+      props.showKey,
+      keyPanelWidth.value,
+      timelineList.value.length > 0,
+    ));
+
+    watch(chartAreaInsets, (insets) => {
+      emit('chart-area-insets', insets);
+    }, { immediate: true, deep: true });
+
+    watch(() => props.showKey, () => {
+      emit('chart-area-insets', chartAreaInsets.value);
+    });
+
+    const chartClientWidth = computed(() => (
+      props.showKey ? Math.max(0, props.clientWidth - keyPanelWidth.value) : props.clientWidth
+    ));
+
+    const getTimelineHeight = (timeline: TimelineDisplay) => getSectionContentHeight(
+      timeline,
+      timelineList.value,
+      props.clientHeight,
+      shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value),
+    );
+
+    const shouldShowTimelineHeader = (timeline: TimelineDisplay) => {
+      if (!checkTimelineEnabled(timeline)) {
+        return false;
+      }
+      if (shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value)) {
+        return false;
+      }
+      return true;
     };
+
+    const onSwimlaneScroll = (timelineName: string, scrollTop: number) => {
+      swimlaneScrollOffsets.value = {
+        ...swimlaneScrollOffsets.value,
+        [timelineName]: scrollTop,
+      };
+    };
+
+    const legacyKeyKind = computed((): 'detections' | 'events' | 'groups' | 'graph' | 'swimlane' | 'filter' | '' => {
+      if (timelineList.value.length) {
+        return '';
+      }
+      if (props.currentView === 'Detections') {
+        return 'detections';
+      }
+      if (props.currentView === 'Events') {
+        return 'events';
+      }
+      if (props.currentView === 'Groups') {
+        return 'groups';
+      }
+      if (enabledTimelines.value.includes(props.currentView)) {
+        return 'graph';
+      }
+      if (enabledSwimlanes.value.includes(props.currentView)) {
+        return 'swimlane';
+      }
+      if (enabledFilterTimelines.value.some((item) => item.name === props.currentView)) {
+        return 'filter';
+      }
+      return '';
+    });
 
     return {
       attributeDataTimeline,
@@ -181,78 +278,239 @@ export default defineComponent({
       swimlaneDisplaySettings,
       enabledSwimlanes,
       enabledTimelines,
-      // Timeline Ref
-      enabledKey,
       enabledFilterTimelines,
       timelineFilterMap,
       selectedTrackIdRef,
       timelineList,
       getTimelineHeight,
       checkTimelineEnabled,
+      shouldShowTimelineHeader,
+      keyPanelWidth,
+      chartClientWidth,
+      swimlaneScrollOffsets,
+      onSwimlaneScroll,
+      legacyKeyKind,
+      isDetectionsTimeline,
     };
   },
 });
 </script>
 
 <template>
-  <span>
-    <span v-if="timelineList.length">
-      <span
-        v-for="timeline in timelineList"
+  <div class="timeline-charts-root">
+    <template v-if="timelineList.length">
+      <div
+        v-for="(timeline, timelineIndex) in timelineList"
         :key="timeline.name"
+        class="timeline-row"
+        :class="{ 'timeline-row-last': timelineIndex === timelineList.length - 1 }"
       >
-        <v-row
-          v-if="timelineList.length > 0 && checkTimelineEnabled(timeline)"
-          dense
-          justify="center"
-          style="max-height: 20px;"
+        <timeline-key-section
+          v-if="showKey"
+          :timeline="timeline"
+          :section-height="getTimelineHeight(timeline)"
+          :key-panel-width="keyPanelWidth"
+          :swimlane-scroll-offset="swimlaneScrollOffsets[timeline.name] || 0"
+          :start-frame="startFrame"
+          :end-frame="endFrame"
+          :line-chart-data="lineChartData"
+          :event-chart-data="eventChartData"
+          :group-chart-data="groupChartData"
+        />
+        <div
+          class="timeline-chart-cell"
+          :style="{ height: `${getTimelineHeight(timeline)}px` }"
         >
-          <v-spacer />
-          <h4
-            class="timeline-header"
-          > {{ timeline.name }}</h4>
-          <v-spacer />
-          <tooltip-btn
-            v-if="timeline.dismissable"
-            icon="mdi-close"
-            tooltip-text="Hide Timeline"
-            @click="$emit('dismiss', { name: timeline.name, height: getTimelineHeight(timeline) })"
-          />
-        </v-row>
+          <v-row
+            v-if="timelineList.length > 0 && shouldShowTimelineHeader(timeline)"
+            dense
+            justify="center"
+            style="max-height: 20px;"
+          >
+            <v-spacer />
+            <h4 class="timeline-header">
+              {{ timeline.name }}
+            </h4>
+            <v-spacer />
+            <tooltip-btn
+              v-if="timeline.dismissable"
+              icon="mdi-close"
+              tooltip-text="Hide Timeline"
+              @click="$emit('dismiss', { name: timeline.name, height: getTimelineHeight(timeline) })"
+            />
+          </v-row>
 
+          <line-chart
+            v-if="isDetectionsTimeline(timeline)"
+            :start-frame="startFrame"
+            :end-frame="endFrame"
+            :max-frame="childMaxFrame"
+            :data="lineChartData"
+            :client-width="chartClientWidth"
+            :client-height="getTimelineHeight(timeline)"
+            :class="{ 'timeline-config': timelineList.length }"
+            :margin="margin"
+          />
+          <event-chart
+            v-if="timeline.name === 'events'"
+            :start-frame="startFrame"
+            :end-frame="endFrame"
+            :max-frame="childMaxFrame"
+            :data="eventChartData"
+            :client-width="chartClientWidth"
+            :client-height="getTimelineHeight(timeline)"
+            :margin="margin"
+            :class="{ 'timeline-config': timelineList.length }"
+            @select-track="$emit('select-track', $event)"
+          />
+          <event-chart
+            v-if="timeline.name === 'Groups'"
+            :start-frame="startFrame"
+            :end-frame="endFrame"
+            :max-frame="childMaxFrame"
+            :data="groupChartData"
+            :client-width="chartClientWidth"
+            :client-height="getTimelineHeight(timeline)"
+            :margin="margin"
+            :class="{ 'timeline-config': timelineList.length }"
+            @select-track="$emit('select-group', $event)"
+          />
+          <span v-if="Object.values(attributeSwimlaneData).length">
+            <span
+              v-for="(data, key, index) in attributeSwimlaneData"
+              :key="`Swimlane_${index}`"
+            >
+              <attribute-swimlane-graph
+                v-if="timeline.name === enabledSwimlanes[index] && data"
+                :start-frame="startFrame"
+                :end-frame="endFrame"
+                :max-frame="childMaxFrame"
+                :data="data"
+                :client-width="chartClientWidth"
+                :client-height="getTimelineHeight(timeline)"
+                :margin="margin"
+                :display-settings="swimlaneDisplaySettings[key]"
+                :class="{ 'timeline-config': timelineList.length }"
+                @scroll-swimlane="onSwimlaneScroll(timeline.name, $event)"
+              />
+            </span>
+          </span>
+          <span v-if="attributeDataTimeline.length">
+            <span
+              v-for="(data, index) in attributeDataTimeline"
+              :key="`Timeline_${index}`"
+            >
+              <line-chart
+                v-if="timeline.name === enabledTimelines[index] && data.data.length"
+                :start-frame="startFrame"
+                :end-frame="endFrame"
+                :max-frame="childMaxFrame"
+                :data="data.data"
+                :client-width="chartClientWidth"
+                :client-height="getTimelineHeight(timeline)"
+                :y-range="data.yRange"
+                :ticks="data.ticks || -1"
+                :margin="margin"
+                :class="{ 'timeline-config': timelineList.length }"
+                :atrributes-chart="true"
+              />
+              <v-row v-else-if="timeline.name === enabledTimelines[index]">
+                <v-spacer />
+                <h2>No Data to Graph</h2>
+                <v-spacer />
+              </v-row>
+            </span>
+          </span>
+          <span v-if="enabledFilterTimelines">
+            <span
+              v-for="(item) in enabledFilterTimelines"
+              :key="`filter_timeline_${item.name}`"
+            >
+              <event-chart
+                v-if="timeline.name === item.name && timelineFilterMap[item.name]"
+                :start-frame="startFrame"
+                :end-frame="endFrame"
+                :max-frame="childMaxFrame"
+                :data="timelineFilterMap[item.name]"
+                :client-width="chartClientWidth"
+                :client-height="getTimelineHeight(timeline)"
+                :margin="margin"
+                :class="{ 'timeline-config': timelineList.length }"
+                @select-track="$emit('select-group', $event)"
+              />
+            </span>
+          </span>
+          <div
+            v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
+            :class="{ 'timeline-config': timelineList.length }"
+            :style="{
+              minHeight: `${getTimelineHeight(timeline)}px`,
+              maxHeight: `${getTimelineHeight(timeline)}px`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }"
+          >
+            <v-row>
+              <v-spacer />
+              <h3>Track needs to be selected to Show Attributes</h3>
+              <v-spacer />
+            </v-row>
+          </div>
+        </div>
+      </div>
+    </template>
+    <div
+      v-else
+      class="timeline-row timeline-row-last"
+    >
+      <timeline-key-section
+        v-if="showKey && legacyKeyKind"
+        :legacy-view="currentView"
+        :legacy-key-kind="legacyKeyKind"
+        :section-height="clientHeight"
+        :key-panel-width="keyPanelWidth"
+        :swimlane-scroll-offset="swimlaneScrollOffsets[currentView] || 0"
+        :start-frame="startFrame"
+        :end-frame="endFrame"
+        :line-chart-data="lineChartData"
+        :event-chart-data="eventChartData"
+        :group-chart-data="groupChartData"
+      />
+      <div
+        class="timeline-chart-cell"
+        :style="{ height: `${clientHeight}px` }"
+      >
         <line-chart
-          v-if="timeline.name === 'Detections'"
+          v-if="currentView === 'Detections'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
           :data="lineChartData"
-          :client-width="clientWidth"
-          :client-height="getTimelineHeight(timeline)"
-          :class="{ 'timeline-config': timelineList.length }"
+          :client-width="chartClientWidth"
+          :client-height="clientHeight"
           :margin="margin"
         />
         <event-chart
-          v-if="timeline.name === 'events'"
+          v-if="currentView === 'Events'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
           :data="eventChartData"
-          :client-width="clientWidth"
-          :client-height="getTimelineHeight(timeline)"
+          :client-width="chartClientWidth"
+          :client-height="clientHeight / timelineList.length"
           :margin="margin"
-          :class="{ 'timeline-config': timelineList.length }"
           @select-track="$emit('select-track', $event)"
         />
         <event-chart
-          v-if="timeline.name === 'Groups'"
+          v-if="currentView === 'Groups'"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :max-frame="childMaxFrame"
           :data="groupChartData"
-          :client-width="clientWidth"
-          :client-height="getTimelineHeight(timeline)"
+          :client-width="chartClientWidth"
+          :client-height="clientHeight / timelineList.length"
           :margin="margin"
-          :class="{ 'timeline-config': timelineList.length }"
           @select-track="$emit('select-group', $event)"
         />
         <span v-if="Object.values(attributeSwimlaneData).length">
@@ -261,232 +519,128 @@ export default defineComponent({
             :key="`Swimlane_${index}`"
           >
             <attribute-swimlane-graph
-              v-if="timeline.name === enabledSwimlanes[index] && data"
+              v-if="currentView === enabledSwimlanes[index] && data"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
               :data="data"
-              :client-width="clientWidth"
-              :client-height="getTimelineHeight(timeline)"
-              :margin="margin"
+              :client-width="chartClientWidth"
+              :client-height="clientHeight / timelineList.length"
+              :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
               :display-settings="swimlaneDisplaySettings[key]"
-              :class="{ 'timeline-config': timelineList.length }"
-              @scroll-swimlane="swimlaneOffset = $event"
+              :margin="margin"
+              @scroll-swimlane="onSwimlaneScroll(currentView, $event)"
             />
+            <v-row v-else-if="currentView === enabledSwimlanes[index]">
+              <v-spacer />
+              <h2>No Data to Graph</h2>
+              <v-spacer />
+            </v-row>
           </span>
         </span>
+        <v-row
+          v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null"
+          class="d-flex align-center justify-center fill-height text-center"
+        >
+          <h3>Track needs to be selected to Show Attributes</h3>
+        </v-row>
+
         <span v-if="attributeDataTimeline.length">
           <span
             v-for="(data, index) in attributeDataTimeline"
             :key="`Timeline_${index}`"
           >
             <line-chart
-              v-if="timeline.name === enabledTimelines[index] && data.data.length"
+              v-if="currentView === enabledTimelines[index] && data.data.length"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
               :data="data.data"
-              :client-width="clientWidth"
-              :client-height="getTimelineHeight(timeline)"
+              :client-width="chartClientWidth"
+              :client-height="clientHeight"
               :y-range="data.yRange"
-              :ticks="data.ticks || -1"
+              :ticks="data.ticks"
               :margin="margin"
-              :class="{ 'timeline-config': timelineList.length }"
               :atrributes-chart="true"
             />
-            <v-row v-else-if="timeline.name === enabledTimelines[index]">
+            <v-row v-else-if="currentView === enabledTimelines[index]">
               <v-spacer />
-              <h2>
-                No Data to Graph
-              </h2>
+              <h2>No Data to Graph</h2>
               <v-spacer />
             </v-row>
-
           </span>
         </span>
-        <span v-if="enabledFilterTimelines">
+        <div
+          v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+          class="d-flex align-center justify-center fill-height text-center"
+        >
+          <h3>Track needs to be selected to Graph Attributes</h3>
+        </div>
+        <span v-if="attributeSwimlaneData">
           <span
             v-for="(item) in enabledFilterTimelines"
             :key="`filter_timeline_${item.name}`"
           >
             <event-chart
-              v-if="timeline.name === item.name && timelineFilterMap[item.name]"
+              v-if="currentView === item.name && timelineFilterMap[item.name]"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
               :data="timelineFilterMap[item.name]"
-              :client-width="clientWidth"
-              :client-height="getTimelineHeight(timeline)"
+              :client-width="chartClientWidth"
+              :client-height="clientHeight / timelineList.length"
               :margin="margin"
-              :class="{ 'timeline-config': timelineList.length }"
               @select-track="$emit('select-group', $event)"
             />
           </span>
         </span>
         <div
-          v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
-          :class="{ 'timeline-config': timelineList.length }"
-          :style="{
-            minHeight: `${getTimelineHeight(timeline)}px`,
-            maxHeight: `${getTimelineHeight(timeline)}px`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }"
+          v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+          class="d-flex align-center justify-center fill-height text-center"
         >
-          <v-row>
-            <v-spacer />
-            <h3>
-              Track needs to be selected to Show Attributes
-            </h3>
-            <v-spacer />
-          </v-row>
+          <h3>Track needs to be selected to show Swimlane Attributes</h3>
         </div>
-      </span>
-    </span>
-    <span v-else>
-      <line-chart
-        v-if="currentView === 'Detections'"
-        :start-frame="startFrame"
-        :end-frame="endFrame"
-        :max-frame="childMaxFrame"
-        :data="lineChartData"
-        :client-width="clientWidth"
-        :client-height="clientHeight"
-        :margin="margin"
-      />
-      <event-chart
-        v-if="currentView === 'Events'"
-        :start-frame="startFrame"
-        :end-frame="endFrame"
-        :max-frame="childMaxFrame"
-        :data="eventChartData"
-        :client-width="clientWidth"
-        :client-height="clientHeight / timelineList.length"
-        :margin="margin"
-        @select-track="$emit('select-track', $event)"
-      />
-      <event-chart
-        v-if="currentView === 'Groups'"
-        :start-frame="startFrame"
-        :end-frame="endFrame"
-        :max-frame="childMaxFrame"
-        :data="groupChartData"
-        :client-width="clientWidth"
-        :client-height="clientHeight / timelineList.length"
-        :margin="margin"
-        @select-track="$emit('select-group', $event)"
-      />
-      <span v-if="Object.values(attributeSwimlaneData).length">
-        <span
-          v-for="(data, key, index) in attributeSwimlaneData"
-          :key="`Swimlane_${index}`"
-        >
-          <attribute-swimlane-graph
-            v-if="currentView === enabledSwimlanes[index] && data"
-            :start-frame="startFrame"
-            :end-frame="endFrame"
-            :max-frame="childMaxFrame"
-            :data="data"
-            :client-width="clientWidth"
-            :client-height="clientHeight / timelineList.length"
-            :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
-            :display-settings="swimlaneDisplaySettings[key]"
-            :margin="margin"
-            @scroll-swimlane="swimlaneOffset = $event"
-          />
-          <v-row v-else-if="currentView === enabledSwimlanes[index]">
-            <v-spacer />
-            <h2>
-              No Data to Graph
-            </h2>
-            <v-spacer />
-          </v-row>
-
-        </span>
-      </span>
-      <v-row
-        v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null"
-        class="d-flex align-center justify-center fill-height text-center"
-      >
-        <h3>Track needs to be selected to Show Attributes</h3>
-      </v-row>
-
-      <span v-if="attributeDataTimeline.length">
-        <span
-          v-for="(data, index) in attributeDataTimeline"
-          :key="`Timeline_${index}`"
-        >
-          <line-chart
-            v-if="currentView === enabledTimelines[index] && data.data.length"
-            :start-frame="startFrame"
-            :end-frame="endFrame"
-            :max-frame="childMaxFrame"
-            :data="data.data"
-            :client-width="clientWidth"
-            :client-height="clientHeight"
-            :y-range="data.yRange"
-            :ticks="data.ticks"
-            :margin="margin"
-            :atrributes-chart="true"
-          />
-          <v-row v-else-if="currentView === enabledTimelines[index]">
-            <v-spacer />
-            <h2>
-              No Data to Graph
-            </h2>
-            <v-spacer />
-          </v-row>
-
-        </span>
-      </span>
-      <div
-        v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
-        class="d-flex align-center justify-center fill-height text-center"
-      >
-        <h3>
-          Track needs to be selected to Graph Attributes
-        </h3>
       </div>
-      <span v-if="attributeSwimlaneData">
-        <span
-          v-for="(item) in enabledFilterTimelines"
-          :key="`filter_timeline_${item.name}`"
-        >
-          <event-chart
-            v-if="currentView === item.name && timelineFilterMap[item.name]"
-            :start-frame="startFrame"
-            :end-frame="endFrame"
-            :max-frame="childMaxFrame"
-            :data="timelineFilterMap[item.name]"
-            :client-width="clientWidth"
-            :client-height="clientHeight / timelineList.length"
-            :margin="margin"
-            @select-track="$emit('select-group', $event)"
-          />
-        </span>
-      </span>
-      <div
-        v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
-        class="d-flex align-center justify-center fill-height text-center"
-      >
-        <h3>
-          Track needs to be selected to show Swimlane Attributes
-        </h3>
-      </div>
-    </span>
-  </span>
+    </div>
+  </div>
 </template>
 
 <style lang="scss" scoped>
-.timeline-config {
-  border:1px solid white;
-}
-.timeline-header {
-  display:inline;
-  -webkit-user-select: none; /* Safari */
-  -ms-user-select: none; /* IE 10 and IE 11 */
-  user-select: none; /* Standard syntax */
+.timeline-charts-root {
+  display: flex;
+  flex-direction: column;
+  direction: ltr;
+  width: 100%;
+  height: 100%;
 }
 
+.timeline-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  margin-bottom: 4px;
+}
+
+.timeline-row-last {
+  margin-bottom: 0;
+}
+
+.timeline-chart-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-config {
+  border: 1px solid white;
+  box-sizing: border-box;
+}
+
+.timeline-header {
+  display:inline;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
 </style>
