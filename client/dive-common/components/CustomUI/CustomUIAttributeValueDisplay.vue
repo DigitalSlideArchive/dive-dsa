@@ -2,6 +2,7 @@
 import { defineComponent, PropType } from 'vue';
 import {
   getCustomUIDisplayValueStyle,
+  getCustomUIValueDisplayContent,
   getTruncatedCustomUIDisplayValue,
   LONG_VALUE_EXPAND_THRESHOLD,
   ResolvedAttributeCustomUI,
@@ -47,15 +48,35 @@ export default defineComponent({
       type: Number,
       default: 4,
     },
+    reserveSpace: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup() {
     return {
       LONG_VALUE_EXPAND_THRESHOLD,
       getCustomUIDisplayValueStyle,
+      getCustomUIValueDisplayContent,
       getTruncatedCustomUIDisplayValue,
       shouldShowCustomUIValueTooltip,
       shouldUseCustomUIValueExpansion,
     };
+  },
+  computed: {
+    displayValueText(): string {
+      return getCustomUIValueDisplayContent(this.entry.value, this.reserveSpace);
+    },
+    truncatedDisplayValueText(): string {
+      return getTruncatedCustomUIDisplayValue(
+        this.displayValueText,
+        this.entry.rawLength,
+        this.entry.longValueMode,
+      );
+    },
+    isEmptyDisplayValue(): boolean {
+      return this.entry.value.length === 0;
+    },
   },
   methods: {
     onPanelChange() {
@@ -81,7 +102,11 @@ export default defineComponent({
 <template>
   <div
     class="custom-ui-attribute-value-display"
-    :class="{ 'custom-ui-attribute-value-display--inline': inline }"
+    :class="{
+      'custom-ui-attribute-value-display--inline': inline,
+      'custom-ui-attribute-value-display--reserve-space': reserveSpace,
+      'custom-ui-attribute-value-display--scroll': entry.longValueMode === 'scroll',
+    }"
     :style="inline
       ? { ...getCustomUIDisplayValueStyle(entry.valueFontSizeScale, entry.valueAlign), marginLeft: `${headerValueOffset}px` }
       : getCustomUIDisplayValueStyle(entry.valueFontSizeScale, entry.valueAlign)"
@@ -94,8 +119,13 @@ export default defineComponent({
           <v-expansion-panel-content>
             <v-tooltip bottom :disabled="!showValueTooltip(entry)">
               <template #activator="{ on }">
-                <span :style="getValueTextStyle(entry)" v-on="showValueTooltip(entry) ? on : undefined">
-                  {{ entry.value }}
+                <span
+                  class="custom-ui-attribute-value-display__text"
+                  :class="{ 'custom-ui-attribute-value-display__text--empty': isEmptyDisplayValue }"
+                  :style="getValueTextStyle(entry)"
+                  v-on="showValueTooltip(entry) ? on : undefined"
+                >
+                  {{ displayValueText }}
                 </span>
               </template>
               <span>{{ entry.tooltip }}</span>
@@ -110,8 +140,13 @@ export default defineComponent({
     >
       <v-tooltip bottom :disabled="!showValueTooltip(entry)">
         <template #activator="{ on }">
-          <span :style="getValueTextStyle(entry)" v-on="showValueTooltip(entry) ? on : undefined">
-            {{ entry.value }}
+          <span
+            class="custom-ui-attribute-value-display__text"
+            :class="{ 'custom-ui-attribute-value-display__text--empty': isEmptyDisplayValue }"
+            :style="getValueTextStyle(entry)"
+            v-on="showValueTooltip(entry) ? on : undefined"
+          >
+            {{ displayValueText }}
           </span>
         </template>
         <span>{{ entry.tooltip }}</span>
@@ -119,8 +154,13 @@ export default defineComponent({
     </span>
     <v-tooltip v-else bottom :disabled="!showValueTooltip(entry)">
       <template #activator="{ on }">
-        <span :style="getValueTextStyle(entry)" v-on="showValueTooltip(entry) ? on : undefined">
-          {{ getTruncatedCustomUIDisplayValue(entry.value, entry.rawLength, entry.longValueMode) }}
+        <span
+          class="custom-ui-attribute-value-display__text"
+          :class="{ 'custom-ui-attribute-value-display__text--empty': isEmptyDisplayValue }"
+          :style="getValueTextStyle(entry)"
+          v-on="showValueTooltip(entry) ? on : undefined"
+        >
+          {{ truncatedDisplayValueText }}
         </span>
       </template>
       <span>{{ entry.tooltip }}</span>
@@ -137,9 +177,21 @@ export default defineComponent({
 }
 
 .custom-ui-attribute-value-display--inline {
-  display: inline;
+  display: inline-block;
   width: auto;
   vertical-align: baseline;
+}
+
+.custom-ui-attribute-value-display--reserve-space {
+  min-height: 1.25em;
+}
+
+.custom-ui-attribute-value-display--reserve-space.custom-ui-attribute-value-display--scroll {
+  min-height: 120px;
+}
+
+.custom-ui-attribute-value-display__text--empty {
+  visibility: hidden;
 }
 
 .custom-ui-attribute-value-display__panel {

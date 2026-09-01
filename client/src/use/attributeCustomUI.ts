@@ -4,6 +4,8 @@ import {
 } from './AttributeTypes';
 
 export const LONG_VALUE_EXPAND_THRESHOLD = 50;
+/** Non-breaking space used to preserve value row height when the display text is empty. */
+export const CUSTOM_UI_VALUE_SPACE_PLACEHOLDER = '\u00A0';
 
 const FONT_SIZE_SCALE_MIN = 0.5;
 const FONT_SIZE_SCALE_MAX = 3;
@@ -287,6 +289,16 @@ export function formatAttributeDisplayValue(
     return emptyValueLabel ?? '';
   }
   return String(value);
+}
+
+export function getCustomUIValueDisplayContent(
+  value: string,
+  reserveSpace: boolean,
+): string {
+  if (value.length > 0) {
+    return value;
+  }
+  return reserveSpace ? CUSTOM_UI_VALUE_SPACE_PLACEHOLDER : '';
 }
 
 export function readAttributeFromFeatureAttributes(

@@ -710,7 +710,32 @@ export default defineComponent({
 
     watch([attributeButtons, frameRef, selectedTrackIdRef], () => {
       updateButtonMap();
-    });
+    }, { immediate: true });
+
+    const getDisplayValueEntry = (attributeGroup: AttributeButtons) => {
+      const existing = buttonValueMap.value[attributeGroup.attrName];
+      if (existing) {
+        return existing;
+      }
+      return {
+        attribute: attributeGroup.name,
+        value: attributeGroup.customUI.emptyValueLabel ?? '',
+        rawLength: 0,
+        longValueMode: attributeGroup.customUI.longValueMode,
+        inherited: false,
+        indicatorStyle: {},
+        tooltip: '',
+        valuePrepend: attributeGroup.customUI.valuePrepend,
+        valueAppend: attributeGroup.customUI.valueAppend,
+        valueFontSizeScale: attributeGroup.customUI.valueFontSizeScale,
+        valueAlign: attributeGroup.customUI.valueAlign,
+        valueColorStyle: {},
+      };
+    };
+
+    const shouldShowDisplayValue = (attributeGroup: AttributeButtons) => (
+      attributeGroup.customUI.displayValue
+    );
 
     const expandPanel = (buttonName: string) => {
       if (panelExpanded.value[buttonName] !== undefined) {
@@ -734,6 +759,8 @@ export default defineComponent({
       panelExpanded,
       expandPanel,
       getButtonDisabled,
+      getDisplayValueEntry,
+      shouldShowDisplayValue,
       LONG_VALUE_EXPAND_THRESHOLD,
     };
   },
@@ -790,13 +817,13 @@ export default defineComponent({
           <v-col cols="12">
             <h4
               v-if="attribute.customUI.showHeader
-                || (attribute.customUI.valuePosition === 'header'
-                  && buttonValueMap[attribute.attrName])"
+                || (shouldShowDisplayValue(attribute)
+                  && attribute.customUI.valuePosition === 'header')"
               class="custom-ui-attribute-title"
               :class="{
                 'custom-ui-attribute-title--with-value':
-                  attribute.customUI.valuePosition === 'header'
-                  && buttonValueMap[attribute.attrName],
+                  shouldShowDisplayValue(attribute)
+                  && attribute.customUI.valuePosition === 'header',
               }"
             >
               <span
@@ -806,8 +833,8 @@ export default defineComponent({
                 {{ attribute.name }}
               </span>
               <span
-                v-if="attribute.customUI.valuePosition === 'header'
-                  && buttonValueMap[attribute.attrName]"
+                v-if="shouldShowDisplayValue(attribute)
+                  && attribute.customUI.valuePosition === 'header'"
                 class="custom-ui-attribute-title__value"
               >
                 <span
@@ -815,7 +842,7 @@ export default defineComponent({
                   class="custom-ui-attribute-title__separator"
                 >{{ attribute.customUI.headerValueSeparator }}</span>
                 <CustomUIAttributeValueDisplay
-                  :entry="buttonValueMap[attribute.attrName]"
+                  :entry="getDisplayValueEntry(attribute)"
                   :attribute-name="attribute.name"
                   :panel-expanded="panelExpanded[attribute.attrName]"
                   inline
@@ -831,12 +858,12 @@ export default defineComponent({
               {{ attribute.description }}
             </p>
             <div
-              v-if="attribute.customUI.valuePosition === 'above'
-                && buttonValueMap[attribute.attrName]"
+              v-if="shouldShowDisplayValue(attribute)
+                && attribute.customUI.valuePosition === 'above'"
               class="custom-ui-attribute-value-row"
             >
               <CustomUIAttributeValueDisplay
-                :entry="buttonValueMap[attribute.attrName]"
+                :entry="getDisplayValueEntry(attribute)"
                 :attribute-name="attribute.name"
                 :panel-expanded="panelExpanded[attribute.attrName]"
                 @toggle-panel="expandPanel"
@@ -875,12 +902,12 @@ export default defineComponent({
               </v-col>
             </v-row>
             <div
-              v-if="attribute.customUI.valuePosition === 'below'
-                && buttonValueMap[attribute.attrName]"
+              v-if="shouldShowDisplayValue(attribute)
+                && attribute.customUI.valuePosition === 'below'"
               class="custom-ui-attribute-value-row"
             >
               <CustomUIAttributeValueDisplay
-                :entry="buttonValueMap[attribute.attrName]"
+                :entry="getDisplayValueEntry(attribute)"
                 :attribute-name="attribute.name"
                 :panel-expanded="panelExpanded[attribute.attrName]"
                 @toggle-panel="expandPanel"
@@ -918,6 +945,7 @@ export default defineComponent({
   flex-wrap: wrap;
   align-items: baseline;
   min-width: 0;
+  min-height: 1.25em;
 }
 
 .custom-ui-attribute-title__separator {

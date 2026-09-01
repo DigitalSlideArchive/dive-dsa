@@ -4,9 +4,11 @@ import {
   resolveStickyAttributeValue,
   resolveAttributeCustomUI,
   buildCustomUIPayload,
+  getCustomUIValueDisplayContent,
   getStickyValueTooltip,
   getTruncatedCustomUIDisplayValue,
   shouldShowAttributeInCustomUI,
+  CUSTOM_UI_VALUE_SPACE_PLACEHOLDER,
 } from './use/attributeCustomUI';
 import { Attribute } from './use/AttributeTypes';
 
@@ -146,5 +148,11 @@ describe('attributeCustomUI', () => {
     expect(getStickyValueTooltip(false, 'idle')).toBe('idle');
     const longText = 'x'.repeat(60);
     expect(getTruncatedCustomUIDisplayValue(longText, longText.length, 'truncate')).toMatch(/\.\.\.$/);
+  });
+
+  it('reserves display space for empty values when configured', () => {
+    expect(getCustomUIValueDisplayContent('', true)).toBe(CUSTOM_UI_VALUE_SPACE_PLACEHOLDER);
+    expect(getCustomUIValueDisplayContent('', false)).toBe('');
+    expect(getCustomUIValueDisplayContent('idle', true)).toBe('idle');
   });
 });
