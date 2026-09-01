@@ -50,6 +50,8 @@ The ToolBar is used for editing tracks and changing the visualization of tracks.
 
 Hide or enable the additional contextual menus on the right side of the screen.
 
+The Context Bar settings also control the **Custom UI** panel, which shows attribute button shortcuts and live attribute values. Enable **Custom UI Enabled** to show the panel, then configure title, width, help text, and attribute group order. Per-attribute display options (value position, sticky value, colors, and more) are configured in the attribute editor under the **Custom UI** tab. See **[Attributes — Custom UI](UI-Attributes.md#custom-ui)** for details.
+
 ## Track Details
 ![Track Details](images/Configuration/UISettings/TrackDetails.png)
 
