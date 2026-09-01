@@ -474,7 +474,7 @@ export default defineComponent({
     </draggable>
     <v-dialog
       v-model="editShortcutDialog"
-      max-width="600"
+      max-width="850"
     >
       <v-card>
         <v-card-title>

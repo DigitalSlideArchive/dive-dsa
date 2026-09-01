@@ -225,7 +225,9 @@ export default {
       this.g.call(this.axis).call((g) => g
         .selectAll('.tick text')
         .attr('y', 0)
-        .attr('dy', 13));
+        .attr('dy', 13)
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none'));
     },
     update() {
       if (!this.timelineScale || !this.axis || !this.g) {
@@ -256,9 +258,9 @@ export default {
       }
       this.dragging = false;
     },
-    workareaMousedown() {
+    workareaMousedown(e) {
       this.dragging = true;
-      // e.preventDefault();
+      e.preventDefault();
     },
     workareaMousemove(e) {
       if (this.dragging) {
@@ -367,6 +369,15 @@ export default {
     flex: 1;
     position: relative;
     overflow: visible;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    svg {
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
 
     .hand {
       position: absolute;
@@ -405,6 +416,16 @@ export default {
     font-size: 12px;
     stroke-opacity: 0.5;
     stroke-dasharray: 2, 2;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    text {
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }
   }
 }
 </style>

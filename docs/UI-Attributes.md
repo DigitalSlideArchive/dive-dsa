@@ -138,17 +138,107 @@ A specific key shortcut can be assigned to setting the value of an attribute.  W
     * *dialog* - a dialog pops open asking the user for input for the attribute value
 * *Description* - a text based description of the shortuct.  This description is used in the Help dialog to show what all the keyboard shortcuts are.
 
+### Button Shortcuts
+
+Each attribute shortcut can also expose a button in the **[Custom UI](#custom-ui)** panel on the right side of the screen.
+
+1. Add or edit a shortcut on the **Shortcuts** tab.
+1. Enable **Enable Button Shortcut**.
+1. Configure button text, tooltip, prepend/append icons, and button color.
+
+When a button shortcut is enabled, clicking the button in the Custom UI panel performs the same action as the keyboard shortcut.
+
 ![Edit Attribute Panel](images/Attributes/attributekeyboard.png)
 
 In the upper right of the screen the keyboard icon is used to toggle on/off system and attribute shortcuts.
 The info icon next to it will display a list of possible shortcuts that are set and will use the Description to explain what a shortcut does.
 
+## Custom UI
+
+The **Custom UI** panel is a context sidebar that shows attribute button shortcuts and, optionally, the current attribute value for the selected track. It is useful for workflows where annotators set attributes frequently without opening the Track Details panel.
+
+### Enabling the Custom UI Panel
+
+The panel itself is configured at the dataset level:
+
+1. Open **Configuration** → **UI Settings** → **Context Bar**.
+1. Enable **Custom UI Enabled**.
+1. Optionally set:
+    * *Title* - Panel heading (defaults to `Custom Actions`).
+    * *Width* - Panel width in pixels.
+    * *Information* - Markdown help pages shown in the panel.
+    * *Attribute button order* - Drag to reorder attribute groups in the panel.
+
+See [Context Bar](UI-Settings.md#contextbar) for more information on context sidebar settings.
+
+### Configuring an Attribute
+
+Open the attribute definition editor (==:material-cog:==) and select the **Custom UI** tab.
+
+#### Visibility
+
+* *Show in Custom UI* - When disabled, the attribute is hidden from the Custom UI panel even if it has button shortcuts.
+* *Show Without Buttons* - Display this attribute in Custom UI even when it has no button shortcuts. Use this to show a read-only value display without assigning shortcut buttons.
+
+#### Display Value
+
+* *Display Value* - Show the current attribute value in the Custom UI panel for the selected track. When enabled, additional display options appear below.
+
+When **Display Value** is on, the value updates as you change the selected track or frame. For detection attributes, the value reflects the attribute on the current frame.
+
+#### Sticky Value
+
+Sticky value is available for **detection attributes only**.
+
+* *Sticky Value* - When the attribute is empty on the current frame, show the last non-empty value from an earlier keyframe on the same track. This is useful for sparse detection attribute data where you want the panel to keep showing the most recent value instead of going blank between keyframes.
+
+When sticky value is enabled, values inherited from a previous keyframe can be styled separately under **Inherited Value Indicator**:
+
+* *Bold*, *Italic*, *Underline*
+* *Font Color* - Custom color for inherited values
+* *Font Size* - Same size, smaller, or larger than the normal value
+* *Opacity* - Fade inherited values to distinguish them from values set on the current frame
+
+Inherited values also show `(inherited from previous keyframe)` in the tooltip when you hover over the value.
+
+!!! info
+
+    **Sticky Value** in Custom UI is separate from the **Sticky** option under the attribute **Rendering** tab. Rendering sticky affects how values are drawn next to tracks in the annotation view; Custom UI sticky affects the value shown in the Custom UI panel.
+
+#### Value Display
+
+These options appear when **Display Value** is enabled.
+
+* *Value Position*
+    * *Below buttons* - Value appears under the shortcut buttons (default).
+    * *Above buttons* - Value appears above the shortcut buttons.
+    * *In header (inline with title)* - Value appears on the same line as the attribute name.
+* *Header Separator* - When value position is **In header**, the character placed between the attribute name and value (`:` or `-`).
+* *Header Value Offset* - Horizontal space in pixels between the separator and the value in header mode.
+* *Long Value Display* - How values longer than 50 characters are handled:
+    * *Expand* - Collapse into an expansion panel; click to view the full value.
+    * *Truncate* - Show the first 50 characters followed by `...`. Hover for the full value in a tooltip.
+    * *Scroll* - Show the value in a scrollable area.
+* *Font Size Multiplier* - Scale the displayed value text size (1 is default).
+* *Value Alignment* - Left, center, or right alignment for the value text.
+* *Value Color* - Optional text color for the displayed value. When **Attribute Value Color** is enabled, the color comes from the **[Value Colors](#attribute-value-colors)** settings for that attribute (including per-value mappings and gradients). When disabled, choose a fixed custom color.
+* *Value Prepend Text* / *Value Append Text* - Static text placed before or after the displayed value (for example, units like `cm` or labels like `Status:`).
+* *Empty Value Label* - Text shown when the attribute has no value. Leave blank to show nothing.
+
+#### Header
+
+* *Show Header* - Show the attribute name as a heading in the Custom UI panel.
+* *Show Description* - Show the attribute description above the buttons in the Custom UI panel.
+
+### Legacy configurations
+
+Older configurations may store `displayValue` on individual button shortcut objects. This setting is deprecated and has moved to the attribute's **Custom UI** tab. Existing datasets are migrated automatically when the configuration is loaded; the per-button `displayValue` field is removed on save.
 
 ## Attribute Value Colors
 
 ![Edit Attribute Value Colors](images/Attributes/AttributeValueColors.png)
 
-Attributes of type **Text** and **Number** can have custom colors configured in the attribute editor under the **Value Colors** tab. These colors affect how attribute values appear in **[Attribute Rendering](UI-AttributeRendering.md)** and **[Attribute Swimlanes](UI-AttributeSwimlanes.md)**.
+Attributes of type **Text** and **Number** can have custom colors configured in the attribute editor under the **Value Colors** tab. These colors affect how attribute values appear in **[Attribute Rendering](UI-AttributeRendering.md)**, **[Attribute Swimlanes](UI-AttributeSwimlanes.md)**, and the **[Custom UI](#custom-ui)** panel when value color is set to use attribute value colors.
 
 ### Text attributes
 

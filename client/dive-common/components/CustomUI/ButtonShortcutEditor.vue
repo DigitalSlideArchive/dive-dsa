@@ -76,7 +76,7 @@ export default defineComponent({
 
     const applyTypeDefaults = () => {
       syncingFromProps = true;
-      const { displayValue, buttonToolTip } = buttonShortcut.value;
+      const { buttonToolTip } = buttonShortcut.value;
       buttonShortcut.value = {
         ...defaultButtonForType(
           props.shortcutType,
@@ -84,7 +84,6 @@ export default defineComponent({
           props.attributeColor,
         ),
         ...(buttonToolTip !== undefined ? { buttonToolTip } : {}),
-        ...(displayValue !== undefined ? { displayValue } : {}),
       };
       syncingFromProps = false;
       updateButtonShortcut();
@@ -188,7 +187,6 @@ export default defineComponent({
         </v-col>
       </v-row>
       <v-color-picker v-model="buttonShortcut.buttonColor" label="Button Color" />
-      <v-checkbox v-if="attribute" v-model="buttonShortcut.displayValue" label="Display Value" />
     </div>
   </div>
 </template>

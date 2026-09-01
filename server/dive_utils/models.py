@@ -136,7 +136,36 @@ class ButtonShortcut(BaseModel):
     iconAppend: Optional[str]
     iconPrepend: Optional[str]
     buttonColor: Optional[str]
+    displayValue: Optional[bool]  # deprecated: use AttributeCustomUI.displayValue
+
+
+class AttributeCustomUIStickyIndicator(BaseModel):
+    bold: Optional[bool]
+    italic: Optional[bool]
+    underline: Optional[bool]
+    highlightColor: Optional[str]
+    fontSizeScale: Optional[float]
+    opacity: Optional[float]
+
+
+class AttributeCustomUI(BaseModel):
+    enabled: Optional[bool]
+    showWithoutButtons: Optional[bool]
     displayValue: Optional[bool]
+    stickyValue: Optional[bool]
+    stickyValueIndicator: Optional[AttributeCustomUIStickyIndicator]
+    valuePosition: Optional[Literal['below', 'above', 'header']]
+    longValueMode: Optional[Literal['truncate', 'expand', 'scroll']]
+    emptyValueLabel: Optional[str]
+    headerValueSeparator: Optional[Literal[':', '-']]
+    headerValueOffset: Optional[float]
+    valuePrepend: Optional[str]
+    valueAppend: Optional[str]
+    showHeader: Optional[bool]
+    valueFontSizeScale: Optional[float]
+    valueAlign: Optional[Literal['left', 'center', 'right']]
+    valueColor: Optional[str]
+    showDescription: Optional[bool]
 
 
 class ShortcutAttributeOptions(BaseModel):
@@ -241,6 +270,7 @@ class Attribute(BaseModel):
     valueOrder: Optional[Dict[str, int]]
     displayText: Optional[str]
     metadataLink: Optional[MetadataLinkSettings]
+    customUI: Optional[AttributeCustomUI]
 
 
 class AttributeNumberFilter(BaseModel):
