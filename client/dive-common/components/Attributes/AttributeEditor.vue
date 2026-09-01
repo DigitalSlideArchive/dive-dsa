@@ -3,12 +3,19 @@ import {
   computed, defineComponent, PropType, Ref, ref, watch,
 } from 'vue';
 import {
-  Attribute, AttributeShortcut, MetadataLinkOptions, NumericAttributeEditorOptions, StringAttributeEditorOptions,
+  Attribute, AttributeCustomUI, AttributeShortcut, MetadataLinkOptions, NumericAttributeEditorOptions, StringAttributeEditorOptions,
 } from 'vue-media-annotator/use/AttributeTypes';
+import {
+  buildCustomUIPayload,
+  resolvedCustomUIToEditorValue,
+  resolveAttributeCustomUI,
+  stripLegacyDisplayValueFromShortcuts,
+} from 'vue-media-annotator/use/attributeCustomUI';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 import AttributeShortcuts from './AttributeShortcuts.vue';
 import AttributeRendering from './AttributeRendering.vue';
+import AttributeCustomUIEditor from './AttributeCustomUI.vue';
 import AttributeValueColors from './AttributeValueColors.vue';
 import AttributeNumberValueColors from './AttributeNumberColors.vue';
 import AttributeMetadataLink from './AttributeMetadataLink.vue';
@@ -18,6 +25,7 @@ export default defineComponent({
   components: {
     AttributeShortcuts,
     AttributeRendering,
+    AttributeCustomUIEditor,
     AttributeValueColors,
     AttributeNumberValueColors,
     AttributeMetadataLink,
@@ -84,10 +92,19 @@ export default defineComponent({
       metadataLinkFromAttribute(props.selectedAttribute),
     );
 
+    const customUIFromAttribute = (attr: Attribute): AttributeCustomUI => (
+      resolvedCustomUIToEditorValue(resolveAttributeCustomUI(attr))
+    );
+
+    const customUI: Ref<AttributeCustomUI> = ref(
+      customUIFromAttribute(props.selectedAttribute),
+    );
+
     watch(
       () => props.selectedAttribute.key,
       () => {
         metadataLink.value = metadataLinkFromAttribute(props.selectedAttribute);
+        customUI.value = customUIFromAttribute(props.selectedAttribute);
       },
     );
     let values: string[] = props.selectedAttribute.values ? props.selectedAttribute.values : [];
@@ -121,6 +138,7 @@ export default defineComponent({
       metadataLink.value = {
         key: '', updateValue: false, useDynamicKeyFromAttribute: false, dynamicKeyAttributeKey: undefined,
       };
+      customUI.value = customUIFromAttribute({ shortcuts: [] });
     }
     function add() {
       setDefaultValue();
@@ -146,11 +164,13 @@ export default defineComponent({
         key: `${belongs.value}_${name.value}`,
         editor: editor.value,
         color: color.value ? color.value : tempColor.value,
-        shortcuts: shortcuts.value,
+        shortcuts: stripLegacyDisplayValueFromShortcuts(shortcuts.value),
         user: user.value ? true : undefined,
         render: renderingVals.value,
         lockedValues: lockedValues.value,
       };
+      const customUIPayload = buildCustomUIPayload(customUI.value);
+      data.customUI = customUIPayload;
       if (valueOrder) {
         data.valueOrder = valueOrder;
       }
@@ -329,6 +349,7 @@ export default defineComponent({
       launchColorEditor,
       saveAttributeValueColors,
       metadataLink,
+      customUI,
     };
   },
 });
@@ -343,11 +364,12 @@ export default defineComponent({
           <v-tabs v-model="currentTab">
             <v-tab> Main </v-tab>
             <v-tab> Shortcuts </v-tab>
+            <v-tab> Custom UI </v-tab>
             <v-tab> Rendering </v-tab>
-            <v-tab> MetadataLink </v-tab>
             <v-tab v-if="datatype === 'text' || datatype === 'number'">
               Value Colors
             </v-tab>
+            <v-tab> MetadataLink </v-tab>
           </v-tabs>
         </v-card-title>
 
@@ -540,6 +562,9 @@ export default defineComponent({
             />
           </v-tab-item>
           <v-tab-item>
+            <AttributeCustomUIEditor v-model="customUI" :attribute="selectedAttribute" />
+          </v-tab-item>
+          <v-tab-item>
             <v-switch
               v-model="attributeRendering"
               label="Rendering"
@@ -548,15 +573,6 @@ export default defineComponent({
               v-if="attributeRendering && renderingVals !== undefined"
               v-model="renderingVals"
               :attribute="selectedAttribute"
-            />
-          </v-tab-item>
-          <v-tab-item>
-            <attribute-metadata-link
-              v-model="metadataLink"
-              :belongs="belongs"
-              :datatype="datatype"
-              :all-attributes="allAttributes"
-              :current-attribute-key="selectedAttribute.key"
             />
           </v-tab-item>
           <v-tab-item v-if="datatype === 'text'">
@@ -569,6 +585,15 @@ export default defineComponent({
             <attribute-number-value-colors
               :attribute="selectedAttribute"
               @save="saveAttributeValueColors($event)"
+            />
+          </v-tab-item>
+          <v-tab-item>
+            <attribute-metadata-link
+              v-model="metadataLink"
+              :belongs="belongs"
+              :datatype="datatype"
+              :all-attributes="allAttributes"
+              :current-attribute-key="selectedAttribute.key"
             />
           </v-tab-item>
         </v-tabs-items>

@@ -176,7 +176,10 @@ export default Vue.extend({
         .call((g) => g
           .selectAll('.tick text')
           .attr('x', -5)
-          .attr('dx', 13));
+          .attr('dx', 13)
+          .style('user-select', 'none')
+          .style('-webkit-user-select', 'none')
+          .style('pointer-events', 'none'));
 
       let highlightedLine = null;
       let highlightedColor = null;
@@ -416,6 +419,10 @@ export default Vue.extend({
 }
 .line-chart {
   height: 100%;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
   .line {
     fill: none;
     stroke-width: 1.5px;
@@ -423,6 +430,16 @@ export default Vue.extend({
 
   .axis-y {
     font-size: 12px;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    .tick text {
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }
 
     g:first-of-type,
     g:last-of-type {

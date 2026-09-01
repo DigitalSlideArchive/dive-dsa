@@ -336,9 +336,9 @@ export default defineComponent({
       <v-col cols="2">
         Value
       </v-col>
-        <v-col cols="2" class="shortcut-list-col-button">
-          Button
-        </v-col>
+      <v-col cols="2" class="shortcut-list-col-button">
+        Button
+      </v-col>
       <v-col cols="1">
         Info
       </v-col>
@@ -474,7 +474,7 @@ export default defineComponent({
     </draggable>
     <v-dialog
       v-model="editShortcutDialog"
-      max-width="600"
+      max-width="850"
     >
       <v-card>
         <v-card-title>
