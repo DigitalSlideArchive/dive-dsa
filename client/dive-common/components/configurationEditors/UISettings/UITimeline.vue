@@ -134,7 +134,7 @@ export default defineComponent({
           <v-switch
             v-model="UILegendForceOpen"
             label="Legend Force Open"
-            hint="Always show the timeline legend/key and prevent closing it"
+            hint="Show the timeline legend/key when the UI launches (users can still close it unless Hide Toggle is enabled)"
             persistent-hint
           />
         </v-row>
@@ -142,7 +142,7 @@ export default defineComponent({
           <v-switch
             v-model="UILegendHideToggle"
             label="Legend Hide Toggle"
-            hint="Hide the legend toggle button (use with Force Open or when legend is not needed)"
+            hint="Hide the legend toggle button to prevent users from closing the legend (often used with Force Open)"
             persistent-hint
           />
         </v-row>

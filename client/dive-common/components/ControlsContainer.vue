@@ -90,13 +90,10 @@ export default defineComponent({
     const showLegendToggle = computed(() => (
       getUISetting('UILegendControls')
       && !isUISettingExplicitlyTrue('UILegendHideToggle')
-      && !isUISettingExplicitlyTrue('UILegendForceOpen')
     ));
 
     const toggleLegendKey = () => {
-      if (!isUISettingExplicitlyTrue('UILegendForceOpen')) {
-        enabledKey.value = !enabledKey.value;
-      }
+      enabledKey.value = !enabledKey.value;
     };
 
     const timelineHeight = computed(() => {
