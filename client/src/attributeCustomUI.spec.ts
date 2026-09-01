@@ -5,6 +5,7 @@ import {
   resolveAttributeCustomUI,
   buildCustomUIPayload,
   getCustomUIValueDisplayContent,
+  getStickyValueIndicatorStyle,
   getStickyValueTooltip,
   getTruncatedCustomUIDisplayValue,
   shouldShowAttributeInCustomUI,
@@ -141,6 +142,19 @@ describe('attributeCustomUI', () => {
     };
     expect(shouldShowAttributeInCustomUI(withButtons, 1)).toBe(true);
     expect(shouldShowAttributeInCustomUI(withoutButtons, 0)).toBe(true);
+  });
+
+  it('applies sticky indicator styling on keyframe values, not inherited ones', () => {
+    const indicator = {
+      bold: true,
+      italic: false,
+      underline: false,
+      fontSizeScale: 1.5,
+      opacity: 1,
+    };
+    expect(getStickyValueIndicatorStyle(indicator, true).fontWeight).toBe('bold');
+    expect(getStickyValueIndicatorStyle(indicator, true).fontSize).toBe('150%');
+    expect(getStickyValueIndicatorStyle(indicator, false)).toEqual({});
   });
 
   it('formats sticky tooltip and truncated long values', () => {

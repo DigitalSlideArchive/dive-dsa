@@ -404,10 +404,10 @@ export function getCustomUIDisplayValueFontSizeStyle(
 
 export function getStickyValueIndicatorStyle(
   indicator: ResolvedAttributeCustomUIStickyIndicator,
-  inherited: boolean,
+  applyIndicator: boolean,
   attributeColor?: string,
 ): Record<string, string> {
-  if (!inherited) {
+  if (!applyIndicator) {
     return {};
   }
   const style: Record<string, string> = {};

@@ -511,7 +511,7 @@ export default defineComponent({
           </v-expansion-panel-header>
           <v-expansion-panel-content>
             <p class="text-caption grey--text mb-3">
-              Style applied when the displayed value is inherited from a previous keyframe.
+              Style applied when the value is set on the current keyframe, not when it is inherited from a previous keyframe.
             </p>
             <v-row dense>
               <v-col cols="12" sm="4">

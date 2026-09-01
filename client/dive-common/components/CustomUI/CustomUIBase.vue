@@ -694,7 +694,7 @@ export default defineComponent({
           inherited,
           indicatorStyle: getStickyValueIndicatorStyle(
             attributeGroup.customUI.stickyValueIndicator,
-            inherited,
+            attributeGroup.customUI.stickyValue && !inherited,
             attribute.color,
           ),
           tooltip: getStickyValueTooltip(inherited, displayText),
