@@ -18,8 +18,10 @@ function readNumberSetting(
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+const KEY_WIDTH_INPUT_MIN = 50;
+
 function parseKeyWidth(value: number, fallback: number): number {
-  return Number.isFinite(value) ? Math.max(40, Math.round(value)) : fallback;
+  return Number.isFinite(value) ? Math.max(KEY_WIDTH_INPUT_MIN, Math.round(value)) : fallback;
 }
 
 export default defineComponent({
@@ -45,19 +47,12 @@ export default defineComponent({
     const UILegendKeyMinWidth = ref(readNumberSetting(timelineMap, 'UILegendKeyMinWidth', KEY_PANEL_MIN_WIDTH));
     const UILegendKeyMaxWidth = ref(readNumberSetting(timelineMap, 'UILegendKeyMaxWidth', KEY_PANEL_MAX_WIDTH));
 
-    watch([
-      UIDetections,
-      UIEvents,
-      UILegendControls,
-      UILegendForceOpen,
-      UILegendHideToggle,
-      UILegendKeyMinWidth,
-      UILegendKeyMaxWidth,
-    ], () => {
+    const saveTimelineSettings = () => {
       const minWidth = parseKeyWidth(UILegendKeyMinWidth.value, KEY_PANEL_MIN_WIDTH);
-      const maxWidth = Math.max(minWidth, parseKeyWidth(UILegendKeyMaxWidth.value, KEY_PANEL_MAX_WIDTH));
-      UILegendKeyMinWidth.value = minWidth;
-      UILegendKeyMaxWidth.value = maxWidth;
+      const maxWidth = Math.max(
+        minWidth,
+        parseKeyWidth(UILegendKeyMaxWidth.value, KEY_PANEL_MAX_WIDTH),
+      );
 
       const data = {
         UIDetections: UIDetections.value ? undefined : false,
@@ -69,7 +64,27 @@ export default defineComponent({
         UILegendKeyMaxWidth: maxWidth !== KEY_PANEL_MAX_WIDTH ? maxWidth : undefined,
       };
       configMan.setUISettings('UITimeline', data);
-    });
+    };
+
+    watch([
+      UIDetections,
+      UIEvents,
+      UILegendControls,
+      UILegendForceOpen,
+      UILegendHideToggle,
+    ], saveTimelineSettings);
+
+    const normalizeKeyWidthInputs = () => {
+      const minWidth = parseKeyWidth(UILegendKeyMinWidth.value, KEY_PANEL_MIN_WIDTH);
+      const maxWidth = Math.max(
+        minWidth,
+        parseKeyWidth(UILegendKeyMaxWidth.value, KEY_PANEL_MAX_WIDTH),
+      );
+      UILegendKeyMinWidth.value = minWidth;
+      UILegendKeyMaxWidth.value = maxWidth;
+      saveTimelineSettings();
+    };
+
     return {
       UIDetections,
       UIEvents,
@@ -80,6 +95,8 @@ export default defineComponent({
       UILegendKeyMaxWidth,
       KEY_PANEL_MIN_WIDTH,
       KEY_PANEL_MAX_WIDTH,
+      KEY_WIDTH_INPUT_MIN,
+      normalizeKeyWidthInputs,
     };
   },
 
@@ -134,20 +151,22 @@ export default defineComponent({
             <v-text-field
               v-model.number="UILegendKeyMinWidth"
               type="number"
-              min="40"
+              :min="KEY_WIDTH_INPUT_MIN"
               label="Key Min Width (px)"
-              :hint="`Default: ${KEY_PANEL_MIN_WIDTH}px`"
+              :hint="`Default: ${KEY_PANEL_MIN_WIDTH}px (minimum: ${KEY_WIDTH_INPUT_MIN}px)`"
               persistent-hint
+              @blur="normalizeKeyWidthInputs"
             />
           </v-col>
           <v-col cols="6">
             <v-text-field
               v-model.number="UILegendKeyMaxWidth"
               type="number"
-              min="40"
+              :min="KEY_WIDTH_INPUT_MIN"
               label="Key Max Width (px)"
-              :hint="`Default: ${KEY_PANEL_MAX_WIDTH}px`"
+              :hint="`Default: ${KEY_PANEL_MAX_WIDTH}px (minimum: ${KEY_WIDTH_INPUT_MIN}px)`"
               persistent-hint
+              @blur="normalizeKeyWidthInputs"
             />
           </v-col>
         </v-row>
