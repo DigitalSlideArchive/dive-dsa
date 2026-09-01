@@ -498,7 +498,7 @@ export default defineComponent({
           :max-frame="childMaxFrame"
           :data="eventChartData"
           :client-width="chartClientWidth"
-          :client-height="clientHeight / timelineList.length"
+          :client-height="clientHeight"
           :margin="margin"
           @select-track="$emit('select-track', $event)"
         />
@@ -509,7 +509,7 @@ export default defineComponent({
           :max-frame="childMaxFrame"
           :data="groupChartData"
           :client-width="chartClientWidth"
-          :client-height="clientHeight / timelineList.length"
+          :client-height="clientHeight"
           :margin="margin"
           @select-track="$emit('select-group', $event)"
         />
@@ -519,19 +519,19 @@ export default defineComponent({
             :key="`Swimlane_${index}`"
           >
             <attribute-swimlane-graph
-              v-if="currentView === enabledSwimlanes[index] && data"
+              v-if="currentView === key && data"
               :start-frame="startFrame"
               :end-frame="endFrame"
               :max-frame="childMaxFrame"
               :data="data"
               :client-width="chartClientWidth"
-              :client-height="clientHeight / timelineList.length"
+              :client-height="clientHeight"
               :display-frame-indicators="swimlaneDisplaySettings[key]?.displayFrameIndicators || false"
               :display-settings="swimlaneDisplaySettings[key]"
               :margin="margin"
               @scroll-swimlane="onSwimlaneScroll(currentView, $event)"
             />
-            <v-row v-else-if="currentView === enabledSwimlanes[index]">
+            <v-row v-else-if="currentView === key">
               <v-spacer />
               <h2>No Data to Graph</h2>
               <v-spacer />
@@ -588,7 +588,7 @@ export default defineComponent({
               :max-frame="childMaxFrame"
               :data="timelineFilterMap[item.name]"
               :client-width="chartClientWidth"
-              :client-height="clientHeight / timelineList.length"
+              :client-height="clientHeight"
               :margin="margin"
               @select-track="$emit('select-group', $event)"
             />

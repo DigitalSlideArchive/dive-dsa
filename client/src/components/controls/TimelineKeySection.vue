@@ -2,32 +2,21 @@
 <script lang="ts">
 import {
   computed,
-  defineComponent, PropType, ref, Ref, watch,
+  defineComponent, PropType, ref, Ref, toRefs, watch,
 } from 'vue';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
-import {
-  useAttributesFilters, useSelectedTrackId,
-  useTimelineFilters,
-} from 'vue-media-annotator/provides';
-import { SwimlaneAttribute, SwimlaneGraphSettings } from 'vue-media-annotator/use/AttributeTypes';
-import { EventChartData } from 'vue-media-annotator/use/useEventChart';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import {
   getChartInnerHeight,
   getEventChartDrawHeight,
   getSwimlaneChartContentTopOffset,
   isDetectionsTimeline,
-  SWIMLANE_BAR_HEIGHT,
-  SWIMLANE_BAR_TOP_OFFSET,
   SWIMLANE_ROW_HEIGHT,
+  SWIMLANE_BAR_TOP_OFFSET,
   TIMELINE_CHART_BORDER,
   EVENT_CHART_MARGIN_Y,
 } from './timelineLayout';
-
-interface EventChartDataBundle {
-  muted?: boolean;
-  values?: EventChartData[];
-}
+import { EventChartDataBundle, useTimelineKeyData } from './useTimelineKeyData';
 
 export default defineComponent({
   name: 'TimelineKeySection',
@@ -78,186 +67,41 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const {
-      attributeTimelineData,
-      swimlaneDisplaySettings, swimlaneGraphs, attributeSwimlaneData,
-    } = useAttributesFilters();
-    const { eventChartDataMap: timelineFilterMap } = useTimelineFilters();
-    const selectedTrackIdRef = useSelectedTrackId();
     const keyRef: Ref<HTMLElement | null> = ref(null);
+    const {
+      lineChartData, eventChartData, groupChartData, startFrame, endFrame,
+    } = toRefs(props);
+
+    const {
+      uniqueKeys,
+      uniqueFilterItems,
+      getMinMax,
+      getTimelineByName,
+      selectedTrackIdRef,
+      getSwimlaneRowLabel,
+      getSwimlaneTooltipTitle,
+      getGraphAttributeItems,
+      getDetectionTypeItems,
+      isEventTimeline,
+      getEventChartValues,
+      getFilterTypeItems,
+      getKeyRowStyle,
+      getSwimlaneEntries,
+      getLegacySwimlaneEntries,
+      legacySwimlaneData,
+    } = useTimelineKeyData({
+      lineChartData,
+      eventChartData,
+      groupChartData,
+      startFrame,
+      endFrame,
+    });
 
     watch(() => props.swimlaneScrollOffset, (offset) => {
       if (keyRef.value !== null) {
         keyRef.value.scrollTop = offset;
       }
     });
-
-    const uniqueKeys = (data: SwimlaneAttribute['data'], order?: Record<string, number>) => {
-      const vals: {value: string; color: string; order?: number}[] = [];
-      data.forEach((item) => {
-        if (vals.findIndex((findItem) => findItem.value === item.value) === -1) {
-          if (!order || (order && order[item.value.toString()] !== undefined)) {
-            vals.push({
-              value: item.value.toString(),
-              color: item.color || 'white',
-              order: order && order[item.value.toString()],
-            });
-          }
-        }
-      });
-      if (order) {
-        vals.sort((a, b) => {
-          if (a.order !== undefined && b.order !== undefined) {
-            return a.order - b.order;
-          }
-          return 0;
-        });
-      }
-      return vals;
-    };
-
-    const uniqueFilterItems = (data: EventChartData[]) => {
-      const vals: {value: string; color: string}[] = [];
-      data.forEach((item) => {
-        if (vals.findIndex((findItem) => findItem.value === item.type) === -1) {
-          vals.push({ value: item.type.toString(), color: item.color || 'white' });
-        }
-      });
-      return vals;
-    };
-
-    const getTimelineByName = (name: string, type: TimelineDisplay['type']) => {
-      if (type === 'swimlane' && attributeSwimlaneData.value[name] !== undefined) {
-        return attributeSwimlaneData.value[name];
-      }
-      if (type === 'graph' && attributeTimelineData.value[name] !== undefined) {
-        return attributeTimelineData.value[name];
-      }
-      if (type === 'filter' && timelineFilterMap.value[name] !== undefined) {
-        return timelineFilterMap.value[name];
-      }
-      return false;
-    };
-
-    const getMinMax = (data: SwimlaneAttribute['data']) => {
-      let min = Infinity;
-      let max = -Infinity;
-      data.forEach((item) => {
-        min = Math.min(min, item.value as number);
-        max = Math.max(max, item.value as number);
-      });
-      return `Range from ${min.toFixed(2)} to ${max.toFixed(2)}`;
-    };
-
-    const getSwimlaneSettings = (timelineName: string): Record<string, SwimlaneGraphSettings> => (
-      swimlaneGraphs.value[timelineName]?.settings || {}
-    );
-
-    const getSwimlaneRowLabel = (
-      subKey: string,
-      timelineName: string,
-      swimlaneData: Record<string, SwimlaneAttribute>,
-    ) => {
-      const attrs = Object.keys(swimlaneData);
-      const displaySettings = swimlaneDisplaySettings.value[timelineName];
-      const settings = getSwimlaneSettings(timelineName);
-      if (displaySettings?.hideKeyAttributeLabels) {
-        return '';
-      }
-      if (settings?.[subKey]?.displayName === false) {
-        return '';
-      }
-      if (attrs.length === 1) {
-        if (!displaySettings?.hideKeyTitle && timelineName !== subKey) {
-          return timelineName;
-        }
-        return subKey;
-      }
-      return subKey;
-    };
-
-    const getSwimlaneTooltipTitle = (
-      subKey: string,
-      timelineName: string,
-      swimlaneData: Record<string, SwimlaneAttribute>,
-    ) => {
-      const label = getSwimlaneRowLabel(subKey, timelineName, swimlaneData);
-      return label || subKey;
-    };
-
-    const getGraphAttributeItems = (timelineName: string) => {
-      const graphData = getTimelineByName(timelineName, 'graph');
-      if (!graphData || typeof graphData !== 'object' || !('data' in graphData)) {
-        return [] as { name: string; color: string }[];
-      }
-      return graphData.data.map((item: { data: LineChartData }) => ({
-        name: item.data.name,
-        color: item.data.color,
-      }));
-    };
-
-    const getDetectionTypeItems = computed(() => (
-      props.lineChartData
-        .filter((item) => item.name !== 'total')
-        .map((item) => ({ name: item.name, color: item.color }))
-    ));
-
-    const isEventTimeline = (timeline: TimelineDisplay) => (
-      timeline.type === 'event'
-      || timeline.name === 'Events'
-      || timeline.name === 'events'
-      || timeline.name === 'Groups'
-    );
-
-    const getEventChartValues = (timeline: TimelineDisplay) => {
-      if (timeline.name === 'Groups') {
-        return props.groupChartData?.values || [];
-      }
-      return props.eventChartData?.values || [];
-    };
-
-    const getFilterTypeItems = (timelineName: string) => {
-      const data = getTimelineByName(timelineName, 'filter');
-      if (!data || typeof data !== 'object' || !('values' in data)) {
-        return [] as { value: string; color: string }[];
-      }
-      return uniqueFilterItems(data.values as EventChartData[]);
-    };
-
-    const getKeyRowStyle = (color: string) => ({
-      color,
-      border: `2px solid ${color}`,
-      height: `${SWIMLANE_BAR_HEIGHT}px`,
-    });
-
-    const frameRangesIntersect = (startA: number, endA: number, startB: number, endB: number) => {
-      const minEnd = Math.min(endA, endB);
-      const maxStart = Math.max(startA, startB);
-      return minEnd >= maxStart;
-    };
-
-    const getSwimlaneEntries = (timelineName: string) => {
-      const data = getTimelineByName(timelineName, 'swimlane');
-      if (!data || typeof data !== 'object') {
-        return [] as [string, SwimlaneAttribute][];
-      }
-      return Object.entries(data).filter(([, bar]) => (
-        frameRangesIntersect(props.startFrame, props.endFrame, bar.start, bar.end)
-      ));
-    };
-
-    const legacySwimlaneData = computed(() => (
-      props.legacyView ? attributeSwimlaneData.value[props.legacyView] : undefined
-    ));
-
-    const getLegacySwimlaneEntries = () => {
-      if (!legacySwimlaneData.value) {
-        return [] as [string, SwimlaneAttribute][];
-      }
-      return Object.entries(legacySwimlaneData.value).filter(([, bar]) => (
-        frameRangesIntersect(props.startFrame, props.endFrame, bar.start, bar.end)
-      ));
-    };
 
     const sectionStyle = computed(() => ({
       width: '100%',
@@ -288,6 +132,7 @@ export default defineComponent({
 
     return {
       uniqueKeys,
+      uniqueFilterItems,
       getMinMax,
       getTimelineByName,
       keyRef,
@@ -799,17 +644,17 @@ export default defineComponent({
         ref="keyRef"
         class="key-section-body key-swimlane-body"
         :class="{
-          'key-section-centered': !selectedTrackIdRef || !getLegacySwimlaneEntries().length,
+          'key-section-centered': !selectedTrackIdRef || !getLegacySwimlaneEntries(legacyView).length,
         }"
-        :style="selectedTrackIdRef && getLegacySwimlaneEntries().length
+        :style="selectedTrackIdRef && getLegacySwimlaneEntries(legacyView).length
           ? swimlaneBodyStyle
           : lineChartKeyStyle"
         @wheel.prevent
         @touchmove.prevent
       >
-        <template v-if="selectedTrackIdRef !== null && getLegacySwimlaneEntries().length">
+        <template v-if="selectedTrackIdRef !== null && getLegacySwimlaneEntries(legacyView).length">
           <v-tooltip
-            v-for="([subKey, subItem]) in getLegacySwimlaneEntries()"
+            v-for="([subKey, subItem]) in getLegacySwimlaneEntries(legacyView)"
             :key="`${subItem.name}`"
             open-delay="100"
             top
@@ -826,14 +671,14 @@ export default defineComponent({
                   :style="getKeyRowStyle(subItem.color)"
                 >
                   <span
-                    v-if="getSwimlaneRowLabel(subKey, legacyView, legacySwimlaneData)"
+                    v-if="getSwimlaneRowLabel(subKey, legacyView, legacySwimlaneData(legacyView))"
                     class="key-text"
-                  >{{ getSwimlaneRowLabel(subKey, legacyView, legacySwimlaneData) }}</span>
+                  >{{ getSwimlaneRowLabel(subKey, legacyView, legacySwimlaneData(legacyView)) }}</span>
                 </div>
               </div>
             </template>
             <div class="key-tooltip-title">
-              {{ getSwimlaneTooltipTitle(subKey, legacyView, legacySwimlaneData) }}
+              {{ getSwimlaneTooltipTitle(subKey, legacyView, legacySwimlaneData(legacyView)) }}
             </div>
             <div v-if="subItem.type === 'text'">
               <v-row

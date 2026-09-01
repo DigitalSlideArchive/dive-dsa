@@ -2,11 +2,11 @@
 import {
   defineComponent, ref, watch,
 } from 'vue';
-import type { UIControls } from 'vue-media-annotator/ConfigurationManager';
 import {
   KEY_PANEL_MAX_WIDTH,
   KEY_PANEL_MIN_WIDTH,
 } from 'vue-media-annotator/components/controls/timelineLayout';
+import migrateLegendSettingsUISettings from 'vue-media-annotator/components/controls/migrateLegendSettings';
 import { useConfiguration } from 'vue-media-annotator/provides';
 
 function readNumberSetting(
@@ -28,38 +28,22 @@ export default defineComponent({
   },
   setup() {
     const configMan = useConfiguration();
-    const flatMap = configMan.getFlatUISettingMap();
+    if (configMan.configuration.value?.UISettings) {
+      configMan.configuration.value.UISettings = migrateLegendSettingsUISettings(
+        configMan.configuration.value.UISettings,
+      ) || configMan.configuration.value.UISettings;
+    }
+    const timelineSettings = configMan.getUISettingValue('UITimeline');
+    const timelineMap = typeof timelineSettings === 'object' && timelineSettings
+      ? timelineSettings as Record<string, unknown>
+      : {};
     const UIDetections = ref(configMan.getUISetting('UIDetections') as boolean);
     const UIEvents = ref(configMan.getUISetting('UIEvents') as boolean);
     const UILegendControls = ref(configMan.getUISetting('UILegendControls') as boolean);
-    const UILegendForceOpen = ref(flatMap.UILegendForceOpen === true);
-    const UILegendHideToggle = ref(flatMap.UILegendHideToggle === true);
-    const UILegendKeyMinWidth = ref(readNumberSetting(flatMap, 'UILegendKeyMinWidth', KEY_PANEL_MIN_WIDTH));
-    const UILegendKeyMaxWidth = ref(readNumberSetting(flatMap, 'UILegendKeyMaxWidth', KEY_PANEL_MAX_WIDTH));
-
-    const migrateLegendSettingsFromControls = () => {
-      const controls = configMan.getUISettingValue('UIControls');
-      if (typeof controls !== 'object' || !controls) {
-        return;
-      }
-      const {
-        UILegendControls: legacyLegendControls,
-        UILegendForceOpen: legacyLegendForceOpen,
-        UILegendHideToggle: legacyLegendHideToggle,
-        ...rest
-      } = controls as UIControls & {
-        UILegendControls?: boolean;
-        UILegendForceOpen?: boolean;
-        UILegendHideToggle?: boolean;
-      };
-      if (
-        legacyLegendControls !== undefined
-        || legacyLegendForceOpen !== undefined
-        || legacyLegendHideToggle !== undefined
-      ) {
-        configMan.setUISettings('UIControls', rest);
-      }
-    };
+    const UILegendForceOpen = ref(timelineMap.UILegendForceOpen === true);
+    const UILegendHideToggle = ref(timelineMap.UILegendHideToggle === true);
+    const UILegendKeyMinWidth = ref(readNumberSetting(timelineMap, 'UILegendKeyMinWidth', KEY_PANEL_MIN_WIDTH));
+    const UILegendKeyMaxWidth = ref(readNumberSetting(timelineMap, 'UILegendKeyMaxWidth', KEY_PANEL_MAX_WIDTH));
 
     watch([
       UIDetections,
@@ -85,7 +69,6 @@ export default defineComponent({
         UILegendKeyMaxWidth: maxWidth !== KEY_PANEL_MAX_WIDTH ? maxWidth : undefined,
       };
       configMan.setUISettings('UITimeline', data);
-      migrateLegendSettingsFromControls();
     });
     return {
       UIDetections,
