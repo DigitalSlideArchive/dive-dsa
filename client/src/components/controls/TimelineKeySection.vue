@@ -921,6 +921,9 @@ export default defineComponent({
 .key-swimlane-body {
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
   -ms-overflow-style: none;
   scrollbar-width: none;
 
@@ -963,6 +966,9 @@ export default defineComponent({
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .customTooltip {
