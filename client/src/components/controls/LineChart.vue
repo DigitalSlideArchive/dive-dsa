@@ -2,6 +2,11 @@
 import Vue from 'vue';
 import { throttle } from 'lodash';
 import * as d3 from 'd3';
+import {
+  TIMELINE_TOOLTIP_BASE_CLASS,
+  TIMELINE_TOOLTIP_GAP_PX,
+  TIMELINE_TOOLTIP_Z_INDEX,
+} from './timelineTooltip';
 
 export default Vue.extend({
   name: 'LineChart',
@@ -111,18 +116,36 @@ export default Vue.extend({
       this.chartTop = this.$refs.chart.offsetTop;
     }
   },
+  beforeDestroy() {
+    if (this.lineChartTooltip) {
+      this.lineChartTooltip.remove();
+      this.lineChartTooltip = null;
+    }
+  },
   methods: {
     initialize() {
       this.currentRange = this.yRange;
       d3.select(this.$el)
         .select('svg')
         .remove();
-      let tooltipTimeoutHandle = null;
+      if (this.lineChartTooltip) {
+        this.lineChartTooltip.remove();
+      }
       const tooltip = d3
-        .select(this.$el)
+        .select(document.body)
         .append('div')
-        .attr('class', 'tooltip')
-        .style('display', 'none');
+        .attr('class', `${TIMELINE_TOOLTIP_BASE_CLASS} line-chart-tooltip`)
+        .style('display', 'none')
+        .style('background', 'black')
+        .style('color', 'white')
+        .style('border', '1px solid white')
+        .style('padding', '0px 5px')
+        .style('font-size', '14px')
+        .style('width', 'fit-content')
+        .style('max-width', 'fit-content')
+        .style('white-space', 'nowrap')
+        .style('pointer-events', 'none');
+      this.lineChartTooltip = tooltip;
       const width = this.clientWidth;
       const height = this.clientHeight;
       const x = d3
@@ -183,6 +206,7 @@ export default Vue.extend({
 
       let highlightedLine = null;
       let highlightedColor = null;
+      let tooltipTimeoutHandle = null;
       const path = svg
         .selectAll()
         .data(this.data)
@@ -195,12 +219,13 @@ export default Vue.extend({
         .style('opacity', (d) => (d.lineOpacity !== undefined ? d.lineOpacity : 1.0))
         // Non-Arrow function to preserve the 'this' context for d3.pointer
         .on('mouseenter', function mouseEnterHandler(event, d) {
-          const [_x, _y] = d3.pointer(event, this);
           tooltipTimeoutHandle = setTimeout(() => {
             tooltip
-              .style('left', `${_x + 2}px`)
-              .style('top', `${_y + this.chartTop}px`)
-              .style('position', 'asbsolute')
+              .style('left', `${event.clientX}px`)
+              .style('top', `${event.clientY}px`)
+              .style('position', 'fixed')
+              .style('transform', `translate(-50%, calc(-100% - ${TIMELINE_TOOLTIP_GAP_PX}px))`)
+              .style('z-index', String(TIMELINE_TOOLTIP_Z_INDEX))
               .text(d.name)
               .style('display', 'block');
             d3.select(this).style('stroke', 'cyan').style('stroke-width', 3);
@@ -447,13 +472,6 @@ export default Vue.extend({
     }
   }
 
-  .tooltip {
-    position: absolute;
-    background: black;
-    border: 1px solid white;
-    padding: 0px 5px;
-    font-size: 14px;
-  }
 }
 .area {
     fill: rgba(234, 255, 0, 0.2);

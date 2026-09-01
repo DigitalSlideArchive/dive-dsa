@@ -31,6 +31,18 @@ Other display options:
 * **Display Set Value Indicators** — show diamond markers on frames where values are set.
 * **Display Swimlane Tooltip** — show attribute name and value when hovering over the swimlane.
 
+#### Title & Key
+
+Expand the **Title & Key** section in the swimlane settings dialog to control section titles and legend labels:
+
+* **Hide Swimlane Title** — removes the section title above the chart to save vertical space.
+* **Hide Key Title** — hides the swimlane graph name in the legend column.
+* **Hide Attribute Labels in Key** — hides attribute names in the legend column (colored borders remain).
+
+Under **Key Label Settings**, each applied attribute has a **Show '*name*' in key** checkbox to control whether that attribute name appears in the legend column.
+
+When a swimlane graph has a single attribute with the same name as the graph, the legend automatically shows that name only once.
+
 ### Render Mode
 
 Each swimlane has a **Render Mode** that controls how value colors are drawn across frames. Use the help icon next to **Render Mode** in the swimlane settings dialog for a quick summary.
@@ -62,5 +74,15 @@ For text attributes in swimlanes, color resolution follows the **[Attribute Valu
 
 ![Swimlane Key](images/AttributeTimeline/SwimlaneKey.png)
 
-When viewing the swimlane graph a floating 'key' shows up on the left hand side of the graph.  This is used to determine which attribute is being graphed.
-Hovering over the attribute name will show the colors associated with the attribute and the value.  Hovering over any color in the swimlane will show the Attribute name and the value as well as the color for that value.
+When viewing the swimlane graph, use the key icon in the timeline controls to show or hide the legend column on the left side of the timeline charts. The legend is rendered inline inside the timeline area (to the left of the chart data), with rows aligned to each swimlane attribute.
+
+When the legend is open, section titles above custom swimlane and attribute graph charts are hidden automatically; labels appear in the legend column instead. Detection timelines show a vertically centered title in the legend—hover to see track type colors. Multi-attribute number graphs show a centered title with attribute names and colors on hover. Swimlane row labels align directly with their corresponding swimlane bars.
+
+Hovering over an attribute label in the legend shows the colors associated with that attribute and its values. Hovering over any color in the swimlane shows the attribute name, value, and color.
+
+Legend visibility can also be configured globally in [UI Settings → Timeline](UI-Settings.md#timeline) or via [Configuration JSON](UI-ConfigurationJSON.md#uitimeline-settings):
+
+* **Legend Controls** — show or hide the key toggle button (default: on).
+* **Legend Force Open** — always show the legend and prevent closing it.
+* **Legend Hide Toggle** — hide the key toggle button (useful with Force Open).
+* **Key Min/Max Width** — constrain the legend column width (defaults: 80–150px, auto-sized from label text).

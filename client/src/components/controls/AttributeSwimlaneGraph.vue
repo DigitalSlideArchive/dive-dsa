@@ -17,6 +17,8 @@ import { SwimlaneAttribute, SwimlaneData, SwimlaneGraph } from 'vue-media-annota
 import { mdiArrowLeftRightBold } from '@mdi/js';
 import { useStore } from 'platform/web-girder/store/types';
 import { injectAggregateController } from '../annotators/useMediaController';
+import BodyPortal from './BodyPortal.vue';
+import { timelineTooltipStyle } from './timelineTooltip';
 
 function intersect(range1: number[], range2: number[]): number[] | null {
   const min = range1[0] < range2[0] ? range1 : range2;
@@ -39,6 +41,9 @@ export interface DragData {
 }
 export default defineComponent({
   name: 'AttributeSwimlaneGraph',
+  components: {
+    BodyPortal,
+  },
   props: {
     startFrame: { type: Number, required: true },
     endFrame: { type: Number, required: true },
@@ -68,8 +73,8 @@ export default defineComponent({
     const chartTop = ref(0);
     const x = ref<any>(null);
     const tooltip: Ref<null | {
-      left: number;
-      top: number;
+      x: number;
+      y: number;
       contentColor: string;
       subColor: string;
       name: string;
@@ -129,11 +134,7 @@ export default defineComponent({
       }
       if (tooltip.value !== null) {
         return {
-          style: {
-            left: `${tooltip.value.left + 15}px`,
-            bottom: `${tooltip.value.top}px`,
-            'z-index': 9999,
-          },
+          style: timelineTooltipStyle({ x: tooltip.value.x, y: tooltip.value.y }),
           ...tooltip.value,
         };
       }
@@ -396,8 +397,8 @@ export default defineComponent({
       if (subIndex !== -1) {
         const sub = bar.subSections[subIndex];
         tooltip.value = {
-          left: offsetX,
-          top: offsetY,
+          x: e.clientX,
+          y: e.clientY,
           contentColor: bar.color,
           subColor: sub?.color || 'transparent',
           name: bar.name,
@@ -736,24 +737,33 @@ export default defineComponent({
       </v-tooltip>
       <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseleave="mouseout" @mouseout="mouseout" @mousedown="mousedown" />
     </div>
-    <v-card
-      v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)"
-      class="tooltip"
-      :style="tooltipComputed.style"
-      outlined
-    >
-      <v-row dense class="fill-height" align="center" justify="center">
-        <v-col><span>{{ tooltipComputed.name }}</span></v-col>
-        <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.contentColor }" />
-        <v-col><span>:</span></v-col>
-        <v-col><span>{{ tooltipComputed.subDisplay }}</span></v-col>
-        <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.subColor }" />
-      </v-row>
-    </v-card>
-    <v-card v-else-if="tooltipComputed" class="tooltip" :style="tooltipComputed.style" outlined>
-      <v-card-title>{{ tooltipComputed.name }}</v-card-title>
-      <v-card-text>{{ tooltipComputed.subDisplay }}</v-card-text>
-    </v-card>
+    <body-portal v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)">
+      <div
+        class="tooltip"
+        :style="tooltipComputed.style"
+      >
+        <div class="tooltip-content">
+          <span>{{ tooltipComputed.name }}</span>
+          <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.contentColor }" />
+          <span>:</span>
+          <span>{{ tooltipComputed.subDisplay }}</span>
+          <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.subColor }" />
+        </div>
+      </div>
+    </body-portal>
+    <body-portal v-else-if="tooltipComputed">
+      <div
+        class="tooltip tooltip-long"
+        :style="tooltipComputed.style"
+      >
+        <div class="tooltip-long-title">
+          {{ tooltipComputed.name }}
+        </div>
+        <div class="tooltip-long-text">
+          {{ tooltipComputed.subDisplay }}
+        </div>
+      </div>
+    </body-portal>
   </div>
 </template>
 
@@ -783,18 +793,37 @@ export default defineComponent({
 }
 
 .tooltip {
-  position: absolute;
-  background: black;
+  width: fit-content;
+  max-width: fit-content;
+  background-color: black;
+  color: white;
   border: 1px solid white;
   padding: 0px 5px;
   font-size: 20px;
   font-weight: bold;
-  z-index: 9999;
+}
+
+.tooltip-content {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 5px;
+  white-space: nowrap;
+}
+
+.tooltip-long {
+  max-width: min(400px, 90vw);
+  white-space: normal;
+}
+
+.tooltip-long-title,
+.tooltip-long-text {
+  padding: 4px 8px;
+  word-break: break-word;
 }
 
 .type-color-box {
-  margin-right: 5px;
-  margin-top: 5px;
+  flex-shrink: 0;
   min-width: 10px;
   max-width: 10px;
   min-height: 10px;

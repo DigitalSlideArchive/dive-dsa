@@ -1,6 +1,7 @@
 import { ref, Ref } from 'vue';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
+import migrateLegendSettingsUISettings from './components/controls/migrateLegendSettings';
 import type { FilterTimeline } from './use/useTimelineFilters';
 import type { CustomStyle } from './StyleManager';
 import type { Feature } from './track';
@@ -82,7 +83,6 @@ interface UITrackDetails {
 }
 
 interface UIControls {
-    UILegendControls?: boolean;
     UITimelineSelection?: boolean;
     UIPlaybackControls? : boolean;
     UIAudioControls? : boolean;
@@ -97,6 +97,11 @@ interface UIControls {
 interface UITimeline {
     UIDetections? : boolean;
     UIEvents? : boolean;
+    UILegendControls?: boolean;
+    UILegendForceOpen?: boolean;
+    UILegendHideToggle?: boolean;
+    UILegendKeyMinWidth?: number;
+    UILegendKeyMaxWidth?: number;
 }
 
 interface UIInteractions {
@@ -307,6 +312,10 @@ export default class ConfigurationManager {
       // Ensure active index is valid (but allow -1 for no selection)
       if (this.activeTimelineConfigIndex.value >= (normalizedData.timelineConfigs?.length || 0)) {
         this.activeTimelineConfigIndex.value = -1; // Reset to no selection if invalid
+      }
+      if (normalizedData.UISettings) {
+        normalizedData.UISettings = migrateLegendSettingsUISettings(normalizedData.UISettings)
+          || normalizedData.UISettings;
       }
       this.configuration.value = normalizedData;
     }

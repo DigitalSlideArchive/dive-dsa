@@ -21,6 +21,14 @@ export default {
       type: Boolean,
       default: true,
     },
+    keyInset: {
+      type: Number,
+      default: 0,
+    },
+    chartRightInset: {
+      type: Number,
+      default: 0,
+    },
   },
   data() {
     return {
@@ -50,8 +58,13 @@ export default {
       ) {
         return null;
       }
+      const chartLeft = this.getChartLeft();
+      const chartWidth = this.getChartWidth();
+      if (chartWidth <= 0) {
+        return null;
+      }
       return Math.round(
-        this.margin + (this.clientWidth - this.margin)
+        chartLeft + chartWidth
           * ((this.frame - this.startFrame) / (this.endFrame - this.startFrame)),
       );
     },
@@ -77,10 +90,17 @@ export default {
       this.$refs.hand.style.left = `${value || '-10'}px`;
     },
     frame(frame) {
+      const range = this.endFrame - this.startFrame;
+      if (range <= 0) {
+        return;
+      }
+      const edgePadding = Math.max(1, Math.round(range * 0.1));
       if (frame > this.endFrame) {
-        this.endFrame = Math.min(frame + 200, this.maxFrame);
+        this.endFrame = Math.min(frame + edgePadding, this.maxFrame);
+        this.startFrame = Math.max(0, this.endFrame - range);
       } else if (frame < this.startFrame) {
-        this.startFrame = Math.max(frame - 100, 0);
+        this.startFrame = Math.max(frame - edgePadding, 0);
+        this.endFrame = Math.min(this.maxFrame, this.startFrame + range);
       }
     },
     display(val) {
@@ -89,6 +109,16 @@ export default {
       } else {
         this.initialize();
       }
+    },
+    keyInset() {
+      this.$nextTick(() => {
+        this.updateLayout();
+      });
+    },
+    chartRightInset() {
+      this.$nextTick(() => {
+        this.updateLayout();
+      });
     },
   },
   created() {
@@ -107,53 +137,62 @@ export default {
     this.initialize();
   },
   methods: {
+    getChartLeft() {
+      return this.margin + (this.keyInset || 0);
+    },
+    getChartRight() {
+      return this.clientWidth + (this.chartRightInset || 0);
+    },
+    getChartWidth() {
+      return Math.max(0, this.getChartRight() - this.getChartLeft());
+    },
     initialize() {
       if (!this.$refs.workarea) {
         return;
       }
-      const width = this.$refs.workarea?.clientWidth || 0;
-      const height = this.$refs.workarea?.clientHeight || 0;
-      if (this.$refs.workarea) {
+      if (this.$refs.workarea && !this.resizeObserver) {
         this.resizeObserver = new ResizeObserver(() => {
           this.resizeHandler();
         });
         this.resizeObserver.observe(this.$refs.workarea);
       }
-      // clientWidth and clientHeight are properties used to resize child elements
-      this.clientWidth = width - this.margin;
-      // Timeline height needs to offset so it doesn't overlap the frame number
-      this.clientHeight = height - 15;
-      const scale = d3
-        .scaleLinear()
-        .domain([0, this.maxFrame])
-        .range([this.margin, this.clientWidth]);
-      this.timelineScale = scale;
-      const axis = d3
-        .axisTop()
-        .scale(scale)
-        .tickSize(height - 30)
-        .tickSizeOuter(0);
-      this.axis = axis;
       if (!this.svg) {
         this.svg = d3
           .select(this.$refs.workarea)
           .append('svg');
+        this.g = this.svg.append('g');
+        this.timelineScale = d3.scaleLinear();
+        this.axis = d3
+          .axisTop()
+          .scale(this.timelineScale)
+          .tickSizeOuter(0);
       }
+      this.updateLayout();
+      this.mounted = true;
+    },
+    updateLayout() {
+      if (!this.$refs.workarea || !this.timelineScale) {
+        return;
+      }
+      const width = this.$refs.workarea.clientWidth || 0;
+      const height = this.$refs.workarea.clientHeight || 0;
+      // clientWidth and clientHeight are properties used to resize child elements
+      this.clientWidth = width - this.margin;
+      // Timeline height needs to offset so it doesn't overlap the frame number
+      this.clientHeight = height - 15;
+      const chartLeft = this.getChartLeft();
+      this.timelineScale.range([chartLeft, this.getChartRight()]);
+      this.axis.tickSize(height - 30);
       this.svg.style('display', 'block')
         .attr('width', this.clientWidth)
         .attr('height', height);
-      if (!this.g) {
-        this.g = this.svg.append('g')
-          .attr('transform', `translate(0,${height - 15})`);
-      }
-
-      this.updateAxis();
-      this.mounted = true;
+      this.g.attr('transform', `translate(0,${height - 15})`);
+      this.update();
     },
     resizeHandler() {
       // Debounces resize to prevent it from be calling continuously.
       clearTimeout(this.resizeTimer);
-      this.resizeTimer = setTimeout(this.initialize, 200);
+      this.resizeTimer = setTimeout(this.updateLayout, 200);
       this.$nextTick(() => this.$emit('resize'));
     },
     onwheel(e) {
@@ -162,7 +201,13 @@ export default {
       }
       const extend = Math.round((this.endFrame - this.startFrame) * 0.2)
         * Math.sign(e.deltaY);
-      const ratio = (e.layerX - this.$el.offsetLeft) / this.clientWidth;
+      const chartLeft = this.getChartLeft();
+      const chartWidth = this.getChartWidth();
+      if (chartWidth <= 0) {
+        return;
+      }
+      const workareaLeft = this.$refs.workarea.getBoundingClientRect().left;
+      const ratio = Math.max(0, Math.min(1, (e.clientX - workareaLeft - chartLeft) / chartWidth));
       let startFrame = this.startFrame - extend * ratio;
       let endFrame = this.endFrame + extend * (1 - ratio);
       startFrame = Math.max(0, startFrame);
@@ -174,6 +219,9 @@ export default {
       this.endFrame = endFrame;
     },
     updateAxis() {
+      if (!this.g || !this.axis) {
+        return;
+      }
       this.g.call(this.axis).call((g) => g
         .selectAll('.tick text')
         .attr('y', 0)
@@ -182,17 +230,22 @@ export default {
         .style('-webkit-user-select', 'none'));
     },
     update() {
+      if (!this.timelineScale || !this.axis || !this.g) {
+        return;
+      }
       this.timelineScale.domain([this.startFrame, this.endFrame]);
       this.axis.scale(this.timelineScale);
       this.updateAxis();
     },
     emitSeek(e) {
-      const leftBounds = (this.$refs.workarea.getBoundingClientRect().left + this.margin);
-      const rightBounds = (this.$refs.workarea.getBoundingClientRect().right - this.margin);
+      const chartLeft = this.getChartLeft();
+      const workareaLeft = this.$refs.workarea.getBoundingClientRect().left;
+      const leftBounds = workareaLeft + chartLeft;
+      const rightBounds = workareaLeft + this.getChartRight();
       if (e.clientX > leftBounds && e.clientX < rightBounds) {
         const frame = Math.round(
           ((e.clientX - leftBounds)
-          / (this.clientWidth - this.margin))
+          / (rightBounds - leftBounds))
           * (this.endFrame - this.startFrame)
           + this.startFrame,
         );

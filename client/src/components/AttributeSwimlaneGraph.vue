@@ -44,6 +44,7 @@ export default defineComponent({
     const showGraphSettings = ref(false);
     const showRangeSettings = ref(false);
     const showDisplaySettings = ref(false);
+    const showTitleKeySettings = ref(false);
     const typeStylingRef = useTrackStyleManager().typeStyling;
     const trackFilterControls = useTrackFilters();
     const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
@@ -97,6 +98,30 @@ export default defineComponent({
       });
     });
 
+    const appliedAttributeNames = computed(() => {
+      const applied = editSwimlaneFilter.value.appliedTo;
+      const detectionAttributes = attributesList.value.filter((item) => item.belongs === 'detection');
+      if (applied.includes('all')) {
+        return detectionAttributes.map((attribute) => attribute.name);
+      }
+      return applied.filter((name) => name !== 'all');
+    });
+
+    const getAttributeDisplayNameSetting = (name: string) => {
+      if (!editSwimlaneSettings.value[name]) {
+        editSwimlaneSettings.value[name] = { displayName: true };
+      }
+      return editSwimlaneSettings.value[name].displayName !== false;
+    };
+
+    const setAttributeDisplayNameSetting = (name: string, value: boolean) => {
+      if (!editSwimlaneSettings.value[name]) {
+        editSwimlaneSettings.value[name] = { displayName: value };
+      } else {
+        editSwimlaneSettings.value[name].displayName = value;
+      }
+    };
+
     const saveChanges = () => {
       if (editSwimlaneName.value !== originalName) {
         removeSwimlaneFilter(originalName);
@@ -144,9 +169,13 @@ export default defineComponent({
       showGraphSettings,
       showRangeSettings,
       showDisplaySettings,
+      showTitleKeySettings,
       dialogTitle,
       renderModeHelp,
       swimlaneBackgroundColors,
+      appliedAttributeNames,
+      getAttributeDisplayNameSetting,
+      setAttributeDisplayNameSetting,
     };
   },
 });
@@ -244,9 +273,74 @@ export default defineComponent({
               class="mx-2"
             />
           </v-row>
+          <div class="title-key-settings">
+            <h3 class="subtitle-1 mb-1">
+              Title &amp; Key
+              <v-icon @click="showTitleKeySettings = !showTitleKeySettings">
+                {{ showTitleKeySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+              </v-icon>
+            </h3>
+            <p class="text-caption mb-2">
+              Control the swimlane section title and legend column labels
+            </p>
+            <div v-if="showTitleKeySettings">
+              <v-row dense>
+                <v-checkbox
+                  v-model="editSwimlaneDisplay.hideTitle"
+                  label="Hide Swimlane Title"
+                  hint="Removes the section title above the chart to save vertical space"
+                  persistent-hint
+                  class="mx-2"
+                />
+              </v-row>
+              <v-row dense>
+                <v-checkbox
+                  v-model="editSwimlaneDisplay.hideKeyTitle"
+                  label="Hide Key Title"
+                  hint="Hides the swimlane graph name in the legend column"
+                  persistent-hint
+                  class="mx-2"
+                />
+              </v-row>
+              <v-row dense>
+                <v-checkbox
+                  v-model="editSwimlaneDisplay.hideKeyAttributeLabels"
+                  label="Hide Attribute Labels in Key"
+                  hint="Hides attribute names in the legend column (color borders remain)"
+                  persistent-hint
+                  class="mx-2"
+                />
+              </v-row>
+              <v-row
+                v-if="appliedAttributeNames.length"
+                dense
+                class="mt-2"
+              >
+                <v-col cols="12">
+                  <span class="text-subtitle-2">Key Label Settings</span>
+                </v-col>
+                <v-col
+                  v-for="attrName in appliedAttributeNames"
+                  :key="`key-label-${attrName}`"
+                  cols="12"
+                  class="py-0"
+                >
+                  <v-checkbox
+                    :input-value="getAttributeDisplayNameSetting(attrName)"
+                    :label="`Show '${attrName}' in key`"
+                    dense
+                    hide-details
+                    class="mx-2 mt-0"
+                    @change="setAttributeDisplayNameSetting(attrName, $event)"
+                  />
+                </v-col>
+              </v-row>
+            </div>
+          </div>
           <v-row
             dense
             align="center"
+            class="render-mode-row"
           >
             <v-select
               v-model="editSwimlaneDisplay.renderMode"
@@ -489,6 +583,17 @@ export default defineComponent({
 
 .graph-settings-area {
   padding: 5px;
+}
+
+.title-key-settings {
+  margin: 8px 0 16px 8px;
+  padding: 8px 12px 12px 12px;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.render-mode-row {
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .graph-settings-list{

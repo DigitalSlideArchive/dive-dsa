@@ -422,7 +422,6 @@ class UITrackDetails(BaseModel):
 
 
 class UIControls(BaseModel):
-    UILegendControls: Optional[bool]
     UITimelineSelection: Optional[bool]
     UIPlaybackControls: Optional[bool]
     UIAudioControls: Optional[bool]
@@ -437,6 +436,11 @@ class UIControls(BaseModel):
 class UITimeline(BaseModel):
     UIDetections: Optional[bool]
     UIEvents: Optional[bool]
+    UILegendControls: Optional[bool]
+    UILegendForceOpen: Optional[bool]
+    UILegendHideToggle: Optional[bool]
+    UILegendKeyMinWidth: Optional[int]
+    UILegendKeyMaxWidth: Optional[int]
 
 
 class UIInteractions(BaseModel):

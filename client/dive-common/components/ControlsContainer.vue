@@ -9,7 +9,6 @@ import {
   Controls,
   injectAggregateController,
   Timeline,
-  TimelineKey,
 } from 'vue-media-annotator/components';
 import { TimelineDisplay, UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import TimelineCharts from 'vue-media-annotator/components/controls/TimelineCharts.vue';
@@ -24,7 +23,6 @@ export default defineComponent({
     Controls,
     FileNameTimeDisplay,
     Timeline,
-    TimelineKey,
     TimelineButtons,
     TimelineCharts,
   },
@@ -57,6 +55,9 @@ export default defineComponent({
     const attributesFilter = useAttributesFilters();
     const { enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
+    const isUISettingExplicitlyTrue = (key: UISettingsKey) => (
+      configMan.getFlatUISettingMap()[key] === true
+    );
     if (getUISetting('UIDetections') === false && getUISetting('UIEvents')) {
       currentView.value = 'Events';
     }
@@ -80,12 +81,20 @@ export default defineComponent({
         currentView.value = timelines[0].name;
       }
     }
-    const enabledKey = ref(false);
+    const enabledKey = ref(isUISettingExplicitlyTrue('UILegendForceOpen'));
+    const chartAreaLeftInset = ref(0);
+    const chartAreaRightInset = ref(0);
     const dismissedButtons: Ref<string[]> = ref([]); // buttons that have been dismissed from the timelineConfig;
     const dismissedHeights: Ref<{name: string; height: number}[]> = ref([]);
-    const {
-      attributeSwimlaneData,
-    } = useAttributesFilters();
+
+    const showLegendToggle = computed(() => (
+      getUISetting('UILegendControls')
+      && !isUISettingExplicitlyTrue('UILegendHideToggle')
+    ));
+
+    const toggleLegendKey = () => {
+      enabledKey.value = !enabledKey.value;
+    };
 
     const timelineHeight = computed(() => {
       const activeConfig = configMan.getActiveTimelineConfig();
@@ -144,19 +153,11 @@ export default defineComponent({
       maxFrame, frame, seek, volume, setVolume, setSpeed, speed,
     } = injectAggregateController().value;
 
-    // Timeline Key Sizing and Refs
     const timelineRef: Ref<typeof Timeline & {$el: HTMLElement; clientHeight: number} | null> = ref(null);
     const controlsRef: Ref<typeof Controls & {$el: HTMLElement} | null> = ref(null);
-    const keyHeight = computed(() => ((timelineRef.value !== null) ? timelineRef.value.clientHeight : 0));
-    const keyTop = computed(() => ((controlsRef.value !== null) ? controlsRef.value.$el.clientHeight : 0));
-    const keyWidth = ref(0);
-    watch(() => timelineRef.value && timelineRef.value.$el.clientWidth, () => {
-      keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
-    });
     const updateSizes = () => {
-      keyWidth.value = timelineRef.value?.$el.clientWidth || 0;
+      // retained for Timeline @resize handler
     };
-    const swimlaneOffset = ref(0);
 
     const addDismissedButton = ({ name, height }: {name: string; height: number}) => {
       dismissedButtons.value.push(name);
@@ -171,6 +172,11 @@ export default defineComponent({
       if (heightIndex !== -1) {
         dismissedHeights.value.splice(heightIndex, 1);
       }
+    };
+
+    const onChartAreaInsets = ({ leftInset, rightInset }: { leftInset: number; rightInset: number }) => {
+      chartAreaLeftInset.value = leftInset;
+      chartAreaRightInset.value = rightInset;
     };
 
     watch(timelineHeight, () => {
@@ -190,21 +196,19 @@ export default defineComponent({
       ticks,
       getUISetting,
       timelineDisabled,
-      // Timeline Ref
       controlsRef,
       timelineRef,
-      keyHeight,
-      keyTop,
-      keyWidth,
       enabledKey,
       updateSizes,
-      swimlaneOffset,
-      //Timeline Config
+      showLegendToggle,
+      toggleLegendKey,
       timelineHeight,
-      attributeSwimlaneData,
       dismissedButtons,
       addDismissedButton,
       removeDismissedButton,
+      chartAreaLeftInset,
+      chartAreaRightInset,
+      onChartAreaInsets,
     };
   },
 });
@@ -238,7 +242,7 @@ export default defineComponent({
             <span>Collapse/Expand Timeline</span>
           </v-tooltip>
           <v-tooltip
-            v-if="getUISetting('UILegendControls')"
+            v-if="showLegendToggle"
             open-delay="200"
             bottom
           >
@@ -248,7 +252,7 @@ export default defineComponent({
                 :color="enabledKey ? 'primary' : ''"
                 class="ml-2"
                 v-on="on"
-                @click="enabledKey = !enabledKey"
+                @click="toggleLegendKey"
               >
                 mdi-key
               </v-icon>
@@ -367,6 +371,8 @@ export default defineComponent({
       :frame="frame"
       :display="!collapsed"
       :timeline-height="timelineHeight"
+      :key-inset="chartAreaLeftInset"
+      :chart-right-inset="chartAreaRightInset"
       @seek="seek"
       @resize="updateSizes"
     >
@@ -386,6 +392,7 @@ export default defineComponent({
           :group-chart-data="groupChartData"
           :current-view="currentView"
           :collapsed="collapsed"
+          :show-key="enabledKey"
           :start-frame="startFrame"
           :end-frame="endFrame"
           :child-max-frame="childMaxFrame"
@@ -395,19 +402,10 @@ export default defineComponent({
           :dismissed-buttons="dismissedButtons"
           @select-track="$emit('select-track', $event)"
           @dismiss="addDismissedButton($event)"
+          @chart-area-insets="onChartAreaInsets"
         />
       </template>
     </Timeline>
-    <timeline-key
-      v-if="enabledKey"
-      :current-view="currentView"
-      :client-height="keyHeight"
-      :client-top="keyTop"
-      :client-width="keyWidth"
-      :offset="swimlaneOffset"
-      :dismissed-buttons="dismissedButtons"
-      :data="attributeSwimlaneData[currentView]"
-    />
   </v-col>
 </template>
 
