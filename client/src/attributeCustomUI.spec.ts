@@ -34,9 +34,15 @@ describe('attributeCustomUI', () => {
       confidencePairs: [['customUI', 1]],
       attributes: {},
       features: [
-        { frame: 0, bounds: [0, 0, 100, 100], keyframe: true, attributes: { Status: 'idle' } },
-        { frame: 10, bounds: [0, 0, 100, 100], keyframe: true, attributes: { Status: 'tracking' } },
-        { frame: 20, bounds: [0, 0, 100, 100], keyframe: true, attributes: {} },
+        {
+          frame: 0, bounds: [0, 0, 100, 100], keyframe: true, attributes: { Status: 'idle' },
+        },
+        {
+          frame: 10, bounds: [0, 0, 100, 100], keyframe: true, attributes: { Status: 'tracking' },
+        },
+        {
+          frame: 20, bounds: [0, 0, 100, 100], keyframe: true, attributes: {},
+        },
       ],
     });
     return track;

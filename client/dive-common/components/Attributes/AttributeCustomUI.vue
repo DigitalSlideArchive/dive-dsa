@@ -469,121 +469,121 @@ export default defineComponent({
     </v-row>
     <template v-if="displayValue">
       <template v-if="supportsStickyValue">
-      <v-row
-        dense
-        align="center"
-        no-gutters
-        class="custom-ui-option"
-      >
-        <v-checkbox
-          v-model="stickyValue"
-          label="Sticky Value"
-          hide-details
+        <v-row
           dense
-          class="mt-0 pt-0"
-        />
-        <v-tooltip
-          open-delay="200"
-          bottom
-          max-width="280"
+          align="center"
+          no-gutters
+          class="custom-ui-option"
         >
-          <template #activator="{ on, attrs }">
-            <v-icon
-              small
-              color="grey"
-              class="custom-ui-option__info ml-1"
-              v-bind="attrs"
-              v-on="on"
-            >
-              mdi-information-outline
-            </v-icon>
-          </template>
-          <span>When empty on the current frame, show the last non-empty value from earlier keyframes.</span>
-        </v-tooltip>
-      </v-row>
-      <v-expansion-panels
-        v-if="stickyValue"
-        class="mb-4"
-      >
-        <v-expansion-panel outlined>
-          <v-expansion-panel-header>
-            Inherited Value Indicator
-          </v-expansion-panel-header>
-          <v-expansion-panel-content>
-            <p class="text-caption grey--text mb-3">
-              Style applied when the value is set on the current keyframe, not when it is inherited from a previous keyframe.
-            </p>
-            <v-row dense>
-              <v-col cols="12" sm="4">
-                <v-checkbox
-                  v-model="stickyIndicator.bold"
-                  label="Bold"
-                  hide-details
-                  dense
-                />
-              </v-col>
-              <v-col cols="12" sm="4">
-                <v-checkbox
-                  v-model="stickyIndicator.italic"
-                  label="Italic"
-                  hide-details
-                  dense
-                />
-              </v-col>
-              <v-col cols="12" sm="4">
-                <v-checkbox
-                  v-model="stickyIndicator.underline"
-                  label="Underline"
-                  hide-details
-                  dense
-                />
-              </v-col>
-            </v-row>
-            <v-row
-              dense
-              align="center"
-              class="mt-2 mb-2"
-            >
-              <v-col cols="auto" class="py-0">
-                <v-checkbox
-                  v-model="highlightEnabled"
-                  label="Font Color"
-                  hide-details
-                  dense
-                  class="mt-0 pt-0"
-                />
-              </v-col>
-              <v-col
-                v-if="highlightEnabled"
-                cols="auto"
-                class="py-0"
+          <v-checkbox
+            v-model="stickyValue"
+            label="Sticky Value"
+            hide-details
+            dense
+            class="mt-0 pt-0"
+          />
+          <v-tooltip
+            open-delay="200"
+            bottom
+            max-width="280"
+          >
+            <template #activator="{ on, attrs }">
+              <v-icon
+                small
+                color="grey"
+                class="custom-ui-option__info ml-1"
+                v-bind="attrs"
+                v-on="on"
               >
-                <div
-                  class="value-color-box edit-color-box"
-                  :style="{ backgroundColor: highlightColorValue }"
-                  @click="editingHighlightColor = true"
-                />
-              </v-col>
-            </v-row>
-            <v-select
-              v-model="stickyIndicator.fontSizeScale"
-              :items="fontSizeScaleOptions"
-              item-text="text"
-              item-value="value"
-              label="Font Size"
-              class="mb-2"
-            />
-            <v-slider
-              v-model="stickyIndicator.opacity"
-              label="Opacity"
-              min="0.3"
-              max="1"
-              step="0.05"
-              thumb-label
-            />
-          </v-expansion-panel-content>
-        </v-expansion-panel>
-      </v-expansion-panels>
+                mdi-information-outline
+              </v-icon>
+            </template>
+            <span>When empty on the current frame, show the last non-empty value from earlier keyframes.</span>
+          </v-tooltip>
+        </v-row>
+        <v-expansion-panels
+          v-if="stickyValue"
+          class="mb-4"
+        >
+          <v-expansion-panel outlined>
+            <v-expansion-panel-header>
+              Inherited Value Indicator
+            </v-expansion-panel-header>
+            <v-expansion-panel-content>
+              <p class="text-caption grey--text mb-3">
+                Style applied when the value is set on the current keyframe, not when it is inherited from a previous keyframe.
+              </p>
+              <v-row dense>
+                <v-col cols="12" sm="4">
+                  <v-checkbox
+                    v-model="stickyIndicator.bold"
+                    label="Bold"
+                    hide-details
+                    dense
+                  />
+                </v-col>
+                <v-col cols="12" sm="4">
+                  <v-checkbox
+                    v-model="stickyIndicator.italic"
+                    label="Italic"
+                    hide-details
+                    dense
+                  />
+                </v-col>
+                <v-col cols="12" sm="4">
+                  <v-checkbox
+                    v-model="stickyIndicator.underline"
+                    label="Underline"
+                    hide-details
+                    dense
+                  />
+                </v-col>
+              </v-row>
+              <v-row
+                dense
+                align="center"
+                class="mt-2 mb-2"
+              >
+                <v-col cols="auto" class="py-0">
+                  <v-checkbox
+                    v-model="highlightEnabled"
+                    label="Font Color"
+                    hide-details
+                    dense
+                    class="mt-0 pt-0"
+                  />
+                </v-col>
+                <v-col
+                  v-if="highlightEnabled"
+                  cols="auto"
+                  class="py-0"
+                >
+                  <div
+                    class="value-color-box edit-color-box"
+                    :style="{ backgroundColor: highlightColorValue }"
+                    @click="editingHighlightColor = true"
+                  />
+                </v-col>
+              </v-row>
+              <v-select
+                v-model="stickyIndicator.fontSizeScale"
+                :items="fontSizeScaleOptions"
+                item-text="text"
+                item-value="value"
+                label="Font Size"
+                class="mb-2"
+              />
+              <v-slider
+                v-model="stickyIndicator.opacity"
+                label="Opacity"
+                min="0.3"
+                max="1"
+                step="0.05"
+                thumb-label
+              />
+            </v-expansion-panel-content>
+          </v-expansion-panel>
+        </v-expansion-panels>
       </template>
       <v-expansion-panels class="mb-4">
         <v-expansion-panel outlined>
