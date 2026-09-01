@@ -7,6 +7,10 @@ export const LONG_VALUE_EXPAND_THRESHOLD = 50;
 
 const FONT_SIZE_SCALE_MIN = 0.5;
 const FONT_SIZE_SCALE_MAX = 3;
+export const HEADER_VALUE_OFFSET_MIN = 0;
+export const HEADER_VALUE_OFFSET_MAX = 32;
+export const DEFAULT_HEADER_VALUE_OFFSET = 4;
+export const DEFAULT_HEADER_VALUE_SEPARATOR = ':' as const;
 
 export function normalizeFontSizeScale(value: unknown, fallback = 1): number {
   const num = typeof value === 'number' ? value : Number(value);
@@ -14,6 +18,14 @@ export function normalizeFontSizeScale(value: unknown, fallback = 1): number {
     return fallback;
   }
   return Math.min(FONT_SIZE_SCALE_MAX, Math.max(FONT_SIZE_SCALE_MIN, num));
+}
+
+export function normalizeHeaderValueOffset(value: unknown, fallback = DEFAULT_HEADER_VALUE_OFFSET): number {
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) {
+    return fallback;
+  }
+  return Math.min(HEADER_VALUE_OFFSET_MAX, Math.max(HEADER_VALUE_OFFSET_MIN, Math.round(num)));
 }
 
 export function shouldShowCustomUIValueTooltip(
@@ -44,6 +56,8 @@ export interface ResolvedAttributeCustomUI {
   stickyValueIndicator: ResolvedAttributeCustomUIStickyIndicator;
   valuePosition: NonNullable<AttributeCustomUI['valuePosition']>;
   longValueMode: NonNullable<AttributeCustomUI['longValueMode']>;
+  headerValueSeparator: NonNullable<AttributeCustomUI['headerValueSeparator']>;
+  headerValueOffset: number;
   emptyValueLabel?: string;
   valuePrepend?: string;
   valueAppend?: string;
@@ -95,6 +109,8 @@ export function resolveAttributeCustomUI(
     stickyValueIndicator: resolveStickyValueIndicator(customUI?.stickyValueIndicator),
     valuePosition: customUI?.valuePosition ?? 'below',
     longValueMode: customUI?.longValueMode ?? 'expand',
+    headerValueSeparator: customUI?.headerValueSeparator ?? DEFAULT_HEADER_VALUE_SEPARATOR,
+    headerValueOffset: normalizeHeaderValueOffset(customUI?.headerValueOffset),
     emptyValueLabel: customUI?.emptyValueLabel,
     valuePrepend: customUI?.valuePrepend,
     valueAppend: customUI?.valueAppend,
@@ -144,11 +160,19 @@ export function resolvedCustomUIToEditorValue(
   if (resolved.stickyValue) {
     value.stickyValueIndicator = { ...resolved.stickyValueIndicator };
   }
+  if (resolved.valuePosition === 'header') {
+    if (resolved.headerValueSeparator !== DEFAULT_HEADER_VALUE_SEPARATOR) {
+      value.headerValueSeparator = resolved.headerValueSeparator;
+    }
+    if (resolved.headerValueOffset !== DEFAULT_HEADER_VALUE_OFFSET) {
+      value.headerValueOffset = resolved.headerValueOffset;
+    }
+  }
   return value;
 }
 
 export function shouldShowAttributeInCustomUI(
-  attribute: Pick<Attribute, 'shortcuts' | 'customUI'>,
+  attribute: Pick<Attribute, 'shortcuts' | 'customUI' | 'belongs'>,
   buttonCount: number,
 ): boolean {
   const customUI = resolveAttributeCustomUI(attribute);
@@ -191,6 +215,15 @@ export function buildCustomUIPayload(
     }
     if (customUI.valuePosition && customUI.valuePosition !== 'below') {
       payload.valuePosition = customUI.valuePosition;
+      if (customUI.valuePosition === 'header') {
+        if (customUI.headerValueSeparator && customUI.headerValueSeparator !== DEFAULT_HEADER_VALUE_SEPARATOR) {
+          payload.headerValueSeparator = customUI.headerValueSeparator;
+        }
+        const headerValueOffset = normalizeHeaderValueOffset(customUI.headerValueOffset);
+        if (headerValueOffset !== DEFAULT_HEADER_VALUE_OFFSET) {
+          payload.headerValueOffset = headerValueOffset;
+        }
+      }
     }
     if (customUI.longValueMode && customUI.longValueMode !== 'expand') {
       payload.longValueMode = customUI.longValueMode;

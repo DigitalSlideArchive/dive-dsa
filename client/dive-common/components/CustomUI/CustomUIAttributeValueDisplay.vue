@@ -39,6 +39,14 @@ export default defineComponent({
       type: Number as PropType<number | undefined>,
       default: undefined,
     },
+    inline: {
+      type: Boolean,
+      default: false,
+    },
+    headerValueOffset: {
+      type: Number,
+      default: 4,
+    },
   },
   setup() {
     return {
@@ -73,7 +81,10 @@ export default defineComponent({
 <template>
   <div
     class="custom-ui-attribute-value-display"
-    :style="getCustomUIDisplayValueStyle(entry.valueFontSizeScale, entry.valueAlign)"
+    :class="{ 'custom-ui-attribute-value-display--inline': inline }"
+    :style="inline
+      ? { ...getCustomUIDisplayValueStyle(entry.valueFontSizeScale, entry.valueAlign), marginLeft: `${headerValueOffset}px` }
+      : getCustomUIDisplayValueStyle(entry.valueFontSizeScale, entry.valueAlign)"
   >
     <span v-if="entry.valuePrepend">{{ entry.valuePrepend }}</span>
     <template v-if="shouldUseCustomUIValueExpansion(entry.rawLength, entry.longValueMode)">
@@ -123,6 +134,12 @@ export default defineComponent({
   display: block;
   width: 100%;
   word-break: break-word;
+}
+
+.custom-ui-attribute-value-display--inline {
+  display: inline;
+  width: auto;
+  vertical-align: baseline;
 }
 
 .custom-ui-attribute-value-display__panel {

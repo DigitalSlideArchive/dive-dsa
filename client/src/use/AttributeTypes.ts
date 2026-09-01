@@ -85,6 +85,10 @@ export interface AttributeCustomUI {
     valuePosition?: 'below' | 'above' | 'header';
     longValueMode?: 'truncate' | 'expand' | 'scroll';
     emptyValueLabel?: string;
+    /** When valuePosition is header, separator appended after the section title. */
+    headerValueSeparator?: ':' | '-';
+    /** Horizontal space (px) between the separator and the displayed value in header mode. */
+    headerValueOffset?: number;
     /** Text shown before the displayed attribute value. */
     valuePrepend?: string;
     /** Text shown after the displayed attribute value. */

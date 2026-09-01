@@ -789,23 +789,41 @@ export default defineComponent({
         >
           <v-col cols="12">
             <h4
-              v-if="attribute.customUI.showHeader"
+              v-if="attribute.customUI.showHeader
+                || (attribute.customUI.valuePosition === 'header'
+                  && buttonValueMap[attribute.attrName])"
               class="custom-ui-attribute-title"
+              :class="{
+                'custom-ui-attribute-title--with-value':
+                  attribute.customUI.valuePosition === 'header'
+                  && buttonValueMap[attribute.attrName],
+              }"
             >
-              {{ attribute.name }}
+              <span
+                v-if="attribute.customUI.showHeader"
+                class="custom-ui-attribute-title__label"
+              >
+                {{ attribute.name }}
+              </span>
+              <span
+                v-if="attribute.customUI.valuePosition === 'header'
+                  && buttonValueMap[attribute.attrName]"
+                class="custom-ui-attribute-title__value"
+              >
+                <span
+                  v-if="attribute.customUI.showHeader"
+                  class="custom-ui-attribute-title__separator"
+                >{{ attribute.customUI.headerValueSeparator }}</span>
+                <CustomUIAttributeValueDisplay
+                  :entry="buttonValueMap[attribute.attrName]"
+                  :attribute-name="attribute.name"
+                  :panel-expanded="panelExpanded[attribute.attrName]"
+                  inline
+                  :header-value-offset="attribute.customUI.headerValueOffset"
+                  @toggle-panel="expandPanel"
+                />
+              </span>
             </h4>
-            <div
-              v-if="attribute.customUI.valuePosition === 'header'
-                && buttonValueMap[attribute.attrName]"
-              class="custom-ui-attribute-value-row"
-            >
-              <CustomUIAttributeValueDisplay
-                :entry="buttonValueMap[attribute.attrName]"
-                :attribute-name="attribute.name"
-                :panel-expanded="panelExpanded[attribute.attrName]"
-                @toggle-panel="expandPanel"
-              />
-            </div>
             <p
               v-if="attribute.description && attribute.customUI.showDescription"
               class="custom-ui-attribute-description"
@@ -882,6 +900,28 @@ export default defineComponent({
 
 .custom-ui-attribute-title {
   margin-bottom: 4px;
+}
+
+.custom-ui-attribute-title--with-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+}
+
+.custom-ui-attribute-title__label {
+  flex: 0 0 auto;
+}
+
+.custom-ui-attribute-title__value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.custom-ui-attribute-title__separator {
+  flex: 0 0 auto;
 }
 
 .custom-ui-attribute-description {

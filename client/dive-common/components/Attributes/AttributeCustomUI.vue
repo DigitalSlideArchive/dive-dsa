@@ -3,7 +3,7 @@ import {
   computed, defineComponent, PropType, ref, watch, nextTick,
 } from 'vue';
 import { AttributeCustomUI, AttributeCustomUIStickyIndicator, Attribute } from 'vue-media-annotator/use/AttributeTypes';
-import { normalizeFontSizeScale } from 'vue-media-annotator/use/attributeCustomUI';
+import { normalizeFontSizeScale, normalizeHeaderValueOffset } from 'vue-media-annotator/use/attributeCustomUI';
 import createGetAttributeValueColor from 'vue-media-annotator/use/attributeValueColor';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 
@@ -33,6 +33,8 @@ function buildCustomUIEditorPayload(
   valueColor: string | undefined,
   showDescription: boolean,
   supportsStickyValue: boolean,
+  headerValueSeparator: AttributeCustomUI['headerValueSeparator'],
+  headerValueOffset: number,
 ): AttributeCustomUI {
   const payload: AttributeCustomUI = {
     enabled,
@@ -49,6 +51,13 @@ function buildCustomUIEditorPayload(
       }
     }
     payload.valuePosition = valuePosition;
+    if (valuePosition === 'header') {
+      payload.headerValueSeparator = headerValueSeparator ?? ':';
+      const normalizedOffset = normalizeHeaderValueOffset(headerValueOffset);
+      if (normalizedOffset !== 4) {
+        payload.headerValueOffset = normalizedOffset;
+      }
+    }
     payload.longValueMode = longValueMode;
     payload.emptyValueLabel = emptyValueLabel || undefined;
     payload.valuePrepend = valuePrepend || undefined;
@@ -95,6 +104,10 @@ export default defineComponent({
         : defaultStickyIndicator(),
     );
     const valuePosition = ref(props.value.valuePosition ?? 'below');
+    const headerValueSeparator = ref<AttributeCustomUI['headerValueSeparator']>(
+      props.value.headerValueSeparator ?? ':',
+    );
+    const headerValueOffset = ref(props.value.headerValueOffset ?? 4);
     const longValueMode = ref(props.value.longValueMode ?? 'expand');
     const emptyValueLabel = ref(props.value.emptyValueLabel ?? '');
     const valuePrepend = ref(props.value.valuePrepend ?? '');
@@ -118,7 +131,12 @@ export default defineComponent({
     const valuePositionOptions = [
       { text: 'Below buttons', value: 'below' },
       { text: 'Above buttons', value: 'above' },
-      { text: 'Below title', value: 'header' },
+      { text: 'In header (inline with title)', value: 'header' },
+    ];
+
+    const headerValueSeparatorOptions = [
+      { text: 'Colon (:)', value: ':' },
+      { text: 'Dash (-)', value: '-' },
     ];
 
     const longValueModeOptions = [
@@ -160,6 +178,8 @@ export default defineComponent({
         valueColor.value,
         showDescription.value,
         supportsStickyValue.value,
+        headerValueSeparator.value,
+        headerValueOffset.value,
       );
       if (customUIPayloadsEqual(payload, props.value)) {
         return;
@@ -178,6 +198,8 @@ export default defineComponent({
           ? { ...defaultStickyIndicator(), ...newValue.stickyValueIndicator }
           : defaultStickyIndicator();
         valuePosition.value = newValue.valuePosition ?? 'below';
+        headerValueSeparator.value = newValue.headerValueSeparator ?? ':';
+        headerValueOffset.value = normalizeHeaderValueOffset(newValue.headerValueOffset);
         longValueMode.value = newValue.longValueMode ?? 'expand';
         emptyValueLabel.value = newValue.emptyValueLabel ?? '';
         valuePrepend.value = newValue.valuePrepend ?? '';
@@ -226,6 +248,8 @@ export default defineComponent({
         stickyValue,
         stickyIndicator,
         valuePosition,
+        headerValueSeparator,
+        headerValueOffset,
         longValueMode,
         emptyValueLabel,
         valuePrepend,
@@ -320,6 +344,8 @@ export default defineComponent({
       stickyValue,
       stickyIndicator,
       valuePosition,
+      headerValueSeparator,
+      headerValueOffset,
       longValueMode,
       emptyValueLabel,
       valuePrepend,
@@ -336,6 +362,7 @@ export default defineComponent({
       computedValueColorPreview,
       showDescription,
       valuePositionOptions,
+      headerValueSeparatorOptions,
       longValueModeOptions,
       valueAlignOptions,
       fontSizeScaleOptions,
@@ -343,6 +370,7 @@ export default defineComponent({
       highlightColorValue,
       supportsStickyValue,
       normalizeEditorFontSizeScale,
+      normalizeHeaderValueOffset,
     };
   },
 });
@@ -571,6 +599,30 @@ export default defineComponent({
               label="Value Position"
               class="mb-4"
             />
+            <template v-if="valuePosition === 'header'">
+              <v-select
+                v-model="headerValueSeparator"
+                :items="headerValueSeparatorOptions"
+                item-text="text"
+                item-value="value"
+                label="Header Separator"
+                hint="Character appended to the section title before the value."
+                persistent-hint
+                class="mb-4"
+              />
+              <v-text-field
+                v-model.number="headerValueOffset"
+                label="Header Value Offset (px)"
+                type="number"
+                min="0"
+                max="32"
+                step="1"
+                hint="Horizontal space between the separator and the displayed value."
+                persistent-hint
+                class="mb-4"
+                @blur="headerValueOffset = normalizeHeaderValueOffset(headerValueOffset)"
+              />
+            </template>
             <v-select
               v-model="longValueMode"
               :items="longValueModeOptions"
