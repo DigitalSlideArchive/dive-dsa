@@ -7,6 +7,8 @@ import {
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import CustomUIAttributeValueDisplay from 'dive-common/components/CustomUI/CustomUIAttributeValueDisplay.vue';
+import CustomUITrackList from 'dive-common/components/CustomUI/CustomUITrackList.vue';
+import CustomUIEditingStatus from 'dive-common/components/CustomUI/CustomUIEditingStatus.vue';
 import {
   useAttributes, useCameraStore, useConfiguration, useSelectedTrackId, useTime,
   useHandler, useTrackStyleManager,
@@ -77,6 +79,8 @@ export default defineComponent({
     StackedVirtualSidebarContainer,
     AttributeSubsection,
     CustomUIAttributeValueDisplay,
+    CustomUITrackList,
+    CustomUIEditingStatus,
   },
 
   props: {
@@ -103,6 +107,19 @@ export default defineComponent({
     const title = computed(() => configMan.configuration.value?.customUI?.title || 'Custom Actions');
     const information = computed(() => configMan.configuration.value?.customUI?.information || []);
     const updatedWidth = computed(() => configMan.configuration.value?.customUI?.width || props.width);
+    const trackListSettings = computed(() => configMan.configuration.value?.customUI?.trackList);
+    const trackListEnabled = computed(() => (
+      trackListSettings.value !== undefined && trackListSettings.value.enabled !== false
+    ));
+    const showEditingStatus = computed(() => (
+      trackListEnabled.value && trackListSettings.value?.showEditingStatus !== false
+    ));
+    const editingStatusTitle = computed(() => (
+      trackListSettings.value?.editingStatusTitle || 'Current Mode'
+    ));
+    const trackListAboveActions = computed(() => (
+      trackListSettings.value?.position === 'above'
+    ));
     context.nudgeWidth(updatedWidth.value);
     function getAttributeUser({ name, belongs }: { name: string; belongs: 'track' | 'detection' }) {
       const attribute = attributes.value.find((attr) => attr.name === name && attr.belongs === belongs);
@@ -762,6 +779,11 @@ export default defineComponent({
       getDisplayValueEntry,
       shouldShowDisplayValue,
       LONG_VALUE_EXPAND_THRESHOLD,
+      trackListSettings,
+      trackListEnabled,
+      showEditingStatus,
+      editingStatusTitle,
+      trackListAboveActions,
     };
   },
 });
@@ -775,6 +797,14 @@ export default defineComponent({
           {{ item }}
         </p>
         <v-divider />
+        <template v-if="trackListEnabled && trackListAboveActions">
+          <CustomUIEditingStatus
+            v-if="showEditingStatus"
+            :title="editingStatusTitle"
+          />
+          <CustomUITrackList :settings="trackListSettings" />
+          <v-divider class="my-2" />
+        </template>
         <v-row v-if="actionButtons.length" dense>
           Action Buttons
         </v-row>
@@ -802,9 +832,20 @@ export default defineComponent({
             </v-tooltip>
           </v-col>
         </v-row>
+        <template v-if="trackListEnabled && !trackListAboveActions">
+          <v-divider class="my-2" />
+          <CustomUIEditingStatus
+            v-if="showEditingStatus"
+            :title="editingStatusTitle"
+          />
+          <CustomUITrackList :settings="trackListSettings" />
+        </template>
         <v-divider />
-        <p v-if="attributeButtons.length && selectedTrackIdRef === null">
+        <p v-if="attributeButtons.length && selectedTrackIdRef === null && !trackListEnabled">
           Attribute Action Buttons are disabled because no track is selected
+        </p>
+        <p v-else-if="attributeButtons.length && selectedTrackIdRef === null && trackListEnabled">
+          Select a track from the list above to use attribute buttons
         </p>
         <p v-else>
           Attribute Buttons

@@ -27,6 +27,7 @@ import {
   DIVEMetadataAction,
 } from 'dive-common/use/useActions';
 import { deleteDiveDatasetMetadataKey, setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
+import { computeEditingDetails } from 'dive-common/use/editingModeInstructions';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -154,28 +155,14 @@ export default function useModeManager({
   // What is occuring in editing mode
   const editingDetails = computed(() => {
     _depend();
-    if (editingMode.value && selectedTrackId.value !== null) {
-      const { frame } = aggregateController.value;
-      try {
-        const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-        if (track) {
-          const [feature] = track.getFeature(frame.value);
-          if (feature) {
-            if (!feature?.bounds?.length) {
-              return 'Creating';
-            } if (annotationModes.editing === 'rectangle' || annotationModes.editing === 'Time') {
-              return 'Editing';
-            }
-            return (feature.geometry?.features.filter((item) => item.geometry.type === annotationModes.editing).length ? 'Editing' : 'Creating');
-          }
-          return 'Creating';
-        }
-      } catch {
-      // No Track for this camera
-        return 'disabled';
-      }
-    }
-    return 'disabled';
+    const { frame } = aggregateController.value;
+    return computeEditingDetails(
+      !!editingMode.value,
+      selectedTrackId.value,
+      annotationModes.editing,
+      frame.value,
+      (trackId) => cameraStore.getPossibleTrack(trackId, selectedCamera.value),
+    );
   });
 
   let deleteLocalMasks: (((trackId: AnnotationId, frameList: number[]) => void) | null) = null;

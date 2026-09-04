@@ -141,12 +141,35 @@ export interface TimelineConfiguration {
   timelines: TimelineDisplay[];
 }
 
+export interface CustomUITrackListSettings {
+  enabled?: boolean;
+  title?: string;
+  defaultExpanded?: boolean;
+  /** Position relative to DIVE action shortcut buttons */
+  position?: 'above' | 'below';
+  typeFilter?: string[];
+  maxHeight?: number;
+  actions?: {
+    select?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
+  display?: {
+    showType?: boolean;
+    showFrameRange?: boolean;
+    showTrackId?: boolean;
+  };
+  showEditingStatus?: boolean;
+  editingStatusTitle?: string;
+}
+
 export interface CustomUISettings {
   title?: string;
   information?: string[]; // multiple markdown pages of information to be displayed if it exists
   width? : number;
   /** Attribute keys (`${belongs}_${name}`) controlling Custom UI attribute button group order */
   attributeButtonOrder?: string[];
+  trackList?: CustomUITrackListSettings;
   }
 
 export interface ConfigurationUser {

@@ -1,9 +1,10 @@
 <script lang="ts">
 import {
-  defineComponent, ref, watch, Ref,
+  defineComponent, ref, watch, Ref, computed,
 } from 'vue';
 import draggable from 'vuedraggable';
-import { useAttributes, useConfiguration } from 'vue-media-annotator/provides';
+import { useAttributes, useConfiguration, useTrackFilters } from 'vue-media-annotator/provides';
+import { CustomUITrackListSettings } from 'vue-media-annotator/ConfigurationManager';
 import { shouldShowAttributeInCustomUI } from 'vue-media-annotator/use/attributeCustomUI';
 
 interface AttributeButtonOrderItem {
@@ -19,6 +20,7 @@ export default defineComponent({
   setup() {
     const configMan = useConfiguration();
     const attributes = useAttributes();
+    const allTypesRef = useTrackFilters().allTypes;
     const UIContextBarDefaultNotOpen = ref(configMan.getUISetting('UIContextBarDefaultNotOpen') as boolean);
     const UIContextBarNotStatic = ref(configMan.getUISetting('UIContextBarNotStatic') as boolean);
     const UIThresholdControls = ref(configMan.getUISetting('UIThresholdControls') as boolean);
@@ -36,7 +38,50 @@ export default defineComponent({
     const customUIAttributeButtonOrder = ref<string[]>(
       [...(configMan.configuration.value?.customUI?.attributeButtonOrder || [])],
     );
+    const trackListEnabled = ref(!!configMan.configuration.value?.customUI?.trackList);
+    const trackListTitle = ref(configMan.configuration.value?.customUI?.trackList?.title || 'Tracks');
+    const trackListDefaultExpanded = ref(
+      configMan.configuration.value?.customUI?.trackList?.defaultExpanded ?? false,
+    );
+    const trackListPosition = ref<'above' | 'below'>(
+      configMan.configuration.value?.customUI?.trackList?.position || 'below',
+    );
+    const trackListTypeFilter = ref<string[]>(
+      [...(configMan.configuration.value?.customUI?.trackList?.typeFilter || [])],
+    );
+    const trackListMaxHeight = ref(
+      configMan.configuration.value?.customUI?.trackList?.maxHeight ?? 240,
+    );
+    const trackListActionSelect = ref(
+      configMan.configuration.value?.customUI?.trackList?.actions?.select !== false,
+    );
+    const trackListActionEdit = ref(
+      configMan.configuration.value?.customUI?.trackList?.actions?.edit !== false,
+    );
+    const trackListActionDelete = ref(
+      configMan.configuration.value?.customUI?.trackList?.actions?.delete !== false,
+    );
+    const trackListShowType = ref(
+      configMan.configuration.value?.customUI?.trackList?.display?.showType !== false,
+    );
+    const trackListShowFrameRange = ref(
+      configMan.configuration.value?.customUI?.trackList?.display?.showFrameRange !== false,
+    );
+    const trackListShowTrackId = ref(
+      configMan.configuration.value?.customUI?.trackList?.display?.showTrackId !== false,
+    );
+    const trackListShowEditingStatus = ref(
+      configMan.configuration.value?.customUI?.trackList?.showEditingStatus !== false,
+    );
+    const trackListEditingStatusTitle = ref(
+      configMan.configuration.value?.customUI?.trackList?.editingStatusTitle || 'Current Mode',
+    );
     const attributeButtonOrderList: Ref<AttributeButtonOrderItem[]> = ref([]);
+
+    const trackListTypeSuggestions = computed(() => {
+      const suggestions = new Set([...allTypesRef.value, ...trackListTypeFilter.value]);
+      return Array.from(suggestions).sort();
+    });
 
     watch([UIThresholdControls, UIImageEnhancements,
       UIGroupManager, UIAttributeDetails, UIRevisionHistory, UIDatasetInfo, UIAttributeUserReview, UIContextBarDefaultNotOpen, UIContextBarNotStatic], () => {
@@ -96,10 +141,55 @@ export default defineComponent({
       syncAttributeButtonOrderList();
     }, { deep: true, immediate: true });
 
-    watch([CustomUIEnabled, customUITitle, customUIInformation, customUIWidth, customUIAttributeButtonOrder], () => {
+    watch([
+      CustomUIEnabled,
+      customUITitle,
+      customUIInformation,
+      customUIWidth,
+      customUIAttributeButtonOrder,
+      trackListEnabled,
+      trackListTitle,
+      trackListDefaultExpanded,
+      trackListPosition,
+      trackListTypeFilter,
+      trackListMaxHeight,
+      trackListActionSelect,
+      trackListActionEdit,
+      trackListActionDelete,
+      trackListShowType,
+      trackListShowFrameRange,
+      trackListShowTrackId,
+      trackListShowEditingStatus,
+      trackListEditingStatusTitle,
+    ], () => {
       if (!CustomUIEnabled.value) {
         configMan.setCustomUI(undefined);
         return;
+      }
+      let trackList: CustomUITrackListSettings | undefined;
+      if (trackListEnabled.value) {
+        trackList = {
+          enabled: true,
+          title: trackListTitle.value,
+          defaultExpanded: trackListDefaultExpanded.value || undefined,
+          position: trackListPosition.value !== 'below' ? trackListPosition.value : undefined,
+          typeFilter: trackListTypeFilter.value.length ? trackListTypeFilter.value : undefined,
+          maxHeight: trackListMaxHeight.value !== 240 ? trackListMaxHeight.value : undefined,
+          actions: {
+            select: trackListActionSelect.value ? undefined : false,
+            edit: trackListActionEdit.value ? undefined : false,
+            delete: trackListActionDelete.value ? undefined : false,
+          },
+          display: {
+            showType: trackListShowType.value ? undefined : false,
+            showFrameRange: trackListShowFrameRange.value ? undefined : false,
+            showTrackId: trackListShowTrackId.value ? undefined : false,
+          },
+          showEditingStatus: trackListShowEditingStatus.value ? undefined : false,
+          editingStatusTitle: trackListEditingStatusTitle.value !== 'Current Mode'
+            ? trackListEditingStatusTitle.value
+            : undefined,
+        };
       }
       const data = {
         title: customUITitle.value,
@@ -108,6 +198,7 @@ export default defineComponent({
         attributeButtonOrder: customUIAttributeButtonOrder.value.length
           ? customUIAttributeButtonOrder.value
           : undefined,
+        trackList,
       };
       configMan.setCustomUI(data);
     }, { deep: true });
@@ -130,6 +221,22 @@ export default defineComponent({
       addNewInformation,
       removeInformation,
       UIAttributeUserReview,
+      trackListEnabled,
+      trackListTitle,
+      trackListDefaultExpanded,
+      trackListPosition,
+      trackListTypeFilter,
+      trackListMaxHeight,
+      trackListActionSelect,
+      trackListActionEdit,
+      trackListActionDelete,
+      trackListShowType,
+      trackListShowFrameRange,
+      trackListShowTrackId,
+      trackListShowEditingStatus,
+      trackListEditingStatusTitle,
+      trackListTypeSuggestions,
+      allTypesRef,
     };
   },
 
@@ -265,6 +372,133 @@ export default defineComponent({
                     </v-col>
                   </v-row>
                 </draggable>
+              </v-expansion-panel-content>
+            </v-expansion-panel>
+          </v-expansion-panels>
+          <v-expansion-panels class="mt-3" flat>
+            <v-expansion-panel>
+              <v-expansion-panel-header>
+                Track list
+              </v-expansion-panel-header>
+              <v-expansion-panel-content>
+                <v-switch
+                  v-model="trackListEnabled"
+                  label="Enable track list"
+                  class="mt-0"
+                />
+                <template v-if="trackListEnabled">
+                  <v-text-field
+                    v-model="trackListTitle"
+                    label="Panel title"
+                    dense
+                    outlined
+                  />
+                  <v-switch
+                    v-model="trackListDefaultExpanded"
+                    label="Expanded by default"
+                  />
+                  <v-select
+                    v-model="trackListPosition"
+                    :items="[
+                      { text: 'Above action buttons', value: 'above' },
+                      { text: 'Below action buttons', value: 'below' },
+                    ]"
+                    item-text="text"
+                    item-value="value"
+                    label="Position relative to action buttons"
+                    dense
+                    outlined
+                  />
+                  <v-combobox
+                    v-model="trackListTypeFilter"
+                    :items="trackListTypeSuggestions"
+                    label="Track types"
+                    multiple
+                    chips
+                    deletable-chips
+                    small-chips
+                    dense
+                    outlined
+                    hint="Select existing types or type a new name and press Enter"
+                    persistent-hint
+                  />
+                  <v-text-field
+                    v-model.number="trackListMaxHeight"
+                    label="Max list height (px)"
+                    type="number"
+                    dense
+                    outlined
+                  />
+                  <p class="text-caption mb-1">
+                    Row actions
+                  </p>
+                  <v-row dense>
+                    <v-col cols="4">
+                      <v-switch
+                        v-model="trackListActionSelect"
+                        label="Select"
+                        dense
+                        hide-details
+                      />
+                    </v-col>
+                    <v-col cols="4">
+                      <v-switch
+                        v-model="trackListActionEdit"
+                        label="Edit"
+                        dense
+                        hide-details
+                      />
+                    </v-col>
+                    <v-col cols="4">
+                      <v-switch
+                        v-model="trackListActionDelete"
+                        label="Delete"
+                        dense
+                        hide-details
+                      />
+                    </v-col>
+                  </v-row>
+                  <p class="text-caption mb-1">
+                    Row display
+                  </p>
+                  <v-row dense>
+                    <v-col cols="4">
+                      <v-switch
+                        v-model="trackListShowTrackId"
+                        label="Track ID"
+                        dense
+                        hide-details
+                      />
+                    </v-col>
+                    <v-col cols="4">
+                      <v-switch
+                        v-model="trackListShowType"
+                        label="Type"
+                        dense
+                        hide-details
+                      />
+                    </v-col>
+                    <v-col cols="4">
+                      <v-switch
+                        v-model="trackListShowFrameRange"
+                        label="Frame range"
+                        dense
+                        hide-details
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-switch
+                    v-model="trackListShowEditingStatus"
+                    label="Show editing status / instructions"
+                  />
+                  <v-text-field
+                    v-if="trackListShowEditingStatus"
+                    v-model="trackListEditingStatusTitle"
+                    label="Editing status title"
+                    dense
+                    outlined
+                  />
+                </template>
               </v-expansion-panel-content>
             </v-expansion-panel>
           </v-expansion-panels>
