@@ -487,17 +487,34 @@ export default defineComponent({
                       />
                     </v-col>
                   </v-row>
-                  <v-switch
-                    v-model="trackListShowEditingStatus"
-                    label="Show editing status / instructions"
-                  />
-                  <v-text-field
-                    v-if="trackListShowEditingStatus"
-                    v-model="trackListEditingStatusTitle"
-                    label="Editing status title"
-                    dense
-                    outlined
-                  />
+                  <p class="text-caption mb-1 mt-2">
+                    Editing behavior
+                  </p>
+                  <v-row dense>
+                    <v-col cols="12">
+                      <v-switch
+                        v-model="trackListShowEditingStatus"
+                        label="Show editing status / instructions"
+                        dense
+                        hide-details
+                        class="mt-0"
+                      />
+                    </v-col>
+                    <v-col
+                      v-if="trackListShowEditingStatus"
+                      cols="12"
+                      class="pt-0"
+                    >
+                      <v-text-field
+                        v-model="trackListEditingStatusTitle"
+                        label="Editing status title"
+                        dense
+                        outlined
+                        hide-details
+                        class="mt-0"
+                      />
+                    </v-col>
+                  </v-row>
                 </template>
               </v-expansion-panel-content>
             </v-expansion-panel>

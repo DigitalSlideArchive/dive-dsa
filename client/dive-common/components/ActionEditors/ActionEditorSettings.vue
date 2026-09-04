@@ -103,7 +103,7 @@ export default defineComponent({
             type: 'CreateTrackAction',
             geometryType: 'rectangle',
             editableType: true,
-            selectTrackAfter: true,
+            selectTrackAfter: 'previousTrack',
           },
         };
       }
