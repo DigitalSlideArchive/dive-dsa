@@ -43,6 +43,40 @@ export interface GoToFrameAction{
     type: 'GoToFrame';
 }
 
+export type CreateTrackAfterSelection = 'newTrack' | 'previousTrack' | 'none';
+
+export const CREATE_TRACK_AFTER_SELECTION_OPTIONS: {
+  value: CreateTrackAfterSelection;
+  label: string;
+}[] = [
+  { value: 'newTrack', label: 'Keep new track selected' },
+  { value: 'previousTrack', label: 'Restore previously selected track' },
+  { value: 'none', label: 'Clear selection' },
+];
+
+export function normalizeCreateTrackAfterSelection(
+  value: boolean | CreateTrackAfterSelection | undefined,
+): CreateTrackAfterSelection {
+  if (value === 'newTrack' || value === 'previousTrack' || value === 'none') {
+    return value;
+  }
+  if (value === true) {
+    return 'newTrack';
+  }
+  if (value === false) {
+    return 'previousTrack';
+  }
+  return 'previousTrack';
+}
+
+export function getCreateTrackAfterSelectionLabel(
+  value: boolean | CreateTrackAfterSelection | undefined,
+): string {
+  const normalized = normalizeCreateTrackAfterSelection(value);
+  return CREATE_TRACK_AFTER_SELECTION_OPTIONS.find((item) => item.value === normalized)?.label
+    || normalized;
+}
+
 export interface CreateTrackAction {
   type: 'CreateTrackAction'; // trackType
   trackType?: string;
@@ -51,7 +85,7 @@ export interface CreateTrackAction {
   editableTypeList?: string[];
   editableTitle?: string;
   editableText?: string;
-  selectTrackAfter: boolean;
+  selectTrackAfter: boolean | CreateTrackAfterSelection;
 }
 
 export interface CreateFullFrameTrackAction {

@@ -478,7 +478,7 @@ export default defineComponent({
         visualMaskEditLayer.setType('rectangle');
         visualMaskEditLayer.setKey('');
         visualMaskEditLayer.changeData([visualMaskFrame]);
-        annotator.setImageCursor('mdi-vector-rectangle');
+        annotator.setImageCursor('mdi-vector-rectangle', true);
         rectAnnotationLayer.setDisableClicking(false);
       } else if (selectedTrackId !== null) {
         if ((editingTrack) && !(currentFrameIds || []).includes(selectedTrackId)
@@ -500,13 +500,15 @@ export default defineComponent({
           editingTracks.push(trackFrame);
         }
         if (editingTracks.length && editingTrack !== 'Mask') {
+          // These layers share the annotator cursor. Disable them before the
+          // active edit layer sets its cursor so they cannot clear it afterward.
+          visualMaskEditLayer.disable();
+          maskEditorLayer.disable();
           if (editingTrack) {
             editAnnotationLayer.setType(editingTrack);
             editAnnotationLayer.setKey(selectedKey);
             editAnnotationLayer.changeData(editingTracks);
           }
-          visualMaskEditLayer.disable();
-          maskEditorLayer.disable();
         } else if (editingTracks.length && editingTrack === 'Mask') {
           maskLayer.disable();
           visualMaskEditLayer.disable();

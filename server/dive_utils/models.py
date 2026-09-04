@@ -492,7 +492,7 @@ class CreateTrackAction(BaseModel):
     editableTitle: Optional[str]
     editableText: Optional[str]
     editableTypeList: Optional[List[str]]
-    selectTrackAfter: bool
+    selectTrackAfter: Union[bool, Literal['newTrack', 'previousTrack', 'none']]
     type: Literal['CreateTrackAction']
 
 
@@ -566,12 +566,38 @@ class TimelineConfiguration(BaseModel):
     timelines: List[TimelineDisplay]
 
 
+class CustomUITrackListActions(BaseModel):
+    select: Optional[bool]
+    edit: Optional[bool]
+    delete: Optional[bool]
+
+
+class CustomUITrackListDisplay(BaseModel):
+    showType: Optional[bool]
+    showFrameRange: Optional[bool]
+    showTrackId: Optional[bool]
+
+
+class CustomUITrackListSettings(BaseModel):
+    enabled: Optional[bool]
+    title: Optional[str]
+    defaultExpanded: Optional[bool]
+    position: Optional[Literal['above', 'below']]
+    typeFilter: Optional[List[str]]
+    maxHeight: Optional[int]
+    actions: Optional[CustomUITrackListActions]
+    display: Optional[CustomUITrackListDisplay]
+    showEditingStatus: Optional[bool]
+    editingStatusTitle: Optional[str]
+
+
 class CustomUISettings(BaseModel):
     title: Optional[str]
     information: Optional[List[str]]
     width: Optional[int]
     # Attribute keys (`{belongs}_{name}`) controlling Custom UI attribute button group order
     attributeButtonOrder: Optional[List[str]]
+    trackList: Optional[CustomUITrackListSettings]
 
 
 class VisualMask(BaseModel):

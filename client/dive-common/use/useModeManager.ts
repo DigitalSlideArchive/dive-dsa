@@ -25,8 +25,10 @@ import {
   CreateTrackAction,
   DIVEAction,
   DIVEMetadataAction,
+  normalizeCreateTrackAfterSelection,
 } from 'dive-common/use/useActions';
 import { deleteDiveDatasetMetadataKey, setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
+import { computeEditingDetails } from 'dive-common/use/editingModeInstructions';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -132,7 +134,25 @@ export default function useModeManager({
 
   const selectNextGroup = (delta = 1) => selectNext(_filteredGroups.value, editingGroupId.value, delta);
 
-  let afterCreateTrackAction: { selectPreviousTrack?: number } | null = null;
+  type AfterCreateTrackActionState =
+    | { mode: 'previousTrack'; trackId: AnnotationId }
+    | { mode: 'none' }
+    | null;
+
+  let afterCreateTrackAction: AfterCreateTrackActionState = null;
+
+  function applyAfterCreateTrackAction(): boolean {
+    if (!afterCreateTrackAction) {
+      return false;
+    }
+    if (afterCreateTrackAction.mode === 'previousTrack') {
+      selectTrack(afterCreateTrackAction.trackId, false);
+    } else if (afterCreateTrackAction.mode === 'none') {
+      handleSelectTrack(null, false);
+    }
+    afterCreateTrackAction = null;
+    return true;
+  }
 
   function selectTrack(trackId: AnnotationId | null, edit = false) {
     selectedTrackId.value = trackId;
@@ -154,28 +174,21 @@ export default function useModeManager({
   // What is occuring in editing mode
   const editingDetails = computed(() => {
     _depend();
-    if (editingMode.value && selectedTrackId.value !== null) {
-      const { frame } = aggregateController.value;
-      try {
-        const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-        if (track) {
-          const [feature] = track.getFeature(frame.value);
-          if (feature) {
-            if (!feature?.bounds?.length) {
-              return 'Creating';
-            } if (annotationModes.editing === 'rectangle' || annotationModes.editing === 'Time') {
-              return 'Editing';
-            }
-            return (feature.geometry?.features.filter((item) => item.geometry.type === annotationModes.editing).length ? 'Editing' : 'Creating');
-          }
-          return 'Creating';
-        }
-      } catch {
-      // No Track for this camera
-        return 'disabled';
-      }
+    if (!editingMode.value || selectedTrackId.value === null) {
+      return 'disabled' as const;
     }
-    return 'disabled';
+    try {
+      const { frame } = aggregateController.value;
+      return computeEditingDetails(
+        true,
+        selectedTrackId.value,
+        annotationModes.editing,
+        frame.value,
+        (trackId) => cameraStore.getPossibleTrack(trackId, selectedCamera.value),
+      );
+    } catch {
+      return 'disabled' as const;
+    }
   });
 
   let deleteLocalMasks: (((trackId: AnnotationId, frameList: number[]) => void) | null) = null;
@@ -333,9 +346,7 @@ export default function useModeManager({
     linkingTrack.value = null;
     multiSelectList.value = [];
     handleGroupEdit(null);
-    if (afterCreateTrackAction && afterCreateTrackAction.selectPreviousTrack !== undefined) {
-      selectTrack(afterCreateTrackAction.selectPreviousTrack, false);
-      afterCreateTrackAction = null;
+    if (applyAfterCreateTrackAction()) {
       return;
     }
     handleSelectTrack(null, false);
@@ -376,10 +387,7 @@ export default function useModeManager({
     let newCreatingValue = false; // by default, disable creating at the end of this function
     if (creating) {
       if (addedTrack && afterCreateTrackAction) {
-        if (afterCreateTrackAction.selectPreviousTrack !== undefined) {
-          selectTrack(afterCreateTrackAction.selectPreviousTrack, false);
-        }
-        afterCreateTrackAction = null;
+        applyAfterCreateTrackAction();
       } else if (addedTrack && trackSettings.value.newTrackSettings !== null) {
         if (trackSettings.value.newTrackSettings.mode === 'Track'
         && trackSettings.value.newTrackSettings.modeSettings.Track.autoAdvanceFrame
@@ -891,9 +899,12 @@ export default function useModeManager({
       }
 
       const currentlySelectedTrackId = selectedTrackId.value;
+      const afterSelection = normalizeCreateTrackAfterSelection(createtrackAction.selectTrackAfter);
       handleEscapeMode();
-      if (currentlySelectedTrackId !== null) {
-        afterCreateTrackAction = { selectPreviousTrack: currentlySelectedTrackId };
+      if (afterSelection === 'previousTrack' && currentlySelectedTrackId !== null) {
+        afterCreateTrackAction = { mode: 'previousTrack', trackId: currentlySelectedTrackId };
+      } else if (afterSelection === 'none') {
+        afterCreateTrackAction = { mode: 'none' };
       }
 
       const { frame } = aggregateController.value;

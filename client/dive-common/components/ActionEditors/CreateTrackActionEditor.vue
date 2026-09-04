@@ -4,7 +4,11 @@ import {
   watch,
 } from 'vue';
 import { EditAnnotationTypes } from 'vue-media-annotator/layers/';
-import { CreateTrackAction } from 'dive-common/use/useActions';
+import {
+  CreateTrackAction,
+  CREATE_TRACK_AFTER_SELECTION_OPTIONS,
+  normalizeCreateTrackAfterSelection,
+} from 'dive-common/use/useActions';
 
 export default defineComponent({
   name: 'CreateTrackActionEditor',
@@ -17,12 +21,16 @@ export default defineComponent({
   emits: ['update:action', 'cancel'],
   setup(props, { emit }) {
     const geometryTypes: EditAnnotationTypes[] = ['Point', 'rectangle', 'Polygon', 'LineString', 'Time'];
-    const localAction = ref({ ...props.action });
-    const editableTypeListEnabled = ref(false);
-    const editableTypeList: Ref<string> = ref('');
+    const localAction = ref({
+      ...props.action,
+      selectTrackAfter: normalizeCreateTrackAfterSelection(props.action.selectTrackAfter),
+    });
+    const editableTypeListEnabled = ref(!!props.action.editableTypeList?.length);
+    const editableTypeList: Ref<string> = ref((props.action.editableTypeList || []).join(', '));
     watch(editableTypeList, () => {
       localAction.value.editableTypeList = editableTypeList.value.split(',').map((type) => type.trim());
     });
+    const afterSelectionOptions = CREATE_TRACK_AFTER_SELECTION_OPTIONS;
     const cancel = () => {
       emit('cancel');
     };
@@ -34,6 +42,7 @@ export default defineComponent({
       geometryTypes,
       editableTypeList,
       editableTypeListEnabled,
+      afterSelectionOptions,
       cancel,
       save,
     };
@@ -121,12 +130,22 @@ export default defineComponent({
           dense
         />
 
-        <!-- Select Track After -->
-        <v-checkbox
+        <div class="text-subtitle-2 mt-3 mb-1">
+          After track creation
+        </div>
+        <v-radio-group
           v-model="localAction.selectTrackAfter"
-          label="Select Track After"
-          class="mt-2"
-        />
+          dense
+          hide-details
+          class="mt-0"
+        >
+          <v-radio
+            v-for="option in afterSelectionOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
+        </v-radio-group>
       </v-card-text>
       <v-card-actions>
         <v-row dense>

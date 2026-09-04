@@ -157,6 +157,7 @@ export default class MaskEditorLayer {
           this.color = 'transparent';
         }
       }
+      this.updateImageCursor();
     });
     this.featureLayer.opacity(editorOptions.opacity.value / 100.0);
     watch(editorOptions.opacity, () => {
@@ -293,6 +294,21 @@ export default class MaskEditorLayer {
         this.color = 'transparent';
       }
     }
+    this.updateImageCursor();
+  }
+
+  updateImageCursor() {
+    if (!this.enabled) {
+      return;
+    }
+    const tool = this.editorOptionsRef.toolEnabled.value;
+    if (tool === 'pointer') {
+      this.annotator.setImageCursor('');
+    } else if (tool === 'brush') {
+      this.annotator.setImageCursor('mdi-brush-outline', false);
+    } else if (tool === 'eraser') {
+      this.annotator.setImageCursor('mdi-eraser', true);
+    }
   }
 
   drawBrushIcon(x: number, y: number) {
@@ -363,5 +379,6 @@ export default class MaskEditorLayer {
     this.trackId = null;
     this.frameId = null;
     this.enabled = false;
+    this.annotator.setImageCursor('');
   }
 }
