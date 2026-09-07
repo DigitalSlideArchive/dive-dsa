@@ -899,7 +899,8 @@ export default defineComponent({
             component: RevisionHistoryVue,
           });
         }
-        if (configurationManager.configuration.value?.customUI) {
+        if (configurationManager.getUISetting('UICustomUI')
+          && configurationManager.configuration.value?.customUI) {
           context.register({
             description: configurationManager.configuration.value.customUI.title || 'CustomUI',
             width: configurationManager.configuration.value.customUI.width,

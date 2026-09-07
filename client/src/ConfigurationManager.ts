@@ -114,6 +114,7 @@ export interface UISettings {
     UIToolBar?: boolean | UIToolBar;
     UISideBar?: boolean | UISideBar;
     UIContextBar?: boolean | UIContextBar;
+    UICustomUI?: boolean;
     UITrackDetails?: boolean | UITrackDetails;
     UIControls?: boolean | UIControls;
     UITimeline?: boolean | UITimeline;
@@ -515,6 +516,7 @@ export default class ConfigurationManager {
         UIToolBar: true,
         UISideBar: true,
         UIContextBar: true,
+        UICustomUI: true,
         UITrackDetails: true,
         UIControls: true,
         UITimeline: true,
