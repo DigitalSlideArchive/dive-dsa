@@ -584,6 +584,7 @@ class CustomUITrackListSettings(BaseModel):
     defaultExpanded: Optional[bool]
     position: Optional[Literal['above', 'below']]
     typeFilter: Optional[List[str]]
+    filterCurrentFrame: Optional[bool]
     maxHeight: Optional[int]
     actions: Optional[CustomUITrackListActions]
     display: Optional[CustomUITrackListDisplay]

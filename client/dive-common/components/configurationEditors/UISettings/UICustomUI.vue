@@ -57,6 +57,9 @@ export default defineComponent({
     const trackListTypeFilter = ref<string[]>(
       [...(configMan.configuration.value?.customUI?.trackList?.typeFilter || [])],
     );
+    const trackListFilterCurrentFrame = ref(
+      configMan.configuration.value?.customUI?.trackList?.filterCurrentFrame ?? false,
+    );
     const trackListMaxHeight = ref(
       configMan.configuration.value?.customUI?.trackList?.maxHeight ?? 240,
     );
@@ -149,6 +152,7 @@ export default defineComponent({
       trackListDefaultExpanded,
       trackListPosition,
       trackListTypeFilter,
+      trackListFilterCurrentFrame,
       trackListMaxHeight,
       trackListActionSelect,
       trackListActionEdit,
@@ -176,6 +180,7 @@ export default defineComponent({
           defaultExpanded: trackListDefaultExpanded.value || undefined,
           position: trackListPosition.value !== 'below' ? trackListPosition.value : undefined,
           typeFilter: trackListTypeFilter.value.length ? trackListTypeFilter.value : undefined,
+          filterCurrentFrame: trackListFilterCurrentFrame.value || undefined,
           maxHeight: trackListMaxHeight.value !== 240 ? trackListMaxHeight.value : undefined,
           actions: {
             select: trackListActionSelect.value ? undefined : false,
@@ -220,6 +225,7 @@ export default defineComponent({
       trackListDefaultExpanded,
       trackListPosition,
       trackListTypeFilter,
+      trackListFilterCurrentFrame,
       trackListMaxHeight,
       trackListActionSelect,
       trackListActionEdit,
@@ -355,12 +361,19 @@ export default defineComponent({
                   hint="Select existing types or type a new name and press Enter"
                   persistent-hint
                 />
+                <v-switch
+                  v-model="trackListFilterCurrentFrame"
+                  label="Filter to current frame by default"
+                  dense
+                  hide-details
+                />
                 <v-text-field
                   v-model.number="trackListMaxHeight"
                   label="Max list height (px)"
                   type="number"
                   dense
                   outlined
+                  class="mt-2"
                 />
                 <p class="text-caption mb-1">
                   Row actions

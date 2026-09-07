@@ -1,4 +1,6 @@
-import { computed, Ref } from 'vue';
+import {
+  computed, Ref, ref, watch,
+} from 'vue';
 import { intersection } from 'lodash';
 import { CustomUITrackListSettings } from 'vue-media-annotator/ConfigurationManager';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
@@ -9,12 +11,17 @@ import {
   useSelectedTrackId,
   useTrackFilters,
   useEditingMode,
+  useTime,
 } from 'vue-media-annotator/provides';
 
 export interface CustomUITrackListEntry {
   track: Track;
   trackId: AnnotationId;
   trackType: string;
+}
+
+function trackMatchesCurrentFrame(track: Track, frame: number): boolean {
+  return frame >= track.begin && frame <= track.end;
 }
 
 function trackMatchesTypeFilter(track: Track, typeFilter: string[]): boolean {
@@ -31,6 +38,7 @@ function resolveSettings(settings: CustomUITrackListSettings | undefined) {
     title: settings?.title || 'Tracks',
     defaultExpanded: settings?.defaultExpanded ?? false,
     typeFilter: settings?.typeFilter || [],
+    filterCurrentFrame: settings?.filterCurrentFrame ?? false,
     maxHeight: settings?.maxHeight ?? 240,
     actions: {
       select: settings?.actions?.select !== false,
@@ -54,15 +62,33 @@ export default function useCustomUITrackList(settingsRef: Ref<CustomUITrackListS
   const selectedTrackIdRef = useSelectedTrackId();
   const editingModeRef = useEditingMode();
   const readOnlyMode = useReadOnlyMode();
+  const { frame: frameRef } = useTime();
   const resolvedSettings = computed(() => resolveSettings(settingsRef.value));
+  const filterCurrentFrame = ref(resolvedSettings.value.filterCurrentFrame);
+
+  watch(
+    () => resolvedSettings.value.filterCurrentFrame,
+    (enabled) => {
+      filterCurrentFrame.value = enabled;
+    },
+  );
 
   const filteredTracks = computed((): CustomUITrackListEntry[] => {
     const { typeFilter } = resolvedSettings.value;
     if (!typeFilter.length) {
       return [];
     }
+    const frame = frameRef.value;
     return trackFilters.filteredAnnotations.value
-      .filter((item) => trackMatchesTypeFilter(item.annotation, typeFilter))
+      .filter((item) => {
+        if (!trackMatchesTypeFilter(item.annotation, typeFilter)) {
+          return false;
+        }
+        if (filterCurrentFrame.value) {
+          return trackMatchesCurrentFrame(item.annotation, frame);
+        }
+        return true;
+      })
       .map((item) => {
         const confidencePair = item.annotation.getType(item.context.confidencePairIndex);
         return {
@@ -120,6 +146,7 @@ export default function useCustomUITrackList(settingsRef: Ref<CustomUITrackListS
   return {
     resolvedSettings,
     filteredTracks,
+    filterCurrentFrame,
     readOnlyMode,
     isSelected,
     isEditing,

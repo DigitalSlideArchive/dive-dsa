@@ -149,6 +149,8 @@ export interface CustomUITrackListSettings {
   /** Position relative to DIVE action shortcut buttons */
   position?: 'above' | 'below';
   typeFilter?: string[];
+  /** When true, only show tracks whose frame range includes the current frame */
+  filterCurrentFrame?: boolean;
   maxHeight?: number;
   actions?: {
     select?: boolean;
