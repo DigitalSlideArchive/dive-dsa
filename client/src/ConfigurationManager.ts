@@ -161,6 +161,8 @@ export interface CustomUITrackListSettings {
   };
   showEditingStatus?: boolean;
   editingStatusTitle?: string;
+  /** Select this track when editing or creating from the track list finishes */
+  returnToTrackId?: number;
 }
 
 export interface CustomUISettings {

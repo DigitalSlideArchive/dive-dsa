@@ -10,7 +10,8 @@ import CustomUIAttributeValueDisplay from 'dive-common/components/CustomUI/Custo
 import CustomUITrackList from 'dive-common/components/CustomUI/CustomUITrackList.vue';
 import CustomUIEditingStatus from 'dive-common/components/CustomUI/CustomUIEditingStatus.vue';
 import {
-  useAttributes, useCameraStore, useConfiguration, useSelectedTrackId, useTime,
+  useAttributes, useCameraStore, useConfiguration, useEditingGroupId, useMultiSelectList,
+  useSelectedTrackId, useTime,
   useHandler, useTrackStyleManager,
 } from 'vue-media-annotator/provides';
 import AttributeSubsection from 'dive-common/components/Attributes/AttributesSubsection.vue';
@@ -99,6 +100,8 @@ export default defineComponent({
     const store = useStore();
     const cameraStore = useCameraStore();
     const selectedTrackIdRef = useSelectedTrackId();
+    const editingGroupIdRef = useEditingGroupId();
+    const multiSelectListRef = useMultiSelectList();
     const systemHandler = useHandler();
     const { updateAttributeMetadataLink } = useMetadataLinkUpdater();
     const panelExpanded: Ref<Record<string, number | undefined>> = ref({});
@@ -566,8 +569,22 @@ export default defineComponent({
               prependIcon: item.button.iconPrepend,
               appendIcon: item.button.iconAppend,
               action: () => {
+                const returnToTrackId = trackListSettings.value?.returnToTrackId;
+                const hasCreateTrackAction = item.actions.some(
+                  (action: DIVEAction) => action.action.type === 'CreateTrackAction'
+                    || action.action.type === 'CreateFullFrameTrackAction',
+                );
+                const processOptions = returnToTrackId != null && hasCreateTrackAction
+                  ? { returnToTrackId }
+                  : undefined;
                 item.actions.forEach((action: DIVEAction) => {
-                  systemHandler.processAction(action, true, { frame: frameRef.value }, user);
+                  systemHandler.processAction(
+                    action,
+                    true,
+                    { frame: frameRef.value },
+                    user,
+                    processOptions,
+                  );
                 });
               },
             });
@@ -728,6 +745,24 @@ export default defineComponent({
     watch([attributeButtons, frameRef, selectedTrackIdRef], () => {
       updateButtonMap();
     }, { immediate: true });
+
+    watch(selectedTrackIdRef, (newTrackId, oldTrackId) => {
+      const returnToTrackId = trackListSettings.value?.returnToTrackId;
+      if (
+        !trackListEnabled.value
+        || newTrackId !== null
+        || returnToTrackId == null
+        || oldTrackId == null
+        || editingGroupIdRef.value !== null
+        || multiSelectListRef.value.length > 0
+      ) {
+        return;
+      }
+      const track = cameraStore.getAnyPossibleTrack(returnToTrackId);
+      if (track) {
+        systemHandler.trackSeek(returnToTrackId);
+      }
+    });
 
     const getDisplayValueEntry = (attributeGroup: AttributeButtons) => {
       const existing = buttonValueMap.value[attributeGroup.attrName];

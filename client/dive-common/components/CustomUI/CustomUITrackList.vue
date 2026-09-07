@@ -3,7 +3,6 @@ import {
   defineComponent, PropType, ref, toRef, watch,
 } from 'vue';
 import { CustomUITrackListSettings } from 'vue-media-annotator/ConfigurationManager';
-import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
 import { useTrackStyleManager } from 'vue-media-annotator/provides';
 import useCustomUITrackList from './useCustomUITrackList';
 
@@ -25,7 +24,7 @@ export default defineComponent({
       readOnlyMode,
       isSelected,
       isEditing,
-      selectTrack,
+      onRowClick,
       editTrack,
       deleteTrack,
     } = useCustomUITrackList(settingsRef);
@@ -38,12 +37,6 @@ export default defineComponent({
       { immediate: true },
     );
 
-    const onRowClick = (trackId: AnnotationId) => {
-      if (resolvedSettings.value.actions.select) {
-        selectTrack(trackId);
-      }
-    };
-
     return {
       panelExpanded,
       resolvedSettings,
@@ -52,7 +45,6 @@ export default defineComponent({
       typeStylingRef,
       isSelected,
       isEditing,
-      selectTrack,
       editTrack,
       deleteTrack,
       onRowClick,

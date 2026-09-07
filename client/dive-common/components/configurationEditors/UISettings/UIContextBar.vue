@@ -12,6 +12,17 @@ interface AttributeButtonOrderItem {
   label: string;
 }
 
+function normalizeReturnToTrackId(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) {
+    return undefined;
+  }
+  return Math.trunc(num);
+}
+
 export default defineComponent({
   name: 'UIContextBar',
   components: {
@@ -75,6 +86,10 @@ export default defineComponent({
     );
     const trackListEditingStatusTitle = ref(
       configMan.configuration.value?.customUI?.trackList?.editingStatusTitle || 'Current Mode',
+    );
+    const trackListReturnToTrackId = ref<number | null>(
+      normalizeReturnToTrackId(configMan.configuration.value?.customUI?.trackList?.returnToTrackId)
+        ?? null,
     );
     const attributeButtonOrderList: Ref<AttributeButtonOrderItem[]> = ref([]);
 
@@ -161,11 +176,13 @@ export default defineComponent({
       trackListShowTrackId,
       trackListShowEditingStatus,
       trackListEditingStatusTitle,
+      trackListReturnToTrackId,
     ], () => {
       if (!CustomUIEnabled.value) {
         configMan.setCustomUI(undefined);
         return;
       }
+      const normalizedReturnToTrackId = normalizeReturnToTrackId(trackListReturnToTrackId.value);
       let trackList: CustomUITrackListSettings | undefined;
       if (trackListEnabled.value) {
         trackList = {
@@ -189,6 +206,7 @@ export default defineComponent({
           editingStatusTitle: trackListEditingStatusTitle.value !== 'Current Mode'
             ? trackListEditingStatusTitle.value
             : undefined,
+          returnToTrackId: normalizedReturnToTrackId,
         };
       }
       const data = {
@@ -201,7 +219,7 @@ export default defineComponent({
         trackList,
       };
       configMan.setCustomUI(data);
-    }, { deep: true });
+    }, { deep: true, immediate: true });
 
     return {
       UIContextBarDefaultNotOpen,
@@ -235,6 +253,7 @@ export default defineComponent({
       trackListShowTrackId,
       trackListShowEditingStatus,
       trackListEditingStatusTitle,
+      trackListReturnToTrackId,
       trackListTypeSuggestions,
       allTypesRef,
     };
@@ -515,6 +534,18 @@ export default defineComponent({
                       />
                     </v-col>
                   </v-row>
+                  <v-text-field
+                    v-model.number="trackListReturnToTrackId"
+                    label="Return to track ID after edit/create"
+                    type="number"
+                    dense
+                    outlined
+                    clearable
+                    hide-details
+                    class="mt-2"
+                    hint="When set, deselecting or finishing edit/create returns to this track"
+                    persistent-hint
+                  />
                 </template>
               </v-expansion-panel-content>
             </v-expansion-panel>

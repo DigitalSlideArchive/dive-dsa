@@ -44,6 +44,7 @@ function resolveSettings(settings: CustomUITrackListSettings | undefined) {
     },
     showEditingStatus: settings?.showEditingStatus !== false,
     editingStatusTitle: settings?.editingStatusTitle || 'Current Mode',
+    returnToTrackId: settings?.returnToTrackId,
   };
 }
 
@@ -82,8 +83,34 @@ export default function useCustomUITrackList(settingsRef: Ref<CustomUITrackListS
     handler.trackSeek(trackId);
   };
 
+  const selectReturnToTrackIfConfigured = () => {
+    const { returnToTrackId } = resolvedSettings.value;
+    if (returnToTrackId != null) {
+      selectTrack(returnToTrackId);
+      return true;
+    }
+    return false;
+  };
+
+  const onRowClick = (trackId: AnnotationId) => {
+    if (!resolvedSettings.value.actions.select) {
+      return;
+    }
+    if (isSelected(trackId)) {
+      if (!selectReturnToTrackIfConfigured()) {
+        handler.trackSelect(null, false);
+      }
+      return;
+    }
+    selectTrack(trackId);
+  };
+
   const editTrack = (trackId: AnnotationId) => {
-    handler.trackEdit(trackId);
+    const { returnToTrackId } = resolvedSettings.value;
+    const options = returnToTrackId != null && returnToTrackId !== trackId
+      ? { returnToTrackId }
+      : undefined;
+    handler.trackEdit(trackId, options);
   };
 
   const deleteTrack = (trackId: AnnotationId) => {
@@ -97,6 +124,7 @@ export default function useCustomUITrackList(settingsRef: Ref<CustomUITrackListS
     isSelected,
     isEditing,
     selectTrack,
+    onRowClick,
     editTrack,
     deleteTrack,
   };

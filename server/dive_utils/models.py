@@ -589,6 +589,7 @@ class CustomUITrackListSettings(BaseModel):
     display: Optional[CustomUITrackListDisplay]
     showEditingStatus: Optional[bool]
     editingStatusTitle: Optional[str]
+    returnToTrackId: Optional[int]
 
 
 class CustomUISettings(BaseModel):
