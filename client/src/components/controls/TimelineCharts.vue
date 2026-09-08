@@ -22,6 +22,7 @@ import {
   buildFilteredTimelineList,
   computeKeyPanelWidth,
   getSectionContentHeight,
+  getSectionRowHeight,
   getTimelineChartAreaInsets,
   isDetectionsTimeline,
   KeyPanelWidthOptions,
@@ -225,18 +226,29 @@ export default defineComponent({
       props.showKey ? Math.max(0, props.clientWidth - keyPanelWidth.value) : props.clientWidth
     ));
 
+    const hideTimelineSectionTitle = (timeline: TimelineDisplay) => (
+      shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value)
+    );
+
     const getTimelineHeight = (timeline: TimelineDisplay) => getSectionContentHeight(
       timeline,
       timelineList.value,
       props.clientHeight,
-      shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value),
+      hideTimelineSectionTitle(timeline),
+    );
+
+    const getTimelineRowHeight = (timeline: TimelineDisplay) => getSectionRowHeight(
+      timeline,
+      timelineList.value,
+      props.clientHeight,
+      hideTimelineSectionTitle(timeline),
     );
 
     const shouldShowTimelineHeader = (timeline: TimelineDisplay) => {
       if (!checkTimelineEnabled(timeline)) {
         return false;
       }
-      if (shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value)) {
+      if (hideTimelineSectionTitle(timeline)) {
         return false;
       }
       return true;
@@ -321,6 +333,7 @@ export default defineComponent({
       selectedTrackIdRef,
       timelineList,
       getTimelineHeight,
+      getTimelineRowHeight,
       checkTimelineEnabled,
       shouldShowTimelineHeader,
       keyPanelWidth,
@@ -348,7 +361,7 @@ export default defineComponent({
         <timeline-key-section
           v-if="showKey"
           :timeline="timeline"
-          :section-height="getTimelineHeight(timeline)"
+          :section-height="getTimelineRowHeight(timeline)"
           :key-panel-width="keyPanelWidth"
           :swimlane-scroll-offset="swimlaneScrollOffsets[timeline.name] || 0"
           :start-frame="startFrame"
@@ -359,7 +372,7 @@ export default defineComponent({
         />
         <div
           class="timeline-chart-cell"
-          :style="{ height: `${getTimelineHeight(timeline)}px` }"
+          :style="{ height: `${getTimelineRowHeight(timeline)}px` }"
         >
           <v-row
             v-if="timelineList.length > 0 && shouldShowTimelineHeader(timeline)"
@@ -376,7 +389,7 @@ export default defineComponent({
               v-if="timeline.dismissable"
               icon="mdi-close"
               tooltip-text="Hide Timeline"
-              @click="$emit('dismiss', { name: timeline.name, height: getTimelineHeight(timeline) })"
+              @click="$emit('dismiss', { name: timeline.name, height: getTimelineRowHeight(timeline) })"
             />
           </v-row>
 

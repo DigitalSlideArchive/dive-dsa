@@ -85,6 +85,22 @@ export function getSectionContentHeight(
   return timeline.maxHeight - headerDeduction;
 }
 
+/** Full row height including an optional section title above the chart area */
+export function getSectionRowHeight(
+  timeline: TimelineDisplay,
+  timelineList: TimelineDisplay[],
+  clientHeight: number,
+  hideSectionTitle = false,
+): number {
+  const contentHeight = getSectionContentHeight(
+    timeline,
+    timelineList,
+    clientHeight,
+    hideSectionTitle,
+  );
+  return contentHeight + (hideSectionTitle ? 0 : TIMELINE_SECTION_HEADER_HEIGHT);
+}
+
 export function buildFilteredTimelineList(
   configMan: { getActiveTimelineConfig: () => { timelines?: TimelineDisplay[] } | null },
   checkTimelineEnabled: (timeline: TimelineDisplay) => boolean,
