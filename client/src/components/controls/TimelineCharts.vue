@@ -12,6 +12,8 @@ import {
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
+import { DisplayTrackFilterSettings } from 'vue-media-annotator/use/AttributeTypes';
+import { requiresSelectedTrack } from 'vue-media-annotator/use/displayTrackFilterSettings';
 import TimelineKeySection from './TimelineKeySection.vue';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId, useTimelineFilters,
@@ -95,6 +97,7 @@ export default defineComponent({
     const {
       timelineEnabled, attributeTimelineData,
       swimlaneEnabled, swimlaneDisplaySettings, attributeSwimlaneData, swimlaneGraphs,
+      timelineGraphs,
     } = useAttributesFilters();
     const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     const selectedTrackIdRef = useSelectedTrackId();
@@ -246,6 +249,41 @@ export default defineComponent({
       };
     };
 
+    const getTimelineDisplaySettings = (
+      timeline: TimelineDisplay,
+    ): DisplayTrackFilterSettings | undefined => {
+      if (timeline.type === 'swimlane') {
+        return swimlaneDisplaySettings.value[timeline.name];
+      }
+      if (timeline.type === 'graph') {
+        return timelineGraphs.value[timeline.name]?.displaySettings;
+      }
+      return undefined;
+    };
+
+    const shouldShowTrackSelectionMessage = (timeline: TimelineDisplay) => {
+      if (!['swimlane', 'graph'].includes(timeline.type)) {
+        return false;
+      }
+      if (selectedTrackIdRef.value !== null) {
+        return false;
+      }
+      return requiresSelectedTrack(getTimelineDisplaySettings(timeline));
+    };
+
+    const shouldShowLegacyTrackSelectionMessage = (
+      viewName: string,
+      type: 'swimlane' | 'graph',
+    ) => {
+      if (selectedTrackIdRef.value !== null) {
+        return false;
+      }
+      const settings = type === 'swimlane'
+        ? swimlaneDisplaySettings.value[viewName]
+        : timelineGraphs.value[viewName]?.displaySettings;
+      return requiresSelectedTrack(settings);
+    };
+
     const legacyKeyKind = computed((): 'detections' | 'events' | 'groups' | 'graph' | 'swimlane' | 'filter' | '' => {
       if (timelineList.value.length) {
         return '';
@@ -291,6 +329,8 @@ export default defineComponent({
       onSwimlaneScroll,
       legacyKeyKind,
       isDetectionsTimeline,
+      shouldShowTrackSelectionMessage,
+      shouldShowLegacyTrackSelectionMessage,
     };
   },
 });
@@ -441,7 +481,7 @@ export default defineComponent({
             </span>
           </span>
           <div
-            v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
+            v-if="shouldShowTrackSelectionMessage(timeline)"
             :class="{ 'timeline-config': timelineList.length }"
             :style="{
               minHeight: `${getTimelineHeight(timeline)}px`,
@@ -539,7 +579,7 @@ export default defineComponent({
           </span>
         </span>
         <v-row
-          v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null"
+          v-else-if="enabledSwimlanes.includes(currentView) && shouldShowLegacyTrackSelectionMessage(currentView, 'swimlane')"
           class="d-flex align-center justify-center fill-height text-center"
         >
           <h3>Track needs to be selected to Show Attributes</h3>
@@ -571,7 +611,7 @@ export default defineComponent({
           </span>
         </span>
         <div
-          v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+          v-else-if="enabledTimelines.includes(currentView) && shouldShowLegacyTrackSelectionMessage(currentView, 'graph')"
           class="d-flex align-center justify-center fill-height text-center"
         >
           <h3>Track needs to be selected to Graph Attributes</h3>
@@ -595,7 +635,7 @@ export default defineComponent({
           </span>
         </span>
         <div
-          v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+          v-else-if="enabledSwimlanes.includes(currentView) && shouldShowLegacyTrackSelectionMessage(currentView, 'swimlane')"
           class="d-flex align-center justify-center fill-height text-center"
         >
           <h3>Track needs to be selected to show Swimlane Attributes</h3>

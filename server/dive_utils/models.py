@@ -219,8 +219,9 @@ class RenderingAttributes(BaseModel):
 
 
 class DisplayTrackFilterSettings(BaseModel):
-    display: Literal['static', 'selected']
+    display: Literal['static', 'selected', 'pinned']
     trackFilter: List[str]
+    pinnedTrackId: Optional[int] = None
     displayFrameIndicators: Optional[bool]
     displayTooltip: Optional[bool]
     renderMode: Optional[Literal['classic', 'segments', 'discrete']]

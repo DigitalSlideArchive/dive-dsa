@@ -14,10 +14,15 @@ import {
   SwimlaneGraphSettings,
 } from 'vue-media-annotator/use/AttributeTypes';
 import {
+  normalizeDisplaySettings,
+  sanitizeDisplaySettings,
+} from 'vue-media-annotator/use/displayTrackFilterSettings';
+import {
   useAttributesFilters, useAttributes,
-  useTrackStyleManager, useTrackFilters,
+  useTrackFilters,
 } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
+import DisplayTrackFilterSettingsEditor from './DisplayTrackFilterSettingsEditor.vue';
 
 /* Magic numbers involved in height calculation */
 export default defineComponent({
@@ -25,6 +30,7 @@ export default defineComponent({
   components: {
     TooltipBtn,
     AttributeKeyFilter: AttributeKeyFilterVue,
+    DisplayTrackFilterSettingsEditor,
   },
   props: {
     swimlaneGraph: {
@@ -45,7 +51,6 @@ export default defineComponent({
     const showRangeSettings = ref(false);
     const showDisplaySettings = ref(false);
     const showTitleKeySettings = ref(false);
-    const typeStylingRef = useTrackStyleManager().typeStyling;
     const trackFilterControls = useTrackFilters();
     const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
 
@@ -54,9 +59,9 @@ export default defineComponent({
     const editSwimlaneenabled = ref(props.swimlaneGraph.enabled);
     const editSwimlaneDefault = ref(props.swimlaneGraph.default || false);
     const editSwimlaneDisplay: Ref<SwimlaneGraph['displaySettings']> = ref(
-      props.swimlaneGraph.displaySettings
+      normalizeDisplaySettings(props.swimlaneGraph.displaySettings)
       || {
-        display: 'static' as 'static' | 'selected',
+        display: 'static' as 'static' | 'selected' | 'pinned',
         trackFilter: ['all'],
         renderMode: 'classic',
         highlightSegments: true,
@@ -136,18 +141,12 @@ export default defineComponent({
         filter: editSwimlaneFilter.value,
         enabled: editSwimlaneenabled.value,
         settings: editSwimlaneSettings.value,
-        displaySettings: editSwimlaneDisplay.value,
+        displaySettings: sanitizeDisplaySettings(editSwimlaneDisplay.value as NonNullable<SwimlaneGraph['displaySettings']>),
         default: setDefault,
       };
       setSwimlaneGraph(editSwimlaneName.value, updateObject);
       setSwimlaneEnabled(editSwimlaneName.value, editSwimlaneenabled.value);
       emit('close');
-    };
-
-    const deleteChip = (item: string) => {
-      if (editSwimlaneDisplay.value) {
-        editSwimlaneDisplay.value.trackFilter.splice(editSwimlaneDisplay.value.trackFilter.findIndex((data) => data === item));
-      }
     };
 
     return {
@@ -160,8 +159,6 @@ export default defineComponent({
       editSwimlaneDisplay,
       filterNames,
       saveChanges,
-      deleteChip,
-      typeStylingRef,
       types,
       //Graph Settings
       editingGraphSettings,
@@ -211,54 +208,15 @@ export default defineComponent({
             {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
         </h2>
-        <p> Set graphs to display only on selected track types</p>
+        <p> Choose how this timeline selects its track data</p>
         <div
           v-if="showDisplaySettings && editSwimlaneDisplay"
           class="graph-settings-area"
         >
-          <v-row
-            dense
-          >
-            <v-radio-group
-              v-model="editSwimlaneDisplay.display"
-              class="pr-2"
-            >
-              <v-radio
-                label="Static"
-                value="static"
-                hint="Always display key"
-                persistent-hint
-              />
-              <v-radio
-                value="selected"
-                label="Selected"
-                hint="Only show when track is selected"
-                persistent-hint
-              />
-            </v-radio-group>
-            <v-select
-              v-model="editSwimlaneDisplay.trackFilter"
-              :items="types"
-              multiple
-              clearable
-              deletable-chips
-              chips
-              label="Filter Types"
-              class="mx-2"
-              style="max-width:250px"
-            >
-              <template #selection="{ item }">
-                <v-chip
-                  close
-                  :color="typeStylingRef.color(item)"
-                  text-color="gray"
-                  @click:close="deleteChip(item)"
-                >
-                  {{ item }}
-                </v-chip>
-              </template>
-            </v-select>
-          </v-row>
+          <display-track-filter-settings-editor
+            v-model="editSwimlaneDisplay"
+            :types="types"
+          />
           <v-row dense>
             <v-checkbox
               v-model="editSwimlaneDisplay.displayFrameIndicators"

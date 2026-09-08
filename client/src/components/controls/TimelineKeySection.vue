@@ -358,15 +358,15 @@ export default defineComponent({
         ref="keyRef"
         class="key-section-body key-swimlane-body"
         :class="{
-          'key-section-centered': !selectedTrackIdRef || !getSwimlaneEntries(timeline.name).length,
+          'key-section-centered': !getSwimlaneEntries(timeline.name).length,
         }"
-        :style="selectedTrackIdRef && getSwimlaneEntries(timeline.name).length
+        :style="getSwimlaneEntries(timeline.name).length
           ? swimlaneBodyStyle
           : lineChartKeyStyle"
         @wheel.prevent
         @touchmove.prevent
       >
-        <template v-if="selectedTrackIdRef !== null && getSwimlaneEntries(timeline.name).length">
+        <template v-if="getSwimlaneEntries(timeline.name).length">
           <v-tooltip
             v-for="([subKey, subItem]) in getSwimlaneEntries(timeline.name)"
             :key="`${subItem.name}`"
@@ -644,15 +644,15 @@ export default defineComponent({
         ref="keyRef"
         class="key-section-body key-swimlane-body"
         :class="{
-          'key-section-centered': !selectedTrackIdRef || !getLegacySwimlaneEntries(legacyView).length,
+          'key-section-centered': !getLegacySwimlaneEntries(legacyView).length,
         }"
-        :style="selectedTrackIdRef && getLegacySwimlaneEntries(legacyView).length
+        :style="getLegacySwimlaneEntries(legacyView).length
           ? swimlaneBodyStyle
           : lineChartKeyStyle"
         @wheel.prevent
         @touchmove.prevent
       >
-        <template v-if="selectedTrackIdRef !== null && getLegacySwimlaneEntries(legacyView).length">
+        <template v-if="getLegacySwimlaneEntries(legacyView).length">
           <v-tooltip
             v-for="([subKey, subItem]) in getLegacySwimlaneEntries(legacyView)"
             :key="`${subItem.name}`"

@@ -13,8 +13,58 @@ import { LineChartData } from './useLineChart';
 import {
   Attribute, AttributeFilter, AttributeKeyFilter,
   AttributeStringFilter, AttributeNumberFilter,
+  DisplayTrackFilterSettings,
   TimelineGraph, TimelineAttribute, TimelineGraphSettings, TimeLineFilter, SwimlaneGraph, SwimlaneFilter, SwimlaneGraphSettings, SwimlaneAttribute,
 } from './AttributeTypes';
+import {
+  normalizeDisplaySettings,
+  parsePinnedTrackId,
+} from './displayTrackFilterSettings';
+
+function getDisplayTrackId(
+  displaySettings?: DisplayTrackFilterSettings,
+  selectedTrackId: number | null = null,
+): number | null {
+  const settings = normalizeDisplaySettings(displaySettings);
+  if (settings?.display === 'pinned') {
+    return parsePinnedTrackId(settings.pinnedTrackId);
+  }
+  return selectedTrackId;
+}
+
+function isDisplayFiltered(
+  displaySettings?: DisplayTrackFilterSettings,
+  track?: Track,
+  selectedTrackId: number | null = null,
+): boolean {
+  const settings = normalizeDisplaySettings(displaySettings);
+  if (!settings || settings.display === 'static' || settings.display === 'pinned') {
+    return false;
+  }
+  if (selectedTrackId === null) {
+    return true;
+  }
+  if (!track) {
+    return true;
+  }
+  return !settings.trackFilter.includes(track.getType()[0])
+    && !settings.trackFilter.includes('all');
+}
+
+function shouldHideMissingDisplayTrack(
+  displaySettings?: DisplayTrackFilterSettings,
+  trackId: number | null = null,
+  trackExists = false,
+): boolean {
+  const settings = normalizeDisplaySettings(displaySettings);
+  if (settings?.display === 'selected' && trackId === null) {
+    return true;
+  }
+  if (settings?.display === 'pinned' && !trackExists) {
+    return true;
+  }
+  return false;
+}
 
 /**
  * Modified markChangesPending for attributes specifically
@@ -397,28 +447,27 @@ export default function UseAttributes(
       const vals = Object.entries(timelineGraphs.value);
       vals.forEach(([key, graph]) => {
         if (graph.enabled) {
-          if (val !== undefined && selectedTrackId.value !== null) {
-            const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
-            if (selectedTrack) {
-              if (graph.displaySettings && graph.displaySettings.display === 'selected') {
-                if (!graph.displaySettings.trackFilter.includes(selectedTrack.getType()[0]) && !graph.displaySettings.trackFilter.includes('all')) {
-                  timelineGraphs.value[key].filtered = true;
-                  return;
-                }
-                timelineGraphs.value[key].filtered = false;
-              }
-              const timelineData = generateDetectionTimelineData(selectedTrack, graph.filter, graph.settings);
-              // Need to convert any Number types to Line Chart data;
-              const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
-              results[key] = {
-                data: numberVals,
-                begin: timelineData.begin,
-                end: timelineData.end,
-                yRange: graph.yRange,
-                ticks: graph.ticks,
-              };
+          const trackId = getDisplayTrackId(graph.displaySettings, selectedTrackId.value);
+          const displayTrack = trackId !== null
+            ? cameraStore.getAnyPossibleTrack(trackId)
+            : undefined;
+          if (displayTrack) {
+            if (isDisplayFiltered(graph.displaySettings, displayTrack, selectedTrackId.value)) {
+              timelineGraphs.value[key].filtered = true;
+              return;
             }
-          } else if (graph.displaySettings && graph.displaySettings.display === 'selected') {
+            timelineGraphs.value[key].filtered = false;
+            const timelineData = generateDetectionTimelineData(displayTrack, graph.filter, graph.settings);
+            // Need to convert any Number types to Line Chart data;
+            const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
+            results[key] = {
+              data: numberVals,
+              begin: timelineData.begin,
+              end: timelineData.end,
+              yRange: graph.yRange,
+              ticks: graph.ticks,
+            };
+          } else if (shouldHideMissingDisplayTrack(graph.displaySettings, trackId, false)) {
             timelineGraphs.value[key].filtered = true;
           }
         }
@@ -688,26 +737,25 @@ export default function UseAttributes(
       const vals = Object.entries(swimlaneGraphs.value);
       vals.forEach(([key, graph]) => {
         if (graph.enabled) {
-          if (val !== undefined && selectedTrackId.value !== null) {
-            const selectedTrack = cameraStore.getAnyPossibleTrack(selectedTrackId.value);
-            if (selectedTrack) {
-              if (graph.displaySettings && graph.displaySettings.display === 'selected') {
-                if (!graph.displaySettings.trackFilter.includes(selectedTrack.getType()[0]) && !graph.displaySettings.trackFilter.includes('all')) {
-                  swimlaneGraphs.value[key].filtered = true;
-                  return;
-                }
-                swimlaneGraphs.value[key].filtered = false;
-              }
-              const swimlaneData = generateDetectionSwimlaneData(
-                selectedTrack,
-                graph.filter,
-                graph.settings,
-                numericalColorScaling.value,
-                graph.displaySettings?.renderMode,
-              );
-              results[key] = swimlaneData;
+          const trackId = getDisplayTrackId(graph.displaySettings, selectedTrackId.value);
+          const displayTrack = trackId !== null
+            ? cameraStore.getAnyPossibleTrack(trackId)
+            : undefined;
+          if (displayTrack) {
+            if (isDisplayFiltered(graph.displaySettings, displayTrack, selectedTrackId.value)) {
+              swimlaneGraphs.value[key].filtered = true;
+              return;
             }
-          } else if (graph.displaySettings && graph.displaySettings.display === 'selected') {
+            swimlaneGraphs.value[key].filtered = false;
+            const swimlaneData = generateDetectionSwimlaneData(
+              displayTrack,
+              graph.filter,
+              graph.settings,
+              numericalColorScaling.value,
+              graph.displaySettings?.renderMode,
+            );
+            results[key] = swimlaneData;
+          } else if (shouldHideMissingDisplayTrack(graph.displaySettings, trackId, false)) {
             swimlaneGraphs.value[key].filtered = true;
           }
         }
