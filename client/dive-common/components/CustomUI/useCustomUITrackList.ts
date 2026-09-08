@@ -140,7 +140,11 @@ export default function useCustomUITrackList(settingsRef: Ref<CustomUITrackListS
   };
 
   const deleteTrack = (trackId: AnnotationId) => {
-    handler.removeTrack([trackId]);
+    const { returnToTrackId } = resolvedSettings.value;
+    const options = returnToTrackId != null && returnToTrackId !== trackId
+      ? { returnToTrackId }
+      : undefined;
+    handler.removeTrack([trackId], false, '', options);
   };
 
   return {

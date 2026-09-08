@@ -187,8 +187,12 @@ export interface Handler {
     preventInterrupt?: () => void,
   ): void;
   /* Remove a whole track */
-  removeTrack(AnnotationIds: AnnotationId[],
-    forcePromptDisable?: boolean, cameraName?: string): void;
+  removeTrack(
+    AnnotationIds: AnnotationId[],
+    forcePromptDisable?: boolean,
+    cameraName?: string,
+    options?: { returnToTrackId?: AnnotationId },
+  ): void;
   /* remove a whole group */
   removeGroup(AnnotationIds: AnnotationId[]): void;
   /* Remove a single point from selected track's geometry by selected index */

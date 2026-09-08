@@ -649,7 +649,12 @@ export default function useModeManager({
     }
   }
 
-  async function handleRemoveTrack(trackIds: TrackId[], forcePromptDisable = false, cameraName = '') {
+  async function handleRemoveTrack(
+    trackIds: TrackId[],
+    forcePromptDisable = false,
+    cameraName = '',
+    options?: { returnToTrackId?: AnnotationId },
+  ) {
     /* Figure out next track ID */
     const maybeNextTrackId = selectNextTrack(1);
     const previousOrNext = maybeNextTrackId !== null
@@ -687,6 +692,18 @@ export default function useModeManager({
       cameraStore.remove(trackId, cameraName);
     });
     handleUnstageFromMerge(trackIds);
+    const returnToTrackId = options?.returnToTrackId != null
+      && !trackIds.includes(options.returnToTrackId)
+      ? options.returnToTrackId
+      : null;
+    if (returnToTrackId !== null) {
+      const returnTrack = cameraStore.getAnyPossibleTrack(returnToTrackId);
+      if (returnTrack) {
+        selectTrack(returnToTrackId, false);
+        seekNearest(returnTrack);
+        return;
+      }
+    }
     selectTrack(previousOrNext, false);
   }
 

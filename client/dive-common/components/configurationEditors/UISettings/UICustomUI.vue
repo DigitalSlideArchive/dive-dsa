@@ -463,7 +463,7 @@ export default defineComponent({
                 </v-row>
                 <v-text-field
                   v-model.number="trackListReturnToTrackId"
-                  label="Return to track ID after edit/create"
+                  label="Return to track ID after edit/create/delete"
                   type="number"
                   dense
                   outlined
