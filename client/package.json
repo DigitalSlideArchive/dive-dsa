@@ -99,7 +99,7 @@
     "babel-register": "^6.26.0",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
-    "csv-parse": "^4.13.1",
+    "csv-parse": "^7.0.2",
     "eslint": "^8.55.0",
     "eslint-import-resolver-typescript": "^2.2.0",
     "eslint-plugin-import": "^2.20.2",
