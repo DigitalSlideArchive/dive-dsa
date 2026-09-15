@@ -345,9 +345,12 @@ export default defineComponent({
       );
 
       if (visibleModes.includes('VisualMask')) {
+        visualMaskRectLayer.setDisableClicking(false);
         visualMaskRectLayer.setDrawingOther([]);
         visualMaskRectLayer.changeData(visualMaskFrameData);
       } else {
+        // disable() clears data only; keep click handlers from emitting deselection.
+        visualMaskRectLayer.setDisableClicking(true);
         visualMaskRectLayer.disable();
       }
 
@@ -664,7 +667,10 @@ export default defineComponent({
       if (selectedCamera.value !== props.camera) {
         return;
       }
-      handler.trackSelect(null, false);
+      // Match Clicked(): do not clear track selection when UISelection is off.
+      if (getUISetting('UISelection')) {
+        handler.trackSelect(null, false);
+      }
       if (maskId === null) {
         visualMaskManager.clearSelection();
         return;
