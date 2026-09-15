@@ -884,7 +884,9 @@ def export_datasets_zipstream(
                     **media.dict(exclude_none=True),
                 }
                 if not includeConfig:
-                    payload.pop('configuration', None)
+                    # Strip all MetadataMutable fields (same set as export_configuration)
+                    for key in models.MetadataMutable.schema()['properties'].keys():
+                        payload.pop(key, None)
                 yield json.dumps(
                     payload,
                     indent=2,

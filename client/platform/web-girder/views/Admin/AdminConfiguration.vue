@@ -261,7 +261,8 @@ export default defineComponent({
               </v-row>
               <v-row dense>
                 <span class="text-caption text--secondary ml-8">
-                  Blocks standalone configuration export and strips configuration from zip meta.json.
+                  Blocks standalone configuration export and strips config fields
+                  (attributes, styles, filters, timelines, etc.) from zip meta.json.
                 </span>
               </v-row>
             </v-expansion-panel-content>
