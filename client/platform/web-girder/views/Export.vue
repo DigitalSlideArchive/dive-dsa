@@ -21,6 +21,7 @@ import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import {
   ImageSequenceType, MultiType, VideoType,
 } from 'dive-common/constants';
+import { useStore } from 'platform/web-girder/store/types';
 
 export default defineComponent({
   components: { AutosavePrompt },
@@ -43,6 +44,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const store = useStore();
     const savePrompt = ref(false);
     let currentSaveUrl = '';
     /** State populated from provides if the dialog exists inside a viewer context */
@@ -62,6 +64,32 @@ export default defineComponent({
         hasMasks.value = val;
       });
     }
+
+    /** Resolve admin download restrictions; media prevented by default when unset */
+    const downloadRestrictions = computed(() => {
+      const settings = store.state.GirderConfig.girderState.DownloadRestrictionSettings;
+      const preventAll = settings?.preventAllDownloads ?? false;
+      return {
+        preventAll,
+        preventMedia: preventAll || (settings?.preventMediaDownloads ?? true),
+        preventTrack: preventAll || (settings?.preventTrackDownloads ?? false),
+        preventConfig: preventAll || (settings?.preventConfigDownloads ?? false),
+      };
+    });
+
+    const downloadsAllowed = computed(() => {
+      const r = downloadRestrictions.value;
+      return !r.preventAll && !(r.preventMedia && r.preventTrack && r.preventConfig);
+    });
+
+    const canExportMedia = computed(() => !downloadRestrictions.value.preventMedia);
+    const canExportTracks = computed(() => !downloadRestrictions.value.preventTrack);
+    const canExportConfig = computed(() => !downloadRestrictions.value.preventConfig);
+    const canExportEverything = computed(() => (
+      !downloadRestrictions.value.preventAll
+      && (canExportMedia.value || canExportTracks.value || canExportConfig.value)
+    ));
+
     async function doExport({ forceSave = false, url }: { url?: string; forceSave?: boolean }) {
       if (pendingSaveCount.value > 0 && forceSave) {
         try {
@@ -109,62 +137,82 @@ export default defineComponent({
         excludeBelowThreshold: excludeBelowThreshold.value,
         typeFilter: excludeUncheckedTypes.value ? JSON.stringify(checkedTypes.value) : undefined,
       };
+      const includeMedia = canExportMedia.value;
+      const includeDetections = canExportTracks.value;
       if (singleDataSetId.value) {
         return {
           exportAllUrl: getUri({
             url: 'dive_dataset/export',
             params: {
               ...params,
+              includeMedia,
+              includeDetections,
               folderIds: JSON.stringify([singleDataSetId.value]),
             },
           }),
-          exportMediaUrl: dataset.value?.type === 'video'
-            ? datasetMedia.value?.video?.url
-            : getUri({
-              url: 'dive_dataset/export',
+          exportMediaUrl: canExportMedia.value
+            ? (dataset.value?.type === 'video'
+              ? datasetMedia.value?.video?.url
+              : getUri({
+                url: 'dive_dataset/export',
+                params: {
+                  ...params,
+                  includeDetections: false,
+                  includeMedia: true,
+                  folderIds: JSON.stringify([singleDataSetId.value]),
+                },
+              }))
+            : undefined,
+          exportDetectionsUrl: canExportTracks.value
+            ? getUri({
+              url: 'dive_annotation/export',
               params: {
                 ...params,
-                includeDetections: false,
-                includeMedia: true,
-                folderIds: JSON.stringify([singleDataSetId.value]),
+                folderId: singleDataSetId.value,
+                revisionId: revisionId.value,
               },
-            }),
-          exportDetectionsUrl: getUri({
-            url: 'dive_annotation/export',
-            params: {
-              ...params,
-              folderId: singleDataSetId.value,
-              revisionId: revisionId.value,
-            },
-          }),
-          exportDetectionsUrlTrackJSON: getUri({
-            url: 'dive_annotation/export',
-            params: {
-              ...params,
-              folderId: singleDataSetId.value,
-              revisionId: revisionId.value,
-              format: 'dive_json',
-            },
-          }),
-          exportMasksUrl: getUri({
-            url: 'dive_annotation/export',
-            params: {
-              ...params,
-              folderId: singleDataSetId.value,
-              revisionId: revisionId.value,
-              format: 'masks',
-            },
-          }),
-          exportConfigurationUrl: getUri({
-            url: `dive_dataset/${singleDataSetId.value}/export_configuration`,
-          }),
+            })
+            : undefined,
+          exportDetectionsUrlTrackJSON: canExportTracks.value
+            ? getUri({
+              url: 'dive_annotation/export',
+              params: {
+                ...params,
+                folderId: singleDataSetId.value,
+                revisionId: revisionId.value,
+                format: 'dive_json',
+              },
+            })
+            : undefined,
+          exportMasksUrl: canExportTracks.value
+            ? getUri({
+              url: 'dive_annotation/export',
+              params: {
+                ...params,
+                folderId: singleDataSetId.value,
+                revisionId: revisionId.value,
+                format: 'masks',
+              },
+            })
+            : undefined,
+          exportConfigurationUrl: canExportConfig.value
+            ? getUri({
+              url: `dive_dataset/${singleDataSetId.value}/export_configuration`,
+            })
+            : undefined,
         };
       }
       return {
-        exportAllUrl: getUri({
-          url: 'dive_dataset/export',
-          params: { folderIds: JSON.stringify(props.datasetIds) },
-        }),
+        exportAllUrl: canExportEverything.value
+          ? getUri({
+            url: 'dive_dataset/export',
+            params: {
+              folderIds: JSON.stringify(props.datasetIds),
+              includeMedia,
+              includeDetections,
+            },
+          })
+          : undefined,
       };
     });
     const mediaType = computed(() => {
@@ -190,6 +238,11 @@ export default defineComponent({
       singleDataSetId,
       doExport,
       hasMasks,
+      downloadsAllowed,
+      canExportMedia,
+      canExportTracks,
+      canExportConfig,
+      canExportEverything,
     };
   },
 });
@@ -197,6 +250,7 @@ export default defineComponent({
 
 <template>
   <v-menu
+    v-if="downloadsAllowed"
     v-model="menuOpen"
     :close-on-content-click="false"
     :nudge-width="120"
@@ -260,157 +314,158 @@ export default defineComponent({
         </v-alert>
 
         <template v-if="dataset !== null && mediaType !== null">
-          <v-card-text class="pb-0">
-            Zip all {{ mediaType }} files only
-          </v-card-text>
-          <v-card-actions>
-            <v-btn
-              depressed
-              block
-              target="_blank"
-              rel="noopener"
-              :disabled="!exportUrls.exportMediaUrl"
-              :href="exportUrls.exportMediaUrl"
-            >
-              {{ mediaType }}
-            </v-btn>
-          </v-card-actions>
+          <template v-if="canExportMedia">
+            <v-card-text class="pb-0">
+              Zip all {{ mediaType }} files only
+            </v-card-text>
+            <v-card-actions>
+              <v-btn
+                depressed
+                block
+                target="_blank"
+                rel="noopener"
+                :disabled="!exportUrls.exportMediaUrl"
+                :href="exportUrls.exportMediaUrl"
+              >
+                {{ mediaType }}
+              </v-btn>
+            </v-card-actions>
+          </template>
 
-          <v-card-text class="pb-2">
-            <div>Get latest annotation csv only</div>
-            <template v-if="dataset.confidenceFilters">
-              <v-checkbox
-                v-model="excludeBelowThreshold"
-                label="exclude tracks below confidence threshold"
-                dense
-                hide-details
-              />
-              <div class="pt-2">
-                <span>Current thresholds:</span>
-                <span
-                  v-for="(val, key) in dataset.confidenceFilters"
-                  :key="key"
-                  class="pt-2"
-                >
-                  ({{ key }}, {{ val }})
-                </span>
-              </div>
-            </template>
-
-            <template v-if="checkedTypes.length">
-              <v-checkbox
-                v-model="excludeUncheckedTypes"
-                label="export checked types only"
-                dense
-                hint="Export only the track types currently enabled in the type filter"
-                persistent-hint
-                class="pt-0"
-              />
-            </template>
-          </v-card-text>
-
-          <v-card-actions>
-            <v-menu
-              offset-y
-              offset-x
-              nudge-left="180"
-              max-width="180"
-            >
-              <template #activator="{ on }">
-                <v-btn
-                  depressed
-                  block
-                  :disabled="!exportUrls.exportDetectionsUrl"
-                  @click="doExport({ url: exportUrls && exportUrls.exportDetectionsUrlTrackJSON })"
-                >
+          <template v-if="canExportTracks">
+            <v-card-text class="pb-2">
+              <div>Get latest annotation csv only</div>
+              <template v-if="dataset.confidenceFilters">
+                <v-checkbox
+                  v-model="excludeBelowThreshold"
+                  label="exclude tracks below confidence threshold"
+                  dense
+                  hide-details
+                />
+                <div class="pt-2">
+                  <span>Current thresholds:</span>
                   <span
-                    v-if="exportUrls.exportDetectionsUrl"
-                    class="col-11"
-                  >annotations</span>
-                  <span
-                    v-else
-                    class="col-11"
-                  >detections unavailable</span>
-                  <v-icon
-                    v-if="exportUrls.exportDetectionsUrl"
-                    class="button-dropdown col-1"
-                    v-on="on"
+                    v-for="(val, key) in dataset.confidenceFilters"
+                    :key="key"
+                    class="pt-2"
                   >
-                    mdi-chevron-down
-                  </v-icon>
-                </v-btn>
+                    ({{ key }}, {{ val }})
+                  </span>
+                </div>
               </template>
-              <v-card outlined>
-                <v-list dense>
-                  <v-list-item
-                    style="align-items:center"
-                    @click="doExport({
-                      url: exportUrls
-                        && exportUrls.exportDetectionsUrl,
-                    })"
-                  >
-                    <v-list-item-content>
-                      <v-list-item-title>ViameCSV</v-list-item-title>
-                    </v-list-item-content>
-                  </v-list-item>
-                  <v-list-item
-                    v-if="hasMasks"
-                    style="align-items:center"
-                    @click="doExport({
-                      url: exportUrls
-                        && exportUrls.exportMasksUrl,
-                    })"
-                  >
-                    <v-list-item-content>
-                      <v-list-item-title>Masks</v-list-item-title>
-                    </v-list-item-content>
-                  </v-list-item>
-                </v-list>
-              </v-card>
-            </v-menu>
-            <!-- <v-btn
-              depressed
-              block
-              :disabled="!exportUrls.exportDetectionsUrl"
-              @click="doExport({ url: exportUrls && exportUrls.exportDetectionsUrl })"
-            >
-              <span v-if="exportUrls.exportDetectionsUrl">annotations</span>
-              <span v-else>detections unavailable</span>
-            </v-btn> -->
-          </v-card-actions>
 
-          <v-card-text class="pb-0">
-            Export the dataset configuration, including
-            attribute definitions, types, styles, and thresholds.
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn
-              depressed
-              block
-              @click="doExport({ url: exportUrls && exportUrls.exportConfigurationUrl })"
-            >
-              Configuration
-            </v-btn>
-          </v-card-actions>
+              <template v-if="checkedTypes.length">
+                <v-checkbox
+                  v-model="excludeUncheckedTypes"
+                  label="export checked types only"
+                  dense
+                  hint="Export only the track types currently enabled in the type filter"
+                  persistent-hint
+                  class="pt-0"
+                />
+              </template>
+            </v-card-text>
 
-          <v-card-text class="pb-0">
-            Zip all media, detections, and edit history recursively from all sub-folders
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn
-              depressed
-              block
-              @click="doExport({ url: exportUrls && exportUrls.exportAllUrl })"
-            >
-              Everything
-            </v-btn>
-          </v-card-actions>
+            <v-card-actions>
+              <v-menu
+                offset-y
+                offset-x
+                nudge-left="180"
+                max-width="180"
+              >
+                <template #activator="{ on }">
+                  <v-btn
+                    depressed
+                    block
+                    :disabled="!exportUrls.exportDetectionsUrl"
+                    @click="doExport({ url: exportUrls && exportUrls.exportDetectionsUrlTrackJSON })"
+                  >
+                    <span
+                      v-if="exportUrls.exportDetectionsUrl"
+                      class="col-11"
+                    >annotations</span>
+                    <span
+                      v-else
+                      class="col-11"
+                    >detections unavailable</span>
+                    <v-icon
+                      v-if="exportUrls.exportDetectionsUrl"
+                      class="button-dropdown col-1"
+                      v-on="on"
+                    >
+                      mdi-chevron-down
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card outlined>
+                  <v-list dense>
+                    <v-list-item
+                      style="align-items:center"
+                      @click="doExport({
+                        url: exportUrls
+                          && exportUrls.exportDetectionsUrl,
+                      })"
+                    >
+                      <v-list-item-content>
+                        <v-list-item-title>ViameCSV</v-list-item-title>
+                      </v-list-item-content>
+                    </v-list-item>
+                    <v-list-item
+                      v-if="hasMasks"
+                      style="align-items:center"
+                      @click="doExport({
+                        url: exportUrls
+                          && exportUrls.exportMasksUrl,
+                      })"
+                    >
+                      <v-list-item-content>
+                        <v-list-item-title>Masks</v-list-item-title>
+                      </v-list-item-content>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-menu>
+            </v-card-actions>
+          </template>
+
+          <template v-if="canExportConfig">
+            <v-card-text class="pb-0">
+              Export the dataset configuration, including
+              attribute definitions, types, styles, and thresholds.
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn
+                depressed
+                block
+                @click="doExport({ url: exportUrls && exportUrls.exportConfigurationUrl })"
+              >
+                Configuration
+              </v-btn>
+            </v-card-actions>
+          </template>
+
+          <template v-if="canExportEverything">
+            <v-card-text class="pb-0">
+              Zip allowed content recursively from all sub-folders
+              <span v-if="!canExportMedia">(media excluded)</span>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn
+                depressed
+                block
+                @click="doExport({ url: exportUrls && exportUrls.exportAllUrl })"
+              >
+                Everything
+              </v-btn>
+            </v-card-actions>
+          </template>
         </template>
         <template v-else-if="exportUrls.exportAllUrl !== undefined">
           <v-card-text class="pb-0">
-            Zip all media, detections, and edit history from all selected dataset folders
+            Zip allowed content from all selected dataset folders
+            <span v-if="!canExportMedia">(media excluded)</span>
           </v-card-text>
           <v-card-actions>
             <v-spacer />
