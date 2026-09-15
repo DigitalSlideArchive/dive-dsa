@@ -135,6 +135,8 @@ class ConfigurationResource(Resource):
             base_config['EnabledFeatures'] = data['EnabledFeatures']
         if data.get('AssetstoreImportSettings', False):
             base_config['AssetstoreImportSettings'] = data['AssetstoreImportSettings']
+        if data.get('DownloadRestrictionSettings', False):
+            base_config['DownloadRestrictionSettings'] = data['DownloadRestrictionSettings']
 
         Setting().set(constants.DIVE_CONFIG, base_config)
 

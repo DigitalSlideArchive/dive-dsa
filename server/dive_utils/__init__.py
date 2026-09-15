@@ -31,6 +31,32 @@ def prevent_assetstore_transcoding(dive_config: Union[Dict[str, Any], None] = No
     return asbool(dive_config.get('AssetstoreImportSettings', {}).get('preventTranscoding', False))
 
 
+def get_download_restrictions(
+    dive_config: Union[Dict[str, Any], None] = None,
+) -> Dict[str, bool]:
+    """
+    Return resolved download restriction flags.
+
+    Defaults: media downloads prevented; tracks/configs/all allowed unless toggled.
+    preventAllDownloads implies all other prevent* flags.
+    """
+    if dive_config is None:
+        from girder.models.setting import Setting
+
+        dive_config = Setting().get(DIVE_CONFIG) or {}
+    settings = dive_config.get('DownloadRestrictionSettings') or {}
+    prevent_all = asbool(settings.get('preventAllDownloads', False))
+    prevent_media = prevent_all or asbool(settings.get('preventMediaDownloads', True))
+    prevent_track = prevent_all or asbool(settings.get('preventTrackDownloads', False))
+    prevent_config = prevent_all or asbool(settings.get('preventConfigDownloads', False))
+    return {
+        'preventAllDownloads': prevent_all,
+        'preventMediaDownloads': prevent_media,
+        'preventTrackDownloads': prevent_track,
+        'preventConfigDownloads': prevent_config,
+    }
+
+
 def fromMeta(
     obj: Union[Dict[str, Any], GirderModel], key: str, default=None, required=False
 ) -> Any:
