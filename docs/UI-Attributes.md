@@ -287,7 +287,7 @@ When **Static Color** is enabled, all non-empty values use the attribute's base 
 Attributes are part of the dataset configuration that can be imported and exported.
 
 1. Set up a dataset with all the attributes you need
-1. In the ==:material-download: Download== menu, choose ==Configuration==.
+1. In the ==:material-download: Download== menu, choose ==Configuration== (if configuration export is allowed; see [Download Restrictions](Download-Restrictions.md)).
 1. Use this configuration with other datasets
     1. Use the ==:material-application-import: Import== button to load this configuration to other datasets.
     1. Upload the configuration file when you create new datasets to initialize them with these attribute definitions.
