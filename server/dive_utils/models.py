@@ -764,10 +764,21 @@ class AssetstoreImportSettings(BaseModel):
     preventTranscoding: Optional[bool] = False
 
 
+class DownloadRestrictionSettings(BaseModel):
+    """Global admin settings controlling dataset download/export options."""
+
+    preventAllDownloads: Optional[bool] = False
+    # Default True: media (and media-containing zips) cannot be downloaded unless enabled
+    preventMediaDownloads: Optional[bool] = True
+    preventTrackDownloads: Optional[bool] = False
+    preventConfigDownloads: Optional[bool] = False
+
+
 class DIVESystemConfig(BaseModel):
     SAM2Config: Optional[SAM2ClientConfig]
     EnabledFeatures: Optional[EnabledFeatures]
     AssetstoreImportSettings: Optional[AssetstoreImportSettings]
+    DownloadRestrictionSettings: Optional[DownloadRestrictionSettings]
 
 
 # interpolate all features [a, b)
