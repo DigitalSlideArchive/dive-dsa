@@ -844,6 +844,7 @@ def export_datasets_zipstream(
     includeDetections: bool,
     excludeBelowThreshold: bool,
     typeFilter: Optional[List[str]],
+    includeConfig: bool = True,
 ):
     def makeAnnotationAndMedia(dsFolder: types.GirderModel):
         _, gen = crud_annotation.get_annotation_csv_generator(
@@ -878,11 +879,14 @@ def export_datasets_zipstream(
                 """Include dataset metadtata file with full export"""
                 meta = get_dataset(dsFolder, user)
                 media = get_media(dsFolder, user)
+                payload = {
+                    **meta.dict(exclude_none=True),
+                    **media.dict(exclude_none=True),
+                }
+                if not includeConfig:
+                    payload.pop('configuration', None)
                 yield json.dumps(
-                    {
-                        **meta.dict(exclude_none=True),
-                        **media.dict(exclude_none=True),
-                    },
+                    payload,
                     indent=2,
                 )
 
@@ -893,9 +897,6 @@ def export_datasets_zipstream(
                 yield json.dumps(annotations)
 
             for data in z.addFile(makeMetajson, Path(f'{zip_path}meta.json')):
-                yield data
-
-            for data in z.addFile(makeDiveJson, Path(f'{zip_path}annotations.dive.json')):
                 yield data
 
             gen, mediaFolder, mediaRegex = makeAnnotationAndMedia(dsFolder)
@@ -911,6 +912,8 @@ def export_datasets_zipstream(
                         break  # Media items should only have 1 valid file
 
             if includeDetections:
+                for data in z.addFile(makeDiveJson, Path(f'{zip_path}annotations.dive.json')):
+                    yield data
                 for data in z.addFile(gen, Path(f'{zip_path}annotations.viame.csv')):
                     yield data
         if len(failed_datasets) > 0:

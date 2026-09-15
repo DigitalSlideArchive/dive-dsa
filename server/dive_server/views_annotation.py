@@ -13,7 +13,7 @@ from girder.models.folder import Folder
 from girder.models.upload import Upload
 from girder.utility import RequestBodyStream, ziputil
 
-from dive_utils import constants, models, setContentDisposition
+from dive_utils import constants, get_download_restrictions, models, setContentDisposition
 from dive_utils.serializers import dive, viame
 
 from . import crud, crud_annotation
@@ -253,6 +253,9 @@ class AnnotationResource(Resource):
         typeFilter: Optional[List[str]],
     ):
         crud.verify_dataset(folder)
+        restrictions = get_download_restrictions()
+        if restrictions['preventTrackDownloads']:
+            raise RestException('Track downloads are disabled by administrator', code=403)
 
         if format == 'viame_csv':
             filename, gen = crud_annotation.get_annotation_csv_generator(
