@@ -140,6 +140,22 @@ export default defineComponent({
       const includeMedia = canExportMedia.value;
       const includeDetections = canExportTracks.value;
       if (singleDataSetId.value) {
+        let exportMediaUrl: string | undefined;
+        if (canExportMedia.value) {
+          if (dataset.value?.type === 'video') {
+            exportMediaUrl = datasetMedia.value?.video?.url;
+          } else {
+            exportMediaUrl = getUri({
+              url: 'dive_dataset/export',
+              params: {
+                ...params,
+                includeDetections: false,
+                includeMedia: true,
+                folderIds: JSON.stringify([singleDataSetId.value]),
+              },
+            });
+          }
+        }
         return {
           exportAllUrl: getUri({
             url: 'dive_dataset/export',
@@ -150,19 +166,7 @@ export default defineComponent({
               folderIds: JSON.stringify([singleDataSetId.value]),
             },
           }),
-          exportMediaUrl: canExportMedia.value
-            ? (dataset.value?.type === 'video'
-              ? datasetMedia.value?.video?.url
-              : getUri({
-                url: 'dive_dataset/export',
-                params: {
-                  ...params,
-                  includeDetections: false,
-                  includeMedia: true,
-                  folderIds: JSON.stringify([singleDataSetId.value]),
-                },
-              }))
-            : undefined,
+          exportMediaUrl,
           exportDetectionsUrl: canExportTracks.value
             ? getUri({
               url: 'dive_annotation/export',
