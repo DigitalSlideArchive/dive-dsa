@@ -13,11 +13,16 @@ import {
   TimeLineFilter,
   TimelineGraph, TimelineGraphSettings,
 } from 'vue-media-annotator/use/AttributeTypes';
+import {
+  normalizeDisplaySettings,
+  sanitizeDisplaySettings,
+} from 'vue-media-annotator/use/displayTrackFilterSettings';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import {
-  useAttributesFilters, useAttributes, useTrackStyleManager, useTrackFilters,
+  useAttributesFilters, useAttributes, useTrackFilters,
 } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
+import DisplayTrackFilterSettingsEditor from './DisplayTrackFilterSettingsEditor.vue';
 
 /* Magic numbers involved in height calculation */
 export default defineComponent({
@@ -25,6 +30,7 @@ export default defineComponent({
   components: {
     TooltipBtn,
     AttributeKeyFilter: AttributeKeyFilterVue,
+    DisplayTrackFilterSettingsEditor,
   },
   props: {
     timelineGraph: {
@@ -41,13 +47,15 @@ export default defineComponent({
     const showGraphSettings = ref(false);
     const showRangeSettings = ref(false);
     const showDisplaySettings = ref(false);
-    const typeStylingRef = useTrackStyleManager().typeStyling;
     const trackFilterControls = useTrackFilters();
     const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
 
     const editTimelineFilter: Ref<TimeLineFilter> = ref(props.timelineGraph.filter);
     const editTimelineSettings: Ref<Record<string, TimelineGraphSettings>> = ref(props.timelineGraph.settings || {});
-    const editDisplaySettings: Ref<TimelineGraph['displaySettings']> = ref(props.timelineGraph.displaySettings || { display: 'static' as 'static' | 'selected', trackFilter: ['all'] });
+    const editDisplaySettings: Ref<TimelineGraph['displaySettings']> = ref(
+      normalizeDisplaySettings(props.timelineGraph.displaySettings)
+      || { display: 'static' as 'static' | 'selected' | 'pinned', trackFilter: ['all'] },
+    );
     const editTimelineEnabled = ref(props.timelineGraph.enabled);
     const editTimelineDefault = ref(props.timelineGraph.default || false);
     const originalName = props.timelineGraph.name;
@@ -76,7 +84,7 @@ export default defineComponent({
         filter: editTimelineFilter.value,
         enabled: editTimelineEnabled.value,
         settings: editTimelineSettings.value,
-        displaySettings: editDisplaySettings.value,
+        displaySettings: sanitizeDisplaySettings(editDisplaySettings.value as NonNullable<TimelineGraph['displaySettings']>),
         yRange: yRange.value,
         ticks: ticks.value,
         default: setDefault,
@@ -139,12 +147,6 @@ export default defineComponent({
       showGraphSettings.value = false;
     };
 
-    const deleteChip = (item: string) => {
-      if (editDisplaySettings.value) {
-        editDisplaySettings.value.trackFilter.splice(editDisplaySettings.value.trackFilter.findIndex((data) => data === item));
-      }
-    };
-
     return {
       setTimelineEnabled,
       setTimelineGraph,
@@ -157,7 +159,6 @@ export default defineComponent({
       //Graph Settings
       saveGraphSettings,
       editGraphSettings,
-      deleteChip,
       editingGraphSettings,
       editTimelineSettings,
       editDisplaySettings,
@@ -175,7 +176,6 @@ export default defineComponent({
       yRange,
       ticks,
       showRangeSettings,
-      typeStylingRef,
       types,
     };
   },
@@ -212,56 +212,16 @@ export default defineComponent({
             {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
         </h2>
-        <p> Set graphs to display only on selected track types</p>
+        <p> Choose how this timeline selects its track data</p>
 
         <div
-          v-if="showDisplaySettings"
+          v-if="showDisplaySettings && editDisplaySettings"
           class="graph-settings-area"
         >
-          <v-row
-            v-if="editDisplaySettings"
-            dense
-          >
-            <v-radio-group
-              v-model="editDisplaySettings.display"
-              class="pr-2"
-            >
-              <v-radio
-                label="Static"
-                value="static"
-                hint="Always display key"
-                persistent-hint
-              />
-              <v-radio
-                value="selected"
-                label="Selected"
-                hint="Only show when track is selected"
-                persistent-hint
-              />
-            </v-radio-group>
-            <v-select
-              v-model="editDisplaySettings.trackFilter"
-              :items="types"
-              multiple
-              clearable
-              deletable-chips
-              chips
-              label="Filter Types"
-              class="mx-2"
-              style="max-width:250px"
-            >
-              <template #selection="{ item }">
-                <v-chip
-                  close
-                  :color="typeStylingRef.color(item)"
-                  text-color="gray"
-                  @click:close="deleteChip(item)"
-                >
-                  {{ item }}
-                </v-chip>
-              </template>
-            </v-select>
-          </v-row>
+          <display-track-filter-settings-editor
+            v-model="editDisplaySettings"
+            :types="types"
+          />
         </div>
       </div>
       <div class="mt-4">

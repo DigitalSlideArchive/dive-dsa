@@ -12,6 +12,8 @@ import {
 } from 'vue-media-annotator/components';
 import { LineChartData } from 'vue-media-annotator/use/useLineChart';
 import { TimelineDisplay } from 'vue-media-annotator/ConfigurationManager';
+import { DisplayTrackFilterSettings } from 'vue-media-annotator/use/AttributeTypes';
+import { requiresSelectedTrack } from 'vue-media-annotator/use/displayTrackFilterSettings';
 import TimelineKeySection from './TimelineKeySection.vue';
 import {
   useAttributesFilters, useConfiguration, useSelectedTrackId, useTimelineFilters,
@@ -20,6 +22,7 @@ import {
   buildFilteredTimelineList,
   computeKeyPanelWidth,
   getSectionContentHeight,
+  getSectionRowHeight,
   getTimelineChartAreaInsets,
   isDetectionsTimeline,
   KeyPanelWidthOptions,
@@ -95,6 +98,7 @@ export default defineComponent({
     const {
       timelineEnabled, attributeTimelineData,
       swimlaneEnabled, swimlaneDisplaySettings, attributeSwimlaneData, swimlaneGraphs,
+      timelineGraphs,
     } = useAttributesFilters();
     const { eventChartDataMap: timelineFilterMap, enabledTimelines: enabledFilterTimelines } = useTimelineFilters();
     const selectedTrackIdRef = useSelectedTrackId();
@@ -222,18 +226,29 @@ export default defineComponent({
       props.showKey ? Math.max(0, props.clientWidth - keyPanelWidth.value) : props.clientWidth
     ));
 
+    const hideTimelineSectionTitle = (timeline: TimelineDisplay) => (
+      shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value)
+    );
+
     const getTimelineHeight = (timeline: TimelineDisplay) => getSectionContentHeight(
       timeline,
       timelineList.value,
       props.clientHeight,
-      shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value),
+      hideTimelineSectionTitle(timeline),
+    );
+
+    const getTimelineRowHeight = (timeline: TimelineDisplay) => getSectionRowHeight(
+      timeline,
+      timelineList.value,
+      props.clientHeight,
+      hideTimelineSectionTitle(timeline),
     );
 
     const shouldShowTimelineHeader = (timeline: TimelineDisplay) => {
       if (!checkTimelineEnabled(timeline)) {
         return false;
       }
-      if (shouldHideTimelineSectionTitle(timeline, props.showKey, swimlaneDisplaySettings.value)) {
+      if (hideTimelineSectionTitle(timeline)) {
         return false;
       }
       return true;
@@ -244,6 +259,41 @@ export default defineComponent({
         ...swimlaneScrollOffsets.value,
         [timelineName]: scrollTop,
       };
+    };
+
+    const getTimelineDisplaySettings = (
+      timeline: TimelineDisplay,
+    ): DisplayTrackFilterSettings | undefined => {
+      if (timeline.type === 'swimlane') {
+        return swimlaneDisplaySettings.value[timeline.name];
+      }
+      if (timeline.type === 'graph') {
+        return timelineGraphs.value[timeline.name]?.displaySettings;
+      }
+      return undefined;
+    };
+
+    const shouldShowTrackSelectionMessage = (timeline: TimelineDisplay) => {
+      if (!['swimlane', 'graph'].includes(timeline.type)) {
+        return false;
+      }
+      if (selectedTrackIdRef.value !== null) {
+        return false;
+      }
+      return requiresSelectedTrack(getTimelineDisplaySettings(timeline));
+    };
+
+    const shouldShowLegacyTrackSelectionMessage = (
+      viewName: string,
+      type: 'swimlane' | 'graph',
+    ) => {
+      if (selectedTrackIdRef.value !== null) {
+        return false;
+      }
+      const settings = type === 'swimlane'
+        ? swimlaneDisplaySettings.value[viewName]
+        : timelineGraphs.value[viewName]?.displaySettings;
+      return requiresSelectedTrack(settings);
     };
 
     const legacyKeyKind = computed((): 'detections' | 'events' | 'groups' | 'graph' | 'swimlane' | 'filter' | '' => {
@@ -283,6 +333,7 @@ export default defineComponent({
       selectedTrackIdRef,
       timelineList,
       getTimelineHeight,
+      getTimelineRowHeight,
       checkTimelineEnabled,
       shouldShowTimelineHeader,
       keyPanelWidth,
@@ -291,6 +342,8 @@ export default defineComponent({
       onSwimlaneScroll,
       legacyKeyKind,
       isDetectionsTimeline,
+      shouldShowTrackSelectionMessage,
+      shouldShowLegacyTrackSelectionMessage,
     };
   },
 });
@@ -308,7 +361,7 @@ export default defineComponent({
         <timeline-key-section
           v-if="showKey"
           :timeline="timeline"
-          :section-height="getTimelineHeight(timeline)"
+          :section-height="getTimelineRowHeight(timeline)"
           :key-panel-width="keyPanelWidth"
           :swimlane-scroll-offset="swimlaneScrollOffsets[timeline.name] || 0"
           :start-frame="startFrame"
@@ -319,7 +372,7 @@ export default defineComponent({
         />
         <div
           class="timeline-chart-cell"
-          :style="{ height: `${getTimelineHeight(timeline)}px` }"
+          :style="{ height: `${getTimelineRowHeight(timeline)}px` }"
         >
           <v-row
             v-if="timelineList.length > 0 && shouldShowTimelineHeader(timeline)"
@@ -336,7 +389,7 @@ export default defineComponent({
               v-if="timeline.dismissable"
               icon="mdi-close"
               tooltip-text="Hide Timeline"
-              @click="$emit('dismiss', { name: timeline.name, height: getTimelineHeight(timeline) })"
+              @click="$emit('dismiss', { name: timeline.name, height: getTimelineRowHeight(timeline) })"
             />
           </v-row>
 
@@ -441,7 +494,7 @@ export default defineComponent({
             </span>
           </span>
           <div
-            v-if=" ['swimlane', 'graph'].includes(timeline.type) && selectedTrackIdRef === null"
+            v-if="shouldShowTrackSelectionMessage(timeline)"
             :class="{ 'timeline-config': timelineList.length }"
             :style="{
               minHeight: `${getTimelineHeight(timeline)}px`,
@@ -539,7 +592,7 @@ export default defineComponent({
           </span>
         </span>
         <v-row
-          v-else-if="enabledSwimlanes.includes(currentView) && selectedTrackIdRef === null"
+          v-else-if="enabledSwimlanes.includes(currentView) && shouldShowLegacyTrackSelectionMessage(currentView, 'swimlane')"
           class="d-flex align-center justify-center fill-height text-center"
         >
           <h3>Track needs to be selected to Show Attributes</h3>
@@ -571,7 +624,7 @@ export default defineComponent({
           </span>
         </span>
         <div
-          v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+          v-else-if="enabledTimelines.includes(currentView) && shouldShowLegacyTrackSelectionMessage(currentView, 'graph')"
           class="d-flex align-center justify-center fill-height text-center"
         >
           <h3>Track needs to be selected to Graph Attributes</h3>
@@ -595,7 +648,7 @@ export default defineComponent({
           </span>
         </span>
         <div
-          v-else-if="enabledTimelines.includes(currentView) && selectedTrackIdRef === null"
+          v-else-if="enabledSwimlanes.includes(currentView) && shouldShowLegacyTrackSelectionMessage(currentView, 'swimlane')"
           class="d-flex align-center justify-center fill-height text-center"
         >
           <h3>Track needs to be selected to show Swimlane Attributes</h3>

@@ -158,7 +158,9 @@ export interface Handler {
   /* Select and seek to track */
   trackSeek(AnnotationId: AnnotationId): void;
   /* Toggle editing mode for track */
-  trackEdit(AnnotationId: AnnotationId): void;
+  trackEdit(AnnotationId: AnnotationId, options?: { returnToTrackId?: AnnotationId }): void;
+  /* Select configured track when the current edit/create session ends */
+  setPendingTrackRestore(AnnotationId: AnnotationId | null): void;
   /* toggle selection mode for track */
   trackSelect(AnnotationId: AnnotationId | null, edit: boolean): void;
   /* select next track in the list */
@@ -185,8 +187,12 @@ export interface Handler {
     preventInterrupt?: () => void,
   ): void;
   /* Remove a whole track */
-  removeTrack(AnnotationIds: AnnotationId[],
-    forcePromptDisable?: boolean, cameraName?: string): void;
+  removeTrack(
+    AnnotationIds: AnnotationId[],
+    forcePromptDisable?: boolean,
+    cameraName?: string,
+    options?: { returnToTrackId?: AnnotationId },
+  ): void;
   /* remove a whole group */
   removeGroup(AnnotationIds: AnnotationId[]): void;
   /* Remove a single point from selected track's geometry by selected index */
@@ -223,7 +229,8 @@ export interface Handler {
   stopLinking(): void;
   addFullFrameTrack(trackType: string, trackLength: number): void;
   processAction(action: DIVEAction,
-    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}, user?: string): void;
+    shorcut?: boolean, data?: {frame?: number; selectedTrack?: number}, user?: string,
+    options?: { returnToTrackId?: AnnotationId }): void;
   seekFrame(frame: number): void;
   toggleKeyFrame(selectedTrack?: number): void;
   setDiveMetadataRootId(id: string | null): void;
@@ -242,6 +249,7 @@ function dummyHandler(handle: (name: string, args: unknown[]) => void): Handler 
     save(...args) { handle('save', args); return Promise.resolve(); },
     trackSeek(...args) { handle('trackSeek', args); },
     trackEdit(...args) { handle('trackEdit', args); },
+    setPendingTrackRestore(...args) { handle('setPendingTrackRestore', args); },
     trackSelect(...args) { handle('trackSelect', args); },
     trackSelectNext(...args) { handle('trackSelectNext', args); },
     trackSplit(...args) { handle('trackSplit', args); },

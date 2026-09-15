@@ -1,23 +1,27 @@
 import { LineChartData } from './useLineChart';
 
+export interface DisplayTrackFilterSettings {
+  display: 'static' | 'selected' | 'pinned';
+  trackFilter: string[];
+  /** Required when display is 'pinned' */
+  pinnedTrackId?: number;
+  displayFrameIndicators?: boolean;
+  displayTooltip?: boolean;
+  renderMode?: 'classic' | 'segments' | 'discrete';
+  highlightSegments?: boolean;
+  editSegments?: boolean;
+  minSegmentSize?: number;
+  hideTitle?: boolean;
+  hideKeyTitle?: boolean;
+  hideKeyAttributeLabels?: boolean;
+}
+
 export interface SwimlaneGraph {
   name: string;
   filter: AttributeKeyFilter;
   enabled: boolean;
   default?: boolean;
-  displaySettings?: {
-    display: 'static' | 'selected';
-    trackFilter: string[];
-    displayFrameIndicators?: boolean;
-    displayTooltip?: boolean;
-    renderMode?: 'classic' | 'segments' | 'discrete';
-    highlightSegments?: boolean;
-    editSegments?: boolean;
-    minSegmentSize?: number;
-    hideTitle?: boolean;
-    hideKeyTitle?: boolean;
-    hideKeyAttributeLabels?: boolean;
-  };
+  displaySettings?: DisplayTrackFilterSettings;
   settings?: Record<string, SwimlaneGraphSettings>;
 }
 
@@ -41,7 +45,7 @@ export interface TimelineGraph {
     default?: boolean;
     yRange?: number[];
     ticks?: number;
-    displaySettings?: { display: 'static' | 'selected'; trackFilter: string[] };
+    displaySettings?: DisplayTrackFilterSettings;
     settings?: Record<string, TimelineGraphSettings>;
   }
 

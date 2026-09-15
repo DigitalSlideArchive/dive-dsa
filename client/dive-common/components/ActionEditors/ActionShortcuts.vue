@@ -6,7 +6,7 @@ import {
 } from 'vue';
 import draggable from 'vuedraggable';
 import {
-  DIVEAction, DIVEActionShortcut, TrackSelectAction,
+  DIVEAction, DIVEActionShortcut, TrackSelectAction, getCreateTrackAfterSelectionLabel,
 } from 'dive-common/use/useActions';
 import { ButtonShortcut } from 'vue-media-annotator/use/AttributeTypes';
 import {
@@ -188,6 +188,13 @@ export default defineComponent({
       updateActionList();
     };
 
+    const removeAction = (index: number) => {
+      if (editingShortcut.value) {
+        editingShortcut.value.actions.splice(index, 1);
+        updateActionList();
+      }
+    };
+
     const saveShortcutDisabled = computed(() => {
       if (editingShortcut.value) {
         const { description } = editingShortcut.value;
@@ -217,11 +224,13 @@ export default defineComponent({
       updateActionList,
       addEditActionindex,
       saveAction,
+      removeAction,
       saveShortcutDisabled,
       getShortcutDisplay,
       hasKeyboardShortcut,
       isIconOnlyButton,
       onShortcutOrderEnd,
+      getCreateTrackAfterSelectionLabel,
     };
   },
 
@@ -474,11 +483,8 @@ export default defineComponent({
                   </div>
 
                   <div>
-                    <b class="mr-2">Select Track After:</b><v-icon v-if="item.action.selectTrackAfter" color="success">
-                      mdi-check
-                    </v-icon><v-icon v-else color="error">
-                      mdi-close
-                    </v-icon>
+                    <b class="mr-2">After creation:</b>
+                    <span>{{ getCreateTrackAfterSelectionLabel(item.action.selectTrackAfter) }}</span>
                   </div>
                 </v-col>
                 <v-spacer />

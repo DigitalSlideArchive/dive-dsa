@@ -304,12 +304,16 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
     } else {
       this.featureLayer.mode(null);
     }
+    this.calculateCursorImage();
   }
 
   calculateCursorImage() {
-    if (this.getMode() === 'creation') {
-      // TODO:  we may want to make this more generic or utilize the icons from editMenu
-      this.annotator.setImageCursor(`${typeIconMapper.get(this.type)}`);
+    const mode = this.getMode();
+    if (mode === 'creation' || mode === 'editing') {
+      const icon = typeIconMapper.get(this.type);
+      if (icon) {
+        this.annotator.setImageCursor(icon, mode === 'editing');
+      }
     }
   }
 

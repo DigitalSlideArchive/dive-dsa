@@ -10,6 +10,12 @@ import { hexToRgb } from 'vue-media-annotator/utils';
 import { useMasks, useConfiguration, useVisualMaskManager } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import MaskTracking from 'dive-common/components/MaskTracking.vue';
+import {
+  EDITING_MODE_INSTRUCTIONS,
+  GROUP_EDIT_INSTRUCTION,
+  IDLE_INSTRUCTION,
+  MULTI_SELECT_INSTRUCTION,
+} from 'dive-common/use/editingModeInstructions';
 
 interface ButtonData {
   id: string;
@@ -91,22 +97,7 @@ export default defineComponent({
       } | null);
       return configMan.isConfigOwnerAdmin(currentUser);
     });
-    const modeToolTips = {
-      Creating: {
-        rectangle: 'Drag to draw rectangle. Press ESC to exit.',
-        Polygon: 'Click to place vertices. Right click to close.',
-        LineString: 'Click to place head/tail points.',
-        Time: 'Automatically creating Time',
-        Mask: 'Create a Segmentation Mask',
-      },
-      Editing: {
-        rectangle: 'Drag vertices to resize the rectangle',
-        Polygon: 'Drag midpoints to create new vertices. Click vertices to select for deletion.',
-        LineString: 'Click endpoints to select for deletion.',
-        Time: 'Use the keyframe indicator to modify the time annotation, Delete to return to rectangle annotations',
-        Mask: 'Edit the Segmentation Mask',
-      },
-    };
+    const modeToolTips = EDITING_MODE_INSTRUCTIONS;
 
     const editBlackColorScale = ref(false);
     const editWhiteColorScale = ref(false);
@@ -408,6 +399,9 @@ export default defineComponent({
       mousetrap,
       editingHeader,
       modeToolTips,
+      groupEditInstruction: GROUP_EDIT_INSTRUCTION,
+      multiSelectInstruction: MULTI_SELECT_INSTRUCTION,
+      idleInstruction: IDLE_INSTRUCTION,
       updateMaskOpacity,
       maskOpacity,
       maskCacheSeconds,
@@ -452,16 +446,15 @@ export default defineComponent({
             style="line-height: 1.22em; font-size: 10px;"
           >
             <span v-if="groupEditActive">
-              Editing group.  Add or remove tracks.  Esc. to exit.
+              {{ groupEditInstruction }}
             </span>
             <span v-else-if="multiSelectActive">
-              Multi-select in progress.  Editing is disabled.
-              Select additional tracks to merge or group.
+              {{ multiSelectInstruction }}
             </span>
             <span v-else-if="editingDetails !== 'disabled'">
               {{ modeToolTips[editingDetails][editingMode] }}
             </span>
-            <span v-else>Right click on an annotation to edit</span>
+            <span v-else>{{ idleInstruction }}</span>
           </div>
         </div>
       </div>
