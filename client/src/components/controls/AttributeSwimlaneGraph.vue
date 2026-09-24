@@ -229,6 +229,22 @@ export default defineComponent({
       return barFrames;
     });
 
+    /**
+     * Frames whose appearance depends on the playhead. Covers both ends of every subsection
+     * because a boundary landing on the current frame both highlights its icon and forces
+     * that icon to be drawn even when it would otherwise be skipped as part of a cluster.
+     */
+    const highlightFrames = computed(() => {
+      const frames = new Set<number>();
+      bars.value.forEach((bar) => {
+        bar.subSections.forEach((sub) => {
+          frames.add(sub.begin);
+          frames.add(sub.end);
+        });
+      });
+      return frames;
+    });
+
     const interactiveZones = computed(() => {
       const zones: Record<string, {frame: number, start: number; end:number}[]> = {};
       Object.keys(iconFrames.value).forEach((key) => {
@@ -339,6 +355,16 @@ export default defineComponent({
       const cullStart = visibleStart - cullPadding;
       const cullEnd = visibleEnd + cullPadding;
 
+      // Frame indicators are queued and drawn after every segment fill so that neither a
+      // neighbouring subsection nor a deferred merged fill can paint over them.
+      const pendingIcons: {
+        xFrame: number;
+        xPosition: number;
+        yPosition: number;
+        symbol: 'diamond' | 'arrows';
+        highlighted: boolean;
+      }[] = [];
+
       barList.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
         ctx.strokeStyle = bar.color;
@@ -399,17 +425,33 @@ export default defineComponent({
             if (highlighted || left >= lastIconEdge) {
               const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
               if (!sub.singleVal || renderMode !== 'segments') {
-                drawIcon(ctx, sub.begin, left, iconMidline, symbol);
+                pendingIcons.push({
+                  xFrame: sub.begin, xPosition: left, yPosition: iconMidline, symbol, highlighted,
+                });
               }
               if (renderMode === 'segments') {
                 const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-                drawIcon(ctx, sub.end, right, iconMidline, endSymbol);
+                pendingIcons.push({
+                  xFrame: sub.end, xPosition: right, yPosition: iconMidline, symbol: endSymbol, highlighted,
+                });
               }
               lastIconEdge = left + 6;
             }
           }
         });
         flushPending();
+      });
+
+      // Highlighted indicators go last so the playhead and hovered markers sit above their neighbours
+      pendingIcons.forEach((icon) => {
+        if (!icon.highlighted) {
+          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
+        }
+      });
+      pendingIcons.forEach((icon) => {
+        if (icon.highlighted) {
+          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
+        }
       });
     };
 
@@ -547,13 +589,26 @@ export default defineComponent({
       }
     };
 
-    watch(frame, () => {
+    watch(frame, (newFrame, oldFrame) => {
       if (dragData.isDragging && dragData.draggedFrame !== null && dragData.dragTarget !== null) {
         dragData.draggingCurrentLocation = frame.value;
         update();
-      } else if (props.displaySettings?.renderMode !== 'segments') {
-        update();
+        return;
       }
+      if (props.displaySettings?.renderMode === 'segments') {
+        return;
+      }
+      // The playhead itself is a DOM element owned by Timeline.vue, so the only frame-dependent
+      // pixels here are the keyframe icon highlights. Skip redraws that would repaint an
+      // identical canvas, which is the overwhelming majority of frames on a long video.
+      if (!showSymbols.value) {
+        return;
+      }
+      const highlighted = highlightFrames.value;
+      if (!highlighted.has(newFrame) && !highlighted.has(oldFrame)) {
+        return;
+      }
+      update();
     });
 
     const mouseclick = (e: MouseEvent) => {
