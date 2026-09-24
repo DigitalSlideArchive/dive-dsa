@@ -213,7 +213,7 @@ export default Vue.extend({
         .enter()
         .append('path')
         .attr('class', 'line')
-        .attr('d', (d) => this.getCurveType(d.values, 'line', d.max))
+        .attr('d', (d) => this.getCurveType(d, 'line', d.max))
         .style('stroke', (d) => (d.color ? d.color : '#4c9ac2'))
         .attr('class', (d) => `${d.name} line `)
         .style('opacity', (d) => (d.lineOpacity !== undefined ? d.lineOpacity : 1.0))
@@ -288,6 +288,75 @@ export default Vue.extend({
           .y0(y(min));
       });
     },
+    /** Index of the first point at or after `frame`; values are frame-ordered. */
+    findFrameIndex(values, frame) {
+      let low = 0;
+      let high = values.length - 1;
+      while (low < high) {
+        const mid = Math.floor((low + high) / 2);
+        if (values[mid][0] < frame) {
+          low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      return low;
+    },
+    /**
+     * Restrict a series to the visible frame window and reduce it to at most two points per
+     * pixel column (that column's min and max). A column cannot render more than its extremes,
+     * so the drawn silhouette is unchanged while the path shrinks by orders of magnitude on
+     * long videos. One point beyond each edge is kept so the line still enters and exits the
+     * viewport at the correct slope.
+     */
+    decimateValues(values) {
+      if (!Array.isArray(values) || values.length < 4 || !this.x) {
+        return values;
+      }
+      const startIndex = Math.max(0, this.findFrameIndex(values, this.startFrame) - 1);
+      const endIndex = Math.min(
+        values.length - 1,
+        this.findFrameIndex(values, this.endFrame) + 1,
+      );
+      if (endIndex <= startIndex) {
+        return values.slice(startIndex, endIndex + 1);
+      }
+      const decimated = [];
+      let column = NaN;
+      let lowest = null;
+      let highest = null;
+      const flushColumn = () => {
+        if (lowest === null) {
+          return;
+        }
+        if (lowest === highest) {
+          decimated.push(lowest);
+        } else if (lowest[0] <= highest[0]) {
+          decimated.push(lowest, highest);
+        } else {
+          decimated.push(highest, lowest);
+        }
+      };
+      for (let i = startIndex; i <= endIndex; i += 1) {
+        const point = values[i];
+        const pixel = Math.round(this.x(point[0]));
+        if (pixel !== column) {
+          flushColumn();
+          column = pixel;
+          lowest = point;
+          highest = point;
+        } else {
+          if (point[1] < lowest[1]) {
+            lowest = point;
+          }
+          if (point[1] > highest[1]) {
+            highest = point;
+          }
+        }
+      }
+      flushColumn();
+      return decimated;
+    },
     getCurveType(d, lineArea, max) {
       let add = '';
       if (lineArea === 'area') {
@@ -296,27 +365,28 @@ export default Vue.extend({
           return this[`linear${add}`]([]);
         }
       }
+      const values = this.decimateValues(d.values);
       if (d.type) {
         if (max) {
           add = `${add}Max`;
         }
         if (d.type === 'Step') {
-          return this[`step${add}`](d.values);
+          return this[`step${add}`](values);
         }
         if (d.type === 'StepBefore') {
-          return this[`stepBefore${add}`](d.values);
+          return this[`stepBefore${add}`](values);
         }
         if (d.type === 'StepAfter') {
-          return this[`stepAfter${add}`](d.values);
+          return this[`stepAfter${add}`](values);
         }
         if (d.type === 'Natural') {
-          return this[`natural${add}`](d.values);
+          return this[`natural${add}`](values);
         }
       }
       if (!this.atrributesChart) {
-        return this[`stepAfter${add}`](d.values);
+        return this[`stepAfter${add}`](values);
       }
-      return this[`linear${add}`](d.values);
+      return this[`linear${add}`](values);
     },
     updateCurves() {
       const lineTypes = ['linear', 'step', 'stepBefore', 'stepAfter', 'natural'];
