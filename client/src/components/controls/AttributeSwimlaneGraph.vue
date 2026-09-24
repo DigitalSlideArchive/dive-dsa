@@ -325,6 +325,20 @@ export default defineComponent({
       canvasEl.height = barList.slice(-1)[0].top + 30;
 
       const barHeight = 20;
+      // Reactive reads are hoisted out of the subsection loops below; on long videos Vue's
+      // property getters otherwise cost more than the canvas draw calls themselves.
+      const scale = x.value;
+      const renderMode = props.displaySettings?.renderMode;
+      const drawSymbols = showSymbols.value;
+      const currentFrame = frame.value;
+      const hovered = hoveredZone.value;
+      const visibleStart = startFrame_.value;
+      const visibleEnd = endFrame_.value;
+      // Discrete boxes are widened to minWidth, so keep a margin before culling
+      const cullPadding = Math.max(1, (visibleEnd - visibleStart) * 0.02);
+      const cullStart = visibleStart - cullPadding;
+      const cullEnd = visibleEnd + cullPadding;
+
       barList.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
         ctx.strokeStyle = bar.color;
@@ -335,32 +349,67 @@ export default defineComponent({
           ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
         }
 
+        const iconMidline = bar.top + barHeight / 2;
+        let lastIconEdge = -Infinity;
+        // Adjacent subsections resolving to the same color are merged into one fillRect
+        let pendingColor: string | null = null;
+        let pendingLeft = 0;
+        let pendingRight = 0;
+        const flushPending = () => {
+          if (pendingColor !== null && pendingRight > pendingLeft) {
+            ctx.fillStyle = pendingColor;
+            ctx.fillRect(pendingLeft, bar.top, pendingRight - pendingLeft, barHeight);
+          }
+          pendingColor = null;
+        };
+
         bar.subSections.forEach((sub, index) => {
-          let left = x.value(sub.begin);
-          let right = x.value(sub.end);
-          if (dragData.isDragging && index === dragData.draggedSubsectionIndex && dragData.draggingCurrentLocation !== null) {
+          const dragging = dragData.isDragging
+            && index === dragData.draggedSubsectionIndex
+            && dragData.draggingCurrentLocation !== null;
+          if (!dragging && (sub.end < cullStart || sub.begin > cullEnd)) {
+            return;
+          }
+          let left = scale(sub.begin);
+          let right = scale(sub.end);
+          if (dragging) {
             if (sub.begin === dragData.draggedFrame) {
-              left = x.value(dragData.draggingCurrentLocation);
+              left = scale(dragData.draggingCurrentLocation);
             } else if (sub.end === dragData.draggedFrame) {
-              right = x.value(dragData.draggingCurrentLocation);
+              right = scale(dragData.draggingCurrentLocation);
             }
           }
-          const width = props.displaySettings?.renderMode === 'discrete'
+          const width = renderMode === 'discrete'
             ? Math.max(right - left, bar.minWidth)
             : right - left;
-          ctx.fillStyle = sub.color || 'white';
-          ctx.fillRect(left, bar.top, width, barHeight);
-          if (showSymbols.value) {
-            const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
-            if (!sub.singleVal || props.displaySettings?.renderMode !== 'segments') {
-              drawIcon(ctx, sub.begin, left, bar.top + barHeight / 2, symbol);
-            }
-            if (props.displaySettings?.renderMode === 'segments') {
-              const symbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              drawIcon(ctx, sub.end, right, bar.top + barHeight / 2, symbol);
+          const fillColor = sub.color || 'white';
+          if (pendingColor === fillColor && left <= pendingRight + 0.5) {
+            pendingRight = Math.max(pendingRight, left + width);
+          } else {
+            flushPending();
+            pendingColor = fillColor;
+            pendingLeft = left;
+            pendingRight = left + width;
+          }
+          if (drawSymbols) {
+            // Icons are ~10px wide, so only draw one per cluster unless it marks the
+            // playhead or the hovered zone, which must always stay visible
+            const highlighted = sub.begin === currentFrame || sub.end === currentFrame
+              || sub.begin === hovered || sub.end === hovered;
+            if (highlighted || left >= lastIconEdge) {
+              const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
+              if (!sub.singleVal || renderMode !== 'segments') {
+                drawIcon(ctx, sub.begin, left, iconMidline, symbol);
+              }
+              if (renderMode === 'segments') {
+                const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
+                drawIcon(ctx, sub.end, right, iconMidline, endSymbol);
+              }
+              lastIconEdge = left + 6;
             }
           }
         });
+        flushPending();
       });
     };
 
