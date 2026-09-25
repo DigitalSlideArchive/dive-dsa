@@ -303,13 +303,14 @@ export default Vue.extend({
       return low;
     },
     /**
-     * Restrict a series to the visible frame window and reduce it to at most two points per
-     * pixel column (that column's min and max). A column cannot render more than its extremes,
-     * so the drawn silhouette is unchanged while the path shrinks by orders of magnitude on
-     * long videos. One point beyond each edge is kept so the line still enters and exits the
-     * viewport at the correct slope.
+     * Restrict a series to the visible frame window and, when silhouette is true, reduce it to
+     * at most two points per pixel column (that column's min and max). A column cannot render
+     * more than its extremes, so the drawn silhouette is unchanged while the path shrinks by
+     * orders of magnitude on long videos. One point beyond each edge is kept so the line still
+     * enters and exits the viewport at the correct slope. Silhouette collapse is skipped for
+     * Natural curves, which depend on interior control points and would otherwise distort.
      */
-    decimateValues(values) {
+    decimateValues(values, silhouette = true) {
       if (!Array.isArray(values) || values.length < 4 || !this.x) {
         return values;
       }
@@ -318,7 +319,7 @@ export default Vue.extend({
         values.length - 1,
         this.findFrameIndex(values, this.endFrame) + 1,
       );
-      if (endIndex <= startIndex) {
+      if (endIndex <= startIndex || !silhouette) {
         return values.slice(startIndex, endIndex + 1);
       }
       const decimated = [];
@@ -365,7 +366,8 @@ export default Vue.extend({
           return this[`linear${add}`]([]);
         }
       }
-      const values = this.decimateValues(d.values);
+      // Natural splines need interior points; only cull to the visible window for them.
+      const values = this.decimateValues(d.values, d.type !== 'Natural');
       if (d.type) {
         if (max) {
           add = `${add}Max`;

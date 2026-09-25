@@ -419,23 +419,32 @@ export default defineComponent({
           }
           if (drawSymbols) {
             // Icons are ~10px wide, so only draw one per cluster unless it marks the
-            // playhead or the hovered zone, which must always stay visible
-            const highlighted = sub.begin === currentFrame || sub.end === currentFrame
-              || sub.begin === hovered || sub.end === hovered;
-            if (highlighted || left >= lastIconEdge) {
+            // playhead or the hovered zone, which must always stay visible. Begin and end
+            // markers are gated independently so a dense begin cluster cannot drop an end
+            // diamond that sits further right.
+            const beginHighlighted = sub.begin === currentFrame || sub.begin === hovered;
+            const endHighlighted = sub.end === currentFrame || sub.end === hovered;
+            const tryQueueIcon = (
+              xFrame: number,
+              xPosition: number,
+              symbol: 'diamond' | 'arrows',
+              highlighted: boolean,
+            ) => {
+              if (!highlighted && xPosition < lastIconEdge) {
+                return;
+              }
+              pendingIcons.push({
+                xFrame, xPosition, yPosition: iconMidline, symbol, highlighted,
+              });
+              lastIconEdge = Math.max(lastIconEdge, xPosition + 6);
+            };
+            if (!sub.singleVal || renderMode !== 'segments') {
               const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
-              if (!sub.singleVal || renderMode !== 'segments') {
-                pendingIcons.push({
-                  xFrame: sub.begin, xPosition: left, yPosition: iconMidline, symbol, highlighted,
-                });
-              }
-              if (renderMode === 'segments') {
-                const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-                pendingIcons.push({
-                  xFrame: sub.end, xPosition: right, yPosition: iconMidline, symbol: endSymbol, highlighted,
-                });
-              }
-              lastIconEdge = left + 6;
+              tryQueueIcon(sub.begin, left, symbol, beginHighlighted);
+            }
+            if (renderMode === 'segments') {
+              const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
+              tryQueueIcon(sub.end, right, endSymbol, endHighlighted);
             }
           }
         });
@@ -593,9 +602,6 @@ export default defineComponent({
       if (dragData.isDragging && dragData.draggedFrame !== null && dragData.dragTarget !== null) {
         dragData.draggingCurrentLocation = frame.value;
         update();
-        return;
-      }
-      if (props.displaySettings?.renderMode === 'segments') {
         return;
       }
       // The playhead itself is a DOM element owned by Timeline.vue, so the only frame-dependent
