@@ -137,6 +137,17 @@ export default function UseAttributes(
 
   const attributesList = computed(() => Object.values(attributes.value));
 
+  /** Name-keyed lookup so per-feature attribute resolution stays O(1) on long videos */
+  const attributesByName = computed(() => {
+    const map = new Map<string, Attribute>();
+    attributesList.value.forEach((attribute) => {
+      if (!map.has(attribute.name)) {
+        map.set(attribute.name, attribute);
+      }
+    });
+    return map;
+  });
+
   function setAttribute({ data, oldAttribute }:
      {data: Attribute; oldAttribute?: Attribute }, updateAllTracks = false) {
     if (oldAttribute && data.key !== oldAttribute.key) {
@@ -417,20 +428,21 @@ export default function UseAttributes(
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, TimelineAttribute> = { };
+    const attributeLookup = attributesByName.value;
     track.features.forEach((feature) => {
       const { frame } = feature;
       if (feature.attributes) {
         if (feature.attributes.userAttributes && feature.attributes.userAttributes[login]) {
           const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
           Object.keys(userAttr).forEach((key) => {
-            const baseAttribute = attributesList.value.find((item) => item.name === key);
+            const baseAttribute = attributeLookup.get(key);
             if (baseAttribute?.user && feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
               processDetectionKey(key, valueMap, filter, frame, userAttr, settings);
             }
           });
         }
         Object.keys(feature.attributes).forEach((key) => {
-          const baseAttribute = attributesList.value.find((item) => item.name === key);
+          const baseAttribute = attributeLookup.get(key);
           if (!baseAttribute?.user) {
             processDetectionKey(key, valueMap, filter, frame, feature.attributes, settings);
           }
@@ -589,7 +601,6 @@ export default function UseAttributes(
     baseAttribute?: Attribute,
     settings?: Record<string, SwimlaneGraphSettings>,
     colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
-    lastValue?: string | boolean | number,
     renderMode?: SwimlaneGraph['displaySettings']['renderMode'],
   ): string | boolean | number | undefined | null {
     if (key === 'userAttributes') {
@@ -654,33 +665,25 @@ export default function UseAttributes(
         });
         return val;
       }
-      if (valueMap[key].data.length === 0) {
-        // First value
-        valueMap[key].data.push({
-          begin: frame,
-          end: frame + 1,
-          singleVal: true,
-          value: val,
-          color,
-        });
-      } else if (lastValue !== val && valueMap[key].data.length > 0) {
-        // eslint-disable-next-line no-param-reassign
-        valueMap[key].data[valueMap[key].data.length - 1].end = frame;
-        if ((valueMap[key].data[valueMap[key].data.length - 1].end - valueMap[key].data[valueMap[key].data.length - 1].begin) === 1) {
-          // eslint-disable-next-line no-param-reassign
-          valueMap[key].data[valueMap[key].data.length - 1].singleVal = true;
-        } else {
-          // eslint-disable-next-line no-param-reassign
-          valueMap[key].data[valueMap[key].data.length - 1].singleVal = undefined;
-        }
-        valueMap[key].data.push({
-          begin: frame,
-          end: frame + 1,
-          singleVal: true,
-          value: val,
-          color,
-        });
+      const subSections = valueMap[key].data;
+      const openSection = subSections.length ? subSections[subSections.length - 1] : undefined;
+      if (openSection !== undefined && openSection.value === val) {
+        // Same value continues, so grow the open run rather than starting a new subsection
+        openSection.end = frame + 1;
+        openSection.singleVal = (openSection.end - openSection.begin) === 1 ? true : undefined;
+        return val;
       }
+      if (openSection !== undefined) {
+        openSection.end = frame;
+        openSection.singleVal = (openSection.end - openSection.begin) === 1 ? true : undefined;
+      }
+      subSections.push({
+        begin: frame,
+        end: frame + 1,
+        singleVal: true,
+        value: val,
+        color,
+      });
       return val;
     }
     return null;
@@ -696,34 +699,28 @@ export default function UseAttributes(
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, SwimlaneAttribute> = { };
+    const attributeLookup = attributesByName.value;
     track.features.forEach((feature) => {
       const { frame } = feature;
-      let lastValue: string | boolean | number | undefined;
       if (feature.attributes) {
         if (feature.attributes.userAttributes && feature.attributes.userAttributes[login]) {
           const userAttr = feature.attributes.userAttributes[login] as StringKeyObject;
           Object.keys(userAttr).forEach((key) => {
-            const baseAttribute = attributesList.value.find((item) => item.name === key);
+            const baseAttribute = attributeLookup.get(key);
             if (!baseAttribute?.user) {
               return;
             }
             if (feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
-              const val = processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, lastValue, renderMode);
-              if (val !== null) {
-                lastValue = val;
-              }
+              processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, renderMode);
             }
           });
         }
         Object.keys(feature.attributes).forEach((key) => {
-          const baseAttribute = attributesList.value.find((item) => item.name === key);
+          const baseAttribute = attributeLookup.get(key);
           if (baseAttribute?.user) {
             return;
           }
-          const val = processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, lastValue, renderMode);
-          if (val !== null) {
-            lastValue = val;
-          }
+          processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, renderMode);
         });
       }
     });
