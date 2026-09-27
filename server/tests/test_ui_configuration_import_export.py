@@ -23,8 +23,13 @@ def _folder(folder_id, name='Folder', parent_id=None, meta=None):
 
 
 def _folder_model(folders):
-    """Patch Folder() so findOne/load resolve from a dict of id -> folder."""
+    """Patch Folder() so findOne/load/childFolders/save resolve from a dict of id -> folder."""
     by_id = {str(f['_id']): f for f in folders}
+    children = {}
+    for folder in folders:
+        parent_id = folder.get('parentId')
+        if parent_id is not None:
+            children.setdefault(str(parent_id), []).append(folder)
 
     instance = MagicMock()
 
@@ -34,8 +39,17 @@ def _folder_model(folders):
     def load(folder_id, level=None, user=None, **_kwargs):
         return by_id.get(str(folder_id))
 
+    def child_folders(parent, _parent_type, user=None, **_kwargs):
+        return list(children.get(str(parent['_id']), []))
+
+    def save(folder):
+        by_id[str(folder['_id'])] = folder
+        return folder
+
     instance.findOne.side_effect = find_one
     instance.load.side_effect = load
+    instance.childFolders.side_effect = child_folders
+    instance.save.side_effect = save
 
     folder_cls = MagicMock(return_value=instance)
     return folder_cls
@@ -183,7 +197,8 @@ def test_import_ui_configuration_remaps_base_and_replaces_meta():
         return data
 
     with patch('dive_server.crud_dataset.update_metadata', side_effect=fake_update):
-        result = crud_dataset.import_ui_configuration(dest, payload)
+        with patch('dive_server.crud_dataset.Folder', _folder_model([dest])):
+            result = crud_dataset.import_ui_configuration(dest, payload, user={})
 
     assert captured['folder']['_id'] == 'dest99'
     assert captured['verify'] is False
@@ -192,6 +207,50 @@ def test_import_ui_configuration_remaps_base_and_replaces_meta():
     assert 'old' not in captured['data']['attributes']
     assert captured['data']['configuration']['UISettings']['UITopBar'] is False
     assert result is captured['data']
+
+
+def test_import_ui_configuration_clears_descendant_self_refs():
+    """Parent import must demote descendant self-bases so get_configuration picks the parent."""
+    parent = _folder('parent1', name='Parent', parent_id=None, meta={})
+    mid = _folder(
+        'mid1',
+        name='Mid',
+        parent_id='parent1',
+        meta={'configuration': {'general': {'baseConfiguration': 'mid1', 'keep': True}}},
+    )
+    dataset = _folder(
+        'ds1',
+        name='Dataset',
+        parent_id='mid1',
+        meta={'configuration': {'general': {'baseConfiguration': 'ds1'}}},
+    )
+    sibling = _folder(
+        'sib1',
+        name='Sibling',
+        parent_id='parent1',
+        meta={'configuration': {'general': {'baseConfiguration': 'elsewhere'}}},
+    )
+    payload = {
+        'configuration': {
+            'general': {'baseConfiguration': 'source'},
+            'UISettings': {'UITopBar': True},
+        },
+        'attributes': {},
+    }
+
+    def fake_update(folder, data, verify=True):
+        folder.setdefault('meta', {}).update(data)
+        return data
+
+    with patch('dive_server.crud_dataset.update_metadata', side_effect=fake_update):
+        with patch('dive_server.crud_dataset.Folder', _folder_model([parent, mid, dataset, sibling])):
+            crud_dataset.import_ui_configuration(parent, payload, user={})
+
+    assert 'baseConfiguration' not in mid['meta']['configuration']['general']
+    assert mid['meta']['configuration']['general']['keep'] is True
+    assert 'baseConfiguration' not in dataset['meta']['configuration']['general']
+    # Non-self reference under dest is left alone
+    assert sibling['meta']['configuration']['general']['baseConfiguration'] == 'elsewhere'
 
 
 def test_import_ui_configuration_rejects_invalid_payload():

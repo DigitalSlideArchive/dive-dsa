@@ -232,6 +232,8 @@ export default defineComponent({
         showMessage(`UI Configuration imported to ${selectedFolderName.value}. Reloading…`);
         window.location.reload();
       } catch (err) {
+        // Close confirm first so the root snackbar is visible above the General dialog
+        confirmImportDialog.value = false;
         const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
           || String(err);
         showMessage(`Import failed: ${message}`, 'error');
@@ -431,25 +433,6 @@ export default defineComponent({
             Save
           </v-btn>
         </v-card-actions>
-        <v-snackbar
-          v-model="snackbar"
-          :timeout="3000"
-        >
-          <v-alert :type="snackbarType">
-            {{ snackbarMessage }}
-          </v-alert>
-
-          <template #action="{ attrs }">
-            <v-btn
-              color="blue"
-              text
-              v-bind="attrs"
-              @click="snackbar = false"
-            >
-              Close
-            </v-btn>
-          </template>
-        </v-snackbar>
       </v-card>
     </v-dialog>
     <v-dialog
@@ -483,6 +466,26 @@ export default defineComponent({
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <!-- Outside dialogs so messages remain visible when confirm/General overlay state changes -->
+    <v-snackbar
+      v-model="snackbar"
+      :timeout="3000"
+    >
+      <v-alert :type="snackbarType">
+        {{ snackbarMessage }}
+      </v-alert>
+
+      <template #action="{ attrs }">
+        <v-btn
+          color="blue"
+          text
+          v-bind="attrs"
+          @click="snackbar = false"
+        >
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
     <v-dialog v-model="transferFolder" width="600">
       <v-card
         outlined

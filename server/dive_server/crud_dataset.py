@@ -779,10 +779,54 @@ def export_ui_configuration(folder: types.GirderModel, user: types.GirderUserMod
     return data, base_folder
 
 
-def import_ui_configuration(dest: types.GirderModel, data: dict):
+def _clear_self_referencing_base_configuration(folder: types.GirderModel) -> bool:
+    """
+    If folder's configuration.general.baseConfiguration points at itself, remove it.
+    Returns True when the folder was modified.
+    """
+    meta = folder.get('meta') or {}
+    configuration = meta.get('configuration')
+    if not isinstance(configuration, dict):
+        return False
+    general = configuration.get('general')
+    if not isinstance(general, dict):
+        return False
+    base_id = general.get('baseConfiguration')
+    if not base_id or str(base_id) != str(folder['_id']):
+        return False
+    del general['baseConfiguration']
+    Folder().save(folder)
+    return True
+
+
+def _clear_descendant_ui_configuration_bases(
+    dest: types.GirderModel, user: types.GirderUserModel
+) -> int:
+    """
+    Clear self-referencing baseConfiguration on folders under dest.
+
+    get_configuration resolves the effective base as the first self-referencing
+    ancestor starting from the open dataset. Importing onto a parent would
+    otherwise be ignored when a descendant still self-references.
+    """
+    cleared = 0
+    stack = list(Folder().childFolders(dest, 'folder', user=user))
+    while stack:
+        child = stack.pop()
+        if _clear_self_referencing_base_configuration(child):
+            cleared += 1
+        stack.extend(Folder().childFolders(child, 'folder', user=user))
+    return cleared
+
+
+def import_ui_configuration(
+    dest: types.GirderModel, data: dict, user: Optional[types.GirderUserModel] = None
+):
     """
     Replace UI configuration mutable meta on dest with the given JSON payload.
     Rewrites configuration.general.baseConfiguration to dest's folder id.
+    Clears self-referencing baseConfiguration on descendants so dest becomes
+    the effective base for datasets under it.
     """
     if not isinstance(data, dict) or not models.MetadataMutable.is_dive_configuration(data):
         raise RestException('Invalid UI Configuration JSON', code=400)
@@ -814,7 +858,10 @@ def import_ui_configuration(dest: types.GirderModel, data: dict):
     if 'version' in validated:
         payload['version'] = validated['version']
 
-    return update_metadata(dest, payload, verify=False)
+    result = update_metadata(dest, payload, verify=False)
+    if user is not None:
+        _clear_descendant_ui_configuration_bases(dest, user)
+    return result
 
 
 def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):

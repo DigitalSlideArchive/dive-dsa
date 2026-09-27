@@ -157,7 +157,7 @@ The **UI Configuration** export from Configuration → General uses the same mut
 
 * Export resolves the hierarchy **base configuration** folder and packages that folder’s attributes, timelines, swimlanes, filters, styling, and nested `configuration` (UI settings, actions, shortcuts, timeline layouts, etc.) into one `.ui-config.json` file.
 * `configuration.general.baseConfiguration` is removed on export so the file is not tied to a specific Girder folder id.
-* Import (from General) writes to the folder selected in the General hierarchy dropdown and sets `baseConfiguration` to that destination folder id.
+* Import (from General) writes to the folder selected in the General hierarchy dropdown, sets `baseConfiguration` to that destination folder id, and clears self-referencing `baseConfiguration` values on descendant folders so the destination becomes the effective base.
 
 This path is for moving UI/config setups between servers. It is separate from Download → Configuration. See [Configuration — General](UI-Configuration.md#ui-configuration-import--export).
 

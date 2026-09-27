@@ -256,7 +256,9 @@ class DatasetResource(Resource):
     @autoDescribeRoute(
         Description(
             "Import UI Configuration JSON onto a folder (General hierarchy destination). "
-            "Rewrites baseConfiguration to the destination folder id."
+            "Rewrites baseConfiguration to the destination folder id and clears "
+            "self-referencing baseConfiguration on descendant folders so the "
+            "destination becomes the effective base."
         )
         .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
         .jsonParam(
@@ -267,7 +269,7 @@ class DatasetResource(Resource):
         )
     )
     def import_ui_configuration(self, folder, data):
-        return crud_dataset.import_ui_configuration(folder, data)
+        return crud_dataset.import_ui_configuration(folder, data, self.getCurrentUser())
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @rawResponse
