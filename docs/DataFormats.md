@@ -135,7 +135,7 @@ This information provides the specification for an individual dataset.  It consi
 * Preset confidence filters for those types are defined in `confidenceFilters`
 * Track and Detection attribute specifications are defined in `attributes`
 
-The full [DatasetMetaMutable definition can be found here](https://github.com/DigitalSlideArchive/dive-dsa/blob/main/client/dive-common/apispec.ts).
+This is the format produced by Download → Configuration and accepted when uploading a configuration JSON with a dataset. The full [DatasetMetaMutable definition can be found here](https://github.com/DigitalSlideArchive/dive-dsa/blob/main/client/dive-common/apispec.ts).
 
 ```typescript
 interface DatasetMetaMutable {
@@ -144,8 +144,22 @@ interface DatasetMetaMutable {
   customGroupStyling?: Record<string, CustomStyle>;
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
+  timelines?: Readonly<Record<string, TimelineGraph>>;
+  swimlanes?: Readonly<Record<string, SwimlaneGraph>>;
+  filters?: Readonly<Record<string, AttributeFilter>>;
+  configuration?: Configuration;
 }
 ```
+
+## UI Configuration JSON
+
+The **UI Configuration** export from Configuration → General uses the same mutable metadata shape as DIVE Configuration JSON above, with these portability rules:
+
+* Export resolves the hierarchy **base configuration** folder and packages that folder’s attributes, timelines, swimlanes, filters, styling, and nested `configuration` (UI settings, actions, shortcuts, timeline layouts, etc.) into one `.ui-config.json` file.
+* `configuration.general.baseConfiguration` is removed on export so the file is not tied to a specific Girder folder id.
+* Import (from General) writes to the folder selected in the General hierarchy dropdown and sets `baseConfiguration` to that destination folder id.
+
+This path is for moving UI/config setups between servers. It is separate from Download → Configuration. See [Configuration — General](UI-Configuration.md#ui-configuration-import--export).
 
 ## VIAME CSV
 
