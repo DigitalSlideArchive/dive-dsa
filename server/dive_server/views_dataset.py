@@ -43,6 +43,7 @@ class DatasetResource(Resource):
         self.route("GET", ("export",), self.export)
         self.route("GET", (":id", "configuration"), self.get_configuration)
         self.route("GET", (":id", "export_configuration"), self.export_configuration)
+        self.route("GET", (":id", "export_ui_configuration"), self.export_ui_configuration)
         self.route("GET", (":id", "media", ":mediaId", "download"), self.download_media)
 
         self.route("POST", ("validate_files",), self.validate_files)
@@ -55,6 +56,7 @@ class DatasetResource(Resource):
             ),
             self.transfer_config,
         )
+        self.route("POST", (":id", "import_ui_configuration"), self.import_ui_configuration)
 
         self.route("PATCH", (":id",), self.patch_metadata)
 
@@ -233,6 +235,39 @@ class DatasetResource(Resource):
         if loaded.get('configuration', {}).get('general', {}).get('baseConfiguration', False):
             del loaded['configuration']['general']['baseConfiguration']
         return json.dumps(loaded, indent=2)
+
+    @access.public(scope=TokenScope.DATA_READ, cookie=True)
+    @rawResponse
+    @autoDescribeRoute(
+        Description(
+            "Export UI Configuration JSON from the hierarchy base folder "
+            "(attributes, timelines, swimlanes, UI settings, shortcuts, etc.)"
+        ).modelParam("id", level=AccessType.READ, **DatasetModelParam)
+    )
+    def export_ui_configuration(self, folder):
+        restrictions = get_download_restrictions()
+        if restrictions['preventConfigDownloads']:
+            raise RestException('Configuration downloads are disabled by administrator', code=403)
+        data, base_folder = crud_dataset.export_ui_configuration(folder, self.getCurrentUser())
+        setContentDisposition(f'{base_folder["name"]}.ui-config.json')
+        return json.dumps(data, indent=2)
+
+    @access.user
+    @autoDescribeRoute(
+        Description(
+            "Import UI Configuration JSON onto a folder (General hierarchy destination). "
+            "Rewrites baseConfiguration to the destination folder id."
+        )
+        .modelParam("id", level=AccessType.WRITE, **DatasetModelParam)
+        .jsonParam(
+            "data",
+            description="UI Configuration JSON (MetadataMutable)",
+            requireObject=True,
+            paramType="body",
+        )
+    )
+    def import_ui_configuration(self, folder, data):
+        return crud_dataset.import_ui_configuration(folder, data)
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @rawResponse
