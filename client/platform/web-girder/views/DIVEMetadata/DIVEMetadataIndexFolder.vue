@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, nextTick, Ref, ref,
+  computed, defineComponent, Ref, ref,
 } from 'vue';
 import { GirderFileManager, GirderModelType } from '@girder/components/src';
 import useRequest from 'dive-common/use/useRequest';
@@ -8,6 +8,8 @@ import { RootlessLocationType } from 'platform/web-girder/store/types';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { indexDiveMetadataFromFolder } from 'platform/web-girder/api/divemetadata.service';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
+import { notifyAndWatchMetadataIngestJob } from 'platform/web-girder/utils/metadataIngestJobUi';
+import { useRouter } from 'vue-router/composables';
 
 export default defineComponent({
   name: 'DIVEMetadataIndexFolder',
@@ -37,6 +39,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const girderRest = useGirderRest();
     const { prompt } = usePrompt();
+    const router = useRouter();
     const open = ref(false);
     const replaceMetadata = ref(false);
     const combineMetadataFolders = ref(false);
@@ -57,29 +60,21 @@ export default defineComponent({
       if (!locationIsFolder.value) {
         throw new Error('Choose a folder to index');
       }
-      const { data } = await indexDiveMetadataFromFolder(
+      const { data: job } = await indexDiveMetadataFromFolder(
         props.metadataRoot,
         location.value._id,
         replaceMetadata.value,
         combineMetadataFolders.value,
       );
       open.value = false;
-      emit('updated');
-      const statusLines = combineMetadataFolders.value
-        ? [
-          `DIVE Metadata folders found: ${data.metadataFoldersFound}`,
-          `Datasets added: ${data.added}`,
-          `Datasets skipped (already present): ${data.existing}`,
-        ]
-        : [data.results];
-      // Let the index dialog finish closing before opening the status prompt.
-      await nextTick();
-      await prompt({
-        title: combineMetadataFolders.value
-          ? 'DIVE Metadata folders combined'
-          : 'Folder indexed',
-        text: statusLines,
-        positiveButton: 'OK',
+      await notifyAndWatchMetadataIngestJob({
+        job,
+        prompt,
+        router,
+        fallbackFolderId: props.metadataRoot,
+        onSuccess: () => {
+          emit('updated');
+        },
       });
     });
 

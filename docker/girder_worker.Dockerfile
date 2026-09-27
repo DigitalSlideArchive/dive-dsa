@@ -27,7 +27,7 @@ COPY server/pyproject.toml /opt/dive/src/
 COPY server/uv.lock /opt/dive/src/
 
 # Install dependencies with out SAM
-RUN uv sync --frozen --no-install-project --no-dev 
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy source and install project
 COPY server/ /opt/dive/src/
