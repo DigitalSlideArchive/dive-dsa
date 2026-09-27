@@ -19,6 +19,24 @@ The general setting is where you configure the location of the configuration JSO
 
 In the dropdown you can choose the folder where the configuration lives.  If you are changing it to a sub folder or a parent folder you can use the 'Transfer' button to move the configuration to the higher level.
 
+### UI Configuration Import / Export
+
+General also provides **Export** and **Import** for a portable **UI Configuration** bundle. This is separate from Download → Configuration on a dataset (see [Web Version](Web-Version.md#download-or-export-data)).
+
+The UI Configuration JSON includes:
+
+* Nested `configuration` (UI Settings, launch actions, action shortcuts, timeline layouts, custom UI, visual masks, general settings)
+* Attribute definitions
+* Timeline and swimlane graph definitions
+* Filters
+* Type/group styling and confidence filters
+
+**Export** walks up the folder hierarchy from the open dataset, finds the base configuration folder (where `baseConfiguration` points to itself), and downloads that folder’s full UI Configuration as a `.ui-config.json` file. Server-specific folder ids such as `baseConfiguration` are cleared so the file can move between servers.
+
+**Import** writes to the folder currently selected in the General **Choose Folder** dropdown (the general hierarchy level), not automatically to the open dataset unless that is the selected folder. You need write access on that folder. On import, `baseConfiguration` is rewritten to the destination folder id, the destination’s UI configuration fields are replaced, and any descendant folders that self-reference as their own base have that self-reference cleared so the imported parent configuration takes effect. Confirm the overwrite prompt before continuing; the viewer reloads after a successful import.
+
+See [Data Formats — UI Configuration JSON](DataFormats.md#ui-configuration-json) for the file shape.
+
 ## UI Settings
 
 ![UI Settings](images/Configuration/UISettings/UISettings.png)

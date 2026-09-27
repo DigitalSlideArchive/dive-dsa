@@ -45,6 +45,8 @@ When available:
 * ==Configuration== will export a [DIVE configuration](DataFormats.md#dive-configuration-json) `.json`
 * ==Everything== will zip the allowed content (media and/or annotations and/or configuration). The menu notes when media is excluded.
 
+To move a full UI configuration between servers (including attributes, timelines, swimlanes, and UI settings stored on a parent hierarchy folder), use **Configuration → General → Export / Import** instead. That flow is documented under [UI Configuration Import / Export](UI-Configuration.md#ui-configuration-import--export) and uses [UI Configuration JSON](DataFormats.md#ui-configuration-json).
+
 In-viewer playback is separate from media export: watching a dataset can still work when media downloads are blocked.
 
 <div style="clear: both;"/>

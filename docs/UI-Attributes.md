@@ -292,6 +292,8 @@ Attributes are part of the dataset configuration that can be imported and export
     1. Use the ==:material-application-import: Import== button to load this configuration to other datasets.
     1. Upload the configuration file when you create new datasets to initialize them with these attribute definitions.
 
+To move attributes together with UI settings, timelines, swimlanes, and shortcuts between servers (including when configuration lives on a parent folder), use **Configuration → General → Export / Import**. See [UI Configuration Import / Export](UI-Configuration.md#ui-configuration-import--export).
+
 ## Applying Attributes Demo
 
 ![Applying Attributes Demo](videos/Attributes/ApplyingAttributes.gif)
