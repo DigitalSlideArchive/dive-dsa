@@ -1,21 +1,27 @@
 import { LineChartData } from './useLineChart';
 
+export interface DisplayTrackFilterSettings {
+  display: 'static' | 'selected' | 'pinned';
+  trackFilter: string[];
+  /** Required when display is 'pinned' */
+  pinnedTrackId?: number;
+  displayFrameIndicators?: boolean;
+  displayTooltip?: boolean;
+  renderMode?: 'classic' | 'segments' | 'discrete';
+  highlightSegments?: boolean;
+  editSegments?: boolean;
+  minSegmentSize?: number;
+  hideTitle?: boolean;
+  hideKeyTitle?: boolean;
+  hideKeyAttributeLabels?: boolean;
+}
+
 export interface SwimlaneGraph {
   name: string;
   filter: AttributeKeyFilter;
   enabled: boolean;
   default?: boolean;
-  displaySettings?: {
-    display: 'static' | 'selected';
-    trackFilter: string[];
-    displayFrameIndicators?: boolean;
-    displayTooltip?: boolean;
-    renderMode?: 'classic' | 'segments';
-    highlightSegments?: boolean;
-    editSegments?: boolean;
-    minSegmentSize?: number;
-
-  };
+  displaySettings?: DisplayTrackFilterSettings;
   settings?: Record<string, SwimlaneGraphSettings>;
 }
 
@@ -39,7 +45,7 @@ export interface TimelineGraph {
     default?: boolean;
     yRange?: number[];
     ticks?: number;
-    displaySettings?: { display: 'static' | 'selected'; trackFilter: string[] };
+    displaySettings?: DisplayTrackFilterSettings;
     settings?: Record<string, TimelineGraphSettings>;
   }
 
@@ -58,7 +64,50 @@ export interface ButtonShortcut {
     iconAppend?: string;
     iconPrepend?: string;
     buttonColor?: string; // 'auto' or can be overridden
+    /** @deprecated Use attribute customUI.displayValue. Kept for legacy configs. */
     displayValue?: boolean;
+  }
+
+export interface AttributeCustomUIStickyIndicator {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    /** Font color for inherited values. Use 'auto' for the attribute color. */
+    highlightColor?: string;
+    /** Multiplier for font size when value is inherited (1 = same size). */
+    fontSizeScale?: number;
+    /** Opacity when value is inherited (0–1). */
+    opacity?: number;
+  }
+
+export interface AttributeCustomUI {
+    enabled?: boolean;
+    /** Show this attribute in Custom UI even when it has no button shortcuts. */
+    showWithoutButtons?: boolean;
+    displayValue?: boolean;
+    /** Carry forward the last non-empty value from previous keyframes. */
+    stickyValue?: boolean;
+    stickyValueIndicator?: AttributeCustomUIStickyIndicator;
+    valuePosition?: 'below' | 'above' | 'header';
+    longValueMode?: 'truncate' | 'expand' | 'scroll';
+    emptyValueLabel?: string;
+    /** When valuePosition is header, separator appended after the section title. */
+    headerValueSeparator?: ':' | '-';
+    /** Horizontal space (px) between the separator and the displayed value in header mode. */
+    headerValueOffset?: number;
+    /** Text shown before the displayed attribute value. */
+    valuePrepend?: string;
+    /** Text shown after the displayed attribute value. */
+    valueAppend?: string;
+    /** Show the attribute name heading in the Custom UI panel. */
+    showHeader?: boolean;
+    /** Font size multiplier for the displayed attribute value (1 = default). */
+    valueFontSizeScale?: number;
+    /** Horizontal alignment for the displayed attribute value. */
+    valueAlign?: 'left' | 'center' | 'right';
+    /** Value text color. Use 'auto' for the attribute value color mapping. */
+    valueColor?: 'auto' | string;
+    showDescription?: boolean;
   }
 export interface AttributeShortcut {
     key?: string;
@@ -155,6 +204,7 @@ export interface Attribute {
     lockedValues?: boolean;
     editor?: NumericAttributeEditorOptions | StringAttributeEditorOptions;
     shortcuts?: AttributeShortcut[];
+    customUI?: AttributeCustomUI;
     render?: AttributeRendering;
     colorKey?: boolean;
     colorKeySettings?: {display: 'static' | 'selected'; trackFilter: string[] };

@@ -6,8 +6,6 @@ import { useConfiguration } from 'vue-media-annotator/provides';
 
 export default defineComponent({
   name: 'UIContextBar',
-  components: {
-  },
   setup() {
     const configMan = useConfiguration();
     const UIContextBarDefaultNotOpen = ref(configMan.getUISetting('UIContextBarDefaultNotOpen') as boolean);
@@ -19,11 +17,6 @@ export default defineComponent({
     const UIRevisionHistory = ref(configMan.getUISetting('UIRevisionHistory') as boolean);
     const UIDatasetInfo = ref(configMan.getUISetting('UIDatasetInfo') as boolean);
     const UIAttributeUserReview = ref(configMan.getUISetting('UIAttributeUserReview') as boolean);
-
-    const CustomUIEnabled = ref(!!configMan.configuration.value?.customUI);
-    const customUITitle = ref(configMan.configuration.value?.customUI?.title || 'Custom UI');
-    const customUIInformation = ref(configMan.configuration.value?.customUI?.information || ['Custom UI Information']);
-    const customUIWidth = ref(configMan.configuration.value?.customUI?.width || 300);
 
     watch([UIThresholdControls, UIImageEnhancements,
       UIGroupManager, UIAttributeDetails, UIRevisionHistory, UIDatasetInfo, UIAttributeUserReview, UIContextBarDefaultNotOpen, UIContextBarNotStatic], () => {
@@ -41,25 +34,6 @@ export default defineComponent({
       configMan.setUISettings('UIContextBar', data);
     });
 
-    const addNewInformation = () => {
-      customUIInformation.value.push('');
-    };
-    const removeInformation = (index: number) => {
-      customUIInformation.value.splice(index, 1);
-    };
-    watch([CustomUIEnabled, customUITitle, customUIInformation, customUIWidth], () => {
-      if (!CustomUIEnabled.value) {
-        configMan.setCustomUI(undefined);
-        return;
-      }
-      const data = {
-        title: customUITitle.value,
-        information: customUIInformation.value,
-        width: customUIWidth.value,
-      };
-      configMan.setCustomUI(data);
-    });
-
     return {
       UIContextBarDefaultNotOpen,
       UIContextBarNotStatic,
@@ -69,12 +43,6 @@ export default defineComponent({
       UIAttributeDetails,
       UIRevisionHistory,
       UIDatasetInfo,
-      CustomUIEnabled,
-      customUITitle,
-      customUIInformation,
-      customUIWidth,
-      addNewInformation,
-      removeInformation,
       UIAttributeUserReview,
     };
   },
@@ -145,37 +113,6 @@ export default defineComponent({
             label="Attribute User Review"
           />
         </v-row>
-        <v-row dense>
-          <v-switch
-            v-model="CustomUIEnabled"
-            label="Custom UI Enabled"
-          />
-        </v-row>
-        <v-row v-if="CustomUIEnabled" dense>
-          <v-text-field v-model="customUITitle" label="Title" />
-          <v-text-field v-model.number="customUIWidth" label="Width" />
-        </v-row>
-        <div
-          v-if="CustomUIEnabled"
-        >
-          <v-row>
-            <v-btn @click="addNewInformation()">
-              Add New
-            </v-btn>
-          </v-row>
-          <v-row v-for="(info, index) in customUIInformation" :key="index" class="my-2">
-            <v-col>
-              <v-text-field v-model="customUIInformation[index]" label="Information" />
-            </v-col>
-            <v-col cols="auto">
-              <v-btn icon @click="removeInformation(index)">
-                <v-icon color="error">
-                  mdi-delete
-                </v-icon>
-              </v-btn>
-            </v-col>
-          </v-row>
-        </div>
       </div>
     </v-card-text>
   </v-card>

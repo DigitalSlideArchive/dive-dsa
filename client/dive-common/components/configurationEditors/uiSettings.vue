@@ -8,6 +8,7 @@ import UIInteractionsVue from './UISettings/UIInteractions.vue';
 import UITopBarVue from './UISettings/UITopBar.vue';
 import UIToolBarVue from './UISettings/UIToolBar.vue';
 import UIContextBarVue from './UISettings/UIContextBar.vue';
+import UICustomUIVue from './UISettings/UICustomUI.vue';
 import UIControlsVue from './UISettings/UIControls.vue';
 import UISideBarVue from './UISettings/UISideBar.vue';
 import UITimelineVue from './UISettings/UITimeline.vue';
@@ -20,6 +21,7 @@ export default defineComponent({
     'ui-top-bar': UITopBarVue,
     'ui-tool-bar': UIToolBarVue,
     'ui-context-bar': UIContextBarVue,
+    'ui-custom-ui': UICustomUIVue,
     'ui-controls': UIControlsVue,
     'ui-side-bar': UISideBarVue,
     'ui-timeline': UITimelineVue,
@@ -39,6 +41,12 @@ export default defineComponent({
     const UIToolBar = ref(configMan.getUISetting('UIToolBar') as boolean);
     const UISideBar = ref(configMan.getUISetting('UISideBar') as boolean);
     const UIContextBar = ref(configMan.getUISetting('UIContextBar') as boolean);
+    const customUISetting = configMan.configuration.value?.UISettings?.UICustomUI;
+    const UICustomUI = ref(
+      typeof customUISetting === 'boolean'
+        ? customUISetting
+        : !!configMan.configuration.value?.customUI,
+    );
     const UITrackDetails = ref(configMan.getUISetting('UITrackDetails') as boolean);
     const UIControls = ref(configMan.getUISetting('UIControls') as boolean);
     const UITimeline = ref(configMan.getUISetting('UITimeline') as boolean);
@@ -66,6 +74,7 @@ export default defineComponent({
         UIToolBar: setVal('UIToolBar', UIToolBar.value),
         UISideBar: setVal('UISideBar', UISideBar.value),
         UIContextBar: setVal('UIContextBar', UIContextBar.value),
+        UICustomUI: setVal('UICustomUI', UICustomUI.value),
         UITrackDetails: setVal('UITrackDetails', UITrackDetails.value),
         UIControls: setVal('UIControls', UIControls.value),
         UITimeline: setVal('UITimeline', UITimeline.value),
@@ -73,7 +82,10 @@ export default defineComponent({
 
       };
       configMan.setRootUISettings(data as UISettings);
-      const updatedConfig = { UISettings: data, ...configMan.configuration.value };
+      if (!UICustomUI.value) {
+        configMan.setCustomUI(undefined);
+      }
+      const updatedConfig = { ...configMan.configuration.value, UISettings: data };
       if (updatedConfig) {
         configMan.saveConfiguration(
           configMan.configurationId.value,
@@ -93,6 +105,7 @@ export default defineComponent({
       UIToolBar,
       UISideBar,
       UIContextBar,
+      UICustomUI,
       UITrackDetails,
       UIControls,
       UITimeline,
@@ -154,6 +167,9 @@ export default defineComponent({
               <v-tab :disabled="!UIContextBar">
                 ContextBar
               </v-tab>
+              <v-tab :disabled="!UICustomUI">
+                CustomUI
+              </v-tab>
               <v-tab :disabled="!UITrackDetails">
                 TrackDetails
               </v-tab>
@@ -189,6 +205,10 @@ export default defineComponent({
                 label="Context Bar (right side)"
               />
               <v-switch
+                v-model="UICustomUI"
+                label="Custom UI"
+              />
+              <v-switch
                 v-model="UITrackDetails"
                 label="Track Details (Attributes)"
               />
@@ -216,6 +236,9 @@ export default defineComponent({
             </v-tab-item>
             <v-tab-item>
               <ui-context-bar />
+            </v-tab-item>
+            <v-tab-item>
+              <ui-custom-ui :enabled="UICustomUI" />
             </v-tab-item>
             <v-tab-item>
               <ui-track-details />

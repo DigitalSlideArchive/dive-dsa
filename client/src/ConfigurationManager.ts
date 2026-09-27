@@ -1,6 +1,7 @@
 import { ref, Ref } from 'vue';
 import { DIVEAction, DIVEActionShortcut } from 'dive-common/use/useActions';
 import { isArray } from 'lodash';
+import migrateLegendSettingsUISettings from './components/controls/migrateLegendSettings';
 import type { FilterTimeline } from './use/useTimelineFilters';
 import type { CustomStyle } from './StyleManager';
 import type { Feature } from './track';
@@ -82,7 +83,6 @@ interface UITrackDetails {
 }
 
 interface UIControls {
-    UILegendControls?: boolean;
     UITimelineSelection?: boolean;
     UIPlaybackControls? : boolean;
     UIAudioControls? : boolean;
@@ -97,6 +97,11 @@ interface UIControls {
 interface UITimeline {
     UIDetections? : boolean;
     UIEvents? : boolean;
+    UILegendControls?: boolean;
+    UILegendForceOpen?: boolean;
+    UILegendHideToggle?: boolean;
+    UILegendKeyMinWidth?: number;
+    UILegendKeyMaxWidth?: number;
 }
 
 interface UIInteractions {
@@ -109,6 +114,7 @@ export interface UISettings {
     UIToolBar?: boolean | UIToolBar;
     UISideBar?: boolean | UISideBar;
     UIContextBar?: boolean | UIContextBar;
+    UICustomUI?: boolean;
     UITrackDetails?: boolean | UITrackDetails;
     UIControls?: boolean | UIControls;
     UITimeline?: boolean | UITimeline;
@@ -136,10 +142,39 @@ export interface TimelineConfiguration {
   timelines: TimelineDisplay[];
 }
 
+export interface CustomUITrackListSettings {
+  enabled?: boolean;
+  title?: string;
+  defaultExpanded?: boolean;
+  /** Position relative to DIVE action shortcut buttons */
+  position?: 'above' | 'below';
+  typeFilter?: string[];
+  /** When true, only show tracks whose frame range includes the current frame */
+  filterCurrentFrame?: boolean;
+  maxHeight?: number;
+  actions?: {
+    select?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
+  display?: {
+    showType?: boolean;
+    showFrameRange?: boolean;
+    showTrackId?: boolean;
+  };
+  showEditingStatus?: boolean;
+  editingStatusTitle?: string;
+  /** Select this track when editing, creating, or deleting from the track list finishes */
+  returnToTrackId?: number;
+}
+
 export interface CustomUISettings {
   title?: string;
   information?: string[]; // multiple markdown pages of information to be displayed if it exists
   width? : number;
+  /** Attribute keys (`${belongs}_${name}`) controlling Custom UI attribute button group order */
+  attributeButtonOrder?: string[];
+  trackList?: CustomUITrackListSettings;
   }
 
 export interface ConfigurationUser {
@@ -305,6 +340,10 @@ export default class ConfigurationManager {
       // Ensure active index is valid (but allow -1 for no selection)
       if (this.activeTimelineConfigIndex.value >= (normalizedData.timelineConfigs?.length || 0)) {
         this.activeTimelineConfigIndex.value = -1; // Reset to no selection if invalid
+      }
+      if (normalizedData.UISettings) {
+        normalizedData.UISettings = migrateLegendSettingsUISettings(normalizedData.UISettings)
+          || normalizedData.UISettings;
       }
       this.configuration.value = normalizedData;
     }
@@ -479,6 +518,7 @@ export default class ConfigurationManager {
         UIToolBar: true,
         UISideBar: true,
         UIContextBar: true,
+        UICustomUI: true,
         UITrackDetails: true,
         UIControls: true,
         UITimeline: true,
@@ -556,8 +596,7 @@ export default class ConfigurationManager {
       if (shortcuts.length === 1) {
         this.configuration.value.shortcuts = [];
       } else if (shortcuts[index]) {
-        const newShortcuts = shortcuts.splice(index, 1);
-        this.configuration.value.shortcuts = newShortcuts;
+        shortcuts.splice(index, 1);
       }
     }
   }

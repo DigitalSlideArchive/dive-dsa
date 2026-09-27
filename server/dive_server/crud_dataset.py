@@ -1,3 +1,4 @@
+import copy
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -14,6 +15,19 @@ from pydantic.main import BaseModel
 
 from dive_server import crud, crud_annotation
 from dive_utils import TRUTHY_META_VALUES, asbool, constants, fromMeta, models, types
+
+# Mutable meta keys that make up a portable UI Configuration bundle
+UI_CONFIGURATION_META_KEYS = (
+    'attributes',
+    'timelines',
+    'swimlanes',
+    'filters',
+    'customTypeStyling',
+    'customGroupStyling',
+    'confidenceFilters',
+    'configuration',
+    'version',
+)
 
 
 def get_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
@@ -709,6 +723,147 @@ def transfer_config(source: Folder, dest: Folder, user: User):
     return update_metadata(dest, data, False)
 
 
+def find_ui_configuration_base_folder(folder: types.GirderModel, user: types.GirderUserModel):
+    """
+    Walk up the folder hierarchy and find the folder that stores UI configuration.
+    That is the folder whose configuration.general.baseConfiguration equals its own id.
+    Falls back to the requested folder when no base is set.
+    """
+    current = folder
+    candidates = [current]
+    while True:
+        parent_id = current.get('parentId')
+        if not parent_id:
+            break
+        parent = Folder().findOne({'_id': parent_id})
+        if not parent:
+            break
+        candidates.append(parent)
+        current = parent
+
+    for candidate in candidates:
+        base_id = (
+            candidate.get('meta', {})
+            .get('configuration', {})
+            .get('general', {})
+            .get('baseConfiguration')
+        )
+        if base_id and str(base_id) == str(candidate['_id']):
+            loaded = Folder().load(candidate['_id'], level=AccessType.READ, user=user)
+            if loaded:
+                return loaded
+
+    return Folder().load(folder['_id'], level=AccessType.READ, user=user)
+
+
+def _extract_ui_configuration_meta(folder: types.GirderModel) -> dict:
+    """Build a MetadataMutable-shaped dict from folder meta."""
+    meta = folder.get('meta', {}) or {}
+    data = {}
+    for key in UI_CONFIGURATION_META_KEYS:
+        if key in meta and meta[key] is not None:
+            data[key] = meta[key]
+    return data
+
+
+def export_ui_configuration(folder: types.GirderModel, user: types.GirderUserModel):
+    """
+    Resolve the UI configuration base folder for this dataset and return
+    a portable MetadataMutable dict plus the base folder model.
+    """
+    base_folder = find_ui_configuration_base_folder(folder, user)
+    data = copy.deepcopy(_extract_ui_configuration_meta(base_folder))
+    # Strip server-specific folder id so the file is portable between servers
+    if data.get('configuration', {}).get('general', {}).get('baseConfiguration', False):
+        del data['configuration']['general']['baseConfiguration']
+    return data, base_folder
+
+
+def _clear_self_referencing_base_configuration(folder: types.GirderModel) -> bool:
+    """
+    If folder's configuration.general.baseConfiguration points at itself, remove it.
+    Returns True when the folder was modified.
+    """
+    meta = folder.get('meta') or {}
+    configuration = meta.get('configuration')
+    if not isinstance(configuration, dict):
+        return False
+    general = configuration.get('general')
+    if not isinstance(general, dict):
+        return False
+    base_id = general.get('baseConfiguration')
+    if not base_id or str(base_id) != str(folder['_id']):
+        return False
+    del general['baseConfiguration']
+    Folder().save(folder)
+    return True
+
+
+def _clear_descendant_ui_configuration_bases(
+    dest: types.GirderModel, user: types.GirderUserModel
+) -> int:
+    """
+    Clear self-referencing baseConfiguration on folders under dest.
+
+    get_configuration resolves the effective base as the first self-referencing
+    ancestor starting from the open dataset. Importing onto a parent would
+    otherwise be ignored when a descendant still self-references.
+    """
+    cleared = 0
+    stack = list(Folder().childFolders(dest, 'folder', user=user))
+    while stack:
+        child = stack.pop()
+        if _clear_self_referencing_base_configuration(child):
+            cleared += 1
+        stack.extend(Folder().childFolders(child, 'folder', user=user))
+    return cleared
+
+
+def import_ui_configuration(
+    dest: types.GirderModel, data: dict, user: Optional[types.GirderUserModel] = None
+):
+    """
+    Replace UI configuration mutable meta on dest with the given JSON payload.
+    Rewrites configuration.general.baseConfiguration to dest's folder id.
+    Clears self-referencing baseConfiguration on descendants so dest becomes
+    the effective base for datasets under it.
+    """
+    if not isinstance(data, dict) or not models.MetadataMutable.is_dive_configuration(data):
+        raise RestException('Invalid UI Configuration JSON', code=400)
+
+    try:
+        validated = models.MetadataMutable(**data).dict(exclude_none=True)
+    except Exception as exc:
+        raise RestException(f'Invalid UI Configuration JSON: {exc}', code=400) from exc
+
+    configuration = copy.deepcopy(validated.get('configuration') or {})
+    if not isinstance(configuration, dict):
+        configuration = {}
+    general = configuration.get('general') or {}
+    if not isinstance(general, dict):
+        general = {}
+    general['baseConfiguration'] = str(dest['_id'])
+    configuration['general'] = general
+
+    payload = {
+        'attributes': validated.get('attributes') or {},
+        'timelines': validated.get('timelines') or {},
+        'swimlanes': validated.get('swimlanes') or {},
+        'customGroupStyling': validated.get('customGroupStyling') or {},
+        'customTypeStyling': validated.get('customTypeStyling') or {},
+        'filters': validated.get('filters') or {},
+        'confidenceFilters': validated.get('confidenceFilters') or {},
+        'configuration': configuration,
+    }
+    if 'version' in validated:
+        payload['version'] = validated['version']
+
+    result = update_metadata(dest, payload, verify=False)
+    if user is not None:
+        _clear_descendant_ui_configuration_bases(dest, user)
+    return result
+
+
 def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):
     """Upsert or delete attributes"""
     if verify:
@@ -844,6 +999,7 @@ def export_datasets_zipstream(
     includeDetections: bool,
     excludeBelowThreshold: bool,
     typeFilter: Optional[List[str]],
+    includeConfig: bool = True,
 ):
     def makeAnnotationAndMedia(dsFolder: types.GirderModel):
         _, gen = crud_annotation.get_annotation_csv_generator(
@@ -878,11 +1034,16 @@ def export_datasets_zipstream(
                 """Include dataset metadtata file with full export"""
                 meta = get_dataset(dsFolder, user)
                 media = get_media(dsFolder, user)
+                payload = {
+                    **meta.dict(exclude_none=True),
+                    **media.dict(exclude_none=True),
+                }
+                if not includeConfig:
+                    # Strip all MetadataMutable fields (same set as export_configuration)
+                    for key in models.MetadataMutable.schema()['properties'].keys():
+                        payload.pop(key, None)
                 yield json.dumps(
-                    {
-                        **meta.dict(exclude_none=True),
-                        **media.dict(exclude_none=True),
-                    },
+                    payload,
                     indent=2,
                 )
 
@@ -893,9 +1054,6 @@ def export_datasets_zipstream(
                 yield json.dumps(annotations)
 
             for data in z.addFile(makeMetajson, Path(f'{zip_path}meta.json')):
-                yield data
-
-            for data in z.addFile(makeDiveJson, Path(f'{zip_path}annotations.dive.json')):
                 yield data
 
             gen, mediaFolder, mediaRegex = makeAnnotationAndMedia(dsFolder)
@@ -911,6 +1069,8 @@ def export_datasets_zipstream(
                         break  # Media items should only have 1 valid file
 
             if includeDetections:
+                for data in z.addFile(makeDiveJson, Path(f'{zip_path}annotations.dive.json')):
+                    yield data
                 for data in z.addFile(gen, Path(f'{zip_path}annotations.viame.csv')):
                     yield data
         if len(failed_datasets) > 0:

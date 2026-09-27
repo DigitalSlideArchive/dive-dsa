@@ -37,10 +37,19 @@ export interface AssetstoreImportSettings {
   preventTranscoding?: boolean;
 }
 
+export interface DownloadRestrictionSettings {
+  preventAllDownloads?: boolean;
+  /** Default true: media (and media-containing zips) cannot be downloaded */
+  preventMediaDownloads?: boolean;
+  preventTrackDownloads?: boolean;
+  preventConfigDownloads?: boolean;
+}
+
 export interface DIVEGirderConfig {
   SAM2Config?: SAM2ClientConfig;
   EnabledFeatures? :EnabledFeatures;
   AssetstoreImportSettings?: AssetstoreImportSettings;
+  DownloadRestrictionSettings?: DownloadRestrictionSettings;
 }
 
 export type AddOns = [string, string, string, boolean][];

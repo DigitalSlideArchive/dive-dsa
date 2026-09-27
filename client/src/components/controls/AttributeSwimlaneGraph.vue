@@ -17,6 +17,8 @@ import { SwimlaneAttribute, SwimlaneData, SwimlaneGraph } from 'vue-media-annota
 import { mdiArrowLeftRightBold } from '@mdi/js';
 import { useStore } from 'platform/web-girder/store/types';
 import { injectAggregateController } from '../annotators/useMediaController';
+import BodyPortal from './BodyPortal.vue';
+import { timelineTooltipStyle } from './timelineTooltip';
 
 function intersect(range1: number[], range2: number[]): number[] | null {
   const min = range1[0] < range2[0] ? range1 : range2;
@@ -39,6 +41,9 @@ export interface DragData {
 }
 export default defineComponent({
   name: 'AttributeSwimlaneGraph',
+  components: {
+    BodyPortal,
+  },
   props: {
     startFrame: { type: Number, required: true },
     endFrame: { type: Number, required: true },
@@ -68,8 +73,8 @@ export default defineComponent({
     const chartTop = ref(0);
     const x = ref<any>(null);
     const tooltip: Ref<null | {
-      left: number;
-      top: number;
+      x: number;
+      y: number;
       contentColor: string;
       subColor: string;
       name: string;
@@ -129,11 +134,7 @@ export default defineComponent({
       }
       if (tooltip.value !== null) {
         return {
-          style: {
-            left: `${tooltip.value.left + 15}px`,
-            bottom: `${tooltip.value.top}px`,
-            'z-index': 9999,
-          },
+          style: timelineTooltipStyle({ x: tooltip.value.x, y: tooltip.value.y }),
           ...tooltip.value,
         };
       }
@@ -226,6 +227,22 @@ export default defineComponent({
         });
       });
       return barFrames;
+    });
+
+    /**
+     * Frames whose appearance depends on the playhead. Covers both ends of every subsection
+     * because a boundary landing on the current frame both highlights its icon and forces
+     * that icon to be drawn even when it would otherwise be skipped as part of a cluster.
+     */
+    const highlightFrames = computed(() => {
+      const frames = new Set<number>();
+      bars.value.forEach((bar) => {
+        bar.subSections.forEach((sub) => {
+          frames.add(sub.begin);
+          frames.add(sub.end);
+        });
+      });
+      return frames;
     });
 
     const interactiveZones = computed(() => {
@@ -324,6 +341,30 @@ export default defineComponent({
       canvasEl.height = barList.slice(-1)[0].top + 30;
 
       const barHeight = 20;
+      // Reactive reads are hoisted out of the subsection loops below; on long videos Vue's
+      // property getters otherwise cost more than the canvas draw calls themselves.
+      const scale = x.value;
+      const renderMode = props.displaySettings?.renderMode;
+      const drawSymbols = showSymbols.value;
+      const currentFrame = frame.value;
+      const hovered = hoveredZone.value;
+      const visibleStart = startFrame_.value;
+      const visibleEnd = endFrame_.value;
+      // Discrete boxes are widened to minWidth, so keep a margin before culling
+      const cullPadding = Math.max(1, (visibleEnd - visibleStart) * 0.02);
+      const cullStart = visibleStart - cullPadding;
+      const cullEnd = visibleEnd + cullPadding;
+
+      // Frame indicators are queued and drawn after every segment fill so that neither a
+      // neighbouring subsection nor a deferred merged fill can paint over them.
+      const pendingIcons: {
+        xFrame: number;
+        xPosition: number;
+        yPosition: number;
+        symbol: 'diamond' | 'arrows';
+        highlighted: boolean;
+      }[] = [];
+
       barList.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
         ctx.strokeStyle = bar.color;
@@ -334,30 +375,92 @@ export default defineComponent({
           ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
         }
 
+        const iconMidline = bar.top + barHeight / 2;
+        let lastIconEdge = -Infinity;
+        // Adjacent subsections resolving to the same color are merged into one fillRect
+        let pendingColor: string | null = null;
+        let pendingLeft = 0;
+        let pendingRight = 0;
+        const flushPending = () => {
+          if (pendingColor !== null && pendingRight > pendingLeft) {
+            ctx.fillStyle = pendingColor;
+            ctx.fillRect(pendingLeft, bar.top, pendingRight - pendingLeft, barHeight);
+          }
+          pendingColor = null;
+        };
+
         bar.subSections.forEach((sub, index) => {
-          let left = x.value(sub.begin);
-          let right = x.value(sub.end);
-          if (dragData.isDragging && index === dragData.draggedSubsectionIndex && dragData.draggingCurrentLocation !== null) {
+          const dragging = dragData.isDragging
+            && index === dragData.draggedSubsectionIndex
+            && dragData.draggingCurrentLocation !== null;
+          if (!dragging && (sub.end < cullStart || sub.begin > cullEnd)) {
+            return;
+          }
+          let left = scale(sub.begin);
+          let right = scale(sub.end);
+          if (dragging) {
             if (sub.begin === dragData.draggedFrame) {
-              left = x.value(dragData.draggingCurrentLocation);
+              left = scale(dragData.draggingCurrentLocation);
             } else if (sub.end === dragData.draggedFrame) {
-              right = x.value(dragData.draggingCurrentLocation);
+              right = scale(dragData.draggingCurrentLocation);
             }
           }
-          const width = right - left;
-          ctx.fillStyle = sub.color || 'white';
-          ctx.fillRect(left, bar.top, width, barHeight);
-          if (showSymbols.value) {
-            const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
-            if (!sub.singleVal || props.displaySettings?.renderMode !== 'segments') {
-              drawIcon(ctx, sub.begin, left, bar.top + barHeight / 2, symbol);
+          const width = renderMode === 'discrete'
+            ? Math.max(right - left, bar.minWidth)
+            : right - left;
+          const fillColor = sub.color || 'white';
+          if (pendingColor === fillColor && left <= pendingRight + 0.5) {
+            pendingRight = Math.max(pendingRight, left + width);
+          } else {
+            flushPending();
+            pendingColor = fillColor;
+            pendingLeft = left;
+            pendingRight = left + width;
+          }
+          if (drawSymbols) {
+            // Icons are ~10px wide, so only draw one per cluster unless it marks the
+            // playhead or the hovered zone, which must always stay visible. Begin and end
+            // markers are gated independently so a dense begin cluster cannot drop an end
+            // diamond that sits further right.
+            const beginHighlighted = sub.begin === currentFrame || sub.begin === hovered;
+            const endHighlighted = sub.end === currentFrame || sub.end === hovered;
+            const tryQueueIcon = (
+              xFrame: number,
+              xPosition: number,
+              symbol: 'diamond' | 'arrows',
+              highlighted: boolean,
+            ) => {
+              if (!highlighted && xPosition < lastIconEdge) {
+                return;
+              }
+              pendingIcons.push({
+                xFrame, xPosition, yPosition: iconMidline, symbol, highlighted,
+              });
+              lastIconEdge = Math.max(lastIconEdge, xPosition + 6);
+            };
+            if (!sub.singleVal || renderMode !== 'segments') {
+              const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
+              tryQueueIcon(sub.begin, left, symbol, beginHighlighted);
             }
-            if (props.displaySettings?.renderMode === 'segments') {
-              const symbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              drawIcon(ctx, sub.end, right, bar.top + barHeight / 2, symbol);
+            if (renderMode === 'segments') {
+              const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
+              tryQueueIcon(sub.end, right, endSymbol, endHighlighted);
             }
           }
         });
+        flushPending();
+      });
+
+      // Highlighted indicators go last so the playhead and hovered markers sit above their neighbours
+      pendingIcons.forEach((icon) => {
+        if (!icon.highlighted) {
+          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
+        }
+      });
+      pendingIcons.forEach((icon) => {
+        if (icon.highlighted) {
+          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
+        }
       });
     };
 
@@ -384,12 +487,18 @@ export default defineComponent({
         dragData.dragBarName = bar.name;
         dragData.draggingValue = sub.value || 'None';
       }
-      const subIndex = bar.subSections.findIndex((s) => offsetX >= x.value(s.begin) && offsetX <= x.value(s.end));
+      const subIndex = bar.subSections.findIndex((s) => {
+        const left = x.value(s.begin);
+        const right = props.displaySettings?.renderMode === 'discrete'
+          ? left + bar.minWidth
+          : x.value(s.end);
+        return offsetX >= left && offsetX <= right;
+      });
       if (subIndex !== -1) {
         const sub = bar.subSections[subIndex];
         tooltip.value = {
-          left: offsetX,
-          top: offsetY,
+          x: e.clientX,
+          y: e.clientY,
           contentColor: bar.color,
           subColor: sub?.color || 'transparent',
           name: bar.name,
@@ -489,13 +598,23 @@ export default defineComponent({
       }
     };
 
-    watch(frame, () => {
+    watch(frame, (newFrame, oldFrame) => {
       if (dragData.isDragging && dragData.draggedFrame !== null && dragData.dragTarget !== null) {
         dragData.draggingCurrentLocation = frame.value;
         update();
-      } else if (props.displaySettings?.renderMode !== 'segments') {
-        update();
+        return;
       }
+      // The playhead itself is a DOM element owned by Timeline.vue, so the only frame-dependent
+      // pixels here are the keyframe icon highlights. Skip redraws that would repaint an
+      // identical canvas, which is the overwhelming majority of frames on a long video.
+      if (!showSymbols.value) {
+        return;
+      }
+      const highlighted = highlightFrames.value;
+      if (!highlighted.has(newFrame) && !highlighted.has(oldFrame)) {
+        return;
+      }
+      update();
     });
 
     const mouseclick = (e: MouseEvent) => {
@@ -728,24 +847,33 @@ export default defineComponent({
       </v-tooltip>
       <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseleave="mouseout" @mouseout="mouseout" @mousedown="mousedown" />
     </div>
-    <v-card
-      v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)"
-      class="tooltip"
-      :style="tooltipComputed.style"
-      outlined
-    >
-      <v-row dense class="fill-height" align="center" justify="center">
-        <v-col><span>{{ tooltipComputed.name }}</span></v-col>
-        <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.contentColor }" />
-        <v-col><span>:</span></v-col>
-        <v-col><span>{{ tooltipComputed.subDisplay }}</span></v-col>
-        <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.subColor }" />
-      </v-row>
-    </v-card>
-    <v-card v-else-if="tooltipComputed" class="tooltip" :style="tooltipComputed.style" outlined>
-      <v-card-title>{{ tooltipComputed.name }}</v-card-title>
-      <v-card-text>{{ tooltipComputed.subDisplay }}</v-card-text>
-    </v-card>
+    <body-portal v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)">
+      <div
+        class="tooltip"
+        :style="tooltipComputed.style"
+      >
+        <div class="tooltip-content">
+          <span>{{ tooltipComputed.name }}</span>
+          <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.contentColor }" />
+          <span>:</span>
+          <span>{{ tooltipComputed.subDisplay }}</span>
+          <span class="type-color-box" :style="{ backgroundColor: tooltipComputed.subColor }" />
+        </div>
+      </div>
+    </body-portal>
+    <body-portal v-else-if="tooltipComputed">
+      <div
+        class="tooltip tooltip-long"
+        :style="tooltipComputed.style"
+      >
+        <div class="tooltip-long-title">
+          {{ tooltipComputed.name }}
+        </div>
+        <div class="tooltip-long-text">
+          {{ tooltipComputed.subDisplay }}
+        </div>
+      </div>
+    </body-portal>
   </div>
 </template>
 
@@ -775,18 +903,37 @@ export default defineComponent({
 }
 
 .tooltip {
-  position: absolute;
-  background: black;
+  width: fit-content;
+  max-width: fit-content;
+  background-color: black;
+  color: white;
   border: 1px solid white;
   padding: 0px 5px;
   font-size: 20px;
   font-weight: bold;
-  z-index: 9999;
+}
+
+.tooltip-content {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 5px;
+  white-space: nowrap;
+}
+
+.tooltip-long {
+  max-width: min(400px, 90vw);
+  white-space: normal;
+}
+
+.tooltip-long-title,
+.tooltip-long-text {
+  padding: 4px 8px;
+  word-break: break-word;
 }
 
 .type-color-box {
-  margin-right: 5px;
-  margin-top: 5px;
+  flex-shrink: 0;
   min-width: 10px;
   max-width: 10px;
   min-height: 10px;

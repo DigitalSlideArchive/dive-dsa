@@ -6,6 +6,7 @@
 
 import ImageAnnotator from './annotators/ImageAnnotator.vue';
 import VideoAnnotator from './annotators/VideoAnnotator.vue';
+import AnnotatorImageCursor from './annotators/AnnotatorImageCursor.vue';
 
 import Controls from './controls/Controls.vue';
 import EventChart from './controls/EventChart.vue';
@@ -29,8 +30,10 @@ import TypeItem from './TypeItem.vue';
 import TypePicker from './TypePicker.vue';
 
 export * from './annotators/useMediaController';
+export { default as useAnnotatorImageCursor } from './annotators/useAnnotatorImageCursor';
 export {
   /* Annotators */
+  AnnotatorImageCursor,
   ImageAnnotator,
   VideoAnnotator,
   /* Controls */

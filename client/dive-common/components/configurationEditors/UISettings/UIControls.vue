@@ -10,7 +10,6 @@ export default defineComponent({
   },
   setup() {
     const configMan = useConfiguration();
-    const UILegendControls = ref(configMan.getUISetting('UILegendControls') as boolean);
     const UITimelineSelection = ref(configMan.getUISetting('UITimelineSelection') as boolean);
     const UIPlaybackControls = ref(configMan.getUISetting('UIPlaybackControls') as boolean);
     const UIAudioControls = ref(configMan.getUISetting('UIAudioControls') as boolean);
@@ -21,10 +20,12 @@ export default defineComponent({
     const UILockCamera = ref(configMan.getUISetting('UILockCamera') as boolean);
     const UIResetCamera = ref(configMan.getUISetting('UIResetCamera') as boolean);
 
-    watch([UILegendControls, UITimelineSelection, UIPlaybackControls, UIAudioControls,
-      UITimeDisplay, UIFrameDisplay, UIImageNameDisplay, UILockCamera, UISpeedControls, UIResetCamera], () => {
+    watch([
+      UITimelineSelection, UIPlaybackControls,
+      UIAudioControls, UITimeDisplay, UIFrameDisplay, UIImageNameDisplay, UILockCamera, UISpeedControls,
+      UIResetCamera,
+    ], () => {
       const data = {
-        UILegendControls: UILegendControls.value ? undefined : false,
         UITimelineSelection: UITimelineSelection.value ? undefined : false,
         UIPlaybackControls: UIPlaybackControls.value ? undefined : false,
         UIAudioControls: UIAudioControls.value ? undefined : false,
@@ -38,7 +39,6 @@ export default defineComponent({
       configMan.setUISettings('UIControls', data);
     });
     return {
-      UILegendControls,
       UITimelineSelection,
       UIPlaybackControls,
       UIAudioControls,
@@ -59,12 +59,6 @@ export default defineComponent({
     <v-card-title>Playback Controls</v-card-title>
     <v-card-text>
       <div>
-        <v-row dense>
-          <v-switch
-            v-model="UILegendControls"
-            label="Legend Controls"
-          />
-        </v-row>
         <v-row dense>
           <v-switch
             v-model="UITimelineSelection"

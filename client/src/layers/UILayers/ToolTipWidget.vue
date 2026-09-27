@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  defineComponent, PropType, Ref,
+  computed, defineComponent, PropType, Ref,
 } from 'vue';
 import { StateStyles } from '../../StyleManager';
 import { ToolTipWidgetData } from './UILayerTypes';
@@ -9,7 +9,7 @@ import { ToolTipWidgetData } from './UILayerTypes';
   on a GeoJS canvas element.  To ensure reactivity between the main Vue App
   and this element the props are passed in the initalization function instead of on a template.
   This is why reactivate data in this component is utilizing PropType<Ref<data>>.
-  All references to reactive PropType<Ref<data>> need to be dereferenced in the template as well.
+  Ref props must be unwrapped in setup before use in the template.
  */
 export default defineComponent({
   name: 'ToolTipWidget',
@@ -36,13 +36,16 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const items = computed(() => props.dataList.value || []);
+    const selectedTrackId = computed(() => props.selected.value);
     const coloring = (data: ToolTipWidgetData) => {
-      if (data.trackId === props.selected.value) {
+      if (data.trackId === selectedTrackId.value) {
         return props.stateStyling.selected.color;
       }
       return props.color(data.type);
     };
     return {
+      items,
       coloring,
     };
   },
@@ -51,13 +54,13 @@ export default defineComponent({
 
 <template>
   <v-card
-    v-if="dataList.length"
+    v-if="items.length"
     dark
     class="d-inline-flex pa-2"
   >
     <div>
       <div
-        v-for="(item, index) in dataList"
+        v-for="(item, index) in items"
         :key="index"
       >
         <span

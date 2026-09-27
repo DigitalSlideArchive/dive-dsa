@@ -3,6 +3,8 @@ import Vue from 'vue';
 import { throttle, debounce, sortBy } from 'lodash';
 import * as d3 from 'd3';
 import { useVuetify } from 'platform/web-girder/plugins/vuetify';
+import BodyPortal from './BodyPortal.vue';
+import { timelineTooltipStyle } from './timelineTooltip';
 
 function intersect(range1, range2) {
   const min = range1[0] < range2[0] ? range1 : range2;
@@ -15,6 +17,9 @@ function intersect(range1, range2) {
 
 export default Vue.extend({
   name: 'EventChart',
+  components: {
+    BodyPortal,
+  },
   props: {
     startFrame: {
       type: Number,
@@ -58,10 +63,7 @@ export default Vue.extend({
     tooltipComputed() {
       if (this.tooltip !== null) {
         return {
-          style: {
-            left: `${this.tooltip.left + 15}px`,
-            top: `${this.tooltip.top + 0}px`,
-          },
+          style: timelineTooltipStyle({ x: this.tooltip.x, y: this.tooltip.y }),
           ...this.tooltip,
         };
       }
@@ -266,8 +268,8 @@ export default Vue.extend({
       }
       this.hoverTrack = bar.id;
       this.tooltip = {
-        left: offsetX,
-        top: offsetY,
+        x: e.clientX,
+        y: e.clientY,
         content: `${bar.name} (${bar.type})`,
       };
     },
@@ -287,13 +289,14 @@ export default Vue.extend({
       @mouseout="mouseout"
       @mousedown="mousedown"
     />
-    <div
-      v-if="tooltipComputed"
-      class="tooltip"
-      :style="tooltipComputed.style"
-    >
-      {{ tooltipComputed.content }}
-    </div>
+    <body-portal v-if="tooltipComputed">
+      <div
+        class="event-chart-tooltip"
+        :style="tooltipComputed.style"
+      >
+        {{ tooltipComputed.content }}
+      </div>
+    </body-portal>
   </div>
 </template>
 
@@ -304,14 +307,16 @@ export default Vue.extend({
   margin: 5px 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
 
-  .tooltip {
-    position: absolute;
-    background: black;
-    border: 1px solid white;
-    padding: 0px 5px;
-    font-size: 14px;
-    z-index: 9999;
-  }
+.event-chart-tooltip {
+  background: black;
+  color: white;
+  border: 1px solid white;
+  padding: 0px 5px;
+  font-size: 14px;
+  width: fit-content;
+  max-width: fit-content;
+  white-space: nowrap;
 }
 </style>

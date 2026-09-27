@@ -18,6 +18,15 @@ The timeline provides a control bar and a few different temporal visualizations.
 * ==:material-lock-open:== will enable camera lock, which causes the annotation view to auto-zoom and pan to whatever annotation is currently selected.  This is useful when reviewing the output of a pipeline.
 * ==:material-image-filter-center-focus:== or the ++r++ key will reset zoom/pan in the annotation view.
 * ==:material-contrast-box:== will open the image contrast adjustment panel.
+* ==:material-key:== toggles the timeline legend/key column on the left side of chart data (when enabled in [UI Settings](UI-Settings.md#timeline)).
+
+## Timeline Legend
+
+The legend column is rendered inline inside the timeline chart area, aligned with each chart row. Use the key icon in the control bar to show or hide it, unless your configuration forces it open or hides the toggle.
+
+The legend applies to all timeline types: Detections, Events, attribute line graphs, and swimlane graphs. When the legend is open, section titles above custom charts are hidden automatically and labels appear in the legend column instead.
+
+See [Swimlane Key](UI-AttributeSwimlanes.md#swimlane-key) for legend behavior details and configuration options.
 
 ## Detection Count
 

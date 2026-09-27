@@ -345,9 +345,12 @@ export default defineComponent({
       );
 
       if (visibleModes.includes('VisualMask')) {
+        visualMaskRectLayer.setDisableClicking(false);
         visualMaskRectLayer.setDrawingOther([]);
         visualMaskRectLayer.changeData(visualMaskFrameData);
       } else {
+        // disable() clears data only; keep click handlers from emitting deselection.
+        visualMaskRectLayer.setDisableClicking(true);
         visualMaskRectLayer.disable();
       }
 
@@ -478,7 +481,7 @@ export default defineComponent({
         visualMaskEditLayer.setType('rectangle');
         visualMaskEditLayer.setKey('');
         visualMaskEditLayer.changeData([visualMaskFrame]);
-        annotator.setImageCursor('mdi-vector-rectangle');
+        annotator.setImageCursor('mdi-vector-rectangle', true);
         rectAnnotationLayer.setDisableClicking(false);
       } else if (selectedTrackId !== null) {
         if ((editingTrack) && !(currentFrameIds || []).includes(selectedTrackId)
@@ -500,13 +503,15 @@ export default defineComponent({
           editingTracks.push(trackFrame);
         }
         if (editingTracks.length && editingTrack !== 'Mask') {
+          // These layers share the annotator cursor. Disable them before the
+          // active edit layer sets its cursor so they cannot clear it afterward.
+          visualMaskEditLayer.disable();
+          maskEditorLayer.disable();
           if (editingTrack) {
             editAnnotationLayer.setType(editingTrack);
             editAnnotationLayer.setKey(selectedKey);
             editAnnotationLayer.changeData(editingTracks);
           }
-          visualMaskEditLayer.disable();
-          maskEditorLayer.disable();
         } else if (editingTracks.length && editingTrack === 'Mask') {
           maskLayer.disable();
           visualMaskEditLayer.disable();
@@ -662,7 +667,10 @@ export default defineComponent({
       if (selectedCamera.value !== props.camera) {
         return;
       }
-      handler.trackSelect(null, false);
+      // Match Clicked(): do not clear track selection when UISelection is off.
+      if (getUISetting('UISelection')) {
+        handler.trackSelect(null, false);
+      }
       if (maskId === null) {
         visualMaskManager.clearSelection();
         return;

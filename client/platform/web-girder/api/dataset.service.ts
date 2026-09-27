@@ -180,6 +180,10 @@ function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
   return girderRest.patch(`/dive_dataset/${folderId}`, metadata);
 }
 
+function importUiConfiguration(folderId: string, data: DatasetMetaMutable) {
+  return girderRest.post(`/dive_dataset/${folderId}/import_ui_configuration`, data);
+}
+
 interface ValidationResponse {
   ok: boolean;
   type: 'video' | 'image-sequence';
@@ -200,6 +204,7 @@ export {
   getTaskDefaults,
   getDiveConfiguration,
   importAnnotationFile,
+  importUiConfiguration,
   makeViameFolder,
   saveAttributes,
   saveStyling,

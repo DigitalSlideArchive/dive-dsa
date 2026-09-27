@@ -2,6 +2,11 @@
 import Vue from 'vue';
 import { throttle } from 'lodash';
 import * as d3 from 'd3';
+import {
+  TIMELINE_TOOLTIP_BASE_CLASS,
+  TIMELINE_TOOLTIP_GAP_PX,
+  TIMELINE_TOOLTIP_Z_INDEX,
+} from './timelineTooltip';
 
 export default Vue.extend({
   name: 'LineChart',
@@ -111,18 +116,36 @@ export default Vue.extend({
       this.chartTop = this.$refs.chart.offsetTop;
     }
   },
+  beforeDestroy() {
+    if (this.lineChartTooltip) {
+      this.lineChartTooltip.remove();
+      this.lineChartTooltip = null;
+    }
+  },
   methods: {
     initialize() {
       this.currentRange = this.yRange;
       d3.select(this.$el)
         .select('svg')
         .remove();
-      let tooltipTimeoutHandle = null;
+      if (this.lineChartTooltip) {
+        this.lineChartTooltip.remove();
+      }
       const tooltip = d3
-        .select(this.$el)
+        .select(document.body)
         .append('div')
-        .attr('class', 'tooltip')
-        .style('display', 'none');
+        .attr('class', `${TIMELINE_TOOLTIP_BASE_CLASS} line-chart-tooltip`)
+        .style('display', 'none')
+        .style('background', 'black')
+        .style('color', 'white')
+        .style('border', '1px solid white')
+        .style('padding', '0px 5px')
+        .style('font-size', '14px')
+        .style('width', 'fit-content')
+        .style('max-width', 'fit-content')
+        .style('white-space', 'nowrap')
+        .style('pointer-events', 'none');
+      this.lineChartTooltip = tooltip;
       const width = this.clientWidth;
       const height = this.clientHeight;
       const x = d3
@@ -176,28 +199,33 @@ export default Vue.extend({
         .call((g) => g
           .selectAll('.tick text')
           .attr('x', -5)
-          .attr('dx', 13));
+          .attr('dx', 13)
+          .style('user-select', 'none')
+          .style('-webkit-user-select', 'none')
+          .style('pointer-events', 'none'));
 
       let highlightedLine = null;
       let highlightedColor = null;
+      let tooltipTimeoutHandle = null;
       const path = svg
         .selectAll()
         .data(this.data)
         .enter()
         .append('path')
         .attr('class', 'line')
-        .attr('d', (d) => this.getCurveType(d.values, 'line', d.max))
+        .attr('d', (d) => this.getCurveType(d, 'line', d.max))
         .style('stroke', (d) => (d.color ? d.color : '#4c9ac2'))
         .attr('class', (d) => `${d.name} line `)
         .style('opacity', (d) => (d.lineOpacity !== undefined ? d.lineOpacity : 1.0))
         // Non-Arrow function to preserve the 'this' context for d3.pointer
         .on('mouseenter', function mouseEnterHandler(event, d) {
-          const [_x, _y] = d3.pointer(event, this);
           tooltipTimeoutHandle = setTimeout(() => {
             tooltip
-              .style('left', `${_x + 2}px`)
-              .style('top', `${_y + this.chartTop}px`)
-              .style('position', 'asbsolute')
+              .style('left', `${event.clientX}px`)
+              .style('top', `${event.clientY}px`)
+              .style('position', 'fixed')
+              .style('transform', `translate(-50%, calc(-100% - ${TIMELINE_TOOLTIP_GAP_PX}px))`)
+              .style('z-index', String(TIMELINE_TOOLTIP_Z_INDEX))
               .text(d.name)
               .style('display', 'block');
             d3.select(this).style('stroke', 'cyan').style('stroke-width', 3);
@@ -260,6 +288,76 @@ export default Vue.extend({
           .y0(y(min));
       });
     },
+    /** Index of the first point at or after `frame`; values are frame-ordered. */
+    findFrameIndex(values, frame) {
+      let low = 0;
+      let high = values.length - 1;
+      while (low < high) {
+        const mid = Math.floor((low + high) / 2);
+        if (values[mid][0] < frame) {
+          low = mid + 1;
+        } else {
+          high = mid;
+        }
+      }
+      return low;
+    },
+    /**
+     * Restrict a series to the visible frame window and, when silhouette is true, reduce it to
+     * at most two points per pixel column (that column's min and max). A column cannot render
+     * more than its extremes, so the drawn silhouette is unchanged while the path shrinks by
+     * orders of magnitude on long videos. One point beyond each edge is kept so the line still
+     * enters and exits the viewport at the correct slope. Silhouette collapse is skipped for
+     * Natural curves, which depend on interior control points and would otherwise distort.
+     */
+    decimateValues(values, silhouette = true) {
+      if (!Array.isArray(values) || values.length < 4 || !this.x) {
+        return values;
+      }
+      const startIndex = Math.max(0, this.findFrameIndex(values, this.startFrame) - 1);
+      const endIndex = Math.min(
+        values.length - 1,
+        this.findFrameIndex(values, this.endFrame) + 1,
+      );
+      if (endIndex <= startIndex || !silhouette) {
+        return values.slice(startIndex, endIndex + 1);
+      }
+      const decimated = [];
+      let column = NaN;
+      let lowest = null;
+      let highest = null;
+      const flushColumn = () => {
+        if (lowest === null) {
+          return;
+        }
+        if (lowest === highest) {
+          decimated.push(lowest);
+        } else if (lowest[0] <= highest[0]) {
+          decimated.push(lowest, highest);
+        } else {
+          decimated.push(highest, lowest);
+        }
+      };
+      for (let i = startIndex; i <= endIndex; i += 1) {
+        const point = values[i];
+        const pixel = Math.round(this.x(point[0]));
+        if (pixel !== column) {
+          flushColumn();
+          column = pixel;
+          lowest = point;
+          highest = point;
+        } else {
+          if (point[1] < lowest[1]) {
+            lowest = point;
+          }
+          if (point[1] > highest[1]) {
+            highest = point;
+          }
+        }
+      }
+      flushColumn();
+      return decimated;
+    },
     getCurveType(d, lineArea, max) {
       let add = '';
       if (lineArea === 'area') {
@@ -268,27 +366,29 @@ export default Vue.extend({
           return this[`linear${add}`]([]);
         }
       }
+      // Natural splines need interior points; only cull to the visible window for them.
+      const values = this.decimateValues(d.values, d.type !== 'Natural');
       if (d.type) {
         if (max) {
           add = `${add}Max`;
         }
         if (d.type === 'Step') {
-          return this[`step${add}`](d.values);
+          return this[`step${add}`](values);
         }
         if (d.type === 'StepBefore') {
-          return this[`stepBefore${add}`](d.values);
+          return this[`stepBefore${add}`](values);
         }
         if (d.type === 'StepAfter') {
-          return this[`stepAfter${add}`](d.values);
+          return this[`stepAfter${add}`](values);
         }
         if (d.type === 'Natural') {
-          return this[`natural${add}`](d.values);
+          return this[`natural${add}`](values);
         }
       }
       if (!this.atrributesChart) {
-        return this[`stepAfter${add}`](d.values);
+        return this[`stepAfter${add}`](values);
       }
-      return this[`linear${add}`](d.values);
+      return this[`linear${add}`](values);
     },
     updateCurves() {
       const lineTypes = ['linear', 'step', 'stepBefore', 'stepAfter', 'natural'];
@@ -416,6 +516,10 @@ export default Vue.extend({
 }
 .line-chart {
   height: 100%;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
   .line {
     fill: none;
     stroke-width: 1.5px;
@@ -423,6 +527,16 @@ export default Vue.extend({
 
   .axis-y {
     font-size: 12px;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    .tick text {
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }
 
     g:first-of-type,
     g:last-of-type {
@@ -430,13 +544,6 @@ export default Vue.extend({
     }
   }
 
-  .tooltip {
-    position: absolute;
-    background: black;
-    border: 1px solid white;
-    padding: 0px 5px;
-    font-size: 14px;
-  }
 }
 .area {
     fill: rgba(234, 255, 0, 0.2);

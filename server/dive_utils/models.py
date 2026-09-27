@@ -136,7 +136,36 @@ class ButtonShortcut(BaseModel):
     iconAppend: Optional[str]
     iconPrepend: Optional[str]
     buttonColor: Optional[str]
+    displayValue: Optional[bool]  # deprecated: use AttributeCustomUI.displayValue
+
+
+class AttributeCustomUIStickyIndicator(BaseModel):
+    bold: Optional[bool]
+    italic: Optional[bool]
+    underline: Optional[bool]
+    highlightColor: Optional[str]
+    fontSizeScale: Optional[float]
+    opacity: Optional[float]
+
+
+class AttributeCustomUI(BaseModel):
+    enabled: Optional[bool]
+    showWithoutButtons: Optional[bool]
     displayValue: Optional[bool]
+    stickyValue: Optional[bool]
+    stickyValueIndicator: Optional[AttributeCustomUIStickyIndicator]
+    valuePosition: Optional[Literal['below', 'above', 'header']]
+    longValueMode: Optional[Literal['truncate', 'expand', 'scroll']]
+    emptyValueLabel: Optional[str]
+    headerValueSeparator: Optional[Literal[':', '-']]
+    headerValueOffset: Optional[float]
+    valuePrepend: Optional[str]
+    valueAppend: Optional[str]
+    showHeader: Optional[bool]
+    valueFontSizeScale: Optional[float]
+    valueAlign: Optional[Literal['left', 'center', 'right']]
+    valueColor: Optional[str]
+    showDescription: Optional[bool]
 
 
 class ShortcutAttributeOptions(BaseModel):
@@ -190,11 +219,12 @@ class RenderingAttributes(BaseModel):
 
 
 class DisplayTrackFilterSettings(BaseModel):
-    display: Literal['static', 'selected']
+    display: Literal['static', 'selected', 'pinned']
     trackFilter: List[str]
+    pinnedTrackId: Optional[int] = None
     displayFrameIndicators: Optional[bool]
     displayTooltip: Optional[bool]
-    renderMode: Optional[Literal['classic', 'segments']]
+    renderMode: Optional[Literal['classic', 'segments', 'discrete']]
     highlightSegments: Optional[bool]
     editSegments: Optional[bool]
     minSegmentSize: Optional[int]
@@ -241,6 +271,7 @@ class Attribute(BaseModel):
     valueOrder: Optional[Dict[str, int]]
     displayText: Optional[str]
     metadataLink: Optional[MetadataLinkSettings]
+    customUI: Optional[AttributeCustomUI]
 
 
 class AttributeNumberFilter(BaseModel):
@@ -392,7 +423,6 @@ class UITrackDetails(BaseModel):
 
 
 class UIControls(BaseModel):
-    UILegendControls: Optional[bool]
     UITimelineSelection: Optional[bool]
     UIPlaybackControls: Optional[bool]
     UIAudioControls: Optional[bool]
@@ -407,6 +437,11 @@ class UIControls(BaseModel):
 class UITimeline(BaseModel):
     UIDetections: Optional[bool]
     UIEvents: Optional[bool]
+    UILegendControls: Optional[bool]
+    UILegendForceOpen: Optional[bool]
+    UILegendHideToggle: Optional[bool]
+    UILegendKeyMinWidth: Optional[int]
+    UILegendKeyMaxWidth: Optional[int]
 
 
 class UIInteractions(BaseModel):
@@ -458,7 +493,7 @@ class CreateTrackAction(BaseModel):
     editableTitle: Optional[str]
     editableText: Optional[str]
     editableTypeList: Optional[List[str]]
-    selectTrackAfter: bool
+    selectTrackAfter: Union[bool, Literal['newTrack', 'previousTrack', 'none']]
     type: Literal['CreateTrackAction']
 
 
@@ -532,10 +567,40 @@ class TimelineConfiguration(BaseModel):
     timelines: List[TimelineDisplay]
 
 
+class CustomUITrackListActions(BaseModel):
+    select: Optional[bool]
+    edit: Optional[bool]
+    delete: Optional[bool]
+
+
+class CustomUITrackListDisplay(BaseModel):
+    showType: Optional[bool]
+    showFrameRange: Optional[bool]
+    showTrackId: Optional[bool]
+
+
+class CustomUITrackListSettings(BaseModel):
+    enabled: Optional[bool]
+    title: Optional[str]
+    defaultExpanded: Optional[bool]
+    position: Optional[Literal['above', 'below']]
+    typeFilter: Optional[List[str]]
+    filterCurrentFrame: Optional[bool]
+    maxHeight: Optional[int]
+    actions: Optional[CustomUITrackListActions]
+    display: Optional[CustomUITrackListDisplay]
+    showEditingStatus: Optional[bool]
+    editingStatusTitle: Optional[str]
+    returnToTrackId: Optional[int]
+
+
 class CustomUISettings(BaseModel):
     title: Optional[str]
     information: Optional[List[str]]
     width: Optional[int]
+    # Attribute keys (`{belongs}_{name}`) controlling Custom UI attribute button group order
+    attributeButtonOrder: Optional[List[str]]
+    trackList: Optional[CustomUITrackListSettings]
 
 
 class VisualMask(BaseModel):
@@ -699,10 +764,21 @@ class AssetstoreImportSettings(BaseModel):
     preventTranscoding: Optional[bool] = False
 
 
+class DownloadRestrictionSettings(BaseModel):
+    """Global admin settings controlling dataset download/export options."""
+
+    preventAllDownloads: Optional[bool] = False
+    # Default True: media (and media-containing zips) cannot be downloaded unless enabled
+    preventMediaDownloads: Optional[bool] = True
+    preventTrackDownloads: Optional[bool] = False
+    preventConfigDownloads: Optional[bool] = False
+
+
 class DIVESystemConfig(BaseModel):
     SAM2Config: Optional[SAM2ClientConfig]
     EnabledFeatures: Optional[EnabledFeatures]
     AssetstoreImportSettings: Optional[AssetstoreImportSettings]
+    DownloadRestrictionSettings: Optional[DownloadRestrictionSettings]
 
 
 # interpolate all features [a, b)

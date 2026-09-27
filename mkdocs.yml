@@ -87,5 +87,6 @@ nav:
   - Administrator Guide:
     - Running with Docker Compose: Deployment-Docker-Compose.md
     - Upgrading to Girder 5: Deployment-Girder-5-Upgrade.md
+    - Download Restrictions: Download-Restrictions.md
     - REST API Specification: https://viame.kitware.com/api/v1
   - Support: Support.md

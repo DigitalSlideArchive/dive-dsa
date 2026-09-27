@@ -15,3 +15,4 @@ This documentation section provides a reference guide to the annotation interfac
     * **Image Enhancement** - Adjust the image threshold range.
     * **[Group Manager](UI-Group-Manager.md)** - Controls for creating, managing, and filtering multi-annotation groups.
     * **Attributes Details Panel** - Attributes panel used to filter or generate graphs of attributes.
+    * **[Custom UI](UI-Attributes.md#custom-ui)** - Attribute button shortcuts and live value display for the selected track.

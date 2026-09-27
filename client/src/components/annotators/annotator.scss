@@ -56,7 +56,11 @@
   backface-visibility: hidden;
   top: 0;
   left: 0;
+  min-width: 24px;
+  min-height: 24px;
+  overflow: visible;
   pointer-events: none;
+  line-height: 1;
 }
 .controls {
   bottom:0;

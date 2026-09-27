@@ -3,13 +3,15 @@
 import { RootlessLocationType } from 'platform/web-girder/store/types';
 import { GirderMetadataStatic } from 'platform/web-girder/constants';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
-import { getDiveConfiguration } from 'platform/web-girder/api/dataset.service';
+import { getDiveConfiguration, importUiConfiguration } from 'platform/web-girder/api/dataset.service';
+import { getUri } from 'platform/web-girder/api';
 import { GirderFileManager, GirderModelType } from '@girder/components/src';
 
 import {
   defineComponent, computed, ref, Ref,
 } from 'vue';
-import { useConfiguration } from 'vue-media-annotator/provides';
+import { useConfiguration, useDatasetId } from 'vue-media-annotator/provides';
+import { DatasetMetaMutable } from 'dive-common/apispec';
 
 export default defineComponent({
   name: 'GeneralConfiguration',
@@ -19,6 +21,7 @@ export default defineComponent({
   props: {},
   setup() {
     const configMan = useConfiguration();
+    const datasetId = useDatasetId();
     const generalDialog = ref(false);
     const transferFolder = ref(false);
     const girderRest = useGirderRest();
@@ -30,6 +33,12 @@ export default defineComponent({
 
     const locationIsFolder = computed(() => (location.value._modelType === 'folder'));
     const snackbar = ref(false);
+    const snackbarMessage = ref('Transfer to Folder complete');
+    const snackbarType = ref<'success' | 'error'>('success');
+    const importBusy = ref(false);
+    const confirmImportDialog = ref(false);
+    const pendingImportData = ref<DatasetMetaMutable | null>(null);
+
     function setLocation(newLoc: RootlessLocationType) {
       if (!('meta' in newLoc && newLoc.meta.annotate)) {
         location.value = newLoc;
@@ -65,6 +74,14 @@ export default defineComponent({
       currentConfigName.value = 'unknown';
     };
     calculateConfigName();
+
+    const selectedFolderName = computed(() => {
+      if (!baseConfiguration.value || !configMan.hierarchy.value) {
+        return 'selected folder';
+      }
+      const match = configMan.hierarchy.value.find((item) => item.id === baseConfiguration.value);
+      return match?.name || 'selected folder';
+    });
 
     const saveChanges = async () => {
       // We need to take the new values and set them on the 'general' settings
@@ -126,8 +143,105 @@ export default defineComponent({
         configMan.transferConfiguration(originalConfiguration.baseConfiguration, location.value._id);
       }
       transferFolder.value = false;
+      snackbarType.value = 'success';
+      snackbarMessage.value = 'Transfer to Folder complete';
       snackbar.value = true;
     };
+
+    const showMessage = (message: string, type: 'success' | 'error' = 'success') => {
+      snackbarMessage.value = message;
+      snackbarType.value = type;
+      snackbar.value = true;
+    };
+
+    const exportUiConfiguration = () => {
+      if (!datasetId.value) {
+        showMessage('No dataset loaded for export', 'error');
+        return;
+      }
+      const url = getUri({
+        url: `dive_dataset/${datasetId.value}/export_ui_configuration`,
+      });
+      window.location.assign(url);
+    };
+
+    const pickUiConfigFile = (): Promise<File | null> => new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = () => {
+        const file = input.files?.[0] || null;
+        resolve(file);
+      };
+      input.oncancel = () => resolve(null);
+      input.click();
+    });
+
+    const launchImport = async () => {
+      if (!baseConfiguration.value) {
+        showMessage('Select a hierarchy folder as the import destination', 'error');
+        return;
+      }
+      const file = await pickUiConfigFile();
+      if (!file) {
+        return;
+      }
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text) as DatasetMetaMutable;
+        const hasContent = !!(
+          parsed.configuration
+          || parsed.attributes
+          || parsed.timelines
+          || parsed.swimlanes
+          || parsed.filters
+          || parsed.customTypeStyling
+          || parsed.customGroupStyling
+          || parsed.confidenceFilters
+        );
+        if (!hasContent) {
+          showMessage('File does not look like a UI Configuration JSON', 'error');
+          return;
+        }
+        pendingImportData.value = parsed;
+        confirmImportDialog.value = true;
+      } catch (err) {
+        showMessage(`Failed to read UI Configuration file: ${err}`, 'error');
+      }
+    };
+
+    const cancelImport = () => {
+      confirmImportDialog.value = false;
+      pendingImportData.value = null;
+    };
+
+    const confirmImport = async () => {
+      if (!baseConfiguration.value || !pendingImportData.value) {
+        cancelImport();
+        return;
+      }
+      importBusy.value = true;
+      try {
+        await importUiConfiguration(baseConfiguration.value, pendingImportData.value);
+        originalConfiguration.baseConfiguration = baseConfiguration.value;
+        calculateConfigName();
+        configMan.setConfigurationId(baseConfiguration.value);
+        confirmImportDialog.value = false;
+        pendingImportData.value = null;
+        generalDialog.value = false;
+        showMessage(`UI Configuration imported to ${selectedFolderName.value}. Reloading…`);
+        window.location.reload();
+      } catch (err) {
+        // Close confirm first so the root snackbar is visible above the General dialog
+        confirmImportDialog.value = false;
+        const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+          || String(err);
+        showMessage(`Import failed: ${message}`, 'error');
+      } finally {
+        importBusy.value = false;
+      }
+    };
+
     return {
       generalDialog,
       hierarchy: configMan.hierarchy,
@@ -135,6 +249,7 @@ export default defineComponent({
       originalConfiguration,
       disableConfigurationEditing,
       currentConfigName,
+      selectedFolderName,
       mergeType,
       mergeSelection,
       launchEditor,
@@ -149,6 +264,15 @@ export default defineComponent({
       source,
       transferFolderConfig,
       snackbar,
+      snackbarMessage,
+      snackbarType,
+      // UI Configuration Import/Export
+      exportUiConfiguration,
+      launchImport,
+      confirmImportDialog,
+      confirmImport,
+      cancelImport,
+      importBusy,
     };
   },
 });
@@ -169,7 +293,7 @@ export default defineComponent({
     </v-btn>
     <v-dialog
       v-model="generalDialog"
-      max-width="400"
+      max-width="480"
     >
       <v-card>
         <v-card-title>
@@ -261,6 +385,37 @@ export default defineComponent({
               <span> Transfer to folder outside hierarchy</span>
             </v-tooltip>
           </v-row>
+          <v-divider class="my-4" />
+          <v-row class="pb-2">
+            <p class="mb-2">
+              Export or import the full UI Configuration (UI settings, attributes,
+              timelines, swimlanes, shortcuts, and related settings) for portability
+              between servers. Import writes to the folder selected above.
+            </p>
+          </v-row>
+          <v-row>
+            <v-btn
+              color="secondary"
+              class="mr-2"
+              @click="exportUiConfiguration"
+            >
+              <v-icon left>
+                mdi-export
+              </v-icon>
+              Export
+            </v-btn>
+            <v-btn
+              color="secondary"
+              :disabled="!baseConfiguration || importBusy"
+              :loading="importBusy"
+              @click="launchImport"
+            >
+              <v-icon left>
+                mdi-import
+              </v-icon>
+              Import
+            </v-btn>
+          </v-row>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -278,27 +433,59 @@ export default defineComponent({
             Save
           </v-btn>
         </v-card-actions>
-        <v-snackbar
-          v-model="snackbar"
-          :timeout="2000"
-        >
-          <v-alert type="success">
-            Transfer to Folder complete
-          </v-alert>
-
-          <template #action="{ attrs }">
-            <v-btn
-              color="blue"
-              text
-              v-bind="attrs"
-              @click="snackbar = false"
-            >
-              Close
-            </v-btn>
-          </template>
-        </v-snackbar>
       </v-card>
     </v-dialog>
+    <v-dialog
+      v-model="confirmImportDialog"
+      max-width="480"
+      persistent
+    >
+      <v-card>
+        <v-card-title>Import UI Configuration</v-card-title>
+        <v-card-text>
+          This will replace UI configuration, attributes, timelines, swimlanes,
+          and related settings on <b>{{ selectedFolderName }}</b>.
+          Continue?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            text
+            :disabled="importBusy"
+            @click="cancelImport"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="warning"
+            :loading="importBusy"
+            @click="confirmImport"
+          >
+            Replace
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <!-- Outside dialogs so messages remain visible when confirm/General overlay state changes -->
+    <v-snackbar
+      v-model="snackbar"
+      :timeout="3000"
+    >
+      <v-alert :type="snackbarType">
+        {{ snackbarMessage }}
+      </v-alert>
+
+      <template #action="{ attrs }">
+        <v-btn
+          color="blue"
+          text
+          v-bind="attrs"
+          @click="snackbar = false"
+        >
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
     <v-dialog v-model="transferFolder" width="600">
       <v-card
         outlined

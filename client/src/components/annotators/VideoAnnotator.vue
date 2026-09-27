@@ -4,6 +4,8 @@ import {
 } from 'vue';
 import { Flick, SetTimeFunc } from '../../use/useTimeObserver';
 import { injectCameraInitializer } from './useMediaController';
+import AnnotatorImageCursor from './AnnotatorImageCursor.vue';
+import useAnnotatorImageCursor from './useAnnotatorImageCursor';
 /**
  * For MPEG codecs, the PTS (Presentation Timestamp)
  * should be forced ahead 1 tick. currentTime has a finite
@@ -66,6 +68,7 @@ function kwiverSeek(frame: number, frameRate: number, originalFps: number) {
 }
 export default defineComponent({
   name: 'VideoAnnotator',
+  components: { AnnotatorImageCursor },
   props: {
     videoUrl: {
       type: String,
@@ -116,6 +119,13 @@ export default defineComponent({
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       seek, pause, play, setVolume, setSpeed,
     });
+    const { playbackCursor } = useAnnotatorImageCursor(
+      toRef(data, 'imageCursor'),
+      toRef(data, 'cursor'),
+      toRef(data, 'imageCursorEditing'),
+    );
+    const imageCursorIcon = toRef(data, 'imageCursor');
+    const imageCursorEditing = toRef(data, 'imageCursorEditing');
     function makeVideo() {
       const video = document.createElement('video');
       video.preload = 'auto';
@@ -263,16 +273,16 @@ export default defineComponent({
       containerRef: container,
       cursorHandler,
       mediaController,
+      playbackCursor,
+      imageCursorIcon,
+      imageCursorEditing,
     };
   },
 });
 </script>
 
 <template>
-  <div
-    class="video-annotator"
-    :style="{ cursor: data.cursor }"
-  >
+  <div class="video-annotator">
     <svg
       width="0"
       height="0"
@@ -304,11 +314,16 @@ export default defineComponent({
       ref="imageCursorRef"
       class="imageCursor"
     >
-      <v-icon> {{ data.imageCursor }} </v-icon>
+      <AnnotatorImageCursor
+        :image-cursor="imageCursorIcon"
+        :image-cursor-editing="imageCursorEditing"
+        :cursor="data.cursor"
+      />
     </div>
     <div
       ref="containerRef"
       class="playback-container"
+      :style="{ cursor: playbackCursor }"
       @mousemove="cursorHandler.handleMouseMove"
       @mouseleave="cursorHandler.handleMouseLeave"
       @mouseover="cursorHandler.handleMouseEnter"

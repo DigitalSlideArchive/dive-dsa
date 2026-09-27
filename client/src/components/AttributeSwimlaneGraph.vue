@@ -14,10 +14,15 @@ import {
   SwimlaneGraphSettings,
 } from 'vue-media-annotator/use/AttributeTypes';
 import {
+  normalizeDisplaySettings,
+  sanitizeDisplaySettings,
+} from 'vue-media-annotator/use/displayTrackFilterSettings';
+import {
   useAttributesFilters, useAttributes,
-  useTrackStyleManager, useTrackFilters,
+  useTrackFilters,
 } from '../provides';
 import TooltipBtn from './TooltipButton.vue';
+import DisplayTrackFilterSettingsEditor from './DisplayTrackFilterSettingsEditor.vue';
 
 /* Magic numbers involved in height calculation */
 export default defineComponent({
@@ -25,11 +30,16 @@ export default defineComponent({
   components: {
     TooltipBtn,
     AttributeKeyFilter: AttributeKeyFilterVue,
+    DisplayTrackFilterSettingsEditor,
   },
   props: {
     swimlaneGraph: {
       type: Object as PropType<SwimlaneGraph>,
       required: true,
+    },
+    isNew: {
+      type: Boolean,
+      default: false,
     },
   },
   setup(props, { emit }) {
@@ -40,7 +50,7 @@ export default defineComponent({
     const showGraphSettings = ref(false);
     const showRangeSettings = ref(false);
     const showDisplaySettings = ref(false);
-    const typeStylingRef = useTrackStyleManager().typeStyling;
+    const showTitleKeySettings = ref(false);
     const trackFilterControls = useTrackFilters();
     const types = computed(() => ['all', ...trackFilterControls.allTypes.value]);
 
@@ -49,9 +59,9 @@ export default defineComponent({
     const editSwimlaneenabled = ref(props.swimlaneGraph.enabled);
     const editSwimlaneDefault = ref(props.swimlaneGraph.default || false);
     const editSwimlaneDisplay: Ref<SwimlaneGraph['displaySettings']> = ref(
-      props.swimlaneGraph.displaySettings
+      normalizeDisplaySettings(props.swimlaneGraph.displaySettings)
       || {
-        display: 'static' as 'static' | 'selected',
+        display: 'static' as 'static' | 'selected' | 'pinned',
         trackFilter: ['all'],
         renderMode: 'classic',
         highlightSegments: true,
@@ -72,6 +82,50 @@ export default defineComponent({
     });
 
     const editingGraphSettings = ref(false);
+    const dialogTitle = computed(() => (props.isNew ? 'Add Swimlane' : 'Edit Swimlane'));
+    const renderModeHelp = [
+      { title: 'Classic', description: 'Extends each color from the keyframe where a value is set until the value changes.' },
+      { title: 'Segments', description: 'Shows explicit start/end regions that can be highlighted and edited in the timeline.' },
+      { title: 'Discrete', description: 'Shows color only on keyframes where a value is explicitly set.' },
+    ];
+    const swimlaneBackgroundColors = computed(() => {
+      const applied = editSwimlaneFilter.value.appliedTo;
+      const detectionAttributes = attributesList.value.filter((item) => item.belongs === 'detection');
+      const names = applied.includes('all')
+        ? detectionAttributes.map((attribute) => attribute.name)
+        : applied.filter((name) => name !== 'all');
+      return names.map((name) => {
+        const attribute = detectionAttributes.find((item) => item.name === name);
+        return {
+          name,
+          noneColor: typeof attribute?.noneColor === 'string' ? attribute.noneColor : null,
+        };
+      });
+    });
+
+    const appliedAttributeNames = computed(() => {
+      const applied = editSwimlaneFilter.value.appliedTo;
+      const detectionAttributes = attributesList.value.filter((item) => item.belongs === 'detection');
+      if (applied.includes('all')) {
+        return detectionAttributes.map((attribute) => attribute.name);
+      }
+      return applied.filter((name) => name !== 'all');
+    });
+
+    const getAttributeDisplayNameSetting = (name: string) => {
+      if (!editSwimlaneSettings.value[name]) {
+        editSwimlaneSettings.value[name] = { displayName: true };
+      }
+      return editSwimlaneSettings.value[name].displayName !== false;
+    };
+
+    const setAttributeDisplayNameSetting = (name: string, value: boolean) => {
+      if (!editSwimlaneSettings.value[name]) {
+        editSwimlaneSettings.value[name] = { displayName: value };
+      } else {
+        editSwimlaneSettings.value[name].displayName = value;
+      }
+    };
 
     const saveChanges = () => {
       if (editSwimlaneName.value !== originalName) {
@@ -87,18 +141,12 @@ export default defineComponent({
         filter: editSwimlaneFilter.value,
         enabled: editSwimlaneenabled.value,
         settings: editSwimlaneSettings.value,
-        displaySettings: editSwimlaneDisplay.value,
+        displaySettings: sanitizeDisplaySettings(editSwimlaneDisplay.value as NonNullable<SwimlaneGraph['displaySettings']>),
         default: setDefault,
       };
       setSwimlaneGraph(editSwimlaneName.value, updateObject);
       setSwimlaneEnabled(editSwimlaneName.value, editSwimlaneenabled.value);
       emit('close');
-    };
-
-    const deleteChip = (item: string) => {
-      if (editSwimlaneDisplay.value) {
-        editSwimlaneDisplay.value.trackFilter.splice(editSwimlaneDisplay.value.trackFilter.findIndex((data) => data === item));
-      }
     };
 
     return {
@@ -111,8 +159,6 @@ export default defineComponent({
       editSwimlaneDisplay,
       filterNames,
       saveChanges,
-      deleteChip,
-      typeStylingRef,
       types,
       //Graph Settings
       editingGraphSettings,
@@ -120,6 +166,13 @@ export default defineComponent({
       showGraphSettings,
       showRangeSettings,
       showDisplaySettings,
+      showTitleKeySettings,
+      dialogTitle,
+      renderModeHelp,
+      swimlaneBackgroundColors,
+      appliedAttributeNames,
+      getAttributeDisplayNameSetting,
+      setAttributeDisplayNameSetting,
     };
   },
 });
@@ -127,12 +180,12 @@ export default defineComponent({
 
 <template>
   <v-card>
-    <v-card-title> Add Timeline </v-card-title>
+    <v-card-title>{{ dialogTitle }}</v-card-title>
     <v-card-text>
       <v-row>
         <v-text-field
           v-model="editSwimlaneName"
-          label="Timeline Name"
+          label="Swimlane Name"
         />
       </v-row>
       <v-row>
@@ -155,54 +208,15 @@ export default defineComponent({
             {{ showDisplaySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
         </h2>
-        <p> Set graphs to display only on selected track types</p>
+        <p> Choose how this timeline selects its track data</p>
         <div
           v-if="showDisplaySettings && editSwimlaneDisplay"
           class="graph-settings-area"
         >
-          <v-row
-            dense
-          >
-            <v-radio-group
-              v-model="editSwimlaneDisplay.display"
-              class="pr-2"
-            >
-              <v-radio
-                label="Static"
-                value="static"
-                hint="Always display key"
-                persistent-hint
-              />
-              <v-radio
-                value="selected"
-                label="Selected"
-                hint="Only show when track is selected"
-                persistent-hint
-              />
-            </v-radio-group>
-            <v-select
-              v-model="editSwimlaneDisplay.trackFilter"
-              :items="types"
-              multiple
-              clearable
-              deletable-chips
-              chips
-              label="Filter Types"
-              class="mx-2"
-              style="max-width:250px"
-            >
-              <template #selection="{ item }">
-                <v-chip
-                  close
-                  :color="typeStylingRef.color(item)"
-                  text-color="gray"
-                  @click:close="deleteChip(item)"
-                >
-                  {{ item }}
-                </v-chip>
-              </template>
-            </v-select>
-          </v-row>
+          <display-track-filter-settings-editor
+            v-model="editSwimlaneDisplay"
+            :types="types"
+          />
           <v-row dense>
             <v-checkbox
               v-model="editSwimlaneDisplay.displayFrameIndicators"
@@ -217,16 +231,113 @@ export default defineComponent({
               class="mx-2"
             />
           </v-row>
-          <v-row dense>
+          <div class="title-key-settings">
+            <h3 class="subtitle-1 mb-1">
+              Title &amp; Key
+              <v-icon @click="showTitleKeySettings = !showTitleKeySettings">
+                {{ showTitleKeySettings ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+              </v-icon>
+            </h3>
+            <p class="text-caption mb-2">
+              Control the swimlane section title and legend column labels
+            </p>
+            <div v-if="showTitleKeySettings">
+              <v-row dense>
+                <v-checkbox
+                  v-model="editSwimlaneDisplay.hideTitle"
+                  label="Hide Swimlane Title"
+                  hint="Removes the section title above the chart to save vertical space"
+                  persistent-hint
+                  class="mx-2"
+                />
+              </v-row>
+              <v-row dense>
+                <v-checkbox
+                  v-model="editSwimlaneDisplay.hideKeyTitle"
+                  label="Hide Key Title"
+                  hint="Hides the swimlane graph name in the legend column"
+                  persistent-hint
+                  class="mx-2"
+                />
+              </v-row>
+              <v-row dense>
+                <v-checkbox
+                  v-model="editSwimlaneDisplay.hideKeyAttributeLabels"
+                  label="Hide Attribute Labels in Key"
+                  hint="Hides attribute names in the legend column (color borders remain)"
+                  persistent-hint
+                  class="mx-2"
+                />
+              </v-row>
+              <v-row
+                v-if="appliedAttributeNames.length"
+                dense
+                class="mt-2"
+              >
+                <v-col cols="12">
+                  <span class="text-subtitle-2">Key Label Settings</span>
+                </v-col>
+                <v-col
+                  v-for="attrName in appliedAttributeNames"
+                  :key="`key-label-${attrName}`"
+                  cols="12"
+                  class="py-0"
+                >
+                  <v-checkbox
+                    :input-value="getAttributeDisplayNameSetting(attrName)"
+                    :label="`Show '${attrName}' in key`"
+                    dense
+                    hide-details
+                    class="mx-2 mt-0"
+                    @change="setAttributeDisplayNameSetting(attrName, $event)"
+                  />
+                </v-col>
+              </v-row>
+            </div>
+          </div>
+          <v-row
+            dense
+            align="center"
+            class="render-mode-row"
+          >
             <v-select
               v-model="editSwimlaneDisplay.renderMode"
               style="max-width: 200px"
               outlined
-              :items="[{ value: 'classic', title: 'Classic' }, { value: 'segments', title: 'Segments' }]"
+              :items="[
+                { value: 'classic', title: 'Classic' },
+                { value: 'segments', title: 'Segments' },
+                { value: 'discrete', title: 'Discrete' },
+              ]"
               item-text="title"
               item-value="value"
               label="Render Mode"
             />
+            <v-tooltip
+              open-delay="200"
+              top
+              max-width="340"
+            >
+              <template #activator="{ on }">
+                <v-btn
+                  icon
+                  small
+                  class="ml-1"
+                  v-on="on"
+                >
+                  <v-icon>mdi-help-circle-outline</v-icon>
+                </v-btn>
+              </template>
+              <div class="render-mode-help">
+                <div
+                  v-for="mode in renderModeHelp"
+                  :key="mode.title"
+                  class="render-mode-help-item"
+                >
+                  <strong>{{ mode.title }}:</strong> {{ mode.description }}
+                </div>
+              </div>
+            </v-tooltip>
             <v-checkbox
               v-if="editSwimlaneDisplay.renderMode === 'segments'"
               v-model="editSwimlaneDisplay.highlightSegments"
@@ -264,18 +375,74 @@ export default defineComponent({
               <span>When a segment is resized to 0 if this value is zero it will remove the segment, if the value is greater it will make the segment this minimum size.</span>
             </v-tooltip>
           </v-row>
+          <v-row
+            v-if="swimlaneBackgroundColors.length"
+            dense
+            class="mt-2"
+          >
+            <v-col cols="12">
+              <div class="d-flex align-center">
+                <span class="text-subtitle-2 mr-2">Swimlane Row Background</span>
+                <v-tooltip
+                  open-delay="200"
+                  top
+                  max-width="320"
+                >
+                  <template #activator="{ on }">
+                    <v-btn
+                      icon
+                      x-small
+                      v-on="on"
+                    >
+                      <v-icon small>
+                        mdi-information-outline
+                      </v-icon>
+                    </v-btn>
+                  </template>
+                  <div>
+                    The swimlane row background uses each attribute's
+                    <strong>None Color</strong> from the attribute editor's
+                    <strong>Value Colors</strong> tab.
+                    Value segment colors are drawn on top of this background.
+                  </div>
+                </v-tooltip>
+              </div>
+            </v-col>
+            <v-col
+              v-for="item in swimlaneBackgroundColors"
+              :key="item.name"
+              cols="12"
+              class="py-1"
+            >
+              <div class="d-flex align-center swimlane-bg-row">
+                <span
+                  class="swimlane-bg-preview mr-3"
+                  :class="{ 'swimlane-bg-preview-empty': !item.noneColor }"
+                  :style="item.noneColor ? { backgroundColor: item.noneColor } : undefined"
+                  :title="item.noneColor ? item.noneColor.toString() : 'None Color not set'"
+                />
+                <span class="swimlane-bg-name">{{ item.name }}</span>
+                <span
+                  v-if="!item.noneColor"
+                  class="text-caption ml-2 swimlane-bg-unset"
+                >
+                  None Color not set
+                </span>
+              </div>
+            </v-col>
+          </v-row>
         </div>
       </div>
       <v-row
         class="pt-2"
       >
         <p>
-          One Timeline can be labeled and the Default timeline which will
+          One swimlane can be labeled as the default, which will
           automatically be open when loading the dataset
         </p>
         <v-switch
           v-model="editSwimlaneDefault"
-          label="Default Visible Timeline"
+          label="Default Visible Swimlane"
           class="pa-0 ma-0"
         />
       </v-row>
@@ -300,6 +467,48 @@ export default defineComponent({
 </template>
 
 <style scoped lang='scss'>
+
+.render-mode-help {
+  max-width: 320px;
+  text-align: left;
+}
+
+.render-mode-help-item + .render-mode-help-item {
+  margin-top: 8px;
+}
+
+.swimlane-bg-row {
+  min-height: 24px;
+}
+
+.swimlane-bg-preview {
+  display: inline-block;
+  min-width: 48px;
+  max-width: 48px;
+  min-height: 18px;
+  max-height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 2px;
+}
+
+.swimlane-bg-preview-empty {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.08) 4px,
+      rgba(255, 255, 255, 0.16) 4px,
+      rgba(255, 255, 255, 0.16) 8px
+    );
+}
+
+.swimlane-bg-name {
+  min-width: 120px;
+}
+
+.swimlane-bg-unset {
+  opacity: 0.7;
+}
 
 .border-highlight {
    border-bottom: 1px solid gray;
@@ -332,6 +541,17 @@ export default defineComponent({
 
 .graph-settings-area {
   padding: 5px;
+}
+
+.title-key-settings {
+  margin: 8px 0 16px 8px;
+  padding: 8px 12px 12px 12px;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.render-mode-row {
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .graph-settings-list{

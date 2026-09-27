@@ -66,3 +66,9 @@ Besides setting the Y-Axis Range in the settings for the graph, the Y-Axis range
 ![Y-Axis Adjustment](images/AttributeTimeline/YAxisAdjust.png)
 
 The Axis will update as you change the values and you can click Save to accept the new Axis range.  NOTE:  This will not change TimelineGraph Settings Y-Axis if they are set so reloading will not persist the new range.  It is meant to adjust the range on the fly for viewing data.
+
+## Timeline Legend
+
+Attribute line graphs participate in the shared timeline legend column. When the legend is open, the graph title moves into the legend column—a centered title with attribute names and colors shown on hover for multi-attribute graphs.
+
+Toggle the legend with the key icon in the timeline control bar, or configure legend behavior under [UI Settings → Timeline](UI-Settings.md#timeline). See [Swimlane Key](UI-AttributeSwimlanes.md#swimlane-key) for full legend behavior across all timeline types.

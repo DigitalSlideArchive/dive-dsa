@@ -1,6 +1,7 @@
-import Vue from 'vue';
 import geo, { GeoEvent } from 'geojs';
+import getVuetify from 'platform/web-girder/plugins/vuetify';
 import { MediaController } from '../../components/annotators/mediaControllerType';
+import mountGeoJsWidget from './mountGeoJsWidget';
 
 interface WidgetPosition {
   x: number;
@@ -24,26 +25,32 @@ export interface DOMWidget {
  * dereferenced inside of the Vue component to properly update.
  * This will probably change once Vue 3 is adopted and <teleport> can be used
  */
-export default class UILayer {
+export default class ToolTipLayer {
   annotator: MediaController;
 
   widgets: Record<string, DOMWidget>;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  map: any;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   uiLayer: any;
+
+  vuetify = getVuetify(undefined);
 
   constructor(annotator: MediaController) {
     this.annotator = annotator;
     this.widgets = {};
-    this.uiLayer = this.annotator.geoViewerRef.value.createLayer('ui');
-    this.uiLayer.geoOn(geo.event.mousemove, this.updateToolTipPositions);
-    this.uiLayer.geoOn(geo.event.zoom, this.zoomToolTipPosition);
+    this.map = this.annotator.geoViewerRef.value;
+    this.uiLayer = this.map.createLayer('ui');
+    this.map.geoOn(geo.event.mousemove, this.updateToolTipPositions);
+    this.map.geoOn(geo.event.zoom, this.zoomToolTipPosition);
   }
 
   updateWidgetToolTipPosition(mousePos: WidgetPosition, widget: DOMWidget) {
     const tipOffset = widget.toolTipOffset;
-    const newOffset = this.uiLayer.map().gcsToDisplay(mousePos);
-    const finalOffset = this.uiLayer.map().displayToGcs(
+    const newOffset = this.map.gcsToDisplay(mousePos);
+    const finalOffset = this.map.displayToGcs(
       {
         x: newOffset.x + tipOffset.x, y: newOffset.y + tipOffset.y,
       },
@@ -66,6 +73,9 @@ export default class UILayer {
       if (this.widgets[name].toolTip) {
         this.updateWidgetToolTipPosition(mousePos, this.widgets[name]);
         this.widgets[name].lastMousePos = mousePos;
+        this.widgets[name].canvas().style.display = 'block';
+      } else {
+        this.widgets[name].canvas().style.display = 'none';
       }
     });
   };
@@ -81,11 +91,13 @@ export default class UILayer {
     const widget: DOMWidget = this.uiLayer.createWidget('dom', { position });
     widget.canvas().setAttribute('id', name);
     const parent = widget.canvas();
+    parent.style.pointerEvents = 'none';
+    parent.style.overflow = 'visible';
+    parent.style.background = 'transparent';
+    parent.style.display = 'none';
     const div = document.createElement('div');
     const element = parent.appendChild(div);
-    new Vue({
-      render: (h) => h(component, { props }),
-    }).$mount(element);
+    mountGeoJsWidget(element, component, props, this.vuetify);
     widget.toolTipOffset = position;
     widget.toolTip = false;
     widget.lastMousePos = position;
@@ -97,6 +109,7 @@ export default class UILayer {
   setToolTipWidget(name: string, on: boolean) {
     if (this.widgets[name]) {
       this.widgets[name].toolTip = on;
+      this.widgets[name].canvas().style.display = on ? 'block' : 'none';
     }
   }
 }

@@ -37,6 +37,7 @@ interface MediaControllerReactiveData {
   syncedFrame: number;
   cursor: string;
   imageCursor: string;
+  imageCursorEditing: boolean;
   originalBounds: {
     left: number;
     top: number;
@@ -213,6 +214,7 @@ export function useMediaController() {
       syncedFrame: 0,
       cursor: 'default',
       imageCursor: '',
+      imageCursorEditing: false,
       originalBounds: {
         left: 0,
         top: 0,
@@ -227,9 +229,10 @@ export function useMediaController() {
       }
     }
 
-    function setImageCursor(newCursor: string) {
+    function setImageCursor(newCursor: string, editing = false) {
       if (state[camera]) {
         state[camera].imageCursor = `${newCursor}`;
+        state[camera].imageCursorEditing = editing;
       }
     }
 
@@ -417,6 +420,8 @@ export function useMediaController() {
       centerOn,
       setCursor,
       setImageCursor,
+      imageCursor: toRef(state[camera], 'imageCursor'),
+      imageCursorEditing: toRef(state[camera], 'imageCursorEditing'),
       setVolume: _setVolume,
       setSpeed: _setSpeed,
       getController,
