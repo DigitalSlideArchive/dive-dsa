@@ -1,3 +1,4 @@
+import copy
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -14,6 +15,19 @@ from pydantic.main import BaseModel
 
 from dive_server import crud, crud_annotation
 from dive_utils import TRUTHY_META_VALUES, asbool, constants, fromMeta, models, types
+
+# Mutable meta keys that make up a portable UI Configuration bundle
+UI_CONFIGURATION_META_KEYS = (
+    'attributes',
+    'timelines',
+    'swimlanes',
+    'filters',
+    'customTypeStyling',
+    'customGroupStyling',
+    'confidenceFilters',
+    'configuration',
+    'version',
+)
 
 
 def get_url(dataset: types.GirderModel, item: types.GirderModel) -> str:
@@ -707,6 +721,100 @@ def transfer_config(source: Folder, dest: Folder, user: User):
     if found_in_hierarchy:
         update_metadata(source, data, False)
     return update_metadata(dest, data, False)
+
+
+def find_ui_configuration_base_folder(folder: types.GirderModel, user: types.GirderUserModel):
+    """
+    Walk up the folder hierarchy and find the folder that stores UI configuration.
+    That is the folder whose configuration.general.baseConfiguration equals its own id.
+    Falls back to the requested folder when no base is set.
+    """
+    current = folder
+    candidates = [current]
+    while True:
+        parent_id = current.get('parentId')
+        if not parent_id:
+            break
+        parent = Folder().findOne({'_id': parent_id})
+        if not parent:
+            break
+        candidates.append(parent)
+        current = parent
+
+    for candidate in candidates:
+        base_id = (
+            candidate.get('meta', {})
+            .get('configuration', {})
+            .get('general', {})
+            .get('baseConfiguration')
+        )
+        if base_id and str(base_id) == str(candidate['_id']):
+            loaded = Folder().load(candidate['_id'], level=AccessType.READ, user=user)
+            if loaded:
+                return loaded
+
+    return Folder().load(folder['_id'], level=AccessType.READ, user=user)
+
+
+def _extract_ui_configuration_meta(folder: types.GirderModel) -> dict:
+    """Build a MetadataMutable-shaped dict from folder meta."""
+    meta = folder.get('meta', {}) or {}
+    data = {}
+    for key in UI_CONFIGURATION_META_KEYS:
+        if key in meta and meta[key] is not None:
+            data[key] = meta[key]
+    return data
+
+
+def export_ui_configuration(folder: types.GirderModel, user: types.GirderUserModel):
+    """
+    Resolve the UI configuration base folder for this dataset and return
+    a portable MetadataMutable dict plus the base folder model.
+    """
+    base_folder = find_ui_configuration_base_folder(folder, user)
+    data = copy.deepcopy(_extract_ui_configuration_meta(base_folder))
+    # Strip server-specific folder id so the file is portable between servers
+    if data.get('configuration', {}).get('general', {}).get('baseConfiguration', False):
+        del data['configuration']['general']['baseConfiguration']
+    return data, base_folder
+
+
+def import_ui_configuration(dest: types.GirderModel, data: dict):
+    """
+    Replace UI configuration mutable meta on dest with the given JSON payload.
+    Rewrites configuration.general.baseConfiguration to dest's folder id.
+    """
+    if not isinstance(data, dict) or not models.MetadataMutable.is_dive_configuration(data):
+        raise RestException('Invalid UI Configuration JSON', code=400)
+
+    try:
+        validated = models.MetadataMutable(**data).dict(exclude_none=True)
+    except Exception as exc:
+        raise RestException(f'Invalid UI Configuration JSON: {exc}', code=400) from exc
+
+    configuration = copy.deepcopy(validated.get('configuration') or {})
+    if not isinstance(configuration, dict):
+        configuration = {}
+    general = configuration.get('general') or {}
+    if not isinstance(general, dict):
+        general = {}
+    general['baseConfiguration'] = str(dest['_id'])
+    configuration['general'] = general
+
+    payload = {
+        'attributes': validated.get('attributes') or {},
+        'timelines': validated.get('timelines') or {},
+        'swimlanes': validated.get('swimlanes') or {},
+        'customGroupStyling': validated.get('customGroupStyling') or {},
+        'customTypeStyling': validated.get('customTypeStyling') or {},
+        'filters': validated.get('filters') or {},
+        'confidenceFilters': validated.get('confidenceFilters') or {},
+        'configuration': configuration,
+    }
+    if 'version' in validated:
+        payload['version'] = validated['version']
+
+    return update_metadata(dest, payload, verify=False)
 
 
 def update_attributes(dsFolder: types.GirderModel, data: dict, verify=True):
