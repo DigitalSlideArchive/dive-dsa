@@ -1,6 +1,6 @@
 #!/bin/bash
-# Download SAM3 checkpoints from Hugging Face when HF_TOKEN is available.
-# Request access at https://huggingface.co/facebook/sam3 before building or running.
+# Download SAM 3.1 checkpoints from Hugging Face when HF_TOKEN is available.
+# Request access at https://huggingface.co/facebook/sam3.1 before building or running.
 
 set -euo pipefail
 
@@ -18,17 +18,17 @@ if [ ! -f "${ASSETS_DIR}/${BPE_NAME}" ]; then
 fi
 
 if [ -z "${HF_TOKEN:-}" ]; then
-    echo "HF_TOKEN not set; skipping SAM3 checkpoint download."
-    echo "SAM3 will download checkpoints at runtime if Hugging Face credentials are configured."
+    echo "HF_TOKEN not set; skipping SAM 3.1 checkpoint download."
+    echo "SAM 3.1 will download checkpoints at runtime if Hugging Face credentials are configured."
     exit 0
 fi
 
 if ! command -v hf &> /dev/null; then
-    echo "hf CLI not found; install huggingface_hub to prefetch SAM3 weights."
+    echo "hf CLI not found; install huggingface_hub to prefetch SAM 3.1 weights."
     exit 0
 fi
 
-hf download facebook/sam3 sam3.pt config.json \
+hf download facebook/sam3.1 sam3.1_multiplex.pt config.json \
     --local-dir "$MODEL_DIR" \
     --token "$HF_TOKEN"
-echo "SAM3 checkpoints downloaded to $MODEL_DIR"
+echo "SAM 3.1 checkpoints downloaded to $MODEL_DIR"
