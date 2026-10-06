@@ -301,9 +301,7 @@ export default Vue.extend({
       const defaultType = this.atrributesChart ? 'Linear' : 'StepAfter';
       const knownCurveTypes = ['Linear', 'Step', 'StepBefore', 'StepAfter', 'Natural'];
       const curveType = knownCurveTypes.includes(d.type) ? d.type : defaultType;
-      const values = sampleTimelineValues(
-        d.values, this.startFrame, this.endFrame, this.x, this.y, curveType,
-      );
+      const values = sampleTimelineValues(d.values, this.startFrame, this.endFrame, this.x, this.y, curveType);
       if (max && d.type) {
         add = `${add}Max`;
       }

@@ -85,13 +85,13 @@ function simplifyLinearScreenSpace(
       const [afterX, afterY] = screenCoords(after, x, y);
       if (sameScreenPixel([px, py], [prevX, prevY])) {
         changed = true;
-        continue;
-      }
-      const distance = perpendicularDistanceToSegment(px, py, prevX, prevY, afterX, afterY);
-      if (distance > epsilon) {
-        next.push(current);
       } else {
-        changed = true;
+        const distance = perpendicularDistanceToSegment(px, py, prevX, prevY, afterX, afterY);
+        if (distance > epsilon) {
+          next.push(current);
+        } else {
+          changed = true;
+        }
       }
     }
     next.push(simplified[simplified.length - 1]);

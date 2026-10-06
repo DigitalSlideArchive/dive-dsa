@@ -8,9 +8,7 @@ const pulse: Point[] = [
 
 describe('timeline sampling', () => {
   it('keeps a narrow pulse return to baseline when zoomed out', () => {
-    const sampled = sampleTimelineValues(
-      pulse, 0, 1000, (frame) => frame / 10, (value) => value, 'Linear',
-    );
+    const sampled = sampleTimelineValues(pulse, 0, 1000, (frame) => frame / 10, (value) => value, 'Linear');
     const peakIndex = sampled.findIndex((point) => point[1] === 1);
     expect(sampled[peakIndex + 1]).toEqual([103, 0]);
     expect(sampled[peakIndex - 1]).toEqual([100, 0]);
@@ -29,9 +27,7 @@ describe('timeline sampling', () => {
   });
 
   it('drops collinear interior samples when zoomed in', () => {
-    expect(sampleTimelineValues(
-      pulse, 0, 1000, (frame) => frame * 2, (value) => value, 'Linear',
-    )).toEqual([
+    expect(sampleTimelineValues(pulse, 0, 1000, (frame) => frame * 2, (value) => value, 'Linear')).toEqual([
       [0, 0], [100, 0], [102, 1], [103, 0], [1000, 0],
     ]);
   });
@@ -51,18 +47,14 @@ describe('timeline sampling', () => {
   );
 
   it('preserves the segments crossing both viewport edges', () => {
-    expect(sampleTimelineValues(
-      pulse, 102.5, 500, (frame) => frame, (value) => value, 'Linear',
-    )).toEqual([
+    expect(sampleTimelineValues(pulse, 102.5, 500, (frame) => frame, (value) => value, 'Linear')).toEqual([
       [102, 1], [103, 0], [1000, 0],
     ]);
   });
 
   it('still reduces dense collinear linear series', () => {
     const values: Point[] = Array.from({ length: 10000 }, (_, frame) => [frame, frame]);
-    const sampled = sampleTimelineValues(
-      values, 0, 9999, (frame) => frame / 100, (value) => value, 'Linear',
-    );
+    const sampled = sampleTimelineValues(values, 0, 9999, (frame) => frame / 100, (value) => value, 'Linear');
     expect(sampled.length).toBe(2);
     expect(sampled[0]).toEqual(values[0]);
     expect(sampled[sampled.length - 1]).toEqual(values[9999]);
