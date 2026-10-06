@@ -177,6 +177,7 @@ export default Vue.extend({
           .domain([min, Math.max(max * 1.0, 1.0)])
           .range([height, 0]);
       }
+      this.y = y;
 
       this.generateLineAreas(minVal, maxVal, x, y);
 
@@ -301,7 +302,7 @@ export default Vue.extend({
       const knownCurveTypes = ['Linear', 'Step', 'StepBefore', 'StepAfter', 'Natural'];
       const curveType = knownCurveTypes.includes(d.type) ? d.type : defaultType;
       const values = sampleTimelineValues(
-        d.values, this.startFrame, this.endFrame, this.x, curveType,
+        d.values, this.startFrame, this.endFrame, this.x, this.y, curveType,
       );
       if (max && d.type) {
         add = `${add}Max`;
