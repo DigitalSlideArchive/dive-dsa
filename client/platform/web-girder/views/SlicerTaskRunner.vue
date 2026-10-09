@@ -1,5 +1,7 @@
 <script lang="ts">
-import { defineComponent, ref, Ref } from 'vue';
+import {
+  computed, defineComponent, onBeforeUnmount, ref, Ref,
+} from 'vue';
 import { GirderSlicerTasksIntegrated } from 'vue-girder-slicer-cli-ui';
 import type { XMLParameters } from 'vue-girder-slicer-cli-ui/dist/parser/parserTypes';
 import { cloneDeep } from 'lodash';
@@ -47,6 +49,8 @@ export default defineComponent({
     const { prompt } = usePrompt();
     const folderName = ref('');
     const dialog = ref(false);
+    const localJobId = ref<string | null>(null);
+    const localJobTitle = ref<string | null>(null);
     const defaults: Ref<DefaultSlicerParam> = ref({
       fileId: '',
       girderId: '',
@@ -129,15 +133,45 @@ export default defineComponent({
 
     let interval: NodeJS.Timeout | null = null;
 
+    const datasetJobUrl = computed(
+      () => store.getters['Jobs/datasetRunningState'](datasetId.value) as string | false,
+    );
+    const isJobRunning = computed(() => !!datasetJobUrl.value || !!localJobId.value);
+    const jobLink = computed(() => {
+      if (datasetJobUrl.value) {
+        return datasetJobUrl.value;
+      }
+      if (localJobId.value) {
+        return `/girder/#job/${localJobId.value}`;
+      }
+      return null;
+    });
+
+    const clearLocalJob = () => {
+      localJobId.value = null;
+      localJobTitle.value = null;
+    };
+
+    const markJobFinished = (job: GirderJob) => {
+      store.commit('Jobs/setJobState', {
+        jobId: job._id, value: job.status,
+      });
+      store.commit('Jobs/setDatasetStatus', {
+        datasetId: datasetId.value,
+        status: job.status,
+        jobId: job._id,
+      });
+      clearLocalJob();
+    };
+
     const checkJobStatus = async (id: string) => {
       const resp = await girderRest.get<GirderJob>(`job/${id}`);
       if (resp.data.status === JobStatus.SUCCESS.value) {
         if (interval) {
           clearInterval(interval);
+          interval = null;
         }
-        store.commit('Jobs/setJobState', {
-          jobId: resp.data._id, value: resp.data.status,
-        });
+        markJobFinished(resp.data);
         // Check the Revision history and see if the latest revision is > than the stored current one
         const revisions = (await getLatestRevision(datasetId.value)).data;
         if (revisions.length > 0) {
@@ -160,13 +194,13 @@ export default defineComponent({
           }
         }
       }
-      if (resp.data.status === JobStatus.ERROR.value) {
+      if (resp.data.status === JobStatus.ERROR.value
+        || resp.data.status === JobStatus.CANCELED.value) {
         if (interval) {
           clearInterval(interval);
+          interval = null;
         }
-        store.commit('Jobs/setJobState', {
-          jobId: resp.data._id, value: resp.data.status,
-        });
+        markJobFinished(resp.data);
         await prompt({
           title: 'Job Incomplete',
           text: [`Job: ${resp.data.title}`,
@@ -181,17 +215,38 @@ export default defineComponent({
       store.dispatch('Jobs/updateJobs');
       if (jobData) {
         const jobId = jobData._id;
+        localJobId.value = jobId;
+        localJobTitle.value = jobData.title;
+        // Keep viewer/slicer UI in sync with other dataset-bound jobs.
+        store.commit('Jobs/setDatasetStatus', {
+          datasetId: datasetId.value,
+          status: JobStatus.RUNNING.value,
+          jobId,
+        });
+        store.commit('Jobs/setJobState', {
+          jobId,
+          value: JobStatus.RUNNING.value,
+        });
         // get Job status on internval until complete
         interval = setInterval(() => checkJobStatus(jobId), 5000);
       }
     };
     const filter = (item: SlicerTask) => item.image.toLocaleLowerCase().includes('dive') || item.description.toLocaleLowerCase().includes('dive');
 
+    onBeforeUnmount(() => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    });
+
     return {
       defaultFunc,
       triggerRunTask,
       filter,
       dialog,
+      isJobRunning,
+      jobLink,
+      localJobTitle,
     };
   },
 });
@@ -215,7 +270,40 @@ export default defineComponent({
             <v-icon>mdi-help</v-icon>
           </v-btn>
         </div>
+        <v-alert
+          v-if="isJobRunning"
+          type="info"
+          dense
+          border="left"
+          colored-border
+          class="mb-3"
+        >
+          <div class="d-flex align-center">
+            <v-icon
+              left
+              class="rotate"
+            >
+              mdi-autorenew
+            </v-icon>
+            <span>
+              {{ localJobTitle || 'A job' }} is running on this dataset.
+              Slicer tasks are unavailable until it finishes.
+            </span>
+          </div>
+          <v-btn
+            v-if="jobLink"
+            text
+            small
+            color="primary"
+            class="mt-2 px-0"
+            :href="jobLink"
+            target="_blank"
+          >
+            View job
+          </v-btn>
+        </v-alert>
         <girder-slicer-tasks-integrated
+          v-else
           :filter="filter"
           :defaults="defaultFunc"
           @run-task="triggerRunTask($event)"
@@ -268,5 +356,18 @@ export default defineComponent({
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+}
+
+.rotate {
+  animation: rotation 1.2s infinite linear;
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
 }
 </style>

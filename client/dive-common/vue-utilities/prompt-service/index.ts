@@ -65,14 +65,41 @@ class PromptService {
     positiveButton = 'Confirm',
     negativeButton = 'Cancel',
     confirm = false,
+    maxWidth = '400px',
   }: PromptParams): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       if (!this.component.show) {
-        this.set(title, text, positiveButton, negativeButton, confirm, resolve);
+        this.set(
+          title,
+          text,
+          positiveButton,
+          negativeButton,
+          confirm,
+          resolve,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          maxWidth,
+        );
       } else {
         const unwatch = watch(this.component.show, () => {
           unwatch();
-          this.set(title, text, positiveButton, negativeButton, confirm, resolve);
+          this.set(
+            title,
+            text,
+            positiveButton,
+            negativeButton,
+            confirm,
+            resolve,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            maxWidth,
+          );
         });
       }
     });

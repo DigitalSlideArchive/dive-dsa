@@ -14,6 +14,34 @@ const NonRunningStates = [
   JobStatus.SUCCESS.value,
 ];
 
+type DiveGirderJob = GirderJob & { type?: string; title?: string; dataset_id?: string };
+
+function datasetIdOf(job: DiveGirderJob): string | null {
+  if (job.dataset_id == null || job.dataset_id === '') {
+    return null;
+  }
+  return String(job.dataset_id);
+}
+
+function applyJobUpdate(
+  commit: (type: string, payload?: unknown) => void,
+  job: DiveGirderJob,
+) {
+  commit('setJobState', { jobId: job._id, value: job.status });
+  const datasetId = datasetIdOf(job);
+  if (datasetId) {
+    commit('setDatasetStatus', { datasetId, status: job.status, jobId: job._id });
+    if (NonRunningStates.includes(job.status)) {
+      commit('setCompleteJobsInfo', {
+        datasetId,
+        type: job.type,
+        title: job.title,
+        success: job.status === JobStatus.SUCCESS.value,
+      });
+    }
+  }
+}
+
 const jobModule: Module<JobState, RootState> = {
   namespaced: true,
   state: {
@@ -63,43 +91,51 @@ const jobModule: Module<JobState, RootState> = {
     removeCompleteJob({ commit }, { datasetId }: {datasetId: string}) {
       commit('removeCompleteJobsInfo', { datasetId });
     },
+    /**
+     * Optimistically mark jobs as running so Jobs tab / folder spinners update
+     * immediately after postprocess. Live status still comes from websockets
+     * (same as ../dive useJobs), not from polling.
+     */
+    trackJobs({ commit }, {
+      jobIds, datasetId, status = JobStatus.QUEUED.value,
+    }: { jobIds: string[]; datasetId?: string; status?: number }) {
+      jobIds.forEach((jobId) => {
+        const id = String(jobId);
+        commit('setJobState', { jobId: id, value: status });
+        if (datasetId) {
+          commit('setDatasetStatus', { datasetId: String(datasetId), status, jobId: id });
+        }
+      });
+    },
     updateJobs({ commit }) {
       const getJobs = async () => {
-        const { data: runningJobs } = await girderRest.get<GirderJob[]>('/job', {
-          params: { statuses: `[${JobStatus.RUNNING.value}, ${JobStatus.QUEUED.value}, ${JobStatus.INACTIVE.value}]` },
+        const { data: runningJobs } = await girderRest.get<DiveGirderJob[]>('/job', {
+          params: {
+            statuses: `[${JobStatus.RUNNING.value}, ${JobStatus.QUEUED.value}, ${JobStatus.INACTIVE.value}]`,
+          },
         });
-        const updateJob = (job: GirderJob & {type?: string; title?: string}) => {
-          commit('setJobState', { jobId: job._id, value: job.status });
-          if (typeof job.dataset_id === 'string') {
-            commit('setDatasetStatus', { datasetId: job.dataset_id, status: job.status, jobId: job._id });
-            if (NonRunningStates.includes(job.status)) {
-              commit('setCompleteJobsInfo', {
-                datasetId: job.dataset_id,
-                type: job.type,
-                title: job.title,
-                success: job.status === JobStatus.SUCCESS.value,
-              });
-            }
-          }
-        };
-        runningJobs.forEach(updateJob);
+        runningJobs.forEach((job) => applyJobUpdate(commit, job));
       };
-      getJobs();
+      return getJobs();
     },
   },
 };
 
+/**
+ * Match ../dive useJobs.initJobs: seed from GET /job, then rely on
+ * girderRest `message:job_status` websocket events (no polling).
+ * Every status event refreshes the data browser so Launch Annotator appears
+ * when convert sets meta.annotate.
+ */
 export async function init(store: Store<RootState>) {
-  const { data: runningJobs } = await girderRest.get<GirderJob[]>('/job', {
-    params: { statuses: `[${JobStatus.RUNNING.value}, ${JobStatus.QUEUED.value}, ${JobStatus.INACTIVE.value}]` },
-  });
-  function updateJob(job: GirderJob & {type?: string; title?: string}) {
+  function updateJob(job: DiveGirderJob) {
     store.commit('Jobs/setJobState', { jobId: job._id, value: job.status });
-    if (typeof job.dataset_id === 'string') {
-      store.commit('Jobs/setDatasetStatus', { datasetId: job.dataset_id, status: job.status, jobId: job._id });
+    const datasetId = datasetIdOf(job);
+    if (datasetId) {
+      store.commit('Jobs/setDatasetStatus', { datasetId, status: job.status, jobId: job._id });
       if (job.type !== undefined && NonRunningStates.includes(job.status)) {
         store.commit('Jobs/setCompleteJobsInfo', {
-          datasetId: job.dataset_id,
+          datasetId,
           type: job.type,
           title: job.title,
           success: job.status === JobStatus.SUCCESS.value,
@@ -108,12 +144,21 @@ export async function init(store: Store<RootState>) {
     }
   }
 
-  runningJobs.forEach(updateJob);
-
-  girderRest.$on('message:job_status', ({ data: job }: { data: GirderJob }) => {
+  girderRest.$on('message:job_status', ({ data: job }: { data: DiveGirderJob }) => {
     updateJob(job);
     eventBus.$emit('refresh-data-browser');
   });
+
+  try {
+    const { data: runningJobs } = await girderRest.get<DiveGirderJob[]>('/job', {
+      params: {
+        statuses: `[${JobStatus.RUNNING.value}, ${JobStatus.QUEUED.value}, ${JobStatus.INACTIVE.value}]`,
+      },
+    });
+    runningJobs.forEach(updateJob);
+  } catch {
+    // Token may not be ready yet; login / main bootstrap will refetch.
+  }
 }
 
 export default jobModule;

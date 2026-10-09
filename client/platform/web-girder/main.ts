@@ -41,4 +41,6 @@ Promise.all([
 
   /** Start notification stream if everything else succeeds */
   registerNotifications(girderRest).connect();
+  // Jobs.init may have run before auth; refresh running-job UI now that user is loaded.
+  store.dispatch('Jobs/updateJobs').catch(() => { /* ignore */ });
 });

@@ -38,6 +38,12 @@ module.exports = {
         ws: true,
         agent: keepAliveAgent,
       },
+      '/notifications': {
+        target: 'http://localhost:8010',
+        secure: false,
+        ws: true,
+        agent: keepAliveAgent,
+      },
     },
     // To disable compression for girderNotifications and EventStrream :
     compress: false,
