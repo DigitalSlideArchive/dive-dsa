@@ -51,7 +51,7 @@ RUN \
     # install step \
     pip install --no-cache-dir opencv-python-headless && \
     # SAM dependencies
-    pip install --no-cache-dir sam2 sam3 huggingface_hub psutil pycocotools torch pillow && \
+    pip install --no-cache-dir sam2 'sam3 @ git+https://github.com/facebookresearch/sam3.git' huggingface_hub psutil pycocotools torch pillow einops && \
     # clean up \
     rm -rf /root/.cache/pip/*
 
