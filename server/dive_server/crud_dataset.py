@@ -678,7 +678,11 @@ def get_configuration(folder: Folder, user: User):
             "name": next.get('name'),
         }
 
+    # Launch configs live only on the write base (never merged), so return them
+    # explicitly; browsing any descendant folder then resolves the base's buttons.
+    launchConfigs = (baseMetaData.get('configuration', {}) or {}).get('launchConfigs', [])
     returnVal = {
+        'launchConfigs': launchConfigs if isinstance(launchConfigs, list) else [],
         'configOwners': configOwners,
         "prevNext": prevNext,
         'hierarchy': hierarchy,

@@ -488,7 +488,7 @@ class GoToFrameAction(BaseModel):
 
 class CreateTrackAction(BaseModel):
     trackType: Optional[str]
-    geometryType: Literal['Point', 'rectangle', 'Polygon', 'LineString', 'Time']
+    geometryType: Literal['Point', 'rectangle', 'Polygon', 'LineString', 'Time', 'Mask']
     editableType: bool
     editableTitle: Optional[str]
     editableText: Optional[str]
