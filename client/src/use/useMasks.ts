@@ -12,6 +12,7 @@ import {
   deleteMask,
   RLEFrameData,
 } from 'platform/web-girder/api/annotation.service';
+import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
 import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
@@ -148,6 +149,7 @@ export default function useMasks(
   maskModeEnabled: ComputedRef<boolean>,
   visibleMaskIds: Ref<number[]>,
   aggregateController: Ref<AggregateMediaController>,
+  selectedTrackId?: Readonly<Ref<AnnotationId | null>>,
 ) {
   const frameRate = ref(60);
   const masks = ref<MaskItem[]>([]);
@@ -248,7 +250,9 @@ export default function useMasks(
       rleCache.set(frameKey(frame.value, trackId), rleDecoded);
       loadingFrame.value = false;
     }
-    handler.trackSelect(trackId, false);
+    if (selectedTrackId?.value === trackId) {
+      handler.trackSelect(trackId, false);
+    }
     handler.save();
   }
 
