@@ -37,6 +37,15 @@ The UI Configuration JSON includes:
 
 See [Data Formats — UI Configuration JSON](DataFormats.md#ui-configuration-json) for the file shape.
 
+## Launch Configs
+
+Under the **Configuration** cog, **Launch Configs** lets the owner of the base configuration add extra launch buttons that open the viewer with the UI configuration of *another* folder. Each entry has a label, optional tooltip and color, and the id of a folder that already has a UI configuration.
+
+* Stored on the write-base configuration only (`configuration.launchConfigs`); it is not merged up or down the hierarchy and is included in UI configuration import/export (folder ids are not remapped).
+* The Data Browser and Annotation Data Browser resolve the list once per browsed location; the DIVE Metadata browser uses the metadata root's list for every row. Up to three buttons are shown inline, the rest go in an overflow menu. With no entries the single **Launch Annotator** button is shown.
+* Launching adds `?configFolderId=<folderId>` to the viewer URL. This can also be typed or shared directly, e.g. `/viewer/<datasetId>?configFolderId=<folderId>`. The override applies to that session only (it survives refresh, track/frame changes and Prev/Next); the dataset's stored base configuration is not changed. Config edits made while overridden are saved to the override folder.
+* If the folder is missing, has no configuration, or is not accessible, a message is shown and the default configuration is used.
+
 ## UI Settings
 
 ![UI Settings](images/Configuration/UISettings/UISettings.png)
