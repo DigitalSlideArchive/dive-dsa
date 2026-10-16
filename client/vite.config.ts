@@ -83,6 +83,10 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: ['axios', 'qs', 'markdown-it', 'js-cookie'],
+      // onnxruntime (used by transformers.js for SAM2) locates its .wasm next
+      // to its own module URL; pre-bundled into node_modules/.vite/deps that
+      // path resolves to the SPA fallback and the runtime fails to start.
+      exclude: ['onnxruntime-web', 'onnxruntime-web/webgpu'],
     },
   };
 });
