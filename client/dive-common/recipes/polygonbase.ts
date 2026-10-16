@@ -37,11 +37,16 @@ export default class PolygonBoundsExpand implements Recipe {
     if (data.length === 1 && mode === 'editing' && this.active.value) {
       const poly = data[0].geometry;
       if (poly.type === 'Polygon') {
+        // Keep the box around every polygon on the frame (e.g. all segmentation
+        // mask components), not just the one being edited.
+        const otherPolygons = track.getFeatureGeometry(frameNum, { type: 'Polygon' })
+          .filter((feature) => (feature.properties?.key || '') !== (key || ''))
+          .map((feature) => feature.geometry as GeoJSON.Polygon);
         return {
           data: {
             [key || '']: data,
           },
-          union: [],
+          union: otherPolygons,
           done: true,
           unionWithoutBounds: [poly],
         };
@@ -52,17 +57,17 @@ export default class PolygonBoundsExpand implements Recipe {
 
   // eslint-disable-next-line class-methods-use-this
   delete(frame: number, track: Track, key: string, type: EditAnnotationTypes) {
-    if (key === '' && type === 'Polygon') {
-      track.removeFeatureGeometry(frame, { key: '', type: 'Polygon' });
+    if (type === 'Polygon') {
+      track.removeFeatureGeometry(frame, { key, type: 'Polygon' });
     }
   }
 
   // eslint-disable-next-line class-methods-use-this
   deletePoint(frame: number, track: Track, idx: number, key: string, type: EditAnnotationTypes) {
-    if (key === '' && type === 'Polygon') {
+    if (type === 'Polygon') {
       const geoJsonFeatures = track.getFeatureGeometry(frame, {
         type: 'Polygon',
-        key: '',
+        key,
       });
       if (geoJsonFeatures.length === 0) return;
       const clone = cloneDeep(geoJsonFeatures[0]);
@@ -72,13 +77,12 @@ export default class PolygonBoundsExpand implements Recipe {
     }
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  activate() {
-    // no-op
+  /** Edit the polygon with the given key ('' is the default polygon). */
+  activate(key = '') {
     this.active.value = true;
     this.bus.$emit('activate', {
       editing: 'Polygon' as EditAnnotationTypes,
-      key: '',
+      key,
       recipeName: this.name,
     });
   }
