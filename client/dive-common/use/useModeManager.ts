@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-restricted-syntax */
 import {
-  computed, Ref, reactive, ref, onBeforeUnmount, toRef,
+  computed, Ref, reactive, ref, onBeforeUnmount, toRef, watch,
 } from 'vue';
 import {
   uniq, flatMapDeep, flattenDeep, cloneDeep,
@@ -29,6 +29,13 @@ import {
 } from 'dive-common/use/useActions';
 import { deleteDiveDatasetMetadataKey, setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 import { computeEditingDetails } from 'dive-common/use/editingModeInstructions';
+import PolygonBase from 'dive-common/recipes/polygonbase';
+import SegmentationPointClick, {
+  SegmentationPointsState, SegmentationPredictionResult,
+} from 'dive-common/recipes/segmentationpointclick';
+import {
+  applySegmentation, restoreFeature, snapshotFeature, SegmentationSnapshot,
+} from 'dive-common/use/segmentation/segmentationTrack';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -84,6 +91,14 @@ export default function useModeManager({
     datasetId: Ref<string | null>;
 }) {
   let creating = false;
+  /* Point-click segmentation session state (see the handlers below) */
+  const segmentationRecipe = recipes.find(
+    (r): r is SegmentationPointClick => r instanceof SegmentationPointClick,
+  );
+  const segmentationPoints = ref<SegmentationPointsState>({ points: [], labels: [], frameNum: -1 });
+  let segmentationTarget: { trackId: AnnotationId; camera: string } | null = null;
+  const segmentationSnapshots = new Map<number, SegmentationSnapshot>();
+
   const { prompt, inputValue } = usePrompt();
   const annotationModes = reactive({
     visible: ['rectangle', 'Polygon', 'LineString', 'VisualMask', 'text', 'Time'] as VisibleAnnotationTypes[],
@@ -291,6 +306,10 @@ export default function useModeManager({
   }
 
   function handleSelectTrack(trackId: TrackId | null, edit = false) {
+    // Leaving the segmented detection (or its edit mode) discards an unconfirmed mask.
+    if (trackId !== selectedTrackId.value || !edit) {
+      cancelSegmentation();
+    }
     /**
      * If creating mode and editing and selectedTrackId is the same,
      * don't kick out of creating mode.  This happens when moving between
@@ -355,10 +374,14 @@ export default function useModeManager({
 
   //Handles deselection or hitting escape including while editing
   function handleEscapeMode(options?: { applyTrackRestore?: boolean }) {
+    // Restore before the empty-track check so an unconfirmed mask is not kept.
+    cancelSegmentation();
     if (selectedTrackId.value !== null) {
       const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-      if (track && track.begin === track.end) {
-        const features = track.getFeature(track.begin);
+      // A track whose only keyframe was removed (e.g. a discarded segmentation
+      // preview) has no features but no longer has begin === end.
+      if (track && (track.begin === track.end || track.featureIndex.length === 0)) {
+        const features = track.featureIndex.length ? track.getFeature(track.begin) : [];
         // If no features exist we remove the empty track
         if (!features.filter((item) => item !== null).length) {
           const trackStore = cameraStore.camMap.value.get(selectedCamera.value)?.trackStore;
@@ -762,6 +785,10 @@ export default function useModeManager({
     if (visible) {
       annotationModes.visible = visible;
     }
+    if (editing && recipeName !== segmentationRecipe?.name) {
+      // Switching tools keeps the segmentation preview as the detection's shape.
+      acceptSegmentation();
+    }
     if (editing) {
       annotationModes.editing = editing;
       _selectKey(key);
@@ -864,11 +891,148 @@ export default function useModeManager({
     handleGroupEdit(previousOrNext);
   }
 
+  /**
+   * Point-click segmentation. Each prediction is written to the selected
+   * detection as a preview; the keyframe from before the first prediction on
+   * each frame is kept so Reset/Escape can restore it.
+   */
+  function segmentationTrack() {
+    return segmentationTarget
+      ? cameraStore.getPossibleTrack(segmentationTarget.trackId, segmentationTarget.camera)
+      : undefined;
+  }
+
+  function handleSegmentationPoints(state: SegmentationPointsState) {
+    segmentationPoints.value = state;
+  }
+
+  function handleSegmentationPrediction(result: SegmentationPredictionResult) {
+    if (selectedTrackId.value === null) return;
+    const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
+    if (!track) return;
+    if (segmentationTarget?.trackId !== track.id || segmentationTarget.camera !== selectedCamera.value) {
+      segmentationSnapshots.clear();
+      segmentationTarget = { trackId: track.id, camera: selectedCamera.value };
+    }
+    if (!segmentationSnapshots.has(result.frameNum)) {
+      segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
+    }
+    applySegmentation(track, result.frameNum, result.polygons, result.bounds);
+    _nudgeEditingCanary();
+  }
+
+  /** Keep the previewed polygons; nothing left to restore. */
+  function acceptSegmentation() {
+    segmentationSnapshots.clear();
+    segmentationTarget = null;
+  }
+
+  /** Put every frame the session changed back as it was. */
+  function restoreSegmentation() {
+    const track = segmentationTrack();
+    if (track) {
+      segmentationSnapshots.forEach((snapshot, frameNum) => restoreFeature(track, frameNum, snapshot));
+    }
+    segmentationSnapshots.clear();
+    segmentationTarget = null;
+    _nudgeEditingCanary();
+  }
+
+  /** Leave point placement for a mode that edits normally. */
+  function leaveSegmentationMode() {
+    if (annotationModes.editing === 'Point') {
+      annotationModes.editing = 'rectangle';
+    }
+  }
+
+  /** Abandon an unconfirmed segmentation, e.g. on selection change. */
+  function cancelSegmentation() {
+    if (!segmentationRecipe) return;
+    const hadSession = segmentationRecipe.active.value || segmentationRecipe.loading.value
+      || segmentationSnapshots.size > 0;
+    if (segmentationSnapshots.size) restoreSegmentation();
+    if (segmentationRecipe.active.value || segmentationRecipe.loading.value) {
+      segmentationRecipe.deactivate();
+    }
+    if (hadSession) leaveSegmentationMode();
+  }
+
+  function handleSegmentationConfirmed(frames: SegmentationPredictionResult[]) {
+    const track = segmentationTrack()
+      ?? (selectedTrackId.value !== null
+        ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
+        : undefined);
+    acceptSegmentation();
+    if (!track) return;
+    frames.forEach((result) => applySegmentation(track, result.frameNum, result.polygons, result.bounds));
+    const trackId = track.id;
+    newTrackSettingsAfterLogic(track);
+    if (creating && segmentationRecipe) {
+      // Continuous creation (next detection or auto-advanced frame): keep segmenting.
+      segmentationRecipe.activate();
+    } else if (selectedTrackId.value === trackId && editingTrack.value) {
+      // Refine the result like any drawn polygon.
+      const polygonRecipe = recipes.find((r): r is PolygonBase => r instanceof PolygonBase);
+      if (polygonRecipe) {
+        polygonRecipe.activate();
+      } else {
+        leaveSegmentationMode();
+      }
+    } else {
+      leaveSegmentationMode();
+    }
+  }
+
+  function handleSegmentationReset() {
+    restoreSegmentation();
+  }
+
+  function handleSegmentationCancelled() {
+    restoreSegmentation();
+    leaveSegmentationMode();
+    _nudgeEditingCanary();
+  }
+
+  function handleSegmentationError(message: string) {
+    prompt({
+      title: 'Segmentation Error',
+      text: [message],
+    });
+  }
+
+  function confirmSegmentation() {
+    segmentationRecipe?.confirm();
+  }
+
+  if (segmentationRecipe) {
+    const currentFrame = () => {
+      try {
+        return aggregateController.value.frame.value;
+      } catch {
+        // No camera controllers until the media has loaded.
+        return undefined;
+      }
+    };
+    watch(currentFrame, (frame) => {
+      if (frame !== undefined) segmentationRecipe.handleFrameChange(frame);
+    });
+  }
+
   /* Subscribe to recipe activation events */
   recipes.forEach((r) => r.bus.$on('activate', handleSetAnnotationState));
+  const segmentationEvents: [string, (...args: any[]) => void][] = [
+    ['points-updated', handleSegmentationPoints],
+    ['prediction-ready', handleSegmentationPrediction],
+    ['prediction-confirmed', handleSegmentationConfirmed],
+    ['prediction-reset', handleSegmentationReset],
+    ['prediction-cancelled', handleSegmentationCancelled],
+    ['prediction-error', handleSegmentationError],
+  ];
+  segmentationEvents.forEach(([event, fn]) => segmentationRecipe?.bus.$on(event, fn));
   /* Unsubscribe before unmount */
   onBeforeUnmount(() => {
     recipes.forEach((r) => r.bus.$off('activate', handleSetAnnotationState));
+    segmentationEvents.forEach(([event, fn]) => segmentationRecipe?.bus.$off(event, fn));
   });
 
   function addFullFrameTrack(type: string, trackLength = -1) {
@@ -1132,6 +1296,8 @@ export default function useModeManager({
     diveMetadataRootId,
     selectNextTrack,
     setDeleteLocalMasks,
+    segmentationPoints,
+    confirmSegmentation,
     handler: {
       commitMerge: handleCommitMerge,
       groupAdd: handleAddGroup,

@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  defineComponent, watch, PropType, Ref, ref, computed, toRef,
+  defineComponent, watch, PropType, Ref, ref, computed, toRef, onBeforeUnmount,
 } from 'vue';
 
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
@@ -19,6 +19,7 @@ import LineLayer from '../layers/AnnotationLayers/LineLayer';
 import TailLayer from '../layers/AnnotationLayers/TailLayer';
 
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
+import SegmentationPointsLayer from '../layers/AnnotationLayers/SegmentationPointsLayer';
 import { FrameDataTrack, mergeBounds } from '../layers/LayerTypes';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
 import TimeLayer from '../layers/AnnotationLayers/TimeLayer';
@@ -49,6 +50,7 @@ import {
   useMasks,
   useVisualMaskManager,
   useVisualMaskStyleManager,
+  useSegmentationPrompt,
 } from '../provides';
 
 const useworker = true;
@@ -222,6 +224,31 @@ export default defineComponent({
       stateStyling: visualMaskStyleManager.stateStyles,
       typeStyling: visualMaskStyleManager.typeStyling,
       type: 'rectangle',
+    });
+
+    const segmentationPrompt = useSegmentationPrompt();
+    if (segmentationPrompt) {
+      const segmentationPointsLayer = new SegmentationPointsLayer(annotator);
+      // Prompt points only belong to the frame and camera being segmented.
+      watch(
+        [segmentationPrompt.points, frameNumberRef, selectedCamera],
+        () => {
+          const { points, labels, frameNum } = segmentationPrompt.points.value;
+          if (points.length && frameNum === frameNumberRef.value && selectedCamera.value === props.camera) {
+            segmentationPointsLayer.updatePoints(points, labels);
+          } else {
+            segmentationPointsLayer.clear();
+          }
+        },
+        { deep: true },
+      );
+      editAnnotationLayer.bus.$on('confirm-annotation', () => {
+        if (selectedCamera.value === props.camera) segmentationPrompt.confirm();
+      });
+    }
+    onBeforeUnmount(() => {
+      editAnnotationLayer.destroy();
+      visualMaskEditLayer.destroy();
     });
 
     const updateAttributes = () => {
@@ -665,6 +692,11 @@ export default defineComponent({
 
     const visualMaskClicked = (maskId: number | null, editing: boolean) => {
       if (selectedCamera.value !== props.camera) {
+        return;
+      }
+      // Match Clicked(): clicks placing a new shape's points (polygon
+      // vertices, segmentation points) are not selections.
+      if (editAnnotationLayer.getMode() === 'creation') {
         return;
       }
       // Match Clicked(): do not clear track selection when UISelection is off.
