@@ -667,6 +667,11 @@ export default defineComponent({
       if (selectedCamera.value !== props.camera) {
         return;
       }
+      // Match Clicked(): clicks placing a new shape's points (polygon
+      // vertices, segmentation points) are not selections.
+      if (editAnnotationLayer.getMode() === 'creation') {
+        return;
+      }
       // Match Clicked(): do not clear track selection when UISelection is off.
       if (getUISetting('UISelection')) {
         handler.trackSelect(null, false);
