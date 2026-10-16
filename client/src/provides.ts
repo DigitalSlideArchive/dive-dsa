@@ -149,6 +149,26 @@ const GroupFilterControlsSymbol = Symbol('groupFilters');
 const VisualMaskManagerSymbol = Symbol('visualMaskManager');
 
 /**
+ * Interactive point-prompt segmentation feedback for the annotation layers.
+ * Optional: annotators without a segmentation tool simply show no points.
+ */
+export interface SegmentationPromptState {
+  /** Prompt points for one frame of the selected camera */
+  points: Readonly<Ref<{ points: [number, number][]; labels: number[]; frameNum: number }>>;
+  /** Confirm the in-progress segmentation (right click while placing points) */
+  confirm: () => void;
+}
+const SegmentationPromptSymbol = Symbol('segmentationPrompt');
+
+function provideSegmentationPrompt(state: SegmentationPromptState) {
+  provide(SegmentationPromptSymbol, state);
+}
+
+function useSegmentationPrompt(): SegmentationPromptState | null {
+  return inject<SegmentationPromptState | null>(SegmentationPromptSymbol, null);
+}
+
+/**
  * Handler interface describes all global events mutations
  * for above state
  */
@@ -663,4 +683,6 @@ export {
   useImageEnhancements,
   useAttributesFilters,
   useTimelineFilters,
+  provideSegmentationPrompt,
+  useSegmentationPrompt,
 };
