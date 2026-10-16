@@ -23,7 +23,7 @@ import {
   ConfigurationManager,
 } from 'vue-media-annotator/index';
 import VisualMaskManager from 'vue-media-annotator/visualMasks';
-import { provideAnnotator } from 'vue-media-annotator/provides';
+import { provideAnnotator, provideSegmentationPrompt } from 'vue-media-annotator/provides';
 
 import {
   ImageAnnotator,
@@ -37,6 +37,9 @@ import { getResponseError } from 'vue-media-annotator/utils';
 /* DIVE COMMON */
 import PolygonBase from 'dive-common/recipes/polygonbase';
 import HeadTail from 'dive-common/recipes/headtail';
+import SegmentationPointClick from 'dive-common/recipes/segmentationpointclick';
+import useSamSegmentation from 'dive-common/use/useSamSegmentation';
+import SegmentationControls from 'dive-common/components/SegmentationControls.vue';
 import EditorMenu from 'dive-common/components/EditorMenu.vue';
 import ConfidenceFilter from 'dive-common/components/ConfidenceFilter.vue';
 import UserGuideButton from 'dive-common/components/UserGuideButton.vue';
@@ -85,6 +88,7 @@ export default defineComponent({
     ControlsContainer,
     DeleteControls,
     MaskEditor,
+    SegmentationControls,
     Sidebar,
     LayerManager,
     VideoAnnotator,
@@ -201,9 +205,11 @@ export default defineComponent({
       setSVGFilters,
     } = useImageEnhancements();
 
+    const segmentationRecipe = new SegmentationPointClick();
     const recipes = [
       new PolygonBase(),
       new HeadTail(),
+      segmentationRecipe,
     ];
 
     watch(() => route.query, (newQuery) => {
@@ -326,6 +332,8 @@ export default defineComponent({
       editingTrack,
       diveMetadataRootId,
       setDeleteLocalMasks,
+      segmentationPoints,
+      confirmSegmentation,
     } = useModeManager({
       recipes,
       trackFilterControls: trackFilters,
@@ -1066,6 +1074,29 @@ export default defineComponent({
       useTimelineFilters,
     );
 
+    provideSegmentationPrompt({ points: segmentationPoints, confirm: confirmSegmentation });
+    const {
+      status: segmentationStatus,
+      progress: segmentationProgress,
+    } = useSamSegmentation({
+      recipe: segmentationRecipe,
+      aggregateController,
+      selectedCamera,
+      datasetId,
+      imageData,
+    });
+
+    /** Esc clears segmentation points first; otherwise it leaves editing. */
+    function handleEscape() {
+      if (visualMaskManager.editingMaskId.value !== null) {
+        visualMaskManager.stopEditing();
+      } else if (segmentationRecipe.active.value && segmentationRecipe.hasPoints()) {
+        segmentationRecipe.resetPoints();
+      } else if (getUISetting('UISelection')) {
+        handler.trackAbort();
+      }
+    }
+
     const { visible } = usePrompt();
 
     const getUISetting = (key: UISettingsKey) => configurationManager.getUISetting(key);
@@ -1155,6 +1186,11 @@ export default defineComponent({
       visible,
       getUISetting,
       runActions,
+      // segmentation
+      segmentationRecipe,
+      segmentationStatus,
+      segmentationProgress,
+      handleEscape,
     };
   },
 });
@@ -1254,6 +1290,11 @@ export default defineComponent({
             <MaskEditor
               v-if="editingMode === 'Mask'"
               @set-annotation-state="handler.setAnnotationState"
+            />
+            <SegmentationControls
+              :recipe="segmentationRecipe"
+              :status="segmentationStatus"
+              :progress="segmentationProgress"
             />
           </template>
         </EditorMenu>
@@ -1366,7 +1407,7 @@ export default defineComponent({
           v-mousetrap="[
             { bind: 'n', handler: () => !readonlyState && handler.trackAdd() },
             { bind: 'r', handler: () => aggregateController.resetZoom() },
-            { bind: 'esc', handler: () => (visualMaskManager.editingMaskId.value !== null ? visualMaskManager.stopEditing() : (getUISetting('UISelection') && handler.trackAbort())) },
+            { bind: 'esc', handler: handleEscape },
           ]"
           class="d-flex flex-column grow"
         >

@@ -5,8 +5,11 @@ import {
   PropType,
   ref,
   computed,
+  onMounted,
 } from 'vue';
 import { clientSettings } from 'dive-common/store/settings';
+import { SAM_LABELS, SamModel } from 'dive-common/use/segmentation/samModels';
+import { samHardwareGpuAvailable } from 'dive-common/use/segmentation/samDevices';
 
 export default defineComponent({
   name: 'TrackSettingsPanel',
@@ -30,6 +33,30 @@ export default defineComponent({
       interpolate: 'Whether new tracks should have interpolation enabled by default',
       continuous: 'Immediately stay in detection creation mode after creating a new track.  Hit Esc to exit.',
       prompt: 'Prompt user before deleting a track?',
+      segmentationModel: 'Used by the Segment (wand) tool. Downloads once on first use, then loads from the browser cache. Tiny is fastest; Small is more accurate but slower and needs more memory.',
+      segmentationDevice: 'Each new frame is encoded once: about a second on a GPU, often 5-15 seconds on a CPU. Later clicks on the same frame are fast. Auto prefers the GPU and falls back to the CPU.',
+    });
+    const segmentationModels = (Object.keys(SAM_LABELS) as SamModel[])
+      .map((value) => ({ text: SAM_LABELS[value], value }));
+    const gpuAvailable = ref(true);
+    const segmentationDevices = computed(() => [
+      { text: 'Auto', value: 'auto' },
+      { text: 'GPU (WebGPU)', value: 'gpu', disabled: !gpuAvailable.value },
+      { text: 'CPU (WebAssembly)', value: 'cpu' },
+    ]);
+    const segmentationRows = computed(() => [
+      {
+        key: 'model', label: 'Model', items: segmentationModels, help: help.segmentationModel,
+      },
+      {
+        key: 'device', label: 'Device', items: segmentationDevices.value, help: help.segmentationDevice,
+      },
+    ]);
+    onMounted(async () => {
+      gpuAvailable.value = await samHardwareGpuAvailable();
+      if (!gpuAvailable.value && clientSettings.segmentationSettings.device === 'gpu') {
+        clientSettings.segmentationSettings.device = 'auto';
+      }
     });
     const modes = ref(['Track', 'Detection']);
     // Add unknown as the default type to the typeList
@@ -41,6 +68,8 @@ export default defineComponent({
       help,
       modes,
       typeList,
+      segmentationRows,
+      gpuAvailable,
     };
   },
 });
@@ -281,6 +310,54 @@ export default defineComponent({
           </v-tooltip>
         </v-col>
       </v-row>
+      <v-divider class="my-2" />
+      <div class="subheading">
+        Segmentation (SAM2)
+      </div>
+      <v-row
+        v-for="setting in segmentationRows"
+        :key="setting.key"
+        align="end"
+        dense
+      >
+        <v-col>
+          <v-select
+            v-model="clientSettings.segmentationSettings[setting.key]"
+            class="ml-0 pa-0"
+            x-small
+            :items="setting.items"
+            :label="setting.label"
+            dense
+            hide-details
+          />
+        </v-col>
+        <v-col
+          cols="2"
+          align="right"
+        >
+          <v-tooltip
+            open-delay="200"
+            max-width="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon
+                small
+                v-on="on"
+              >
+                mdi-help
+              </v-icon>
+            </template>
+            <span>{{ setting.help }}</span>
+          </v-tooltip>
+        </v-col>
+      </v-row>
+      <div
+        v-if="!gpuAvailable"
+        class="text-caption mt-1"
+      >
+        No hardware GPU was found in this browser, so segmentation runs on the CPU.
+      </div>
     </v-card>
   </div>
 </template>
