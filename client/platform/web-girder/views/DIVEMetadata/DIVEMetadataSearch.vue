@@ -207,9 +207,10 @@ export default defineComponent({
         });
       }
     };
-    // All rows use the metadata root's launch configs; resolved once, not per row
+    // All rows use this metadata folder's own launch configs (not parent write-base)
     const { launchConfigs, load } = useLaunchConfigs();
-    watch(() => props.id, (rootId) => load(rootId), { immediate: true });
+    const loadLaunchConfigs = (rootId?: string) => load(rootId ?? props.id, { ownFolderOnly: true });
+    watch(() => props.id, (rootId) => loadLaunchConfigs(rootId), { immediate: true });
     const openInNewTab = (id: string) => {
       const route = router.resolve({ name: 'viewer', params: { id }, query: { diveMetadataRootId: props.id } });
       window.open(route.href, '_blank');
@@ -228,6 +229,7 @@ export default defineComponent({
 
     return {
       launchConfigs,
+      loadLaunchConfigs,
       totalPages,
       count,
       filtered,
@@ -273,6 +275,7 @@ export default defineComponent({
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
       @filter-data="setFilterData($event)"
+      @launch-configs-updated="loadLaunchConfigs()"
     >
       <template slot="leftOptions">
         <v-tooltip bottom open-delay="400">
@@ -304,6 +307,7 @@ export default defineComponent({
               :dataset-id="item.DIVEDataset"
               :launch-configs="launchConfigs"
               :extra-query="{ diveMetadataRootId: id }"
+              show-open-in-new
             />
             <v-btn
               v-else

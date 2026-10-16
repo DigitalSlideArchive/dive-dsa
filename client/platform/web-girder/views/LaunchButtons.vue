@@ -1,5 +1,6 @@
 <script lang="ts">
 import { computed, defineComponent, PropType } from 'vue';
+import { useRouter } from 'vue-router/composables';
 import { LaunchConfig } from 'vue-media-annotator/ConfigurationManager';
 import { splitLaunchConfigs } from 'vue-media-annotator/launchConfigs';
 
@@ -11,8 +12,11 @@ export default defineComponent({
     /** Extra query params (e.g. diveMetadataRootId) added to every link */
     extraQuery: { type: Object as PropType<Record<string, string>>, default: () => ({}) },
     xSmall: { type: Boolean, default: true },
+    /** Show open-in-new icon alongside each launch button (metadata viewer) */
+    showOpenInNew: { type: Boolean, default: false },
   },
   setup(props) {
+    const router = useRouter();
     const parts = computed(() => splitLaunchConfigs(props.launchConfigs));
     const linkFor = (config?: LaunchConfig) => ({
       name: 'viewer',
@@ -21,7 +25,11 @@ export default defineComponent({
         ? { ...props.extraQuery, configFolderId: config.configurationFolderId }
         : { ...props.extraQuery },
     });
-    return { parts, linkFor };
+    const openInNewTab = (config?: LaunchConfig) => {
+      const route = router.resolve(linkFor(config));
+      window.open(route.href, '_blank');
+    };
+    return { parts, linkFor, openInNewTab };
   },
 });
 </script>
@@ -37,6 +45,17 @@ export default defineComponent({
       :to="linkFor()"
     >
       Launch Annotator
+      <template v-if="showOpenInNew">
+        <span class="ml-1">|</span>
+        <v-icon
+          small
+          class="ml-1"
+          style="cursor:pointer;"
+          @click.stop.prevent="openInNewTab()"
+        >
+          mdi-open-in-new
+        </v-icon>
+      </template>
     </v-btn>
     <template v-else>
       <v-tooltip
@@ -55,6 +74,17 @@ export default defineComponent({
             v-on="on"
           >
             {{ config.label }}
+            <template v-if="showOpenInNew">
+              <span class="ml-1">|</span>
+              <v-icon
+                small
+                class="ml-1"
+                style="cursor:pointer;"
+                @click.stop.prevent="openInNewTab(config)"
+              >
+                mdi-open-in-new
+              </v-icon>
+            </template>
           </v-btn>
         </template>
         <span>{{ config.tooltip }}</span>
@@ -92,6 +122,17 @@ export default defineComponent({
               </v-icon>
               {{ config.label }}
             </v-list-item-title>
+            <v-list-item-action v-if="showOpenInNew">
+              <v-btn
+                icon
+                x-small
+                @click.stop.prevent="openInNewTab(config)"
+              >
+                <v-icon small>
+                  mdi-open-in-new
+                </v-icon>
+              </v-btn>
+            </v-list-item-action>
           </v-list-item>
         </v-list>
       </v-menu>
