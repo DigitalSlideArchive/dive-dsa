@@ -36,6 +36,7 @@ Most editing controls are available when a track or detection is selected.
 | ++1++ | Enter **bounding-box** edit mode on selection |
 | ++2++ | Enter **polygon** edit mode on selection  |
 | ++3++ | Enter **head/tail/line** edit mode on selection |
+| ++s++ | Enter **Segment** (SAM2 point-click) mode on selection.  See [Interactive Segmentation](Interactive-Segmentation.md) |
 | ++h++ or ++g++ | while in line mode, place head point next |
 | ++t++ or ++y++ | while in line mode, place tail point next |
 | ++escape++ | unselect, exit edit mode, exit merge mode |
@@ -45,6 +46,17 @@ Most editing controls are available when a track or detection is selected.
 | ++shift+m++ | commit (finalize) merge for selected tracks. |
 | ++g++ | create new group including the selected track |
 | ++shift+enter++ | focus class select/text box on selected track in track list.  Press ++arrow-down++ to open all options.  Pres ++enter++ twice to accept an option.  Press ++escape++ to unfocus. |
+
+## Segment mode
+
+While the [Segment tool](Interactive-Segmentation.md) is active:
+
+| control    | description |
+| ---------- | ------------|
+| Left Click | add an include (foreground) point |
+| ++shift++ + Left Click or Middle Click | add an exclude (background) point |
+| Right Click or ++enter++ | confirm the polygon |
+| ++escape++ | clear the points and restore the detection; press again to exit editing |
 
 ## Adding new shortcuts
 
