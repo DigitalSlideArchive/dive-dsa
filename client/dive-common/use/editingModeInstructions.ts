@@ -24,6 +24,8 @@ export const EDITING_MODE_INSTRUCTIONS = {
 } as const;
 
 export const IDLE_INSTRUCTION = 'Right click on an annotation to edit';
+export const SEGMENTATION_INSTRUCTION = 'Click: include point. Shift/middle click: exclude point. Right click or Enter: confirm. Esc: clear points.';
+export const SEGMENTATION_LOADING_INSTRUCTION = 'Loading the segmentation model. The first use downloads it; later loads use the browser cache.';
 export const GROUP_EDIT_INSTRUCTION = 'Editing group. Add or remove tracks. Esc. to exit.';
 export const MULTI_SELECT_INSTRUCTION = 'Multi-select in progress. Editing is disabled. Select additional tracks to merge or group.';
 
