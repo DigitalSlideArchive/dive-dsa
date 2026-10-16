@@ -3,12 +3,19 @@ import { defineComponent, ref } from 'vue';
 import { cloneDeep } from 'lodash';
 import { useConfiguration } from 'vue-media-annotator/provides';
 import { LaunchConfig } from 'vue-media-annotator/ConfigurationManager';
-import { normalizeLaunchConfigs } from 'vue-media-annotator/launchConfigs';
+import {
+  DEFAULT_LAUNCH_COLOR,
+  LaunchConfigRow,
+  normalizeLaunchColor,
+  normalizeLaunchConfigs,
+} from 'vue-media-annotator/launchConfigs';
 import { getFolder } from 'platform/web-girder/api/girder.service';
 import { invalidateLaunchConfigs } from 'platform/web-girder/use/useLaunchConfigs';
+import LaunchConfigsEditor from './LaunchConfigsEditor.vue';
 
 export default defineComponent({
   name: 'LaunchConfigs',
+  components: { LaunchConfigsEditor },
   props: {
     disabled: {
       type: Boolean,
@@ -18,11 +25,13 @@ export default defineComponent({
   setup() {
     const { configuration, saveConfiguration, configurationId } = useConfiguration();
     const dialog = ref(false);
-    const rows = ref<(LaunchConfig & { error?: string; folderName?: string })[]>([]);
+    const rows = ref<LaunchConfigRow[]>([]);
     const saving = ref(false);
 
     const launchEditor = () => {
-      rows.value = cloneDeep(normalizeLaunchConfigs(configuration.value?.launchConfigs));
+      rows.value = cloneDeep(normalizeLaunchConfigs(configuration.value?.launchConfigs)).map(
+        (r) => ({ ...r, color: normalizeLaunchColor(r.color) }),
+      );
       dialog.value = true;
     };
     const addRow = () => {
@@ -30,14 +39,14 @@ export default defineComponent({
         id: `${Date.now()}${rows.value.length}`,
         label: '',
         configurationFolderId: '',
-        color: 'primary',
+        color: DEFAULT_LAUNCH_COLOR,
         order: rows.value.length,
       });
     };
     const removeRow = (index: number) => rows.value.splice(index, 1);
 
     /** The target must be an accessible folder that has a stored configuration */
-    const validateRow = async (row: LaunchConfig & { error?: string; folderName?: string }) => {
+    const validateRow = async (row: LaunchConfigRow) => {
       let error = '';
       let folderName = '';
       if (!row.label.trim()) {
@@ -81,7 +90,14 @@ export default defineComponent({
     };
 
     return {
-      dialog, rows, saving, launchEditor, addRow, removeRow, saveChanges, validateRow,
+      dialog,
+      rows,
+      saving,
+      launchEditor,
+      addRow,
+      removeRow,
+      saveChanges,
+      validateRow,
     };
   },
 });
@@ -100,7 +116,7 @@ export default defineComponent({
     </v-btn>
     <v-dialog
       v-model="dialog"
-      max-width="700"
+      max-width="900"
     >
       <v-card>
         <v-card-title>
@@ -117,74 +133,13 @@ export default defineComponent({
           </v-btn>
         </v-card-title>
         <v-card-text>
-          <div class="mb-2">
-            Each entry adds a launch button that opens the viewer using the
-            configuration of another folder (<code>?configFolderId=</code>).
-            Empty list shows the default Launch Annotator button.
-          </div>
-          <v-row
-            v-for="(row, index) in rows"
-            :key="row.id"
-            dense
-            align="center"
-          >
-            <v-col cols="3">
-              <v-text-field
-                v-model="row.label"
-                label="Label"
-                dense
-                hide-details="auto"
-              />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field
-                v-model="row.configurationFolderId"
-                label="Config folder id"
-                dense
-                :error-messages="row.error"
-                :hint="row.folderName"
-                persistent-hint
-                @blur="validateRow(row)"
-              />
-            </v-col>
-            <v-col cols="2">
-              <v-text-field
-                v-model="row.color"
-                label="Color"
-                dense
-                hide-details="auto"
-              />
-            </v-col>
-            <v-col cols="2">
-              <v-text-field
-                v-model="row.tooltip"
-                label="Tooltip"
-                dense
-                hide-details="auto"
-              />
-            </v-col>
-            <v-col cols="1">
-              <v-btn
-                icon
-                small
-                @click="removeRow(index)"
-              >
-                <v-icon small>
-                  mdi-delete
-                </v-icon>
-              </v-btn>
-            </v-col>
-          </v-row>
-          <v-btn
-            small
-            class="mt-2"
-            @click="addRow"
-          >
-            <v-icon small left>
-              mdi-plus
-            </v-icon>
-            Add
-          </v-btn>
+          <LaunchConfigsEditor
+            :rows="rows"
+            description="Each entry adds a launch button that opens the viewer using the configuration of another folder (?configFolderId=). Empty list shows the default Launch Annotator button."
+            @add="addRow"
+            @remove="removeRow"
+            @validate="validateRow"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />

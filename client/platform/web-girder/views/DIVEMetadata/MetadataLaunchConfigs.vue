@@ -2,13 +2,20 @@
 import { defineComponent, ref } from 'vue';
 import { cloneDeep } from 'lodash';
 import { LaunchConfig } from 'vue-media-annotator/ConfigurationManager';
-import { normalizeLaunchConfigs } from 'vue-media-annotator/launchConfigs';
+import {
+  DEFAULT_LAUNCH_COLOR,
+  LaunchConfigRow,
+  normalizeLaunchColor,
+  normalizeLaunchConfigs,
+} from 'vue-media-annotator/launchConfigs';
 import { getFolder } from 'platform/web-girder/api/girder.service';
 import { saveConfiguration } from 'platform/web-girder/api/dataset.service';
 import { invalidateLaunchConfigs } from 'platform/web-girder/use/useLaunchConfigs';
+import LaunchConfigsEditor from 'dive-common/components/configurationEditors/LaunchConfigsEditor.vue';
 
 export default defineComponent({
   name: 'MetadataLaunchConfigs',
+  components: { LaunchConfigsEditor },
   props: {
     folderId: {
       type: String,
@@ -17,7 +24,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const dialog = ref(false);
-    const rows = ref<(LaunchConfig & { error?: string; folderName?: string })[]>([]);
+    const rows = ref<LaunchConfigRow[]>([]);
     const saving = ref(false);
     const loading = ref(false);
 
@@ -28,7 +35,7 @@ export default defineComponent({
         const folder = (await getFolder(props.folderId)).data;
         rows.value = cloneDeep(
           normalizeLaunchConfigs(folder.meta?.configuration?.launchConfigs),
-        );
+        ).map((r) => ({ ...r, color: normalizeLaunchColor(r.color) }));
       } catch (err) {
         rows.value = [];
       }
@@ -40,14 +47,14 @@ export default defineComponent({
         id: `${Date.now()}${rows.value.length}`,
         label: '',
         configurationFolderId: '',
-        color: 'primary',
+        color: DEFAULT_LAUNCH_COLOR,
         order: rows.value.length,
       });
     };
     const removeRow = (index: number) => rows.value.splice(index, 1);
 
     /** The target must be an accessible folder that has a stored configuration */
-    const validateRow = async (row: LaunchConfig & { error?: string; folderName?: string }) => {
+    const validateRow = async (row: LaunchConfigRow) => {
       let error = '';
       let folderName = '';
       if (!row.label.trim()) {
@@ -135,7 +142,7 @@ export default defineComponent({
     </v-tooltip>
     <v-dialog
       v-model="dialog"
-      max-width="700"
+      max-width="900"
     >
       <v-card>
         <v-card-title>
@@ -158,80 +165,14 @@ export default defineComponent({
           >
             Loading…
           </div>
-          <template v-else>
-            <div class="mb-2">
-              Each entry adds a launch button on every row that opens the viewer using the
-              configuration of another folder (<code>?configFolderId=</code>).
-              These settings are stored on this metadata folder only.
-              Empty list shows the default Launch Annotator button.
-            </div>
-            <v-row
-              v-for="(row, index) in rows"
-              :key="row.id"
-              dense
-              align="center"
-            >
-              <v-col cols="3">
-                <v-text-field
-                  v-model="row.label"
-                  label="Label"
-                  dense
-                  hide-details="auto"
-                />
-              </v-col>
-              <v-col cols="4">
-                <v-text-field
-                  v-model="row.configurationFolderId"
-                  label="Config folder id"
-                  dense
-                  :error-messages="row.error"
-                  :hint="row.folderName"
-                  persistent-hint
-                  @blur="validateRow(row)"
-                />
-              </v-col>
-              <v-col cols="2">
-                <v-text-field
-                  v-model="row.color"
-                  label="Color"
-                  dense
-                  hide-details="auto"
-                />
-              </v-col>
-              <v-col cols="2">
-                <v-text-field
-                  v-model="row.tooltip"
-                  label="Tooltip"
-                  dense
-                  hide-details="auto"
-                />
-              </v-col>
-              <v-col cols="1">
-                <v-btn
-                  icon
-                  small
-                  @click="removeRow(index)"
-                >
-                  <v-icon small>
-                    mdi-delete
-                  </v-icon>
-                </v-btn>
-              </v-col>
-            </v-row>
-            <v-btn
-              small
-              class="mt-2"
-              @click="addRow"
-            >
-              <v-icon
-                small
-                left
-              >
-                mdi-plus
-              </v-icon>
-              Add
-            </v-btn>
-          </template>
+          <LaunchConfigsEditor
+            v-else
+            :rows="rows"
+            description="Each entry adds a launch button on every row that opens the viewer using the configuration of another folder (?configFolderId=). These settings are stored on this metadata folder only. Empty list shows the default Launch Annotator button."
+            @add="addRow"
+            @remove="removeRow"
+            @validate="validateRow"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
