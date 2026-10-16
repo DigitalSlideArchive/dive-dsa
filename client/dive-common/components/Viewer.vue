@@ -1366,7 +1366,7 @@ export default defineComponent({
           v-mousetrap="[
             { bind: 'n', handler: () => !readonlyState && handler.trackAdd() },
             { bind: 'r', handler: () => aggregateController.resetZoom() },
-            { bind: 'esc', handler: () => (visualMaskManager.editingMaskId !== null ? visualMaskManager.stopEditing() : (getUISetting('UISelection') && handler.trackAbort())) },
+            { bind: 'esc', handler: () => (visualMaskManager.editingMaskId.value !== null ? visualMaskManager.stopEditing() : (getUISetting('UISelection') && handler.trackAbort())) },
           ]"
           class="d-flex flex-column grow"
         >
