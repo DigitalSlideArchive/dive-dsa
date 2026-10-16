@@ -30,6 +30,13 @@ On the far left, the editing mode status indicator shows you what mode you're in
 
 Editing mode toggles control the type of geometry being created or edited during annotation.  See the [Annotation Quickstart](Annotation-QuickStart.md) for an in-depth guide to annotation.
 
+* ==:material-vector-square:== ++1++ bounding box
+* ==:material-vector-polygon:== ++2++ polygon
+* ==:material-vector-line:== ++3++ head/tail line
+* ==:material-auto-fix:== ++s++ **Segment**: click an object to outline it with SAM2, running in the browser.  While it is active the bar also shows ==:material-undo: Reset==, ==:material-check: Confirm== and the model status.  See [Interactive Segmentation](Interactive-Segmentation.md).
+* ==:material-timer-outline:== time annotation
+* ==:material-draw:== segmentation mask
+
 ### Visibility Toggles
 
 The **:material-eye: visibility** section contains toggle buttons that control the different types of annotation data can be hidden or shown.

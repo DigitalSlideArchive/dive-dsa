@@ -34,6 +34,8 @@ Most of the options are pretty clear.  It turns off and on different buttons in 
 
 The ToolBar is used for editing tracks and changing the visualization of tracks.  The Editing Types and Visible Types are multi-select which allows for customization of the types of annotations that can be edited/created and the visbility of specific types of annotations.  It may not be necessary for the annotator to know about line or polygon types so you can remove them from the menu if not needed.
 
+The Editing Types are, in `UIEditingTypes` index order: bounding box, polygon, line, time, mask and segment (the [SAM2 point-click tool](Interactive-Segmentation.md)).
+
 ## SideBar
 ![SideBar](images/Configuration/UISettings/SideBar.png)
 
