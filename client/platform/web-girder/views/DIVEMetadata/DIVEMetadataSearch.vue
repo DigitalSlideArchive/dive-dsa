@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  defineComponent, onMounted, ref, Ref, PropType,
+  defineComponent, onMounted, ref, Ref, PropType, watch,
 } from 'vue';
 import {
   DIVEMetadataResults, DIVEMetadataFilter, filterDiveMetadata, MetadataResultItem, FilterDisplayConfig,
@@ -14,6 +14,8 @@ import { AccessType, getFolder, getFolderAccess } from 'platform/web-girder/api/
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import { useRouter } from 'vue-router/composables';
+import { useLaunchConfigs } from 'platform/web-girder/use/useLaunchConfigs';
+import LaunchButtons from 'platform/web-girder/views/LaunchButtons.vue';
 import DIVEMetadataFilterVue from './DIVEMetadataFilter.vue';
 import DIVEMetadataCloneVue from './DIVEMetadataClone.vue';
 import DIVEMetadataEditKey from './DIVEMetadataEditKey.vue';
@@ -22,6 +24,7 @@ import MetadataKeyLabel from './MetadataKeyLabel.vue';
 export default defineComponent({
   name: 'DIVEMetadataSearch',
   components: {
+    LaunchButtons,
     DIVEMetadataFilterVue,
     DIVEMetadataCloneVue,
     DIVEMetadataEditKey,
@@ -204,6 +207,10 @@ export default defineComponent({
         });
       }
     };
+    // All rows use this metadata folder's own launch configs (not parent write-base)
+    const { launchConfigs, load } = useLaunchConfigs();
+    const loadLaunchConfigs = (rootId?: string) => load(rootId ?? props.id, { ownFolderOnly: true });
+    watch(() => props.id, (rootId) => loadLaunchConfigs(rootId), { immediate: true });
     const openInNewTab = (id: string) => {
       const route = router.resolve({ name: 'viewer', params: { id }, query: { diveMetadataRootId: props.id } });
       window.open(route.href, '_blank');
@@ -221,6 +228,8 @@ export default defineComponent({
     };
 
     return {
+      launchConfigs,
+      loadLaunchConfigs,
       totalPages,
       count,
       filtered,
@@ -266,6 +275,7 @@ export default defineComponent({
       @update:currentPage="changePage($event)"
       @updateFilters="updateFilter($event)"
       @filter-data="setFilterData($event)"
+      @launch-configs-updated="loadLaunchConfigs()"
     >
       <template slot="leftOptions">
         <v-tooltip bottom open-delay="400">
@@ -292,7 +302,15 @@ export default defineComponent({
         <v-row class="ma-4">
           <div>{{ item.filename }}</div>
           <div>
+            <launch-buttons
+              v-if="launchConfigs.length"
+              :dataset-id="item.DIVEDataset"
+              :launch-configs="launchConfigs"
+              :extra-query="{ diveMetadataRootId: id }"
+              show-open-in-new
+            />
             <v-btn
+              v-else
               class="ml-2"
               x-small
               color="primary"

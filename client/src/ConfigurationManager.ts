@@ -7,6 +7,8 @@ import type { CustomStyle } from './StyleManager';
 import type { Feature } from './track';
 
 export interface DiveConfiguration {
+  /** launchConfigs of the write-base folder for this folder's hierarchy (not merged) */
+  launchConfigs?: LaunchConfig[];
   prevNext?: {
     previous?: { id: string; name: string};
     next?: { id: string; name: string};
@@ -195,6 +197,16 @@ export interface VisualMaskConfiguration {
   style?: CustomStyle;
 }
 
+export interface LaunchConfig {
+  id: string;
+  label: string;
+  tooltip?: string;
+  color?: string;
+  /** Girder folder whose configuration is applied for the launched session */
+  configurationFolderId: string;
+  order?: number;
+}
+
 export interface Configuration {
   general?: {
     configurationMerge? : 'merge up' | 'merge down' | 'disabled';
@@ -209,6 +221,7 @@ export interface Configuration {
   timelineConfigs?: TimelineConfiguration[];
   customUI?: CustomUISettings;
   visualMasks?: Record<string, VisualMaskConfiguration[]>;
+  launchConfigs?: LaunchConfig[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
