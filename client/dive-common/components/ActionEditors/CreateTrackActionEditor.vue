@@ -20,7 +20,7 @@ export default defineComponent({
   },
   emits: ['update:action', 'cancel'],
   setup(props, { emit }) {
-    const geometryTypes: EditAnnotationTypes[] = ['Point', 'rectangle', 'Polygon', 'LineString', 'Time'];
+    const geometryTypes: EditAnnotationTypes[] = ['Point', 'rectangle', 'Polygon', 'LineString', 'Time', 'Mask'];
     const localAction = ref({
       ...props.action,
       selectTrackAfter: normalizeCreateTrackAfterSelection(props.action.selectTrackAfter),
@@ -62,6 +62,16 @@ export default defineComponent({
           outlined
           dense
         />
+        <v-alert
+          v-if="localAction.geometryType === 'Mask'"
+          type="info"
+          dense
+          outlined
+          class="mt-2"
+        >
+          Opens mask editing on a new track. Users must click Save in the mask toolbar to commit;
+          pressing ESC without saving removes an empty track.
+        </v-alert>
 
         <!-- Editable Type Toggle -->
         <v-row dense align="center" justify="center">
