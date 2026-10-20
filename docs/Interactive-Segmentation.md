@@ -36,7 +36,7 @@ While segmenting, the other editing buttons (1-5) and the Del Point/Del Annotati
 * The bounding box is set to fit the mask.
 * Polygons already on that frame are replaced by the mask. Head/tail points and attributes are kept.
 * Each polygon outline starts at the configured **Polygon points** budget (25 by default), growing to at most 4x that value when needed to follow a complex outline within 5% of its area.
-* In **Mask** mode no polygon is stored: the full-resolution mask is uploaded for the detection (shown with the Mask layer) and the frame is flagged as having a mask. While segmenting, the traced outline is only a preview of that mask.
+* In **Mask** mode no polygon is stored: the full-resolution mask is uploaded for the detection (shown with the Mask layer) and the frame is flagged as having a mask. While segmenting, the mask itself is previewed at 75% opacity (confirmed masks use the Mask layer's opacity setting, 50% by default).
 
 ### Cancelling
 

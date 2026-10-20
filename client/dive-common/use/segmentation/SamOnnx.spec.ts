@@ -137,7 +137,7 @@ it('returns the binary mask only when mask output is requested', async () => {
   expect(maskResult.mask?.data.filter((v) => v === 1)).toHaveLength(16);
   expect(maskResult.mask?.data[2 * 8 + 2]).toBe(1);
   expect(maskResult.mask?.data[0]).toBe(0);
-  // Polygons are still returned so the mask can be previewed as an outline.
+  // Polygons/bounds are still returned alongside the mask (polygon mode, fallback).
   expect(maskResult.polygons).toHaveLength(1);
   expect(maskResult.bounds).toEqual([2, 2, 6, 6]);
   await sam.dispose();

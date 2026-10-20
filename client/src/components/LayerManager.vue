@@ -7,9 +7,11 @@ import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
-import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
+import MaskLayer, { SegmentationPreviewOpacity } from 'vue-media-annotator/layers/MediaLayers/maskLayer';
 import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
-import { decode, RLEObject, rleObjectToImageSync } from 'vue-media-annotator/use/rle';
+import {
+  binaryMaskToLuminanceAlpha, decode, RLEObject, rleObjectToImageSync,
+} from 'vue-media-annotator/use/rle';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -127,6 +129,28 @@ export default defineComponent({
       annotator,
       typeStyling: typeStylingRef,
     });
+    // Separate layer for the unconfirmed magic-wand mask preview, so it can
+    // render at 75% without changing the (user-adjustable) stored-mask opacity.
+    const segmentationPreviewMaskLayer = new MaskLayer({
+      annotator,
+      typeStyling: typeStylingRef,
+    });
+    segmentationPreviewMaskLayer.setOpacity(SegmentationPreviewOpacity);
+    let previewTextureCache: {
+      data: Uint8Array; width: number; height: number; converted: Uint8Array;
+    } | null = null;
+    const getPreviewTexture = (mask: { data: Uint8Array; width: number; height: number }) => {
+      if (!previewTextureCache || previewTextureCache.data !== mask.data
+        || previewTextureCache.width !== mask.width || previewTextureCache.height !== mask.height) {
+        previewTextureCache = {
+          data: mask.data,
+          width: mask.width,
+          height: mask.height,
+          converted: binaryMaskToLuminanceAlpha(mask.data, mask.width, mask.height),
+        };
+      }
+      return previewTextureCache.converted;
+    };
     const maskEditorLayer = new MaskEditorLayer({
       annotator, typeStyling: typeStylingRef, editorOptions, editorFunctions,
     });
@@ -417,12 +441,18 @@ export default defineComponent({
         videoLayerManager.disable();
       }
 
+      // Unconfirmed magic-wand result in Mask mode for this frame, if any.
+      // It replaces any stored mask shown for the same track below.
+      const previewMask = (segmentationPrompt?.previewMasks && props.camera === selectedCamera.value)
+        ? segmentationPrompt.previewMasks.value.find((preview) => preview.frameNum === frame)
+        : undefined;
+
       if (visibleModes.includes('Mask')) {
         const maskRLEData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         const maskImages : {trackId: number, type: string, image: HTMLImageElement}[] = [];
         const maskLuminanceData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         frameData.forEach((track) => {
-          if (track.features?.hasMask) {
+          if (track.features?.hasMask && previewMask?.trackId !== track.track.id) {
             if (editorOptions.useRLE.value && !useworker) {
               const rle = getRLEMask(track.track.id, frame);
               if (rle) {
@@ -470,6 +500,28 @@ export default defineComponent({
         }
       } else {
         maskLayer.disable();
+      }
+
+      // Show the preview mask itself at preview opacity instead of a polygon
+      // outline. Independent of the stored-Mask layer above (the frame is
+      // not flagged `hasMask` until the result is confirmed).
+      if (previewMask) {
+        const previewType = frameData.find((track) => track.track.id === previewMask.trackId)?.styleType[0]
+          ?? trackStore?.getPossible(previewMask.trackId)?.getType(0)[0];
+        if (previewType) {
+          getOrCreateFilter(previewType, typeStylingRef.value.color(previewType));
+          segmentationPreviewMaskLayer.setSegmenationLuminanceRLE([{
+            trackId: previewMask.trackId,
+            type: previewType,
+            mask: getPreviewTexture(previewMask.mask),
+            width: previewMask.mask.width,
+            height: previewMask.mask.height,
+          }]);
+        } else {
+          segmentationPreviewMaskLayer.disable();
+        }
+      } else {
+        segmentationPreviewMaskLayer.disable();
       }
 
       pointLayer.changeData(frameData);
@@ -609,6 +661,7 @@ export default defineComponent({
         visualMaskManager.revisionCounter,
         toRef(props, 'colorBy'),
         selectedCamera,
+        ...(segmentationPrompt?.previewMasks ? [segmentationPrompt.previewMasks] : []),
       ],
       () => {
         updateLayers(

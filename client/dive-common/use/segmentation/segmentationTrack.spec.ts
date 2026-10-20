@@ -2,7 +2,8 @@
 import Track from 'vue-media-annotator/track';
 import TrackStore from 'vue-media-annotator/TrackStore';
 import {
-  applySegmentation, applySegmentationMask, restoreFeature, SegmentationPolygonKey, snapshotFeature,
+  applySegmentation, applySegmentationMask, applySegmentationMaskPreview,
+  restoreFeature, SegmentationPolygonKey, snapshotFeature,
 } from './segmentationTrack';
 import type { SegmentationPolygon } from './types';
 
@@ -64,6 +65,20 @@ it('applying a mask flags the frame, fits the box, drops polygons, and keeps poi
   applySegmentationMask(restored, 0, [0, 0, 25, 10]);
   restoreFeature(restored, 0, snapshot);
   expect(restored.getFeature(0)[0]?.hasMask).toBeUndefined();
+});
+
+it('previewing a mask fits the box and drops polygons without flagging or storing', () => {
+  const track = trackWithBox();
+  applySegmentationMaskPreview(track, 0, [0, 0, 25, 10]);
+  const [feature] = track.getFeature(0);
+  expect(feature?.bounds).toEqual([0, 0, 25, 10]);
+  expect(feature?.hasMask).toBeUndefined();
+  expect(feature?.attributes).toEqual({ note: 'keep' });
+  expect(track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(track.getFeatureGeometry(0, { type: 'Point', key: 'head' })).toHaveLength(1);
+  expect(track.getMaskFrameList()).toEqual([]);
+  applySegmentationMaskPreview(track, 0, null);
+  expect(track.getFeature(0)[0]?.bounds).toEqual([0, 0, 25, 10]);
 });
 
 it('applying a mask without bounds does nothing', () => {

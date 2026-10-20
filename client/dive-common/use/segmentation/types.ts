@@ -30,8 +30,9 @@ export interface SegmentationPredictRequest {
   polygonPoints?: number;
   /**
    * Create a mask instead of a polygon (default 'polygon'). In mask mode the
-   * response also carries the binary mask; the traced polygons are still
-   * returned so the result can be previewed before it is confirmed.
+   * response also carries the binary mask, which is previewed as a mask
+   * before it is confirmed; the traced polygons are still returned for
+   * polygon mode and as a fallback if the mask cannot be stored.
    */
   outputMode?: SegmentationOutputMode;
 }

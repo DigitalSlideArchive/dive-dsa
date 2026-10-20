@@ -34,7 +34,8 @@ import SegmentationPointClick, {
   SegmentationPointsState, SegmentationPredictionResult,
 } from 'dive-common/recipes/segmentationpointclick';
 import {
-  applySegmentation, applySegmentationMask, restoreFeature, snapshotFeature, SegmentationSnapshot,
+  applySegmentation, applySegmentationMask, applySegmentationMaskPreview,
+  restoreFeature, snapshotFeature, SegmentationSnapshot,
 } from 'dive-common/use/segmentation/segmentationTrack';
 import type { SegmentationMask } from 'dive-common/use/segmentation/types';
 
@@ -97,11 +98,33 @@ export default function useModeManager({
     (r): r is SegmentationPointClick => r instanceof SegmentationPointClick,
   );
   const segmentationPoints = ref<SegmentationPointsState>({ points: [], labels: [], frameNum: -1 });
+  /**
+   * Unconfirmed mask-mode predictions, exposed so the annotator can render
+   * the binary mask itself (at preview opacity) instead of a polygon outline.
+   * Kept in sync with `segmentationPredictions` below.
+   */
+  const segmentationPreviewMasks = ref<{
+    trackId: AnnotationId; frameNum: number; mask: SegmentationMask;
+  }[]>([]);
+
   let segmentationTarget: { trackId: AnnotationId; camera: string } | null = null;
   const segmentationSnapshots = new Map<number, SegmentationSnapshot>();
   /** Latest previewed prediction per frame, kept so accepting (e.g. by
    * switching tools) can still turn a mask-mode preview into a mask. */
   const segmentationPredictions = new Map<number, SegmentationPredictionResult>();
+
+  function syncSegmentationPreviewMasks() {
+    const target = segmentationTarget;
+    segmentationPreviewMasks.value = target
+      ? Array.from(segmentationPredictions.values())
+        .filter((result) => result.outputMode === 'mask' && !!result.mask)
+        .map((result) => ({
+          trackId: target.trackId,
+          frameNum: result.frameNum,
+          mask: result.mask as SegmentationMask,
+        }))
+      : [];
+  }
   /** Platform hook that stores a confirmed binary mask (web: RLE upload). */
   let createSegmentationMask: ((trackId: AnnotationId, frameNum: number, mask: SegmentationMask) => Promise<void>) | null = null;
 
@@ -930,9 +953,16 @@ export default function useModeManager({
       segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
     }
     segmentationPredictions.set(result.frameNum, result);
-    // Mask results are previewed as their traced outline; the binary mask
-    // itself is only stored on confirm, so cancelling needs no cleanup.
-    applySegmentation(track, result.frameNum, result.polygons, result.bounds);
+    if (result.outputMode === 'mask' && result.mask) {
+      // Mask results are previewed as the mask itself (rendered from
+      // `segmentationPreviewMasks` at preview opacity), not as a traced
+      // polygon outline; the binary mask is only stored on confirm, so
+      // cancelling needs no cleanup beyond restoring the snapshot.
+      applySegmentationMaskPreview(track, result.frameNum, result.bounds);
+    } else {
+      applySegmentation(track, result.frameNum, result.polygons, result.bounds);
+    }
+    syncSegmentationPreviewMasks();
     _nudgeEditingCanary();
   }
 
@@ -973,6 +1003,7 @@ export default function useModeManager({
     segmentationSnapshots.clear();
     segmentationPredictions.clear();
     segmentationTarget = null;
+    syncSegmentationPreviewMasks();
   }
 
   /** Keep the previewed result; nothing left to restore. */
@@ -998,6 +1029,7 @@ export default function useModeManager({
     segmentationSnapshots.clear();
     segmentationPredictions.clear();
     segmentationTarget = null;
+    syncSegmentationPreviewMasks();
     _nudgeEditingCanary();
   }
 
@@ -1026,8 +1058,8 @@ export default function useModeManager({
         ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
         : undefined);
     // Clear the session first (listeners may restart it), then re-apply:
-    // polygon results are already previewed, mask results replace that
-    // preview outline with a stored mask.
+    // polygon results are already previewed, mask results replace the
+    // preview mask with a stored mask.
     clearSegmentationSession();
     if (!track) return;
     // See acceptSegmentation: register mask data before flagging `hasMask`.
@@ -1369,6 +1401,7 @@ export default function useModeManager({
     setDeleteLocalMasks,
     setSegmentationMaskCreator,
     segmentationPoints,
+    segmentationPreviewMasks,
     confirmSegmentation,
     handler: {
       commitMerge: handleCommitMerge,

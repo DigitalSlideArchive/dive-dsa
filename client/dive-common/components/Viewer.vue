@@ -334,6 +334,7 @@ export default defineComponent({
       setDeleteLocalMasks,
       setSegmentationMaskCreator,
       segmentationPoints,
+      segmentationPreviewMasks,
       confirmSegmentation,
     } = useModeManager({
       recipes,
@@ -1079,7 +1080,11 @@ export default defineComponent({
       useTimelineFilters,
     );
 
-    provideSegmentationPrompt({ points: segmentationPoints, confirm: confirmSegmentation });
+    provideSegmentationPrompt({
+      points: segmentationPoints,
+      previewMasks: segmentationPreviewMasks,
+      confirm: confirmSegmentation,
+    });
     const {
       status: segmentationStatus,
       progress: segmentationProgress,

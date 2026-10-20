@@ -173,9 +173,9 @@ export default defineComponent({
             class="text-caption mb-2"
           >
             Confirming stores the segmentation as a mask on the detection
-            instead of an editable polygon. The outline is only a preview
-            while segmenting. Masks are shown with the Mask layer and can be
-            refined with the mask brush.
+            instead of an editable polygon. While segmenting, the mask
+            itself is previewed at 75% opacity. Confirmed masks are shown
+            with the Mask layer and can be refined with the mask brush.
           </div>
           <v-row
             v-if="draftOutputMode === 'polygon'"

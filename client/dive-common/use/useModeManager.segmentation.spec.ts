@@ -182,9 +182,14 @@ it('confirming a mask result stores a mask instead of a polygon', async () => {
   const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
   ctx.predict.mockResolvedValue({ ...response, mask });
   await place(ctx, 15);
-  // Previewed as an outline polygon until confirmed.
-  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(1);
+  // Previewed as the mask itself (exposed for the preview layer at 75%
+  // opacity), not as an outline polygon, and not yet flagged/stored.
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([10, 0, 30, 20]);
   expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
+  expect(ctx.manager.segmentationPreviewMasks.value).toEqual([
+    { trackId: ctx.track.id, frameNum: 0, mask },
+  ]);
   ctx.manager.confirmSegmentation();
   await flush();
   expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
@@ -194,6 +199,7 @@ it('confirming a mask result stores a mask instead of a polygon', async () => {
   expect(feature?.bounds).toEqual([10, 0, 30, 20]);
   expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
   expect(ctx.manager.visibleModes.value).toContain('Mask');
+  expect(ctx.manager.segmentationPreviewMasks.value).toEqual([]);
   expect(ctx.polygonRecipe.active.value).toBe(false);
   expect(ctx.manager.editingMode.value).toBe('rectangle');
   // Nothing left to restore once confirmed.
@@ -208,8 +214,10 @@ it('cancelling a mask preview restores the detection and stores nothing', async 
   const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
   ctx.predict.mockResolvedValue({ ...response, mask });
   await place(ctx, 15);
+  expect(ctx.manager.segmentationPreviewMasks.value).toHaveLength(1);
   ctx.manager.handler.trackAbort();
   expect(createMask).not.toHaveBeenCalled();
+  expect(ctx.manager.segmentationPreviewMasks.value).toEqual([]);
   expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
   expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([0, 0, 100, 100]);
 });

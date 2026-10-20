@@ -161,6 +161,21 @@ export function maskToLuminanceAlpha(maskData: Uint8Array, width: number, height
   }
   return luminanceAlphaData;
 }
+/**
+ * Convert a binary mask (1 = object, row-major, as produced by segmentation)
+ * to the LuminanceAlpha texture format used by the mask layer. Unlike
+ * `maskToLuminanceAlpha`, which expects COCO column-major data, this reads
+ * the mask in its native row-major order.
+ */
+export function binaryMaskToLuminanceAlpha(maskData: Uint8Array, width: number, height: number) {
+  const luminanceAlphaData = new Uint8Array(width * height * 2);
+  for (let i = 0; i < width * height; i += 1) {
+    const value = maskData[i] ? 255 : 0;
+    luminanceAlphaData[i * 2] = value;
+    luminanceAlphaData[i * 2 + 1] = value;
+  }
+  return luminanceAlphaData;
+}
 export function toBbox(rleObjs: RLEObject[]): BB {
   const Rs = _frString(rleObjs);
   const n = Rs._n;

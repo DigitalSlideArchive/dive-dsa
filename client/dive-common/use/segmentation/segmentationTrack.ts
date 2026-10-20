@@ -80,6 +80,34 @@ export function applySegmentation(
 }
 
 /**
+ * Preview a mask result on this frame without storing anything: the box
+ * becomes the mask bounds, but no polygon is written and the frame is not
+ * flagged `hasMask` (the binary mask is rendered directly by the preview
+ * layer, and is only stored on confirm). Any polygons on the frame, e.g.
+ * an earlier polygon-mode preview, are removed. Head/tail points and
+ * attributes are kept.
+ */
+export function applySegmentationMaskPreview(
+  track: Track,
+  frameNum: number,
+  bounds?: RectBounds | null,
+) {
+  if (!bounds) return;
+  const [real] = track.getFeature(frameNum);
+  if (real && real.keyframe) {
+    const existing = track.getFeatureGeometry(frameNum, { type: 'Polygon' }).length;
+    for (let i = 0; i < existing; i += 1) track.removeFeatureGeometry(frameNum, { type: 'Polygon' });
+  }
+  const { interpolate } = track.canInterpolate(frameNum);
+  track.setFeature({
+    frame: frameNum,
+    keyframe: true,
+    bounds,
+    interpolate,
+  });
+}
+
+/**
  * Make the mask the detection's shape on this frame without storing any
  * polygon: the frame is flagged as having a mask (whose pixels are stored
  * separately, see useMasks) and the box becomes the mask bounds. Any polygons
