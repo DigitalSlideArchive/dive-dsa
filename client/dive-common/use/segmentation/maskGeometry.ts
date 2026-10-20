@@ -2,9 +2,10 @@ import { contours, polygonArea } from 'd3';
 import { componentsBounds } from 'dive-common/recipes/segmentationPolygons';
 import type { Point, SegmentationPolygon, SegmentationPredictResponse } from './types';
 import {
+  normalizeSegmentationPolygonPoints,
   SegmentationMaxPolygonAreaError,
   SegmentationMaxPolygonPoints,
-  SegmentationMaxPolygonPointsLimit,
+  SegmentationPolygonPointsGrowthFactor,
 } from './constants';
 
 function nearest(p: Point, a: Point, b: Point): Point {
@@ -42,17 +43,23 @@ function splitOrder(points: Point[], limit: number): number[] {
   return order;
 }
 
-/** Reduce a closed contour ring to SegmentationMaxPolygonPoints. With grow, that budget
- * doubles, up to SegmentationMaxPolygonPointsLimit, while the area cut off or added
- * exceeds SegmentationMaxPolygonAreaError of the ring's area. */
-function simplify(points: Point[], grow: boolean): Point[] {
-  const order = splitOrder(points, (grow ? SegmentationMaxPolygonPointsLimit : SegmentationMaxPolygonPoints) - 2);
+/** Reduce a closed contour ring to a base budget of `baseBudget` points. That
+ * budget doubles, up to SegmentationPolygonPointsGrowthFactor times the base,
+ * while the area cut off or added exceeds SegmentationMaxPolygonAreaError of
+ * the ring's area. */
+function simplify(points: Point[], baseBudget: number = SegmentationMaxPolygonPoints): Point[] {
+  const base = normalizeSegmentationPolygonPoints(baseBudget);
+  const maxBudget = base * SegmentationPolygonPointsGrowthFactor;
+  const order = splitOrder(points, maxBudget - 2);
   const area = Math.abs(polygonArea(points));
   const ring = (budget: number) => [0, ...order.slice(0, budget - 2).sort((a, b) => a - b), points.length - 1];
   const error = (kept: number[]) => kept.slice(1).reduce((sum, index, i) => sum
     + Math.abs(polygonArea(points.slice(kept[i], index + 1))), 0);
-  let budget = SegmentationMaxPolygonPoints;
-  while (budget - 2 < order.length && error(ring(budget)) > SegmentationMaxPolygonAreaError * area) budget *= 2;
+  let budget = base;
+  while (budget < maxBudget && budget - 2 < order.length
+    && error(ring(budget)) > SegmentationMaxPolygonAreaError * area) {
+    budget = Math.min(budget * 2, maxBudget);
+  }
   const kept = ring(budget);
   return kept.length >= 4 ? kept.map((i) => points[i]) : points;
 }
@@ -66,7 +73,8 @@ export function maskArea(polygons: SegmentationPolygon[]): number {
 /**
  * Trace every component and hole of a binary mask (row-major, width * height)
  * as simplified polygons in image coordinates, largest component first.
- * @param grow allow more vertices for complex outlines (point-click masks)
+ * @param basePolygonPoints base vertex budget per ring; it may grow to
+ *   SegmentationPolygonPointsGrowthFactor times this for complex outlines
  * @param minComponentFraction drop components smaller than this fraction of
  *   the largest one (speckles the model sometimes returns)
  */
@@ -74,7 +82,7 @@ export function maskGeometry(
   mask: Uint8Array,
   width: number,
   height: number,
-  grow = false,
+  basePolygonPoints: number = SegmentationMaxPolygonPoints,
   minComponentFraction = 0,
 ): SegmentationPredictResponse {
   if (mask.length !== width * height) throw new Error('Invalid mask dimensions.');
@@ -82,7 +90,7 @@ export function maskGeometry(
   const traced = geometry.coordinates.map((rings) => {
     const scaled = rings.map((ring) => simplify(ring.map(([x, y]): Point => [
       Math.max(0, Math.min(width, x)), Math.max(0, Math.min(height, y)),
-    ]), grow));
+    ]), basePolygonPoints));
     const polygon = { exterior: scaled[0], holes: scaled.slice(1) };
     return { polygon, area: maskArea([polygon]) };
   }).sort((a, b) => b.area - a.area);

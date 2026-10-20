@@ -203,7 +203,11 @@ export default class SegmentationPointClick implements Recipe {
     this.emitPoints(newFrame);
   }
 
-  private async makePrediction(frameNum: number, isFirstPoint: boolean): Promise<void> {
+  private async makePrediction(
+    frameNum: number,
+    isFirstPoint: boolean,
+    rejectPointOnFailure = true,
+  ): Promise<void> {
     const data = this.frameData.get(frameNum);
     if (!this.predictFn || !data || !data.points.length) return;
     this.predictionVersion += 1;
@@ -228,12 +232,21 @@ export default class SegmentationPointClick implements Recipe {
         };
         this.syncCounts();
         this.bus.$emit('prediction-ready', data.prediction);
-      } else {
+      } else if (rejectPointOnFailure) {
         this.rejectLatestPoint(frameNum, response.error || 'Prediction failed', isFirstPoint);
+      } else {
+        // A refresh (e.g. after a settings change) keeps its prompt points
+        // and the previously displayed polygon when it cannot re-run.
+        this.bus.$emit('prediction-error', response.error || 'Prediction failed');
       }
     } catch (error) {
       if (version !== this.predictionVersion) return;
-      this.rejectLatestPoint(frameNum, error instanceof Error ? error.message : 'Prediction failed', isFirstPoint);
+      const message = error instanceof Error ? error.message : 'Prediction failed';
+      if (rejectPointOnFailure) {
+        this.rejectLatestPoint(frameNum, message, isFirstPoint);
+      } else {
+        this.bus.$emit('prediction-error', message);
+      }
     } finally {
       if (epoch === this.predictingEpoch && this.pendingPredictionCount > 0) {
         this.pendingPredictionCount -= 1;
@@ -350,6 +363,18 @@ export default class SegmentationPointClick implements Recipe {
   /** Any frame has prompt points. */
   hasPoints(): boolean {
     return Array.from(this.frameData.values()).some((data) => data.points.length > 0);
+  }
+
+  /**
+   * Re-run the current frame's prediction with its existing points, e.g.
+   * after the polygon point budget changed. The frame stays encoded, so
+   * this only re-runs the prompt decoder.
+   */
+  refreshPrediction(): void {
+    if (!this.active.value) return;
+    const data = this.frameData.get(this.currentFrame);
+    if (!data?.points.length) return;
+    this.makePrediction(this.currentFrame, false, false);
   }
 
   /** Clear every frame's points and ask listeners to restore the detection. */

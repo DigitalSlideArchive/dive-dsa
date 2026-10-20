@@ -1,7 +1,17 @@
 <script lang="ts">
-import { computed, defineComponent, PropType } from 'vue';
+import {
+  computed, defineComponent, PropType, ref,
+} from 'vue';
 import SegmentationPointClick from 'dive-common/recipes/segmentationpointclick';
 import type { SamModelProgress } from 'dive-common/use/segmentation/SamOnnx';
+import { clientSettings } from 'dive-common/store/settings';
+import {
+  normalizeSegmentationPolygonPoints,
+  SegmentationMaxPolygonPoints,
+  SegmentationPolygonPointsGrowthFactor,
+  SegmentationPolygonPointsSettingMax,
+  SegmentationPolygonPointsSettingMin,
+} from 'dive-common/use/segmentation/constants';
 
 /**
  * Editing bar controls shown while point-click segmentation is loading or active:
@@ -41,12 +51,42 @@ export default defineComponent({
       if (props.recipe.predicting.value) return 'Computing segmentation…';
       return '';
     });
+    /** Magic-wand settings dialog; the draft only commits on Apply. */
+    const settingsOpen = ref(false);
+    const draftPolygonPoints = ref(clientSettings.segmentationSettings.polygonPoints);
+    const draftMaxPolygonPoints = computed(() => normalizeSegmentationPolygonPoints(
+      draftPolygonPoints.value,
+    ) * SegmentationPolygonPointsGrowthFactor);
+    function openSettings() {
+      draftPolygonPoints.value = clientSettings.segmentationSettings.polygonPoints;
+      settingsOpen.value = true;
+    }
+    function applySettings() {
+      draftPolygonPoints.value = normalizeSegmentationPolygonPoints(draftPolygonPoints.value);
+      clientSettings.segmentationSettings.polygonPoints = draftPolygonPoints.value;
+      settingsOpen.value = false;
+      // Regenerate the displayed outline with the new budget, if any.
+      props.recipe.refreshPrediction();
+    }
+    function resetDraftPolygonPoints() {
+      draftPolygonPoints.value = SegmentationMaxPolygonPoints;
+    }
     return {
       visible,
       downloading,
       canReset,
       busy,
       statusText,
+      settingsOpen,
+      draftPolygonPoints,
+      draftMaxPolygonPoints,
+      openSettings,
+      applySettings,
+      resetDraftPolygonPoints,
+      polygonPointsDefault: SegmentationMaxPolygonPoints,
+      polygonPointsMin: SegmentationPolygonPointsSettingMin,
+      polygonPointsMax: SegmentationPolygonPointsSettingMax,
+      polygonPointsGrowthFactor: SegmentationPolygonPointsGrowthFactor,
     };
   },
 });
@@ -90,6 +130,87 @@ export default defineComponent({
       </template>
       <span>Keep the segmentation (Enter or right click)</span>
     </v-tooltip>
+    <v-tooltip bottom>
+      <template #activator="{ on }">
+        <v-btn
+          small
+          outlined
+          class="mx-1"
+          v-on="on"
+          @click="openSettings"
+        >
+          <v-icon small>mdi-cog</v-icon>
+        </v-btn>
+      </template>
+      <span>Segment settings</span>
+    </v-tooltip>
+    <v-dialog
+      v-model="settingsOpen"
+      max-width="440"
+    >
+      <v-card>
+        <v-card-title>Segment Settings</v-card-title>
+        <v-card-text>
+          <v-row
+            align="center"
+            dense
+          >
+            <v-col>
+              <v-slider
+                v-model="draftPolygonPoints"
+                :min="polygonPointsMin"
+                :max="polygonPointsMax"
+                :step="5"
+                label="Polygon points"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field
+                v-model.number="draftPolygonPoints"
+                type="number"
+                :min="polygonPointsMin"
+                :max="polygonPointsMax"
+                step="5"
+                dense
+                hide-details
+              />
+            </v-col>
+          </v-row>
+          <div class="text-caption mt-2">
+            Each outline starts with this many points and can grow to
+            {{ draftMaxPolygonPoints }} points ({{ polygonPointsGrowthFactor }}x)
+            when needed to keep the simplified outline within 5% of the
+            mask's area. Higher values follow complex outlines more closely
+            but create larger polygons. Applying regenerates the current
+            frame's outline; otherwise it takes effect on the next click.
+            Saved in this browser.
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn
+            text
+            @click="resetDraftPolygonPoints"
+          >
+            Reset to {{ polygonPointsDefault }}
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            text
+            @click="settingsOpen = false"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            text
+            @click="applySettings"
+          >
+            Apply
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <span
       v-if="busy"
       class="d-flex align-center ml-2 status"

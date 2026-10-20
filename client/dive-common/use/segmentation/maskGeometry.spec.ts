@@ -1,9 +1,13 @@
 /// <reference types="jest" />
 import type { SegmentationPredictResponse } from './types';
 import {
+  normalizeSegmentationPolygonPoints,
   SegmentationMaxPolygonAreaError,
   SegmentationMaxPolygonPoints,
   SegmentationMaxPolygonPointsLimit,
+  SegmentationPolygonPointsGrowthFactor,
+  SegmentationPolygonPointsSettingMax,
+  SegmentationPolygonPointsSettingMin,
 } from './constants';
 import { maskArea, maskGeometry } from './maskGeometry';
 
@@ -35,7 +39,7 @@ it('drops speckle components smaller than the requested fraction of the largest'
   for (let y = 5; y < 35; y += 1) for (let x = 5; x < 30; x += 1) mask[y * 40 + x] = 1;
   mask[2 * 40 + 37] = 1; // one-pixel speckle
   expect(maskGeometry(mask, 40, 40).polygons).toHaveLength(2);
-  const filtered = maskGeometry(mask, 40, 40, false, 0.01);
+  const filtered = maskGeometry(mask, 40, 40, SegmentationMaxPolygonPoints, 0.01);
   expect(filtered.polygons).toHaveLength(1);
   expectBounds(filtered, [5, 5, 30, 35]);
 });
@@ -53,11 +57,11 @@ describe('polygon vertex budget', () => {
   const star = draw((x, y) => Math.hypot(x, y) < 110 + 70 * Math.cos(16 * Math.atan2(y, x)));
   const ring = draw((x, y) => Math.hypot(x, y) < 150 && Math.hypot(x, y) > 60);
 
-  it('keeps every ring within the default maximum', () => {
+  it('keeps every ring within the default grown maximum', () => {
     [disk, star, ring].forEach((mask) => {
       const { polygons } = maskGeometry(mask, size, size);
       polygons!.flatMap((p) => [p.exterior, ...p.holes]).forEach((points) => {
-        expect(points.length).toBeLessThanOrEqual(SegmentationMaxPolygonPoints);
+        expect(points.length).toBeLessThanOrEqual(SegmentationMaxPolygonPointsLimit);
         expect(points.length).toBeGreaterThanOrEqual(4);
         expect(points[0]).toEqual(points[points.length - 1]);
       });
@@ -73,12 +77,31 @@ describe('polygon vertex budget', () => {
   });
 
   it('grows the budget for an outline too complex for it, up to the limit', () => {
-    expect(maskGeometry(disk, size, size, true).polygons![0].exterior.length).toBeLessThanOrEqual(
+    expect(maskGeometry(disk, size, size, SegmentationMaxPolygonPoints)
+      .polygons![0].exterior.length).toBeLessThanOrEqual(
       SegmentationMaxPolygonPoints,
     );
-    const points = maskGeometry(star, size, size, true).polygons![0].exterior;
+    const points = maskGeometry(star, size, size, SegmentationMaxPolygonPoints).polygons![0].exterior;
     expect(points.length).toBeGreaterThan(SegmentationMaxPolygonPoints);
     expect(points.length).toBeLessThanOrEqual(SegmentationMaxPolygonPointsLimit);
+  });
+
+  it('scales the grown budget with the configured base', () => {
+    const small = maskGeometry(star, size, size, 10).polygons![0].exterior;
+    expect(small.length).toBeGreaterThan(10);
+    expect(small.length).toBeLessThanOrEqual(10 * SegmentationPolygonPointsGrowthFactor);
+    const large = maskGeometry(star, size, size, 50).polygons![0].exterior;
+    expect(large.length).toBeGreaterThan(50);
+    expect(large.length).toBeLessThanOrEqual(50 * SegmentationPolygonPointsGrowthFactor);
+    expect(large.length).toBeGreaterThan(small.length);
+  });
+
+  it('normalizes a configured base to the supported range', () => {
+    expect(normalizeSegmentationPolygonPoints(undefined)).toBe(SegmentationMaxPolygonPoints);
+    expect(normalizeSegmentationPolygonPoints(Number.NaN)).toBe(SegmentationMaxPolygonPoints);
+    expect(normalizeSegmentationPolygonPoints(0)).toBe(SegmentationPolygonPointsSettingMin);
+    expect(normalizeSegmentationPolygonPoints(26.6)).toBe(27);
+    expect(normalizeSegmentationPolygonPoints(10000)).toBe(SegmentationPolygonPointsSettingMax);
   });
 });
 

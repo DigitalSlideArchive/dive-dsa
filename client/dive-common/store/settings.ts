@@ -4,6 +4,9 @@ import { AnnotatorPreferences } from 'vue-media-annotator/types';
 import {
   isSamDevicePreference, isSamModel, SamDevicePreference, SamModel,
 } from 'dive-common/use/segmentation/samModels';
+import {
+  normalizeSegmentationPolygonPoints, SegmentationMaxPolygonPoints,
+} from 'dive-common/use/segmentation/constants';
 
 interface AnnotationSettings {
   typeSettings: {
@@ -39,6 +42,11 @@ interface AnnotationSettings {
     model: SamModel;
     /** Where the model runs: prefer a hardware GPU, or force GPU/CPU */
     device: SamDevicePreference;
+    /**
+     * Base polygon vertex budget per outline ring. It may grow to 4x this
+     * while simplifying a complex outline (see maskGeometry).
+     */
+    polygonPoints: number;
   };
   rowsPerPage: number;
   annotationFPS: number;
@@ -76,6 +84,7 @@ const defaultSettings: AnnotationSettings = {
   segmentationSettings: {
     model: 'sam2',
     device: 'auto',
+    polygonPoints: SegmentationMaxPolygonPoints,
   },
   rowsPerPage: 20,
   annotationFPS: 10,
@@ -98,6 +107,9 @@ function hydrate(obj: any): AnnotationSettings {
   if (!isSamDevicePreference(hydrated.segmentationSettings.device)) {
     hydrated.segmentationSettings.device = defaultSettings.segmentationSettings.device;
   }
+  hydrated.segmentationSettings.polygonPoints = normalizeSegmentationPolygonPoints(
+    hydrated.segmentationSettings.polygonPoints,
+  );
   return hydrated;
 }
 

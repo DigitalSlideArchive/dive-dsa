@@ -9,6 +9,11 @@ export interface SegmentationPredictRequest {
   points: Point[];
   /** Point labels: 1 for foreground, 0 for background */
   pointLabels: number[];
+  /**
+   * Base polygon vertex budget per outline ring (default 25). The budget may
+   * grow to 4x this while simplifying a complex outline.
+   */
+  polygonPoints?: number;
 }
 
 export interface SegmentationPolygon {

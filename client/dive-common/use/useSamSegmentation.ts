@@ -84,7 +84,9 @@ export default function useSamSegmentation({
     return sam.predict(
       `${datasetId.value}:${camera}:${frameNum}`,
       () => readFrame(camera, frameNum),
-      request,
+      // Read the point budget at call time so a settings change applies to
+      // the next (or refreshed) prediction without reloading the model.
+      { ...request, polygonPoints: clientSettings.segmentationSettings.polygonPoints },
     );
   }
 

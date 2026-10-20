@@ -35,7 +35,7 @@ While segmenting, the other editing buttons (1-5) and the Del Point/Del Annotati
 * The mask's largest region becomes the detection's main polygon. Any separate regions are stored as additional polygons (keys `SegmentationPolygon-1`, `SegmentationPolygon-2`, …), and interior holes are kept. Tiny specks (under 1% of the largest region) are dropped.
 * The bounding box is set to fit the mask.
 * Polygons already on that frame are replaced by the mask. Head/tail points and attributes are kept.
-* Polygons have at most 25 vertices, growing to at most 100 when needed to follow a complex outline within 5% of its area.
+* Each polygon outline starts at the configured **Polygon points** budget (25 by default), growing to at most 4x that value when needed to follow a complex outline within 5% of its area.
 
 ### Cancelling
 
@@ -57,6 +57,7 @@ Open the ==:material-cog:== new-annotation settings in the [track list](UI-Track
 |---|---|---|
 | **Model** | SAM2.1 Tiny (default), SAM2.1 Small | Tiny is fastest. Small gives more accurate outlines but takes about twice as long to encode a frame and needs more memory. |
 | **Device** | Auto (default), GPU (WebGPU), CPU (WebAssembly) | Auto uses a hardware GPU when the browser exposes one, and falls back to the CPU. GPU is disabled when no hardware GPU is found. |
+| **Polygon points** | 5-100 (default 25) | Base vertices per outline; complex outlines can grow to 4x this value to stay within 5% of the mask area. Higher values follow outlines more closely but create larger polygons. While segmenting, the same setting is available from the ==:material-cog:== button in the editing bar; applying it regenerates the current frame's outline. |
 
 Each frame is encoded once: typically under a second on a GPU and 5–15 seconds on a CPU. Further clicks on the same frame only take a fraction of a second. The two most recently encoded frames are kept, so moving back and forth between neighbouring frames stays quick.
 

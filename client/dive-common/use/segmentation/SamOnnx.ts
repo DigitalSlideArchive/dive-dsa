@@ -372,7 +372,7 @@ export default class SamOnnx {
             );
             if (version !== this.version) throw new Error('Segmentation model changed.');
             const [height, width] = frame.original[0];
-            return { ...maskGeometry(mask, width, height, true, MIN_COMPONENT_FRACTION), score };
+            return { ...maskGeometry(mask, width, height, request.polygonPoints, MIN_COMPONENT_FRACTION), score };
           } finally {
             output.pred_masks.dispose();
             output.iou_scores.dispose();

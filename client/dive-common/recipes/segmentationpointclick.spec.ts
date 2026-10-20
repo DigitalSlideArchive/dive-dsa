@@ -177,6 +177,34 @@ it('reset clears the points, asks for a restore, and stays active', async () => 
   expect(recipe.icon.value).toBe('mdi-auto-fix');
 });
 
+it('refresh re-runs the current frame prediction with its existing points', async () => {
+  const {
+    recipe, predict, events, track, activate,
+  } = harness();
+  await activate();
+  await clickAndWait(recipe, track, 5);
+  recipe.refreshPrediction();
+  await flush();
+  expect(predict).toHaveBeenCalledTimes(2);
+  expect(predict.mock.calls[1][0]).toEqual({ points: [[5, 5]], pointLabels: [1] });
+  expect(events['prediction-ready']).toHaveLength(2);
+  expect(recipe.points).toEqual([[5, 5]]);
+});
+
+it('a failed refresh keeps the points and the previous prediction', async () => {
+  const {
+    recipe, predict, events, track, activate,
+  } = harness();
+  await activate();
+  await clickAndWait(recipe, track, 5);
+  predict.mockResolvedValueOnce({ success: false, error: 'decoder busy' });
+  recipe.refreshPrediction();
+  await flush();
+  expect(recipe.points).toEqual([[5, 5]]);
+  expect(recipe.hasPendingPrediction()).toBe(true);
+  expect(events['prediction-error'][0][0]).toBe('decoder busy');
+});
+
 it('delete while placing points discards the in-progress mask', async () => {
   const {
     recipe, events, track, activate,

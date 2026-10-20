@@ -10,6 +10,11 @@ import {
 import { clientSettings } from 'dive-common/store/settings';
 import { SAM_LABELS, SamModel } from 'dive-common/use/segmentation/samModels';
 import { samHardwareGpuAvailable } from 'dive-common/use/segmentation/samDevices';
+import {
+  normalizeSegmentationPolygonPoints,
+  SegmentationPolygonPointsSettingMax,
+  SegmentationPolygonPointsSettingMin,
+} from 'dive-common/use/segmentation/constants';
 
 export default defineComponent({
   name: 'TrackSettingsPanel',
@@ -35,6 +40,7 @@ export default defineComponent({
       prompt: 'Prompt user before deleting a track?',
       segmentationModel: 'Used by the Segment (wand) tool. Downloads once on first use, then loads from the browser cache. Tiny is fastest; Small is more accurate but slower and needs more memory.',
       segmentationDevice: 'Each new frame is encoded once: about a second on a GPU, often 5-15 seconds on a CPU. Later clicks on the same frame are fast. Auto prefers the GPU and falls back to the CPU.',
+      segmentationPolygonPoints: 'Base number of points per Segment (wand) outline. Complex outlines can grow to 4x this value to stay within 5% of the mask area. Higher values follow outlines more closely but create larger polygons. Also available from the gear button while segmenting.',
     });
     const segmentationModels = (Object.keys(SAM_LABELS) as SamModel[])
       .map((value) => ({ text: SAM_LABELS[value], value }));
@@ -52,6 +58,12 @@ export default defineComponent({
         key: 'device', label: 'Device', items: segmentationDevices.value, help: help.segmentationDevice,
       },
     ]);
+    /** Keep a typed polygon-point value inside the supported range. */
+    function clampPolygonPoints() {
+      clientSettings.segmentationSettings.polygonPoints = normalizeSegmentationPolygonPoints(
+        clientSettings.segmentationSettings.polygonPoints,
+      );
+    }
     onMounted(async () => {
       gpuAvailable.value = await samHardwareGpuAvailable();
       if (!gpuAvailable.value && clientSettings.segmentationSettings.device === 'gpu') {
@@ -70,6 +82,9 @@ export default defineComponent({
       typeList,
       segmentationRows,
       gpuAvailable,
+      clampPolygonPoints,
+      polygonPointsMin: SegmentationPolygonPointsSettingMin,
+      polygonPointsMax: SegmentationPolygonPointsSettingMax,
     };
   },
 });
@@ -349,6 +364,45 @@ export default defineComponent({
               </v-icon>
             </template>
             <span>{{ setting.help }}</span>
+          </v-tooltip>
+        </v-col>
+      </v-row>
+      <v-row
+        align="end"
+        dense
+      >
+        <v-col>
+          <v-text-field
+            v-model.number="clientSettings.segmentationSettings.polygonPoints"
+            class="ml-0 pa-0"
+            type="number"
+            :min="polygonPointsMin"
+            :max="polygonPointsMax"
+            step="5"
+            label="Polygon points"
+            dense
+            hide-details
+            @change="clampPolygonPoints"
+          />
+        </v-col>
+        <v-col
+          cols="2"
+          align="right"
+        >
+          <v-tooltip
+            open-delay="200"
+            max-width="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon
+                small
+                v-on="on"
+              >
+                mdi-help
+              </v-icon>
+            </template>
+            <span>{{ help.segmentationPolygonPoints }}</span>
           </v-tooltip>
         </v-col>
       </v-row>
