@@ -5,7 +5,7 @@ import type { SamModelProgress } from 'dive-common/use/segmentation/SamOnnx';
 
 /**
  * Editing bar controls shown while point-click segmentation is loading or active:
- * model status, Reset (clear points) and Confirm.
+ * model status, Reset (clear points and the previewed polygon) and Confirm.
  */
 export default defineComponent({
   name: 'SegmentationControls',
@@ -27,6 +27,14 @@ export default defineComponent({
     const visible = computed(() => props.recipe.active.value || props.recipe.loading.value);
     const downloading = computed(() => props.progress?.phase === 'download'
       && props.progress.percent !== undefined && props.progress.percent < 100);
+    /**
+     * Resettable whenever there is anything to clear: prompt points on the
+     * current frame or a previewed polygon on any frame (e.g. after moving
+     * to another frame, where the current frame has no points).
+     */
+    const canReset = computed(() => props.recipe.active.value
+      && (props.recipe.pointCount.value > 0 || props.recipe.predictionCount.value > 0
+        || props.recipe.hasPoints()));
     const busy = computed(() => !!props.status || props.recipe.predicting.value);
     const statusText = computed(() => {
       if (props.status) return props.status;
@@ -36,6 +44,7 @@ export default defineComponent({
     return {
       visible,
       downloading,
+      canReset,
       busy,
       statusText,
     };
@@ -54,7 +63,7 @@ export default defineComponent({
           small
           outlined
           class="mx-1"
-          :disabled="!recipe.active.value || recipe.pointCount.value === 0"
+          :disabled="!canReset"
           v-on="on"
           @click="recipe.resetPoints()"
         >
@@ -62,7 +71,7 @@ export default defineComponent({
           <span class="ml-1">Reset</span>
         </v-btn>
       </template>
-      <span>Clear the points and restore the detection (Esc)</span>
+      <span>Clear the points and the displayed polygon, and restore the detection (Esc)</span>
     </v-tooltip>
     <v-tooltip bottom>
       <template #activator="{ on }">

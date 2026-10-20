@@ -233,5 +233,5 @@ it('confirms with Enter only when a polygon is ready', async () => {
   await clickAndWait(recipe, track, 5);
   enter.handler();
   expect(events['prediction-confirmed']).toHaveLength(1);
-  expect(recipe.hotkey).toBe('s');
+  expect(recipe.hotkey).toBe('6');
 });

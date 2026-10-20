@@ -130,6 +130,23 @@ it('reset restores the detection and keeps segmenting', async () => {
   expect(ctx.manager.segmentationPoints.value.points).toEqual([]);
 });
 
+it('reset removes the points and previewed polygon after moving to another frame', async () => {
+  const ctx = await segmentExisting();
+  await place(ctx, 15);
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(1);
+  // The current frame now has no points, but frame 0 still shows the polygon.
+  ctx.frame.value = 1;
+  await flush();
+  expect(ctx.segmentation.pointCount.value).toBe(0);
+  expect(ctx.segmentation.predictionCount.value).toBe(1);
+  ctx.segmentation.resetPoints();
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([0, 0, 100, 100]);
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(ctx.segmentation.hasPoints()).toBe(false);
+  expect(ctx.segmentation.hasPendingPrediction()).toBe(false);
+  expect(ctx.segmentation.active.value).toBe(true);
+});
+
 it('leaving the detection discards the unconfirmed mask', async () => {
   const ctx = await segmentExisting();
   await place(ctx, 15);

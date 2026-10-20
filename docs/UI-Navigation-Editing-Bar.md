@@ -33,9 +33,9 @@ Editing mode toggles control the type of geometry being created or edited during
 * ==:material-vector-square:== ++1++ bounding box
 * ==:material-vector-polygon:== ++2++ polygon
 * ==:material-vector-line:== ++3++ head/tail line
-* ==:material-auto-fix:== ++s++ **Segment**: click an object to outline it with SAM2, running in the browser.  While it is active the bar also shows ==:material-undo: Reset==, ==:material-check: Confirm== and the model status.  See [Interactive Segmentation](Interactive-Segmentation.md).
-* ==:material-timer-outline:== time annotation
-* ==:material-draw:== segmentation mask
+* ==:material-timer-outline:== ++4++ time annotation
+* ==:material-draw:== ++5++ segmentation mask
+* ==:material-auto-fix:== ++6++ **Segment**: click an object to outline it with SAM2, running in the browser.  While it is active the other editing buttons (1-5) are hidden and the bar also shows ==:material-undo: Reset==, ==:material-check: Confirm== and the model status.  See [Interactive Segmentation](Interactive-Segmentation.md).
 
 ### Visibility Toggles
 

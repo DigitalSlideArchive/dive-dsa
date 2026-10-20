@@ -36,7 +36,9 @@ Most editing controls are available when a track or detection is selected.
 | ++1++ | Enter **bounding-box** edit mode on selection |
 | ++2++ | Enter **polygon** edit mode on selection  |
 | ++3++ | Enter **head/tail/line** edit mode on selection |
-| ++s++ | Enter **Segment** (SAM2 point-click) mode on selection.  See [Interactive Segmentation](Interactive-Segmentation.md) |
+| ++4++ | Enter **time** edit mode on selection |
+| ++5++ | Enter **mask** edit mode on selection |
+| ++6++ | Enter **Segment** (SAM2 point-click) mode on selection.  See [Interactive Segmentation](Interactive-Segmentation.md) |
 | ++h++ or ++g++ | while in line mode, place head point next |
 | ++t++ or ++y++ | while in line mode, place tail point next |
 | ++escape++ | unselect, exit edit mode, exit merge mode |

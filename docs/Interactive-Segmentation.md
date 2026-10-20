@@ -14,7 +14,7 @@ No server setup, GPU worker, or job queue is needed. This is separate from [SAM2
 ## Using the Segment tool
 
 1. Select a track or detection for editing (**right click** it, or press ++n++ to create a new one).
-2. Click the ==:material-auto-fix:== **Segment** button in the [editing bar](UI-Navigation-Editing-Bar.md), or press ++s++.
+2. Click the ==:material-auto-fix:== **Segment** button in the [editing bar](UI-Navigation-Editing-Bar.md), or press ++6++.
 3. The first time, DIVE-DSA downloads the model. The editing bar shows the download progress, then *Preparing…* while the model compiles. Later sessions load it from the browser cache.
 4. Click on the object. The first click on a frame takes longest while the image is encoded; the polygon then appears on the detection.
 5. Refine with more clicks:
@@ -24,9 +24,9 @@ No server setup, GPU worker, or job queue is needed. This is separate from [SAM2
 
 After confirming, the editor switches to [polygon editing](Annotation-QuickStart.md) on the result, so you can drag, add, or delete vertices like any drawn polygon.
 
-While segmenting, the editing bar shows:
+While segmenting, the other editing buttons (1-5) and the Del Point/Del Annotation button are hidden, and the editing bar shows:
 
-* ==:material-undo: Reset== (or ++escape++) clears the points and puts the detection back as it was, without leaving the tool.
+* ==:material-undo: Reset== (or ++escape++) clears the points and the displayed polygon and puts the detection back as it was, without leaving the tool. There is no separate Del Point button in this mode; use Reset to start over.
 * ==:material-check: Confirm== keeps the polygon.
 * The model status, such as *Encoding image…* or *Computing segmentation…*.
 

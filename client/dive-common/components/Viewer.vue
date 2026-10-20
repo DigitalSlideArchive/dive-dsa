@@ -1090,7 +1090,8 @@ export default defineComponent({
     function handleEscape() {
       if (visualMaskManager.editingMaskId.value !== null) {
         visualMaskManager.stopEditing();
-      } else if (segmentationRecipe.active.value && segmentationRecipe.hasPoints()) {
+      } else if (segmentationRecipe.active.value
+        && (segmentationRecipe.hasPoints() || segmentationRecipe.hasPendingPrediction())) {
         segmentationRecipe.resetPoints();
       } else if (getUISetting('UISelection')) {
         handler.trackAbort();

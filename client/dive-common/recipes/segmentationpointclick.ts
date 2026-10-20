@@ -4,7 +4,7 @@
  * Click on an object to generate its polygon with a point-prompt
  * segmentation model (SAM2, run in the browser).
  *
- * - Activate with the wand button or the `s` hotkey
+ * - Activate with the wand button or the `6` hotkey
  * - Left click: add a foreground (include) point
  * - Shift+click or middle click: add a background (exclude) point
  * - Right click or Enter: confirm the polygon(s)
@@ -77,7 +77,7 @@ export default class SegmentationPointClick implements Recipe {
   icon: Ref<string>;
 
   /** Hotkey shown on the toolbar button. */
-  hotkey = 's';
+  hotkey = '6';
 
   /** True while the model is being downloaded/compiled on activation. */
   loading: Ref<boolean>;
@@ -299,7 +299,9 @@ export default class SegmentationPointClick implements Recipe {
 
   /** Load the model if needed, then enter point placement mode. */
   activate(): void {
-    if (!this.toggleable.value || this.loading.value) return;
+    // Re-pressing 6 / clicking the wand while already segmenting is a no-op:
+    // restarting would drop the prompt points without restoring the preview.
+    if (!this.toggleable.value || this.loading.value || this.active.value) return;
     if (this.initializeServiceFn && !this.serviceInitialized) {
       this.loading.value = true;
       this.icon.value = 'mdi-loading mdi-spin';
