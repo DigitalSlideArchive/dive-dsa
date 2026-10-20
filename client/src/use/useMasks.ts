@@ -18,7 +18,7 @@ import { Handler } from 'vue-media-annotator/provides';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { debounce } from 'lodash';
 import {
-  binaryMaskToImage, imageToRLEObject, maskToLuminanceAlpha, decode,
+  binaryMaskToImage, imageToRLEObject, maskToLuminanceAlpha, decode, encode, DataArray,
 } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 
@@ -274,28 +274,73 @@ export default function useMasks(
     frameId: number,
     mask: { data: Uint8Array; width: number; height: number },
   ) {
-    const image = await binaryMaskToImage(mask.data, mask.width, mask.height);
-    const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
-    if (!bounds) return;
-    await uploadMask(datasetId.value, trackId, frameId, blob);
-    if (!useRLE.value) {
-      cache.set(frameKey(frameId, trackId), image);
-    } else {
-      const rleObject = imageToRLEObject(image);
+    const key = frameKey(frameId, trackId);
+    if (useRLE.value) {
+      // Register the mask locally before any await (image encoding, upload).
+      // Confirming flags the feature `hasMask` and enables the Mask layer
+      // synchronously, so the next render looks the mask up immediately:
+      // registering only after the upload returned made that render warn
+      // "Missing RLE mask" and, since nothing redrew afterwards, the mask
+      // did not appear until some unrelated update. The binary mask is
+      // row-major; COCO RLE is column-major.
+      const cocoMask = new Uint8Array(mask.width * mask.height);
+      let hasPixel = false;
+      for (let row = 0; row < mask.height; row += 1) {
+        for (let col = 0; col < mask.width; col += 1) {
+          if (mask.data[row * mask.width + col]) {
+            cocoMask[col * mask.height + row] = 1;
+            hasPixel = true;
+          }
+        }
+      }
+      if (!hasPixel) return;
+      const [rleObject] = encode(new DataArray(cocoMask, [mask.height, mask.width, 1]));
       const rleData: RLEFrameData = {
         rle: rleObject,
         file_name: `${trackId}_${frameId}.png`,
       };
-      rleMasks.value[trackId] = rleMasks.value[trackId] || {};
-      rleMasks.value[trackId][frameId] = rleData;
-      const binary = maskToLuminanceAlpha(decode([rleObject]).data, rleData.rle.size[1], rleData.rle.size[0]);
-      rleCache.set(frameKey(frameId, trackId), {
+      // Reassign (not nested mutation) so Vue notices the new track/frame.
+      rleMasks.value = {
+        ...rleMasks.value,
+        [trackId]: { ...(rleMasks.value[trackId] || {}), [frameId]: rleData },
+      };
+      const decoded = {
         trackId,
         frame: frameId,
-        width: rleData.rle.size[1],
-        height: rleData.rle.size[0],
-        data: binary,
-      });
+        width: mask.width,
+        height: mask.height,
+        data: maskToLuminanceAlpha(decode([rleObject]).data, mask.width, mask.height),
+      };
+      rleCache.set(key, decoded);
+      clearMaskWarning();
+    }
+    // LayerManager redraws when loadingFrame clears; marking the frame lets
+    // completion trigger a redraw even if the first render raced ahead.
+    loadingFrame.value = key;
+    try {
+      const image = await binaryMaskToImage(mask.data, mask.width, mask.height);
+      const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
+      if (!bounds) {
+        if (useRLE.value) await deleteLocalMasks(trackId, [frameId]);
+        return;
+      }
+      if (!useRLE.value) {
+        cache.set(key, image);
+      }
+      await uploadMask(datasetId.value, trackId, frameId, blob);
+    } catch (error) {
+      // Roll back the optimistic registration so a mask that was not
+      // persisted does not keep displaying (the caller reports the error).
+      if (useRLE.value) {
+        await deleteLocalMasks(trackId, [frameId]);
+      } else {
+        cache.delete(key);
+      }
+      throw error;
+    } finally {
+      if (loadingFrame.value === key) {
+        loadingFrame.value = false;
+      }
     }
   }
 

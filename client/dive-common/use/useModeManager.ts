@@ -980,8 +980,11 @@ export default function useModeManager({
     const track = segmentationTrack();
     const pending = Array.from(segmentationPredictions.values());
     if (track && pending.length) {
-      pending.forEach((result) => applyConfirmedSegmentation(track, result));
+      // Store masks before flagging `hasMask`: the flag (and the Mask layer
+      // it enables) makes the next render look the RLE up, and the platform
+      // hook registers it locally synchronously, before its upload.
       persistSegmentationMasks(track.id, pending);
+      pending.forEach((result) => applyConfirmedSegmentation(track, result));
     }
     clearSegmentationSession();
   }
@@ -1027,8 +1030,9 @@ export default function useModeManager({
     // preview outline with a stored mask.
     clearSegmentationSession();
     if (!track) return;
-    frames.forEach((result) => applyConfirmedSegmentation(track, result));
+    // See acceptSegmentation: register mask data before flagging `hasMask`.
     persistSegmentationMasks(track.id, frames);
+    frames.forEach((result) => applyConfirmedSegmentation(track, result));
     const madeMask = frames.some(isMaskResult);
     const trackId = track.id;
     newTrackSettingsAfterLogic(track);

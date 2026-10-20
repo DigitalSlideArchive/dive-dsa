@@ -172,7 +172,12 @@ it('confirming keeps the mask and switches to polygon editing of it', async () =
 
 it('confirming a mask result stores a mask instead of a polygon', async () => {
   const ctx = await segmentExisting();
-  const createMask = jest.fn(async () => undefined);
+  // The store hook must run before `hasMask` is flagged, so the render the
+  // flag triggers already finds the mask data instead of warning it missing.
+  let hasMaskWhenStored: boolean | undefined;
+  const createMask = jest.fn(async () => {
+    hasMaskWhenStored = ctx.track.getFeature(0)[0]?.hasMask;
+  });
   ctx.manager.setSegmentationMaskCreator(createMask);
   const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
   ctx.predict.mockResolvedValue({ ...response, mask });
@@ -183,6 +188,7 @@ it('confirming a mask result stores a mask instead of a polygon', async () => {
   ctx.manager.confirmSegmentation();
   await flush();
   expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
+  expect(hasMaskWhenStored).toBeUndefined();
   const [feature] = ctx.track.getFeature(0);
   expect(feature?.hasMask).toBe(true);
   expect(feature?.bounds).toEqual([10, 0, 30, 20]);
