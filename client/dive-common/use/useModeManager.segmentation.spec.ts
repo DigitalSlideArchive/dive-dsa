@@ -170,12 +170,64 @@ it('confirming keeps the mask and switches to polygon editing of it', async () =
   expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([10, 0, 30, 20]);
 });
 
+it('confirming a mask result stores a mask instead of a polygon', async () => {
+  const ctx = await segmentExisting();
+  const createMask = jest.fn(async () => undefined);
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  // Previewed as an outline polygon until confirmed.
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(1);
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
+  ctx.manager.confirmSegmentation();
+  await flush();
+  expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
+  const [feature] = ctx.track.getFeature(0);
+  expect(feature?.hasMask).toBe(true);
+  expect(feature?.bounds).toEqual([10, 0, 30, 20]);
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(ctx.manager.visibleModes.value).toContain('Mask');
+  expect(ctx.polygonRecipe.active.value).toBe(false);
+  expect(ctx.manager.editingMode.value).toBe('rectangle');
+  // Nothing left to restore once confirmed.
+  ctx.manager.handler.trackAbort();
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
+});
+
+it('cancelling a mask preview restores the detection and stores nothing', async () => {
+  const ctx = await segmentExisting();
+  const createMask = jest.fn(async () => undefined);
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  ctx.manager.handler.trackAbort();
+  expect(createMask).not.toHaveBeenCalled();
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([0, 0, 100, 100]);
+});
+
 it('switching tools keeps the previewed mask', async () => {
   const ctx = await segmentExisting();
   await place(ctx, 15);
   ctx.manager.handler.setAnnotationState({ editing: 'rectangle' });
   ctx.manager.handler.trackAbort();
   expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([10, 0, 30, 20]);
+});
+
+it('switching tools converts a previewed mask result into a stored mask', async () => {
+  const ctx = await segmentExisting();
+  const createMask = jest.fn(async () => undefined);
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  ctx.manager.handler.setAnnotationState({ editing: 'rectangle' });
+  await flush();
+  expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
 });
 
 it('a cancelled segmentation with no mask returns to box editing', async () => {

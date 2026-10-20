@@ -125,6 +125,24 @@ it('segments a frame and reuses its encoding for later clicks', async () => {
   await sam.dispose();
 });
 
+it('returns the binary mask only when mask output is requested', async () => {
+  const { sam } = setup();
+  const polygonResult = await sam.predict('f', image, request);
+  expect(polygonResult.mask).toBeUndefined();
+  const maskResult = await sam.predict('f', image, { ...request, outputMode: 'mask' });
+  expect(maskResult.success).toBe(true);
+  expect(maskResult.mask?.width).toBe(8);
+  expect(maskResult.mask?.height).toBe(8);
+  // The 4x4 square of positive logits at [2,6) x [2,6).
+  expect(maskResult.mask?.data.filter((v) => v === 1)).toHaveLength(16);
+  expect(maskResult.mask?.data[2 * 8 + 2]).toBe(1);
+  expect(maskResult.mask?.data[0]).toBe(0);
+  // Polygons are still returned so the mask can be previewed as an outline.
+  expect(maskResult.polygons).toHaveLength(1);
+  expect(maskResult.bounds).toEqual([2, 2, 6, 6]);
+  await sam.dispose();
+});
+
 it('evicts the oldest frame encoding beyond its small cache', async () => {
   const { sam, encode } = setup();
   await sam.predict('f0', image, request);

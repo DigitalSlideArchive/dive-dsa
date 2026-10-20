@@ -54,18 +54,25 @@ export default defineComponent({
     /** Magic-wand settings dialog; the draft only commits on Apply. */
     const settingsOpen = ref(false);
     const draftPolygonPoints = ref(clientSettings.segmentationSettings.polygonPoints);
+    const draftOutputMode = ref(clientSettings.segmentationSettings.outputMode);
+    const outputModes = [
+      { text: 'Polygon', value: 'polygon' },
+      { text: 'Mask', value: 'mask' },
+    ];
     const draftMaxPolygonPoints = computed(() => normalizeSegmentationPolygonPoints(
       draftPolygonPoints.value,
     ) * SegmentationPolygonPointsGrowthFactor);
     function openSettings() {
       draftPolygonPoints.value = clientSettings.segmentationSettings.polygonPoints;
+      draftOutputMode.value = clientSettings.segmentationSettings.outputMode;
       settingsOpen.value = true;
     }
     function applySettings() {
       draftPolygonPoints.value = normalizeSegmentationPolygonPoints(draftPolygonPoints.value);
       clientSettings.segmentationSettings.polygonPoints = draftPolygonPoints.value;
+      clientSettings.segmentationSettings.outputMode = draftOutputMode.value;
       settingsOpen.value = false;
-      // Regenerate the displayed outline with the new budget, if any.
+      // Regenerate the displayed outline with the new settings, if any.
       props.recipe.refreshPrediction();
     }
     function resetDraftPolygonPoints() {
@@ -79,6 +86,8 @@ export default defineComponent({
       statusText,
       settingsOpen,
       draftPolygonPoints,
+      draftOutputMode,
+      outputModes,
       draftMaxPolygonPoints,
       openSettings,
       applySettings,
@@ -151,7 +160,25 @@ export default defineComponent({
       <v-card>
         <v-card-title>Segment Settings</v-card-title>
         <v-card-text>
+          <v-select
+            v-model="draftOutputMode"
+            :items="outputModes"
+            label="Creates"
+            dense
+            hide-details
+            class="mb-3"
+          />
+          <div
+            v-if="draftOutputMode === 'mask'"
+            class="text-caption mb-2"
+          >
+            Confirming stores the segmentation as a mask on the detection
+            instead of an editable polygon. The outline is only a preview
+            while segmenting. Masks are shown with the Mask layer and can be
+            refined with the mask brush.
+          </div>
           <v-row
+            v-if="draftOutputMode === 'polygon'"
             align="center"
             dense
           >
@@ -177,7 +204,10 @@ export default defineComponent({
               />
             </v-col>
           </v-row>
-          <div class="text-caption mt-2">
+          <div
+            v-if="draftOutputMode === 'polygon'"
+            class="text-caption mt-2"
+          >
             Each outline starts with this many points and can grow to
             {{ draftMaxPolygonPoints }} points ({{ polygonPointsGrowthFactor }}x)
             when needed to keep the simplified outline within 5% of the
@@ -186,9 +216,14 @@ export default defineComponent({
             frame's outline; otherwise it takes effect on the next click.
             Saved in this browser.
           </div>
+          <div class="text-caption mt-2">
+            Applying regenerates the current frame's result; otherwise it
+            takes effect on the next click. Saved in this browser.
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-btn
+            v-if="draftOutputMode === 'polygon'"
             text
             @click="resetDraftPolygonPoints"
           >

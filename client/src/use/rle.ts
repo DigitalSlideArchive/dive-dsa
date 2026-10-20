@@ -553,3 +553,38 @@ export function imageToRLEObject(img: HTMLImageElement): RLEObject {
   const rleObjs = encode(mask);
   return rleObjs[0]; // since we passed n = 1
 }
+
+/**
+ * Render a binary mask (1 = object, row-major) as an image: white where the
+ * mask is set, transparent elsewhere. This is the format mask uploads and
+ * `imageToRLEObject` expect.
+ */
+export function binaryMaskToImage(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+): Promise<HTMLImageElement> {
+  if (mask.length !== width * height) throw new Error('Invalid mask dimensions.');
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
+  const imageData = ctx.createImageData(width, height);
+  for (let i = 0; i < mask.length; i += 1) {
+    if (mask[i]) {
+      const j = i * 4;
+      imageData.data[j] = 255;
+      imageData.data[j + 1] = 255;
+      imageData.data[j + 2] = 255;
+      imageData.data[j + 3] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return new Promise((resolve, reject) => {
+    const img = new Image(width, height);
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not create mask image.'));
+    img.src = canvas.toDataURL('image/png');
+  });
+}

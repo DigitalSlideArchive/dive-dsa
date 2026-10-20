@@ -4,6 +4,20 @@
  */
 export type Point = [number, number];
 
+/** What confirming a segmentation creates: an editable polygon, or a mask. */
+export type SegmentationOutputMode = 'polygon' | 'mask';
+
+export function isSegmentationOutputMode(value: unknown): value is SegmentationOutputMode {
+  return value === 'polygon' || value === 'mask';
+}
+
+/** A binary mask (1 = object) in row-major order, `width * height` long. */
+export interface SegmentationMask {
+  data: Uint8Array;
+  width: number;
+  height: number;
+}
+
 export interface SegmentationPredictRequest {
   /** Point coordinates as [x, y] pairs in image pixels */
   points: Point[];
@@ -14,6 +28,12 @@ export interface SegmentationPredictRequest {
    * grow to 4x this while simplifying a complex outline.
    */
   polygonPoints?: number;
+  /**
+   * Create a mask instead of a polygon (default 'polygon'). In mask mode the
+   * response also carries the binary mask; the traced polygons are still
+   * returned so the result can be previewed before it is confirmed.
+   */
+  outputMode?: SegmentationOutputMode;
 }
 
 export interface SegmentationPolygon {
@@ -34,4 +54,6 @@ export interface SegmentationPredictResponse {
   bounds?: [number, number, number, number];
   /** Predicted IoU of the chosen mask */
   score?: number;
+  /** The binary mask, present when the request asked for mask output. */
+  mask?: SegmentationMask;
 }

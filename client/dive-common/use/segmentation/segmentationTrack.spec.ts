@@ -2,7 +2,7 @@
 import Track from 'vue-media-annotator/track';
 import TrackStore from 'vue-media-annotator/TrackStore';
 import {
-  applySegmentation, restoreFeature, SegmentationPolygonKey, snapshotFeature,
+  applySegmentation, applySegmentationMask, restoreFeature, SegmentationPolygonKey, snapshotFeature,
 } from './segmentationTrack';
 import type { SegmentationPolygon } from './types';
 
@@ -46,6 +46,31 @@ it('replaces earlier polygons and keeps points and attributes', () => {
   // A later prediction with fewer components drops the stale one.
   applySegmentation(track, 0, [mask[0]]);
   expect(track.getFeatureGeometry(0, { type: 'Polygon' }).map((p) => p.properties?.key)).toEqual(['']);
+});
+
+it('applying a mask flags the frame, fits the box, drops polygons, and keeps points', () => {
+  const track = trackWithBox();
+  applySegmentationMask(track, 0, [0, 0, 25, 10]);
+  const [feature] = track.getFeature(0);
+  expect(feature?.bounds).toEqual([0, 0, 25, 10]);
+  expect(feature?.hasMask).toBe(true);
+  expect(feature?.attributes).toEqual({ note: 'keep' });
+  expect(track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(track.getFeatureGeometry(0, { type: 'Point', key: 'head' })).toHaveLength(1);
+  expect(track.getMaskFrameList()).toEqual([0]);
+  // Restoring a snapshot taken before the mask clears the flag again.
+  const restored = trackWithBox();
+  const snapshot = snapshotFeature(restored, 0);
+  applySegmentationMask(restored, 0, [0, 0, 25, 10]);
+  restoreFeature(restored, 0, snapshot);
+  expect(restored.getFeature(0)[0]?.hasMask).toBeUndefined();
+});
+
+it('applying a mask without bounds does nothing', () => {
+  const track = trackWithBox();
+  applySegmentationMask(track, 0, null);
+  expect(track.getFeature(0)[0]?.hasMask).toBeUndefined();
+  expect(track.getFeature(0)[0]?.bounds).toEqual([100, 100, 200, 200]);
 });
 
 it('restores an existing keyframe exactly', () => {

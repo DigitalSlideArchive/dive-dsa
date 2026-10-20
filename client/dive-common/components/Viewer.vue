@@ -332,6 +332,7 @@ export default defineComponent({
       editingTrack,
       diveMetadataRootId,
       setDeleteLocalMasks,
+      setSegmentationMaskCreator,
       segmentationPoints,
       confirmSegmentation,
     } = useModeManager({
@@ -1010,6 +1011,10 @@ export default defineComponent({
       selectedTrackId,
     );
     setDeleteLocalMasks(deleteLocalMasks);
+    // Confirmed SAM masks are stored as ordinary track masks (RLE upload).
+    setSegmentationMaskCreator(
+      (trackId, frameNum, mask) => editorFunctions.createMaskFromBinary(trackId, frameNum, mask),
+    );
     const useAttributeFilters = {
       attributeFilters,
       addAttributeFilter,

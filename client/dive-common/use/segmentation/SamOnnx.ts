@@ -372,7 +372,12 @@ export default class SamOnnx {
             );
             if (version !== this.version) throw new Error('Segmentation model changed.');
             const [height, width] = frame.original[0];
-            return { ...maskGeometry(mask, width, height, request.polygonPoints, MIN_COMPONENT_FRACTION), score };
+            const geometry = maskGeometry(mask, width, height, request.polygonPoints, MIN_COMPONENT_FRACTION);
+            // Mask output keeps the traced polygons for previewing; the
+            // binary mask itself is what confirming will store.
+            return request.outputMode === 'mask' && geometry.success
+              ? { ...geometry, score, mask: { data: mask, width, height } }
+              : { ...geometry, score };
           } finally {
             output.pred_masks.dispose();
             output.iou_scores.dispose();

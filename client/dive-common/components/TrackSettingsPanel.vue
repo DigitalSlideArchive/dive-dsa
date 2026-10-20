@@ -41,6 +41,7 @@ export default defineComponent({
       segmentationModel: 'Used by the Segment (wand) tool. Downloads once on first use, then loads from the browser cache. Tiny is fastest; Small is more accurate but slower and needs more memory.',
       segmentationDevice: 'Each new frame is encoded once: about a second on a GPU, often 5-15 seconds on a CPU. Later clicks on the same frame are fast. Auto prefers the GPU and falls back to the CPU.',
       segmentationPolygonPoints: 'Base number of points per Segment (wand) outline. Complex outlines can grow to 4x this value to stay within 5% of the mask area. Higher values follow outlines more closely but create larger polygons. Also available from the gear button while segmenting.',
+      segmentationOutputMode: 'What the Segment (wand) tool creates when confirmed: an editable Polygon on the detection, or a Mask stored for the detection (shown with the Mask layer, editable with the mask brush). Also available from the gear button while segmenting.',
     });
     const segmentationModels = (Object.keys(SAM_LABELS) as SamModel[])
       .map((value) => ({ text: SAM_LABELS[value], value }));
@@ -56,6 +57,12 @@ export default defineComponent({
       },
       {
         key: 'device', label: 'Device', items: segmentationDevices.value, help: help.segmentationDevice,
+      },
+      {
+        key: 'outputMode',
+        label: 'Creates',
+        items: [{ text: 'Polygon', value: 'polygon' }, { text: 'Mask', value: 'mask' }],
+        help: help.segmentationOutputMode,
       },
     ]);
     /** Keep a typed polygon-point value inside the supported range. */
@@ -368,6 +375,7 @@ export default defineComponent({
         </v-col>
       </v-row>
       <v-row
+        v-if="clientSettings.segmentationSettings.outputMode === 'polygon'"
         align="end"
         dense
       >

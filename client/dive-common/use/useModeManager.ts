@@ -34,8 +34,9 @@ import SegmentationPointClick, {
   SegmentationPointsState, SegmentationPredictionResult,
 } from 'dive-common/recipes/segmentationpointclick';
 import {
-  applySegmentation, restoreFeature, snapshotFeature, SegmentationSnapshot,
+  applySegmentation, applySegmentationMask, restoreFeature, snapshotFeature, SegmentationSnapshot,
 } from 'dive-common/use/segmentation/segmentationTrack';
+import type { SegmentationMask } from 'dive-common/use/segmentation/types';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -98,6 +99,17 @@ export default function useModeManager({
   const segmentationPoints = ref<SegmentationPointsState>({ points: [], labels: [], frameNum: -1 });
   let segmentationTarget: { trackId: AnnotationId; camera: string } | null = null;
   const segmentationSnapshots = new Map<number, SegmentationSnapshot>();
+  /** Latest previewed prediction per frame, kept so accepting (e.g. by
+   * switching tools) can still turn a mask-mode preview into a mask. */
+  const segmentationPredictions = new Map<number, SegmentationPredictionResult>();
+  /** Platform hook that stores a confirmed binary mask (web: RLE upload). */
+  let createSegmentationMask: ((trackId: AnnotationId, frameNum: number, mask: SegmentationMask) => Promise<void>) | null = null;
+
+  function setSegmentationMaskCreator(
+    fn: (trackId: AnnotationId, frameNum: number, mask: SegmentationMask) => Promise<void>,
+  ) {
+    createSegmentationMask = fn;
+  }
 
   const { prompt, inputValue } = usePrompt();
   const annotationModes = reactive({
@@ -917,14 +929,61 @@ export default function useModeManager({
     if (!segmentationSnapshots.has(result.frameNum)) {
       segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
     }
+    segmentationPredictions.set(result.frameNum, result);
+    // Mask results are previewed as their traced outline; the binary mask
+    // itself is only stored on confirm, so cancelling needs no cleanup.
     applySegmentation(track, result.frameNum, result.polygons, result.bounds);
     _nudgeEditingCanary();
   }
 
-  /** Keep the previewed polygons; nothing left to restore. */
-  function acceptSegmentation() {
+  function isMaskResult(result: SegmentationPredictionResult) {
+    return result.outputMode === 'mask' && !!result.mask && !!createSegmentationMask;
+  }
+
+  /**
+   * Write a confirmed result onto the track: a mask (flagged `hasMask`, no
+   * polygons) in mask mode, otherwise its polygons.
+   */
+  function applyConfirmedSegmentation(track: Track, result: SegmentationPredictionResult) {
+    if (isMaskResult(result)) {
+      applySegmentationMask(track, result.frameNum, result.bounds);
+      if (!annotationModes.visible.includes('Mask')) {
+        annotationModes.visible = [...annotationModes.visible, 'Mask'];
+      }
+    } else {
+      applySegmentation(track, result.frameNum, result.polygons, result.bounds);
+    }
+  }
+
+  /** Store confirmed binary masks through the platform hook, if any. */
+  function persistSegmentationMasks(trackId: AnnotationId, frames: SegmentationPredictionResult[]) {
+    const masks = frames.filter(isMaskResult);
+    if (!masks.length || !createSegmentationMask) return;
+    const create = createSegmentationMask;
+    Promise.all(masks.map((result) => create(
+      trackId,
+      result.frameNum,
+      result.mask as SegmentationMask,
+    ))).catch((error) => {
+      handleSegmentationError(error instanceof Error ? error.message : 'Could not save the segmentation mask.');
+    });
+  }
+
+  function clearSegmentationSession() {
     segmentationSnapshots.clear();
+    segmentationPredictions.clear();
     segmentationTarget = null;
+  }
+
+  /** Keep the previewed result; nothing left to restore. */
+  function acceptSegmentation() {
+    const track = segmentationTrack();
+    const pending = Array.from(segmentationPredictions.values());
+    if (track && pending.length) {
+      pending.forEach((result) => applyConfirmedSegmentation(track, result));
+      persistSegmentationMasks(track.id, pending);
+    }
+    clearSegmentationSession();
   }
 
   /** Put every frame the session changed back as it was. */
@@ -934,6 +993,7 @@ export default function useModeManager({
       segmentationSnapshots.forEach((snapshot, frameNum) => restoreFeature(track, frameNum, snapshot));
     }
     segmentationSnapshots.clear();
+    segmentationPredictions.clear();
     segmentationTarget = null;
     _nudgeEditingCanary();
   }
@@ -962,15 +1022,20 @@ export default function useModeManager({
       ?? (selectedTrackId.value !== null
         ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
         : undefined);
-    acceptSegmentation();
+    // Clear the session first (listeners may restart it), then re-apply:
+    // polygon results are already previewed, mask results replace that
+    // preview outline with a stored mask.
+    clearSegmentationSession();
     if (!track) return;
-    frames.forEach((result) => applySegmentation(track, result.frameNum, result.polygons, result.bounds));
+    frames.forEach((result) => applyConfirmedSegmentation(track, result));
+    persistSegmentationMasks(track.id, frames);
+    const madeMask = frames.some(isMaskResult);
     const trackId = track.id;
     newTrackSettingsAfterLogic(track);
     if (creating && segmentationRecipe) {
       // Continuous creation (next detection or auto-advanced frame): keep segmenting.
       segmentationRecipe.activate();
-    } else if (selectedTrackId.value === trackId && editingTrack.value) {
+    } else if (!madeMask && selectedTrackId.value === trackId && editingTrack.value) {
       // Refine the result like any drawn polygon.
       const polygonRecipe = recipes.find((r): r is PolygonBase => r instanceof PolygonBase);
       if (polygonRecipe) {
@@ -979,6 +1044,8 @@ export default function useModeManager({
         leaveSegmentationMode();
       }
     } else {
+      // A mask has no polygon vertices to refine; return to box editing
+      // with the Mask layer visible so the result shows.
       leaveSegmentationMode();
     }
   }
@@ -1296,6 +1363,7 @@ export default function useModeManager({
     diveMetadataRootId,
     selectNextTrack,
     setDeleteLocalMasks,
+    setSegmentationMaskCreator,
     segmentationPoints,
     confirmSegmentation,
     handler: {

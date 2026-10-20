@@ -1,6 +1,6 @@
 # Interactive Segmentation (SAM2 Point-Click)
 
-The **Segment** tool outlines an object from a few mouse clicks. It runs Meta's [SAM2](https://github.com/facebookresearch/sam2) segmentation model **in your browser** using [transformers.js](https://huggingface.co/docs/transformers.js) and ONNX Runtime Web, then stores the result as an ordinary, editable polygon on the detection.
+The **Segment** tool outlines an object from a few mouse clicks. It runs Meta's [SAM2](https://github.com/facebookresearch/sam2) segmentation model **in your browser** using [transformers.js](https://huggingface.co/docs/transformers.js) and ONNX Runtime Web, then stores the result as an ordinary, editable polygon on the detection — or, with **Creates: Mask**, as a mask on the detection.
 
 No server setup, GPU worker, or job queue is needed. This is separate from [SAM2 mask tracking](SAM2-Support.md), which runs on a Celery worker and propagates masks across frames.
 
@@ -22,7 +22,7 @@ No server setup, GPU worker, or job queue is needed. This is separate from [SAM2
     * **Shift + click** or **middle click** adds an *exclude* point (red).
 6. Confirm with **right click**, ++enter++, or the ==:material-check: Confirm== button.
 
-After confirming, the editor switches to [polygon editing](Annotation-QuickStart.md) on the result, so you can drag, add, or delete vertices like any drawn polygon.
+After confirming, the editor switches to [polygon editing](Annotation-QuickStart.md) on the result, so you can drag, add, or delete vertices like any drawn polygon. With **Creates: Mask** selected (see Settings), confirming instead stores the result as a mask on the detection, turns on the Mask layer so it is visible, and returns to box editing; refine it with the mask brush.
 
 While segmenting, the other editing buttons (1-5) and the Del Point/Del Annotation button are hidden, and the editing bar shows:
 
@@ -36,6 +36,7 @@ While segmenting, the other editing buttons (1-5) and the Del Point/Del Annotati
 * The bounding box is set to fit the mask.
 * Polygons already on that frame are replaced by the mask. Head/tail points and attributes are kept.
 * Each polygon outline starts at the configured **Polygon points** budget (25 by default), growing to at most 4x that value when needed to follow a complex outline within 5% of its area.
+* In **Mask** mode no polygon is stored: the full-resolution mask is uploaded for the detection (shown with the Mask layer) and the frame is flagged as having a mask. While segmenting, the traced outline is only a preview of that mask.
 
 ### Cancelling
 
@@ -57,7 +58,8 @@ Open the ==:material-cog:== new-annotation settings in the [track list](UI-Track
 |---|---|---|
 | **Model** | SAM2.1 Tiny (default), SAM2.1 Small | Tiny is fastest. Small gives more accurate outlines but takes about twice as long to encode a frame and needs more memory. |
 | **Device** | Auto (default), GPU (WebGPU), CPU (WebAssembly) | Auto uses a hardware GPU when the browser exposes one, and falls back to the CPU. GPU is disabled when no hardware GPU is found. |
-| **Polygon points** | 5-100 (default 25) | Base vertices per outline; complex outlines can grow to 4x this value to stay within 5% of the mask area. Higher values follow outlines more closely but create larger polygons. While segmenting, the same setting is available from the ==:material-cog:== button in the editing bar; applying it regenerates the current frame's outline. |
+| **Creates** | Polygon (default), Mask | What confirming a segmentation stores: an editable polygon, or a mask on the detection. While segmenting, the same setting is available from the ==:material-cog:== button in the editing bar; applying it regenerates the current frame's result. |
+| **Polygon points** | 5-100 (default 25) | Base vertices per outline; complex outlines can grow to 4x this value to stay within 5% of the mask area. Higher values follow outlines more closely but create larger polygons. Only shown in Polygon mode. While segmenting, the same setting is available from the ==:material-cog:== button in the editing bar; applying it regenerates the current frame's outline. |
 
 Each frame is encoded once: typically under a second on a GPU and 5–15 seconds on a CPU. Further clicks on the same frame only take a fraction of a second. The two most recently encoded frames are kept, so moving back and forth between neighbouring frames stays quick.
 

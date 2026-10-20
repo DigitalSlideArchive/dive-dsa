@@ -455,6 +455,10 @@ function dummyState(): State {
           resolve();
         }),
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        createMaskFromBinary: (trackId: number, frameId: number, mask: { data: Uint8Array, width: number, height: number }) => new Promise<void>((resolve) => {
+          resolve();
+        }),
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         deleteMaskFrame: (trackId: number) => new Promise<void>((resolve) => {
           // Add your implementation logic here
           resolve();

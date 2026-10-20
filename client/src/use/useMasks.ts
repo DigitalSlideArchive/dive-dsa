@@ -17,7 +17,9 @@ import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { debounce } from 'lodash';
-import { imageToRLEObject, maskToLuminanceAlpha, decode } from './rle';
+import {
+  binaryMaskToImage, imageToRLEObject, maskToLuminanceAlpha, decode,
+} from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 
 // Dynamically import the worker
@@ -81,6 +83,17 @@ export interface UseMaskInterface {
       triggerAction?: MaskTriggerActions;
     }) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
+    /**
+     * Store a binary mask (1 = object, row-major) as the mask for a track on
+     * an arbitrary frame, e.g. a confirmed SAM segmentation. Uploads the mask
+     * and updates the local RLE cache; flagging the feature (`hasMask`) and
+     * its bounds is the caller's job.
+     */
+    createMaskFromBinary: (
+      trackId: number,
+      frameId: number,
+      mask: { data: Uint8Array; width: number; height: number },
+    ) => Promise<void>;
     deleteMaskFrame: (trackId: number) => Promise<void>;
     updateMaskData: (maskData: MaskSAM2UpdateItem[]) => void;
   };
@@ -254,6 +267,36 @@ export default function useMasks(
       handler.trackSelect(trackId, false);
     }
     handler.save();
+  }
+
+  async function createMaskFromBinary(
+    trackId: number,
+    frameId: number,
+    mask: { data: Uint8Array; width: number; height: number },
+  ) {
+    const image = await binaryMaskToImage(mask.data, mask.width, mask.height);
+    const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
+    if (!bounds) return;
+    await uploadMask(datasetId.value, trackId, frameId, blob);
+    if (!useRLE.value) {
+      cache.set(frameKey(frameId, trackId), image);
+    } else {
+      const rleObject = imageToRLEObject(image);
+      const rleData: RLEFrameData = {
+        rle: rleObject,
+        file_name: `${trackId}_${frameId}.png`,
+      };
+      rleMasks.value[trackId] = rleMasks.value[trackId] || {};
+      rleMasks.value[trackId][frameId] = rleData;
+      const binary = maskToLuminanceAlpha(decode([rleObject]).data, rleData.rle.size[1], rleData.rle.size[0]);
+      rleCache.set(frameKey(frameId, trackId), {
+        trackId,
+        frame: frameId,
+        width: rleData.rle.size[1],
+        height: rleData.rle.size[0],
+        data: binary,
+      });
+    }
   }
 
   async function deleteLocalMasks(trackId: number, frameIds: number[]) {
@@ -698,6 +741,7 @@ export default function useMasks(
       updateMaskData,
       setEditorOptions,
       addUpdateMaskFrame,
+      createMaskFromBinary,
       deleteMaskFrame,
     },
   };

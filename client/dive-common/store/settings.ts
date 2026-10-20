@@ -7,6 +7,9 @@ import {
 import {
   normalizeSegmentationPolygonPoints, SegmentationMaxPolygonPoints,
 } from 'dive-common/use/segmentation/constants';
+import {
+  isSegmentationOutputMode, SegmentationOutputMode,
+} from 'dive-common/use/segmentation/types';
 
 interface AnnotationSettings {
   typeSettings: {
@@ -47,6 +50,8 @@ interface AnnotationSettings {
      * while simplifying a complex outline (see maskGeometry).
      */
     polygonPoints: number;
+    /** Whether confirming a segmentation creates a polygon or a mask. */
+    outputMode: SegmentationOutputMode;
   };
   rowsPerPage: number;
   annotationFPS: number;
@@ -85,6 +90,7 @@ const defaultSettings: AnnotationSettings = {
     model: 'sam2',
     device: 'auto',
     polygonPoints: SegmentationMaxPolygonPoints,
+    outputMode: 'polygon',
   },
   rowsPerPage: 20,
   annotationFPS: 10,
@@ -110,6 +116,9 @@ function hydrate(obj: any): AnnotationSettings {
   hydrated.segmentationSettings.polygonPoints = normalizeSegmentationPolygonPoints(
     hydrated.segmentationSettings.polygonPoints,
   );
+  if (!isSegmentationOutputMode(hydrated.segmentationSettings.outputMode)) {
+    hydrated.segmentationSettings.outputMode = defaultSettings.segmentationSettings.outputMode;
+  }
   return hydrated;
 }
 

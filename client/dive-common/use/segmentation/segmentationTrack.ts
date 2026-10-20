@@ -78,3 +78,31 @@ export function applySegmentation(
     interpolate,
   }, segmentationPolygonFeatures(polygons, SegmentationPolygonKey, SegmentationPrimaryPolygonKey) as GeoJSON.Feature<TrackSupportedFeature>[]);
 }
+
+/**
+ * Make the mask the detection's shape on this frame without storing any
+ * polygon: the frame is flagged as having a mask (whose pixels are stored
+ * separately, see useMasks) and the box becomes the mask bounds. Any polygons
+ * on the frame, including a segmentation preview, are removed. Head/tail
+ * points and attributes are kept.
+ */
+export function applySegmentationMask(
+  track: Track,
+  frameNum: number,
+  bounds?: RectBounds | null,
+) {
+  if (!bounds) return;
+  const [real] = track.getFeature(frameNum);
+  if (real && real.keyframe) {
+    const existing = track.getFeatureGeometry(frameNum, { type: 'Polygon' }).length;
+    for (let i = 0; i < existing; i += 1) track.removeFeatureGeometry(frameNum, { type: 'Polygon' });
+  }
+  const { interpolate } = track.canInterpolate(frameNum);
+  track.setFeature({
+    frame: frameNum,
+    keyframe: true,
+    bounds,
+    interpolate,
+  });
+  track.setHasMask(frameNum, true);
+}

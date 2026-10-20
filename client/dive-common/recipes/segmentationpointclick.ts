@@ -7,12 +7,13 @@
  * - Activate with the wand button or the `6` hotkey
  * - Left click: add a foreground (include) point
  * - Shift+click or middle click: add a background (exclude) point
- * - Right click or Enter: confirm the polygon(s)
+ * - Right click or Enter: confirm the result (polygon(s), or a mask when the
+ *   SAM settings select mask output)
  * - Escape: clear the points and restore the detection
  *
  * Points are kept per frame. Each prediction emits `prediction-ready`, which
  * the mode manager applies to the selected track as a preview; confirming
- * emits `prediction-confirmed` with every frame that has a polygon.
+ * emits `prediction-confirmed` with every frame that has a result.
  */
 import Vue, { ref, Ref } from 'vue';
 
@@ -21,7 +22,8 @@ import Recipe, { UpdateResponse } from 'vue-media-annotator/recipe';
 import { EditAnnotationTypes } from 'vue-media-annotator/layers';
 import { Mousetrap } from 'vue-media-annotator/types';
 import type {
-  Point, SegmentationPolygon, SegmentationPredictRequest, SegmentationPredictResponse,
+  Point, SegmentationMask, SegmentationOutputMode, SegmentationPolygon,
+  SegmentationPredictRequest, SegmentationPredictResponse,
 } from 'dive-common/use/segmentation/types';
 import { SegmentationPrimaryPolygonKey } from 'dive-common/use/segmentation/segmentationTrack';
 
@@ -50,6 +52,10 @@ export interface SegmentationPredictionResult {
   polygons: SegmentationPolygon[];
   bounds: [number, number, number, number] | null;
   score?: number;
+  /** What confirming this prediction creates (default 'polygon'). */
+  outputMode: SegmentationOutputMode;
+  /** The binary mask to store on confirm; present in mask output mode. */
+  mask?: SegmentationMask;
 }
 
 /** Points shown on the image for the frame being segmented. */
@@ -223,12 +229,14 @@ export default class SegmentationPointClick implements Recipe {
       const response = await this.predictFn(request, frameNum);
       if (version !== this.predictionVersion) return;
       const polygons = (response.polygons ?? []).filter((p) => p.exterior.length >= 3);
-      if (response.success && polygons.length) {
+      if (response.success && (polygons.length || response.mask)) {
         data.prediction = {
           frameNum,
           polygons,
           bounds: response.bounds ?? null,
           score: response.score,
+          outputMode: response.mask ? 'mask' : 'polygon',
+          mask: response.mask,
         };
         this.syncCounts();
         this.bus.$emit('prediction-ready', data.prediction);

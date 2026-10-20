@@ -101,13 +101,30 @@ it('sends foreground and background points and emits each prediction', async () 
   expect(events['prediction-ready']).toHaveLength(2);
   const result = events['prediction-ready'][1][0] as SegmentationPredictionResult;
   expect(result).toEqual({
-    frameNum: 0, polygons: components, bounds: [0, 0, 30, 10], score: 0.8,
+    frameNum: 0, polygons: components, bounds: [0, 0, 30, 10], score: 0.8, outputMode: 'polygon',
   });
   const points = events['points-updated'].map(([state]) => (state as SegmentationPointsState).labels);
   expect(points[points.length - 1]).toEqual([1, 0]);
   expect(recipe.pointCount.value).toBe(2);
   expect(recipe.predictionCount.value).toBe(1);
   expect(recipe.icon.value).toBe('mdi-numeric-2-circle');
+});
+
+it('carries the binary mask and mask output mode when the model returns one', async () => {
+  const {
+    recipe, predict, events, track, activate,
+  } = harness();
+  await activate();
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  predict.mockResolvedValueOnce({ ...success, mask });
+  await clickAndWait(recipe, track, 5);
+  const result = events['prediction-ready'][0][0] as SegmentationPredictionResult;
+  expect(result.outputMode).toBe('mask');
+  expect(result.mask).toBe(mask);
+  recipe.confirmPrediction();
+  const [frames] = events['prediction-confirmed'][0] as [SegmentationPredictionResult[]];
+  expect(frames[0].outputMode).toBe('mask');
+  expect(frames[0].mask).toBe(mask);
 });
 
 it('ignores a repeated event for the same point', async () => {
