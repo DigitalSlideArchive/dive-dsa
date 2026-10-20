@@ -41,14 +41,26 @@ def _persist_async_job_metadata(
 
     GirderAsyncResult.job caches the document from first access (typically INACTIVE).
     Job().save() on that stale dict can race with the worker task_prerun RUNNING update
-    and leave the job stuck INACTIVE, which breaks later PUSHING_OUTPUT transitions.
+    and leave the job stuck INACTIVE, which breaks later FETCHING_INPUT/PUSHING_OUTPUT
+    transitions (FETCHING_INPUT is only valid from RUNNING, ERROR is not valid from
+    INACTIVE). Even a force-reloaded dict is unsafe: load-then-save is a non-atomic
+    read-modify-write, so a worker status update landing between the load and the
+    save is silently overwritten back to INACTIVE.
+
+    Instead, persist only the DIVE fields through Job().updateJob(otherFields=...),
+    which issues a single atomic ``$set`` of those fields and never writes ``status``.
     """
     job = Job().load(async_result.job['_id'], force=True)
-    for key, value in metadata.items():
-        job[key] = value
+    other_fields: Dict[str, object] = dict(metadata)
     if access_source is not None:
+        # copyAccessPolicies only mutates the in-memory dict (public + access);
+        # fold the result into the atomic update instead of saving the whole job.
         Job().copyAccessPolicies(access_source, job)
-    job = Job().save(job)
+        other_fields['public'] = job.get('public', False)
+        if 'access' in job:
+            other_fields['access'] = job['access']
+    if other_fields:
+        job = Job().updateJob(job, otherFields=other_fields)
     async_result._job = job
     return job
 
