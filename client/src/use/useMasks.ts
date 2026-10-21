@@ -21,14 +21,13 @@ import {
   binaryMaskToImage, imageToRLEObject, maskToLuminanceAlpha, decode, encode, DataArray,
 } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
+import createRLEWorker from './rleWorkerFactory';
 
-// Dynamically import the worker
-const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
-const rleWorker = RLEWorker();
+const rleWorker = createRLEWorker();
 
 const ENABLE_TIMING_LOGS = false;
 const MAX_TEXTURE_PRELOAD = 1000; // Max number of textures to preload at once
-const { preloadRLEMasks, clearQueue } = createRLEPreloader(RLEWorker, {
+const { preloadRLEMasks, clearQueue } = createRLEPreloader(createRLEWorker, {
   batchSize: 20,
   enableTimingLogs: ENABLE_TIMING_LOGS,
 });
@@ -87,7 +86,10 @@ export interface UseMaskInterface {
      * Store a binary mask (1 = object, row-major) as the mask for a track on
      * an arbitrary frame, e.g. a confirmed SAM segmentation. Uploads the mask
      * and updates the local RLE cache; flagging the feature (`hasMask`) and
-     * its bounds is the caller's job.
+     * its bounds is the caller's job. Rejects — after rolling back the
+     * optimistic local registration — when nothing was persisted (empty
+     * mask, encoding or upload failure), so callers must only flag `hasMask`
+     * after this resolves.
      */
     createMaskFromBinary: (
       trackId: number,
@@ -293,7 +295,10 @@ export default function useMasks(
           }
         }
       }
-      if (!hasPixel) return;
+      // Reject rather than silently succeed: callers flag the feature
+      // `hasMask` once this resolves, so resolving without storing anything
+      // would leave the track pointing at a mask that does not exist.
+      if (!hasPixel) throw new Error('Could not save the segmentation mask: the mask is empty.');
       const [rleObject] = encode(new DataArray(cocoMask, [mask.height, mask.width, 1]));
       const rleData: RLEFrameData = {
         rle: rleObject,
@@ -321,8 +326,10 @@ export default function useMasks(
       const image = await binaryMaskToImage(mask.data, mask.width, mask.height);
       const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
       if (!bounds) {
-        if (useRLE.value) await deleteLocalMasks(trackId, [frameId]);
-        return;
+        // Nothing would be uploaded; reject (rolling back the optimistic
+        // registration in the catch below) instead of letting the caller
+        // flag `hasMask` for a mask that was never stored.
+        throw new Error('Could not save the segmentation mask: the mask is empty.');
       }
       if (!useRLE.value) {
         cache.set(key, image);

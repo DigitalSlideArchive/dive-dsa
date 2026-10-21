@@ -985,18 +985,67 @@ export default function useModeManager({
     }
   }
 
-  /** Store confirmed binary masks through the platform hook, if any. */
-  function persistSegmentationMasks(trackId: AnnotationId, frames: SegmentationPredictionResult[]) {
+  /**
+   * Store confirmed binary masks through the platform hook, if any.
+   *
+   * Resolves with the mask results that could not be persisted (and reports
+   * the first failure). Callers must await this before flagging `hasMask`:
+   * flagging first and persisting fire-and-forget left the track pointing at
+   * a mask that does not exist whenever the upload failed (or the tab closed
+   * mid-upload and a manual Save landed first), so every reload warned
+   * "Missing RLE mask". `createSegmentationMask` (see
+   * `useMasks.createMaskFromBinary`) registers the mask locally before its
+   * upload, so by the time this resolves the render that `hasMask` triggers
+   * already finds the mask data.
+   */
+  async function persistSegmentationMasks(
+    trackId: AnnotationId,
+    frames: SegmentationPredictionResult[],
+  ): Promise<Set<SegmentationPredictionResult>> {
+    const failed = new Set<SegmentationPredictionResult>();
     const masks = frames.filter(isMaskResult);
-    if (!masks.length || !createSegmentationMask) return;
+    if (!masks.length || !createSegmentationMask) return failed;
     const create = createSegmentationMask;
-    Promise.all(masks.map((result) => create(
-      trackId,
-      result.frameNum,
-      result.mask as SegmentationMask,
-    ))).catch((error) => {
-      handleSegmentationError(error instanceof Error ? error.message : 'Could not save the segmentation mask.');
+    let firstError: unknown;
+    await Promise.all(masks.map(async (result) => {
+      try {
+        await create(trackId, result.frameNum, result.mask as SegmentationMask);
+      } catch (error) {
+        failed.add(result);
+        if (firstError === undefined) firstError = error;
+      }
+    }));
+    if (failed.size) {
+      handleSegmentationError(firstError instanceof Error ? firstError.message : 'Could not save the segmentation mask.');
+    }
+    return failed;
+  }
+
+  /**
+   * Persist any mask results, then write the confirmed results onto the
+   * track. A frame whose mask could not be stored is put back exactly as it
+   * was before the session (its snapshot), never flagged `hasMask`; frames
+   * that persisted (and plain polygon results) are applied. Returns the
+   * results that were applied.
+   */
+  async function applyConfirmedSegmentationFrames(
+    track: Track,
+    frames: SegmentationPredictionResult[],
+    snapshots: Map<number, SegmentationSnapshot>,
+  ): Promise<SegmentationPredictionResult[]> {
+    const failed = await persistSegmentationMasks(track.id, frames);
+    const applied: SegmentationPredictionResult[] = [];
+    frames.forEach((result) => {
+      if (failed.has(result)) {
+        const snapshot = snapshots.get(result.frameNum);
+        if (snapshot) restoreFeature(track, result.frameNum, snapshot);
+      } else {
+        applyConfirmedSegmentation(track, result);
+        applied.push(result);
+      }
     });
+    if (failed.size) _nudgeEditingCanary();
+    return applied;
   }
 
   function clearSegmentationSession() {
@@ -1010,14 +1059,19 @@ export default function useModeManager({
   function acceptSegmentation() {
     const track = segmentationTrack();
     const pending = Array.from(segmentationPredictions.values());
-    if (track && pending.length) {
-      // Store masks before flagging `hasMask`: the flag (and the Mask layer
-      // it enables) makes the next render look the RLE up, and the platform
-      // hook registers it locally synchronously, before its upload.
-      persistSegmentationMasks(track.id, pending);
-      pending.forEach((result) => applyConfirmedSegmentation(track, result));
-    }
+    // Capture the snapshots before clearing the session: they are the only
+    // way to put a frame back if its mask cannot be persisted.
+    const snapshots = new Map(segmentationSnapshots);
     clearSegmentationSession();
+    if (!track || !pending.length) return;
+    if (!pending.some(isMaskResult)) {
+      pending.forEach((result) => applyConfirmedSegmentation(track, result));
+      return;
+    }
+    // Await persistence before flagging `hasMask` (see
+    // persistSegmentationMasks), so a Save while an upload is pending or
+    // after it failed cannot persist a mask flag with no mask behind it.
+    applyConfirmedSegmentationFrames(track, pending, snapshots);
   }
 
   /** Put every frame the session changed back as it was. */
@@ -1052,20 +1106,9 @@ export default function useModeManager({
     if (hadSession) leaveSegmentationMode();
   }
 
-  function handleSegmentationConfirmed(frames: SegmentationPredictionResult[]) {
-    const track = segmentationTrack()
-      ?? (selectedTrackId.value !== null
-        ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
-        : undefined);
-    // Clear the session first (listeners may restart it), then re-apply:
-    // polygon results are already previewed, mask results replace the
-    // preview mask with a stored mask.
-    clearSegmentationSession();
-    if (!track) return;
-    // See acceptSegmentation: register mask data before flagging `hasMask`.
-    persistSegmentationMasks(track.id, frames);
-    frames.forEach((result) => applyConfirmedSegmentation(track, result));
-    const madeMask = frames.some(isMaskResult);
+  /** Post-confirm bookkeeping for the results that were actually applied. */
+  function finishSegmentationConfirmed(track: Track, applied: SegmentationPredictionResult[]) {
+    const madeMask = applied.some(isMaskResult);
     const trackId = track.id;
     newTrackSettingsAfterLogic(track);
     if (creating && segmentationRecipe) {
@@ -1084,6 +1127,39 @@ export default function useModeManager({
       // with the Mask layer visible so the result shows.
       leaveSegmentationMode();
     }
+  }
+
+  function handleSegmentationConfirmed(frames: SegmentationPredictionResult[]) {
+    const track = segmentationTrack()
+      ?? (selectedTrackId.value !== null
+        ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
+        : undefined);
+    // Capture the snapshots before clearing the session: they are the only
+    // way to put a frame back if its mask cannot be persisted.
+    const snapshots = new Map(segmentationSnapshots);
+    // Clear the session first (listeners may restart it), then re-apply:
+    // polygon results are already previewed, mask results replace the
+    // preview mask with a stored mask.
+    clearSegmentationSession();
+    if (!track) return;
+    if (!frames.some(isMaskResult)) {
+      frames.forEach((result) => applyConfirmedSegmentation(track, result));
+      finishSegmentationConfirmed(track, frames);
+      return;
+    }
+    // Await persistence before flagging `hasMask` (see acceptSegmentation):
+    // frames whose mask upload failed are restored from their snapshots
+    // instead of being left flagged with no mask stored.
+    (async () => {
+      const applied = await applyConfirmedSegmentationFrames(track, frames, snapshots);
+      if (!applied.length) {
+        // Nothing was confirmed: the detection is back as it was, so there
+        // is no result to refine or advance from.
+        leaveSegmentationMode();
+        return;
+      }
+      finishSegmentationConfirmed(track, applied);
+    })();
   }
 
   function handleSegmentationReset() {

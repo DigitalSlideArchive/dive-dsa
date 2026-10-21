@@ -105,6 +105,7 @@ async function place(ctx: { manager: ReturnType<typeof useModeManager> }, x: num
 }
 
 beforeEach(() => {
+  mockPrompt.mockClear();
   clientSettings.trackSettings.newTrackSettings.mode = 'Track';
   clientSettings.trackSettings.newTrackSettings.modeSettings.Track.autoAdvanceFrame = false;
   clientSettings.trackSettings.newTrackSettings.modeSettings.Detection.continuous = false;
@@ -205,6 +206,67 @@ it('confirming a mask result stores a mask instead of a polygon', async () => {
   // Nothing left to restore once confirmed.
   ctx.manager.handler.trackAbort();
   expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
+});
+
+it('does not flag hasMask while the mask upload is still pending', async () => {
+  const ctx = await segmentExisting();
+  let resolveCreate!: () => void;
+  const createMask = jest.fn(() => new Promise<void>((resolve) => { resolveCreate = resolve; }));
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  ctx.manager.confirmSegmentation();
+  // The upload has started but not landed: a Save now must not persist a
+  // `hasMask` flag pointing at a mask that does not exist yet.
+  expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
+  expect(ctx.track.getMaskFrameList()).toEqual([]);
+  resolveCreate();
+  await flush();
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
+  expect(ctx.track.getMaskFrameList()).toEqual([0]);
+});
+
+it('a failed mask upload on confirm restores the detection and flags nothing', async () => {
+  const ctx = await segmentExisting();
+  const createMask = jest.fn(async () => { throw new Error('upload failed'); });
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([10, 0, 30, 20]);
+  ctx.manager.confirmSegmentation();
+  await flush();
+  expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
+  expect(mockPrompt).toHaveBeenCalledWith({ title: 'Segmentation Error', text: ['upload failed'] });
+  // Back exactly as it was before segmenting: no `hasMask` left behind for
+  // the next Save to persist against a mask that was never stored.
+  const [feature] = ctx.track.getFeature(0);
+  expect(feature?.hasMask).toBeUndefined();
+  expect(feature?.bounds).toEqual([0, 0, 100, 100]);
+  expect(ctx.track.getMaskFrameList()).toEqual([]);
+  expect(ctx.track.serialize().features[0]?.hasMask).toBeUndefined();
+  expect(ctx.polygonRecipe.active.value).toBe(false);
+  expect(ctx.manager.editingMode.value).toBe('rectangle');
+});
+
+it('a failed mask upload when switching tools restores the detection and flags nothing', async () => {
+  const ctx = await segmentExisting();
+  const createMask = jest.fn(async () => { throw new Error('upload failed'); });
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  // Switching tools accepts the preview (acceptSegmentation path).
+  ctx.manager.handler.setAnnotationState({ editing: 'rectangle' });
+  await flush();
+  expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
+  expect(mockPrompt).toHaveBeenCalledWith({ title: 'Segmentation Error', text: ['upload failed'] });
+  const [feature] = ctx.track.getFeature(0);
+  expect(feature?.hasMask).toBeUndefined();
+  expect(feature?.bounds).toEqual([0, 0, 100, 100]);
+  expect(ctx.track.getMaskFrameList()).toEqual([]);
 });
 
 it('cancelling a mask preview restores the detection and stores nothing', async () => {
