@@ -83,6 +83,10 @@ export default defineComponent({
           order,
         }));
         await saveConfiguration(configurationId.value, { launchConfigs });
+        // Keep the in-memory configuration in sync so reopening the editor
+        // (which reads from `configuration`) shows the saved values instead
+        // of stale/deleted entries.
+        configuration.value = { ...configuration.value, launchConfigs };
         invalidateLaunchConfigs();
         dialog.value = false;
       }
