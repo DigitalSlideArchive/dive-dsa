@@ -212,7 +212,7 @@ export default defineComponent({
               v-show="buttonOptions.block"
               class="pl-1"
             >
-              Create Metadata Folder
+              Create Metadata
             </span>
             <v-spacer />
           </v-btn>
