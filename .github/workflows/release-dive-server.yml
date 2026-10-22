@@ -1,0 +1,41 @@
+name: PyPI Publish dive-dsa
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write  # Required for PyPI trusted publishing (OIDC)
+  contents: read
+  actions: write   # Upload wheel artifact
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # Prefer the release tag so uv-dynamic-versioning yields a clean PEP 440 version.
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+
+      - name: Build, verify, and publish wheel
+        # build_wheel.sh refuses versions with +local (PyPI), cleans dist/, then uv publish.
+        # OIDC trusted publishing provides credentials in GITHUB_ACTIONS; no token needed.
+        run: bash server/scripts/build_wheel.sh --publish
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dive-dsa-wheel
+          path: server/dist/dive_dsa-*.whl
+          if-no-files-found: error

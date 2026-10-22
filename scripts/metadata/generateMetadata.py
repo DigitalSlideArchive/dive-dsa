@@ -12,6 +12,7 @@ import json
 import urllib.parse
 import os
 import subprocess
+import time
 
 apiURL = "127.0.0.1"  # url of the server
 port = 8010  # set to your local port being used
@@ -150,8 +151,15 @@ def run_script(ndfile):
     url = f'/dive_metadata/process_metadata/{rootFolderId}'
     query_string = '&'.join([f'{key}={value}' for key, value in params.items()])
     full_url = f'{url}?{query_string}'
-    response = gc.post(full_url)
-    print(response)
+    job = gc.post(full_url)
+    print(f"Enqueued job: {job.get('_id')} status={job.get('status')}")
+    # Poll until terminal (SUCCESS=3, ERROR=4, CANCELED=5)
+    terminal = {3, 4, 5}
+    while job.get('status') not in terminal:
+        time.sleep(2)
+        job = gc.get(f"job/{job['_id']}")
+        print(f"  job status={job.get('status')} progress={job.get('progress')}")
+    print(job.get('meta', {}).get('diveMetadataIngestResult') or job.get('log'))
 
 if __name__ == "__main__":
     run_script()

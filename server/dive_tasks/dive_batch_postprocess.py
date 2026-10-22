@@ -7,7 +7,7 @@ from girder.models.user import User
 from girder_client import GirderClient
 from girder_jobs.models.job import Job
 from girder_worker.task import Task
-from girder_worker.utils import JobStatus
+from girder_worker.utils import JobStatus, resolve_girder_api_url
 
 
 class DIVEBatchPostprocessTaskParams:
@@ -52,7 +52,7 @@ def batch_postprocess_task(baseJob: Task):
     token = Token().createToken(user=user)
 
     # Initialize Girder client
-    gc = GirderClient(apiUrl=params['girderApiUrl'])
+    gc = GirderClient(apiUrl=resolve_girder_api_url(params['girderApiUrl']))
     gc.token = token['_id']
 
     # Update base job status
