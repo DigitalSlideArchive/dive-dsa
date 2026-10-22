@@ -1,7 +1,7 @@
 # ========================
 # == CLIENT BUILD STAGE ==
 # ========================
-FROM node:20 AS client-builder
+FROM node:24 AS client-builder
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 
