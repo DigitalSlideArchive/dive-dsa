@@ -7,8 +7,8 @@
 #
 #   docker compose -f test_deployment/docker-compose.pypi.yml up --build
 
-ARG GIRDER_VERSION=v5.0.12
-ARG PYTHON_GIRDER=5.0.12
+ARG GIRDER_VERSION=v5.0.19
+ARG PYTHON_GIRDER=5.0.19
 ARG DIVE_DSA_VERSION=0.0.1
 
 # ---------------------------------------------------------------------------

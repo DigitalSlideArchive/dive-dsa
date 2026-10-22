@@ -87,7 +87,7 @@ It's possible to split your web server and task runner between multiple nodes.  
 
 * Make two cloud VM instances, one with NVIDIA drivers and container toolkit, and one without.
 * Clone the dive repository on both, and set up `.env` on both with the same configuration.
-* Be sure that `GIRDER_SETTING_WORKER_API_URL` and `GIRDER_WORKER_BROKER` in particular are uncommented and set to the IP or domain name of your web server.  This is how the worker will talk to the web server, so the web server must be network accessible from the worker.
+* Be sure that `GIRDER_WORKER_BROKER` and `GIRDER_WORKER_API_URL` (on the worker node) or `GIRDER_SETTING_WORKER_API_URL` (on the web node) in particular are uncommented and set to the IP or domain name of your web server.  This is how the worker will talk to the web server, so the web server must be network accessible from the worker.
 
 ``` bash
 ## On the web server
@@ -143,7 +143,7 @@ This image contains both the backend and client.
 | GIRDER_ADMIN_PASS | `letmein` | admin password |
 | GIRDER_WORKER_BROKER | `amqp://guest:guest@rabbit/default` | rabbitmq connection string |
 | GIRDER_WORKER_BACKEND | `rpc://guest:guest@localhost/` | Celery result backend |
-| GIRDER_SETTING_WORKER_API_URL | `http://girder:8080/api/v1` | Girder REST API URL used by workers |
+| GIRDER_SETTING_WORKER_API_URL | `http://girder:8080/api/v1` | Girder REST API URL the server sends to workers when scheduling jobs |
 | GIRDER_NOTIFICATION_REDIS_URL | `redis://redis:6379` | Redis URL for notification fan-out |
 | GIRDER_STATIC_ROOT_DIR | `/opt/dive/clients/girder` | Built Girder web client path |
 
@@ -170,7 +170,7 @@ This image contains a celery worker to run transcoding jobs.
 | WORKER_CONCURRENCY | `# of CPU cores` | max concurrnet jobs. **Lower this if you run training** |
 | WORKER_GPU_UUID | null | leave empty to use all GPUs.  Specify UUID to use specific device |
 | GIRDER_WORKER_BROKER | `amqp://guest:guest@rabbit/default` | rabbitmq connection string. Ignored in standalone mode. |
-| GIRDER_SETTING_WORKER_API_URL | `http://girder:8080/api/v1` | Girder API URL (split/multi-node deployments). |
+| GIRDER_WORKER_API_URL | null | Per-worker override of the Girder API URL used for callbacks (split/multi-node deployments). Takes precedence over the URL sent by the server. |
 | KWIVER_DEFAULT_LOG_LEVEL | `warn` | kwiver log level |
 | DIVE_USERNAME | null | Username to start private queue processor. Providing this enables standalone mode. |
 | DIVE_PASSWORD | null | Password for private queue processor. Providing this enables standalone mode. |

@@ -14,7 +14,7 @@ from typing import Any, Dict
 
 from girder.models.user import User
 from girder_jobs.models.job import Job
-from girder_worker.utils import JobStatus
+from girder_worker.utils import JobStatus, resolve_girder_api_url
 
 
 def _job_canceled(job) -> bool:
@@ -82,7 +82,7 @@ def metadata_ingest_task(base_job) -> None:
         # Download files via HTTP (same pattern as batch postprocess) so the
         # localworker does not need a shared filesystem assetstore mount.
         girder_client = None
-        api_url = params.get('girderApiUrl')
+        api_url = resolve_girder_api_url(params.get('girderApiUrl'))
         token = params.get('girderToken')
         if api_url and token:
             girder_client = GirderClient(apiUrl=api_url)

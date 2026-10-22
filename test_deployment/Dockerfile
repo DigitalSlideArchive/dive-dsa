@@ -12,8 +12,8 @@
 #
 #   docker compose -f test_deployment/docker-compose.yml up --build
 
-ARG GIRDER_VERSION=v5.0.12
-ARG PYTHON_GIRDER=5.0.12
+ARG GIRDER_VERSION=v5.0.19
+ARG PYTHON_GIRDER=5.0.19
 
 # ---------------------------------------------------------------------------
 # DIVE annotator SPA → packaged at dive_server/dive_client/ → served at /dive

@@ -2,7 +2,7 @@
 
 DIVE-DSA now runs on **Girder 5** with updated worker plugins, WebSocket notifications, and Docker Compose configuration. Use this page when upgrading an existing Girder 3 deployment or aligning a custom `.env` with the current stack.
 
-For general deployment steps, see [Running with Docker Compose](Deployment-Docker-Compose.md). For upstream Girder API and plugin changes, see the [Girder migration guide](https://github.com/girder/girder/blob/v4-integration/docs/migration-guide.rst).
+For general deployment steps, see [Running with Docker Compose](Deployment-Docker-Compose.md). For upstream Girder API and plugin changes, see the [Girder migration guide](https://github.com/girder/girder/blob/master/docs/migration-guide.rst).
 
 ## Summary of infrastructure changes
 
@@ -21,17 +21,20 @@ Update your `.env` (and any external orchestration) to use Girder 5 names:
 | Girder 4 / legacy name | Girder 5 name | Purpose |
 |------------------------|---------------|---------|
 | `CELERY_BROKER_URL` | `GIRDER_WORKER_BROKER` | RabbitMQ URL for Celery (message broker). |
-| `WORKER_API_URL` | `GIRDER_SETTING_WORKER_API_URL` | Girder REST API URL workers call (e.g. `http://girder:8080/api/v1`). |
+| `WORKER_API_URL` (on `girder`) | `GIRDER_SETTING_WORKER_API_URL` | Girder REST API URL the server sends to workers when scheduling jobs (e.g. `http://girder:8080/api/v1`). |
+| `WORKER_API_URL` (on workers) | `GIRDER_WORKER_API_URL` | Optional per-worker override of the callback URL (split/remote workers). Requires Girder >= 5.0.14. |
 | *(not used)* | `GIRDER_WORKER_BACKEND` | Celery result backend (Compose default: `rpc://guest:guest@localhost/`). |
 | *(not used)* | `GIRDER_NOTIFICATION_REDIS_URL` | Redis URL for Girder notification fan-out (e.g. `redis://redis:6379`). |
 | *(not used)* | `GIRDER_STATIC_ROOT_DIR` | Path to built Girder web client inside the container (set in Compose). |
 
-`GIRDER_WORKER_BACKEND` is **not** a replacement for `WORKER_API_URL`. Do not point it at `http://…/api/v1`; use `GIRDER_SETTING_WORKER_API_URL` for that.
+`GIRDER_WORKER_BACKEND` is **not** a replacement for `WORKER_API_URL`. Do not point it at `http://…/api/v1`; use `GIRDER_SETTING_WORKER_API_URL` (server) or `GIRDER_WORKER_API_URL` (worker) for that.
+
+`GIRDER_SETTING_WORKER_API_URL` is a Girder *setting* override (`worker.api_url`), so it is only read by processes that load Girder settings, i.e. the `girder` web service. Setting it on a standalone Celery worker has no effect; use `GIRDER_WORKER_API_URL` there.
 
 ## Recommended upgrade steps
 
 1. **Back up** MongoDB and any asset store data before upgrading.
-2. **Checkout** the `girder-5-upgradge-2026` branch and copy `.env.Default` changes into your `.env`.
+2. **Checkout** the `girder-5-upgrade-2026` branch and copy `.env.Default` changes into your `.env`.
 3. **Rename variables** in `.env` per the table above.
 4. **Add Redis** — use the `redis` service from `docker-compose.yml` or an external Redis instance and set `GIRDER_NOTIFICATION_REDIS_URL` on `girder` and all worker services.
 5. **Rebuild or pull** images, then restart the stack:
@@ -75,7 +78,7 @@ Metadata ingest loads NDJSON/JSON/CSV over HTTP via `GirderClient` (same pattern
 
 ## Python dependencies
 
-Server packages pin Girder 5 (`girder`, `girder_jobs`, `girder_worker`, etc. at 5.0.x in `server/pyproject.toml`). Regenerate the lockfile from `server/` if you change plugin versions:
+Server packages pin Girder 5 (`girder`, `girder_jobs`, `girder_worker`, etc. at 5.0.19 in `server/pyproject.toml`). Regenerate the lockfile from `server/` if you change plugin versions:
 
 ```bash
 cd server && uv lock

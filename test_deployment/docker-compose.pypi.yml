@@ -11,7 +11,7 @@
 #
 # Override pins at build time, e.g.:
 #   docker compose -f test_deployment/docker-compose.pypi.yml build \
-#     --build-arg DIVE_DSA_VERSION=0.0.1 --build-arg PYTHON_GIRDER=5.0.12
+#     --build-arg DIVE_DSA_VERSION=0.0.1 --build-arg PYTHON_GIRDER=5.0.19
 
 name: dive-dsa-package-pypi
 
@@ -48,8 +48,8 @@ services:
       dockerfile: test_deployment/Dockerfile.pypi
       target: girder
       args:
-        GIRDER_VERSION: v5.0.12
-        PYTHON_GIRDER: "5.0.12"
+        GIRDER_VERSION: v5.0.19
+        PYTHON_GIRDER: "5.0.19"
         DIVE_DSA_VERSION: "0.0.1"
     image: dive-dsa-girder5-pypi:local
     init: true
@@ -105,7 +105,7 @@ services:
       - rabbit
     environment:
       <<: *broker-env
-      GIRDER_SETTING_WORKER_API_URL: http://girder:8080/api/v1
+      GIRDER_WORKER_API_URL: http://girder:8080/api/v1
       WORKER_WATCHING_QUEUES: celery
       WORKER_CONCURRENCY: "2"
 

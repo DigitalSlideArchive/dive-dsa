@@ -28,15 +28,15 @@ There are two compose files:
 
 | Package | How |
 |---------|-----|
-| `girder==5.0.12` | `pip` / `uv pip` from PyPI |
+| `girder==5.0.19` | `pip` / `uv pip` from PyPI |
 | `dive-dsa` (imports `dive_server` / `dive_tasks`) | Wheel built in Docker with frontends embedded |
-| Girder core web UI | Built from `girder/girder` at tag `v5.0.12` with `npx vite build --base=/girder/`, then `GIRDER_STATIC_ROOT_DIR` |
+| Girder core web UI | Built from `girder/girder` at tag `v5.0.19` with `npx vite build --base=/girder/`, then `GIRDER_STATIC_ROOT_DIR` |
 
 ### Published PyPI (`docker-compose.pypi.yml`)
 
 | Package | How |
 |---------|-----|
-| `girder==5.0.12` | `uv pip` from PyPI |
+| `girder==5.0.19` | `uv pip` from PyPI |
 | `dive-dsa==0.0.1` (override with build-arg) | `uv pip` from PyPI (SPA + plugin UI already in the wheel) |
 | Girder core web UI | Same git-tag Vite build as above (not on PyPI) |
 
@@ -79,8 +79,8 @@ Pin a different published version:
 ```bash
 docker compose -f test_deployment/docker-compose.pypi.yml build \
   --build-arg DIVE_DSA_VERSION=0.0.1 \
-  --build-arg PYTHON_GIRDER=5.0.12 \
-  --build-arg GIRDER_VERSION=v5.0.12
+  --build-arg PYTHON_GIRDER=5.0.19 \
+  --build-arg GIRDER_VERSION=v5.0.19
 ```
 
 ## Optional: build the wheel on the host

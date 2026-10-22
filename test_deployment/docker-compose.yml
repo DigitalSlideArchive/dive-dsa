@@ -47,8 +47,8 @@ services:
       dockerfile: test_deployment/Dockerfile
       target: girder
       args:
-        GIRDER_VERSION: v5.0.12
-        PYTHON_GIRDER: "5.0.12"
+        GIRDER_VERSION: v5.0.19
+        PYTHON_GIRDER: "5.0.19"
     image: dive-dsa-girder5-package:local
     init: true
     ports:
@@ -105,7 +105,7 @@ services:
       - rabbit
     environment:
       <<: *broker-env
-      GIRDER_SETTING_WORKER_API_URL: http://girder:8080/api/v1
+      GIRDER_WORKER_API_URL: http://girder:8080/api/v1
       WORKER_WATCHING_QUEUES: celery
       WORKER_CONCURRENCY: "2"
 

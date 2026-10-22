@@ -16,8 +16,9 @@ RUN npm run build:web
 FROM node:20 AS girder-client-builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y git
-ARG CACHEBUST=2
-RUN git clone https://github.com/girder/girder.git
+# Keep in sync with the girder version pinned in server/pyproject.toml
+ARG GIRDER_VERSION=v5.0.19
+RUN git clone --depth 1 --branch "${GIRDER_VERSION}" https://github.com/girder/girder.git
 RUN cd girder/girder && cd web && npm install --include=optional && npx vite build --base=/girder/
 
 FROM node:20 AS dive-plugin-client-builder

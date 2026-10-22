@@ -420,7 +420,7 @@ name = "cuda-bindings"
 version = "13.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cuda-pathfinder" },
+    { name = "cuda-pathfinder", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/21/8464d133752951c154feafb3b65c297e7d80f301183d220bec4c830f1441/cuda_bindings-13.3.1-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:120fcc53d57903df529c3486962c56528cba5b7d6c57c99537320ed9922c8b86", size = 6073403, upload-time = "2026-05-29T23:11:36.22Z" },
@@ -447,43 +447,43 @@ wheels = [
 
 [package.optional-dependencies]
 cublas = [
-    { name = "nvidia-cublas", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "nvidia-cuda-nvrtc", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cublas", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cuda-nvrtc", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 cudart = [
-    { name = "nvidia-cuda-runtime", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cuda-runtime", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 cufft = [
-    { name = "nvidia-cufft", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cufft", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 cufile = [
     { name = "nvidia-cufile", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 cupti = [
-    { name = "nvidia-cuda-cupti", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cuda-cupti", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 curand = [
-    { name = "nvidia-curand", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-curand", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 cusolver = [
-    { name = "nvidia-cublas", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "nvidia-cusolver", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "nvidia-cusparse", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cublas", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cusolver", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-cusparse", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 cusparse = [
-    { name = "nvidia-cusparse", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cusparse", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 nvjitlink = [
-    { name = "nvidia-nvjitlink", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 nvrtc = [
-    { name = "nvidia-cuda-nvrtc", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-cuda-nvrtc", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 nvtx = [
-    { name = "nvidia-nvtx", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "nvidia-nvtx", marker = "(python_full_version < '3.11' and platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 
 [[package]]
@@ -557,12 +557,12 @@ dev = [
 requires-dist = [
     { name = "cherrypy", specifier = ">=18.9.0" },
     { name = "click", specifier = ">=8.1.3" },
-    { name = "girder", specifier = "==5.0.12" },
-    { name = "girder-client", specifier = ">=5.0.12" },
-    { name = "girder-jobs", specifier = "==5.0.12" },
-    { name = "girder-plugin-worker", specifier = "==5.0.12" },
-    { name = "girder-slicer-cli-web", specifier = "==5.0.12" },
-    { name = "girder-worker", specifier = "==5.0.12" },
+    { name = "girder", specifier = "==5.0.19" },
+    { name = "girder-client", specifier = ">=5.0.19" },
+    { name = "girder-jobs", specifier = "==5.0.19" },
+    { name = "girder-plugin-worker", specifier = "==5.0.19" },
+    { name = "girder-slicer-cli-web", specifier = "==5.0.19" },
+    { name = "girder-worker", specifier = "==5.0.19" },
     { name = "girder-worker-utils", specifier = ">=0.9.0,<1" },
     { name = "gputil", specifier = ">=1.4.0" },
     { name = "hydra-core", marker = "extra == 'sam'", specifier = ">=1.3.2" },
@@ -657,7 +657,7 @@ wheels = [
 
 [[package]]
 name = "girder"
-version = "5.0.12"
+version = "5.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
@@ -687,14 +687,14 @@ dependencies = [
     { name = "websockets", version = "16.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "websockets", version = "17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/a0/9f14a520558795f0e16c0779e8b209d270e631f9e78f2f8805b91ae90dbb/girder-5.0.12.tar.gz", hash = "sha256:e952ee9c07fba277163b3bc90552a57e713255bea9a8d6e6b79186dbb1db6d21", size = 2707065, upload-time = "2026-07-09T19:36:54.048Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/48/05c7a0a49229067e6dfb8a797e7808e44bb13bf96c359c37b7f9829faab0/girder-5.0.19.tar.gz", hash = "sha256:2b2b8f669225a6edfb43dfe50c200b2f4297c539826fcdcb20ec788fa5e1b6f0", size = 5123219, upload-time = "2026-10-13T13:18:23.789Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c7/8d/87c340a8caa4e8e62cbe3eca892cd747e6534e41ce7e59bc02a82a6b3af6/girder-5.0.12-py3-none-any.whl", hash = "sha256:14fee024f3e54cc2f396c3da8b05163bd4b508e6dac080e6e678d6c2c7c541c7", size = 1796492, upload-time = "2026-07-09T19:36:52.176Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/cf/1c8b3e4d66826f7f23887c90af7645ca70c78ea1dca6cb130e3da91c97bd/girder-5.0.19-py3-none-any.whl", hash = "sha256:d89d41c4ab5c99a8b7dd0fc41c3266d8f2dfec65d61ae06d919b95dee88d6e2a", size = 4255215, upload-time = "2026-10-13T13:18:21.907Z" },
 ]
 
 [[package]]
 name = "girder-client"
-version = "5.0.18"
+version = "5.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -702,39 +702,39 @@ dependencies = [
     { name = "requests" },
     { name = "requests-toolbelt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/29/e9/d4674667ee0d4b892c8acc2866414c6b33905787509b5771e6a232a975f1/girder_client-5.0.18.tar.gz", hash = "sha256:76d51066fb897fecc5268d815561f9fc63c03b869c07641cd0e2cc17e7d6b904", size = 26185, upload-time = "2026-09-15T13:43:04.093Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/0c/b7f697a7cc366fdfafe5868418aafdd513d6d14b094907c638a0199d0193/girder_client-5.0.19.tar.gz", hash = "sha256:193ec6621b7503048f95634670d53ed8070dc1587b5a55029e752568a0bc4d98", size = 26140, upload-time = "2026-10-13T13:22:24.657Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/05/f1a272ac852292a88e1b895a2007b8088396164a01db1e0d93742dcdacf3/girder_client-5.0.18-py3-none-any.whl", hash = "sha256:20c33f8a041dda22c8c1fba8cb573eabec71951e46a7ea53912e6cd449a295ee", size = 25948, upload-time = "2026-09-15T13:43:02.849Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/dc/ab2607b88de4158c36ff348a6a8bd1bd1e6558cbd1f43db2815b7761f2a8/girder_client-5.0.19-py3-none-any.whl", hash = "sha256:af10d7effe01e9c7264a493b269d27ea32674e17b9da7f88a3fdb154af35ced2", size = 25949, upload-time = "2026-10-13T13:22:23.495Z" },
 ]
 
 [[package]]
 name = "girder-jobs"
-version = "5.0.12"
+version = "5.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "girder" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2d/76/ce3f1d6d03021debab569bc693c0b38c1dc661456e35d3cbed4dcede4461/girder_jobs-5.0.12.tar.gz", hash = "sha256:5ddade754a9ce4465e59bd3685d0bbed3ff13619148fde7b24f00895e46b743e", size = 206265, upload-time = "2026-07-09T19:38:59.514Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/76/332cf19d1f5767f70f9ff2d5ccde293f5315e2c586bb76788a6c4c55367d/girder_jobs-5.0.19.tar.gz", hash = "sha256:2f5fbfb5aef81baccd9713ae5c68e0506bb222cb0855512d4bf28745d9f14640", size = 207348, upload-time = "2026-10-13T13:20:20.65Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/e9/e10254412f946c61e10be8170b5e483bcce394930a4b819d73636a7fd74c/girder_jobs-5.0.12-py3-none-any.whl", hash = "sha256:9711ae782dee3b2173686932655d2324561df88c469ad6bc79d04e6b447ac937", size = 203468, upload-time = "2026-07-09T19:38:58.43Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/c6/d396736de1fa43bccaad1f718b4a41612dcadd841581fad27d90685616b5/girder_jobs-5.0.19-py3-none-any.whl", hash = "sha256:fc9244d912b01f116e51f4715e6e1e20a564b8a71d523980c9de5fe4bb0b3f44", size = 203096, upload-time = "2026-10-13T13:20:19.316Z" },
 ]
 
 [[package]]
 name = "girder-plugin-worker"
-version = "5.0.12"
+version = "5.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "girder" },
     { name = "girder-jobs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/c5/7c39df781eae50a698f2a9fda2ad60beebdd861a14b040953f2f129e6f7a/girder_plugin_worker-5.0.12.tar.gz", hash = "sha256:f1a70535b42fa7e4e68bdeb703a96bce4cdcb30197b2f74d876055f03ab5b51c", size = 12697, upload-time = "2026-07-09T19:40:48.997Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/e0/00a420be4a9c6054d5736c2386125300e5163e6cbf0cead65fa63278d936/girder_plugin_worker-5.0.19.tar.gz", hash = "sha256:4938c0908add6bc982341602756b2159f2b2d7ec56ba2949ca36e8f56ef25071", size = 11376, upload-time = "2026-10-13T13:22:04.599Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/19/276fb2b876c90600fffe12cceaef40b37ed94105ef94a19c8f2fa9360428/girder_plugin_worker-5.0.12-py3-none-any.whl", hash = "sha256:d9a6ccececc52dc4a7ec3ebcf2b9b5704b7e7aa2851237c218fb4dd9ed792136", size = 14457, upload-time = "2026-07-09T19:40:48.13Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/2d/818f3614fa94a855749934333823f39282698de59fb2115c99741815cefe/girder_plugin_worker-5.0.19-py3-none-any.whl", hash = "sha256:caaa99324f7e0515f1ba20abaad91b5b883bfd43ba98af18ad94efc77c3a31ed", size = 12315, upload-time = "2026-10-13T13:22:03.526Z" },
 ]
 
 [[package]]
 name = "girder-slicer-cli-web"
-version = "5.0.12"
+version = "5.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ctk-cli" },
@@ -742,14 +742,14 @@ dependencies = [
     { name = "jsonschema" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/f4/a7a258b7e56c141153fc7d6872a5a1e80d79330b66ee1e402358dd9b3e1a/girder_slicer_cli_web-5.0.12.tar.gz", hash = "sha256:664e492173fac4fbce5ce029f91baf0f7c5035c03d65082ba4f65d684a47c8e9", size = 154938, upload-time = "2026-07-09T19:39:54.847Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a0/2a/c7bea1afa9d2393174bf6850ebff5d32735e231ee1ab579dc396668b1476/girder_slicer_cli_web-5.0.19.tar.gz", hash = "sha256:bbb6c402b07b9ff25e8c6c8c458ea0ab9c7f260719700448dfff0f2d2e3550ce", size = 153962, upload-time = "2026-10-13T13:21:13.873Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/0a/3202c1763221d57c6dd934eae34f9987523d1616029a167d6611cff9231d/girder_slicer_cli_web-5.0.12-py2.py3-none-any.whl", hash = "sha256:6b7242e27461b4a4dd76e9494c9f5fc2c1d14a2403ef0110d8afa1157523b459", size = 138675, upload-time = "2026-07-09T19:39:53.641Z" },
+    { url = "https://files.pythonhosted.org/packages/be/7e/a2aad7880f71a1855affa917d1c5548363124564206ebd6bc00571a1a606/girder_slicer_cli_web-5.0.19-py2.py3-none-any.whl", hash = "sha256:efc44ab9d73030dc75f515b39943016bc78795e5e2f75a8d85b4971e0f16efd0", size = 135847, upload-time = "2026-10-13T13:21:12.78Z" },
 ]
 
 [[package]]
 name = "girder-worker"
-version = "5.0.12"
+version = "5.0.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -757,6 +757,7 @@ dependencies = [
     { name = "girder-client" },
     { name = "jinja2" },
     { name = "jsonpickle" },
+    { name = "packaging" },
     { name = "pymongo" },
     { name = "pyyaml" },
     { name = "requests" },
@@ -764,9 +765,9 @@ dependencies = [
     { name = "stevedore" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/56/98ed8321bdd95dfbc6aa7969ebae8648de796aaa1bd94c837fc9d3946daa/girder_worker-5.0.12.tar.gz", hash = "sha256:6297295bce16fff9064b9acad924c274131ef22d556e8e50498272cf7cca88c8", size = 43027, upload-time = "2026-07-09T19:41:23.566Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/86/c4b4ba7cf8d2a8fb34ba5400dd6e9cb1b6795bd080b6cbfde1c082308f99/girder_worker-5.0.19.tar.gz", hash = "sha256:f1ddf2d1e2b4c814ad52d3bcfc17d457354c73dbc2e2c2543deef93a55d38e86", size = 45239, upload-time = "2026-10-13T13:22:34.908Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/98/44c198fb7cfb1662a3cbc6b1e25dcabcca670c10a96e33d4223f018739e1/girder_worker-5.0.12-py3-none-any.whl", hash = "sha256:dafda3181422204b2937f335c218a1ae8e3af8a45cc754b77687a9830fae1388", size = 60280, upload-time = "2026-07-09T19:41:22.6Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/85/3ce7e825bb519963aaf41b179a16f970ba80224b2cc254f7fdf6dee0e31b/girder_worker-5.0.19-py3-none-any.whl", hash = "sha256:b972e2c77606ab0f023eca4a4a0817ed8b774650f44446ef4fee6e7e2077ddd4", size = 61426, upload-time = "2026-10-13T13:22:33.805Z" },
 ]
 
 [[package]]
@@ -1121,7 +1122,7 @@ name = "nvidia-cublas"
 version = "13.1.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cuda-nvrtc" },
+    { name = "nvidia-cuda-nvrtc", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/a1/0bd24ee8c8d03adac032fd2909426a00c88f8c57961b1277ded97f91119f/nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:b7a210458267ac818974c53038fbec2e969d5c99f305ab15c72522fa9f001dd5", size = 542848918, upload-time = "2026-04-08T18:46:22.985Z" },
@@ -1160,7 +1161,7 @@ name = "nvidia-cudnn-cu13"
 version = "9.20.0.48"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas" },
+    { name = "nvidia-cublas", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/c5/83384d846b2fd17c44bd499b36c75a45ed4f095fbbb2252294e89cea5c5c/nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:e31454ae00094b0c55319d9d15b6fa2fc50a9e1c0f5c8c80fb75258234e731e1", size = 444574296, upload-time = "2026-03-09T19:28:27.751Z" },
@@ -1172,7 +1173,7 @@ name = "nvidia-cufft"
 version = "12.0.0.61"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/ae/f417a75c0259e85c1d2f83ca4e960289a5f814ed0cea74d18c353d3e989d/nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:2708c852ef8cd89d1d2068bdbece0aa188813a0c934db3779b9b1faa8442e5f5", size = 214053554, upload-time = "2025-09-04T08:31:38.196Z" },
@@ -1202,9 +1203,9 @@ name = "nvidia-cusolver"
 version = "12.0.4.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas" },
-    { name = "nvidia-cusparse" },
-    { name = "nvidia-nvjitlink" },
+    { name = "nvidia-cublas", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-cusparse", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/c3/b30c9e935fc01e3da443ec0116ed1b2a009bb867f5324d3f2d7e533e776b/nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:02c2457eaa9e39de20f880f4bd8820e6a1cfb9f9a34f820eb12a155aa5bc92d2", size = 223467760, upload-time = "2025-09-04T08:33:04.222Z" },
@@ -1216,7 +1217,7 @@ name = "nvidia-cusparse"
 version = "12.6.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink" },
+    { name = "nvidia-nvjitlink", marker = "(python_full_version < '3.11' and sys_platform == 'emscripten') or (python_full_version < '3.11' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/94/5c26f33738ae35276672f12615a64bd008ed5be6d1ebcb23579285d960a9/nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:80bcc4662f23f1054ee334a15c72b8940402975e0eab63178fc7e670aa59472c", size = 162155568, upload-time = "2025-09-04T08:33:42.864Z" },
