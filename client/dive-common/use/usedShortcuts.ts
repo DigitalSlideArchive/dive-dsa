@@ -25,6 +25,10 @@ const usedShortcuts = [
   { key: '1', description: 'Switch to Rectangle Editing Mode' },
   { key: '2', description: 'Switch to Polygon Editing Mode' },
   { key: '3', description: 'Switch to Line Editing Mode' },
+  { key: '4', description: 'Switch to Time Editing Mode' },
+  { key: '5', description: 'Switch to Mask Editing Mode' },
+  { key: '6', description: 'Switch to Segment (SAM2 point-click) Mode' },
+  { key: 'enter', description: 'Confirm Segmentation' },
 ];
 
 export default usedShortcuts;

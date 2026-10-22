@@ -161,6 +161,21 @@ export function maskToLuminanceAlpha(maskData: Uint8Array, width: number, height
   }
   return luminanceAlphaData;
 }
+/**
+ * Convert a binary mask (1 = object, row-major, as produced by segmentation)
+ * to the LuminanceAlpha texture format used by the mask layer. Unlike
+ * `maskToLuminanceAlpha`, which expects COCO column-major data, this reads
+ * the mask in its native row-major order.
+ */
+export function binaryMaskToLuminanceAlpha(maskData: Uint8Array, width: number, height: number) {
+  const luminanceAlphaData = new Uint8Array(width * height * 2);
+  for (let i = 0; i < width * height; i += 1) {
+    const value = maskData[i] ? 255 : 0;
+    luminanceAlphaData[i * 2] = value;
+    luminanceAlphaData[i * 2 + 1] = value;
+  }
+  return luminanceAlphaData;
+}
 export function toBbox(rleObjs: RLEObject[]): BB {
   const Rs = _frString(rleObjs);
   const n = Rs._n;
@@ -552,4 +567,39 @@ export function imageToRLEObject(img: HTMLImageElement): RLEObject {
   const mask = new DataArray(binaryMask, [height, width, 1]);
   const rleObjs = encode(mask);
   return rleObjs[0]; // since we passed n = 1
+}
+
+/**
+ * Render a binary mask (1 = object, row-major) as an image: white where the
+ * mask is set, transparent elsewhere. This is the format mask uploads and
+ * `imageToRLEObject` expect.
+ */
+export function binaryMaskToImage(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+): Promise<HTMLImageElement> {
+  if (mask.length !== width * height) throw new Error('Invalid mask dimensions.');
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
+  const imageData = ctx.createImageData(width, height);
+  for (let i = 0; i < mask.length; i += 1) {
+    if (mask[i]) {
+      const j = i * 4;
+      imageData.data[j] = 255;
+      imageData.data[j + 1] = 255;
+      imageData.data[j + 2] = 255;
+      imageData.data[j + 3] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return new Promise((resolve, reject) => {
+    const img = new Image(width, height);
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not create mask image.'));
+    img.src = canvas.toDataURL('image/png');
+  });
 }

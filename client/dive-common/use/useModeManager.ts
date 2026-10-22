@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-restricted-syntax */
 import {
-  computed, Ref, reactive, ref, onBeforeUnmount, toRef,
+  computed, Ref, reactive, ref, onBeforeUnmount, toRef, watch,
 } from 'vue';
 import {
   uniq, flatMapDeep, flattenDeep, cloneDeep,
@@ -29,6 +29,15 @@ import {
 } from 'dive-common/use/useActions';
 import { deleteDiveDatasetMetadataKey, setDiveDatasetMetadataKey } from 'platform/web-girder/api/divemetadata.service';
 import { computeEditingDetails } from 'dive-common/use/editingModeInstructions';
+import PolygonBase from 'dive-common/recipes/polygonbase';
+import SegmentationPointClick, {
+  SegmentationPointsState, SegmentationPredictionResult,
+} from 'dive-common/recipes/segmentationpointclick';
+import {
+  applySegmentation, applySegmentationMask, applySegmentationMaskPreview,
+  restoreFeature, snapshotFeature, SegmentationSnapshot,
+} from 'dive-common/use/segmentation/segmentationTrack';
+import type { SegmentationMask } from 'dive-common/use/segmentation/types';
 
 type SupportedFeature = GeoJSON.Feature<GeoJSON.Point | GeoJSON.Polygon | GeoJSON.LineString>;
 
@@ -84,6 +93,47 @@ export default function useModeManager({
     datasetId: Ref<string | null>;
 }) {
   let creating = false;
+  /* Point-click segmentation session state (see the handlers below) */
+  const segmentationRecipe = recipes.find(
+    (r): r is SegmentationPointClick => r instanceof SegmentationPointClick,
+  );
+  const segmentationPoints = ref<SegmentationPointsState>({ points: [], labels: [], frameNum: -1 });
+  /**
+   * Unconfirmed mask-mode predictions, exposed so the annotator can render
+   * the binary mask itself (at preview opacity) instead of a polygon outline.
+   * Kept in sync with `segmentationPredictions` below.
+   */
+  const segmentationPreviewMasks = ref<{
+    trackId: AnnotationId; frameNum: number; mask: SegmentationMask;
+  }[]>([]);
+
+  let segmentationTarget: { trackId: AnnotationId; camera: string } | null = null;
+  const segmentationSnapshots = new Map<number, SegmentationSnapshot>();
+  /** Latest previewed prediction per frame, kept so accepting (e.g. by
+   * switching tools) can still turn a mask-mode preview into a mask. */
+  const segmentationPredictions = new Map<number, SegmentationPredictionResult>();
+
+  function syncSegmentationPreviewMasks() {
+    const target = segmentationTarget;
+    segmentationPreviewMasks.value = target
+      ? Array.from(segmentationPredictions.values())
+        .filter((result) => result.outputMode === 'mask' && !!result.mask)
+        .map((result) => ({
+          trackId: target.trackId,
+          frameNum: result.frameNum,
+          mask: result.mask as SegmentationMask,
+        }))
+      : [];
+  }
+  /** Platform hook that stores a confirmed binary mask (web: RLE upload). */
+  let createSegmentationMask: ((trackId: AnnotationId, frameNum: number, mask: SegmentationMask) => Promise<void>) | null = null;
+
+  function setSegmentationMaskCreator(
+    fn: (trackId: AnnotationId, frameNum: number, mask: SegmentationMask) => Promise<void>,
+  ) {
+    createSegmentationMask = fn;
+  }
+
   const { prompt, inputValue } = usePrompt();
   const annotationModes = reactive({
     visible: ['rectangle', 'Polygon', 'LineString', 'VisualMask', 'text', 'Time'] as VisibleAnnotationTypes[],
@@ -291,6 +341,10 @@ export default function useModeManager({
   }
 
   function handleSelectTrack(trackId: TrackId | null, edit = false) {
+    // Leaving the segmented detection (or its edit mode) discards an unconfirmed mask.
+    if (trackId !== selectedTrackId.value || !edit) {
+      cancelSegmentation();
+    }
     /**
      * If creating mode and editing and selectedTrackId is the same,
      * don't kick out of creating mode.  This happens when moving between
@@ -355,10 +409,14 @@ export default function useModeManager({
 
   //Handles deselection or hitting escape including while editing
   function handleEscapeMode(options?: { applyTrackRestore?: boolean }) {
+    // Restore before the empty-track check so an unconfirmed mask is not kept.
+    cancelSegmentation();
     if (selectedTrackId.value !== null) {
       const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-      if (track && track.begin === track.end) {
-        const features = track.getFeature(track.begin);
+      // A track whose only keyframe was removed (e.g. a discarded segmentation
+      // preview) has no features but no longer has begin === end.
+      if (track && (track.begin === track.end || track.featureIndex.length === 0)) {
+        const features = track.featureIndex.length ? track.getFeature(track.begin) : [];
         // If no features exist we remove the empty track
         if (!features.filter((item) => item !== null).length) {
           const trackStore = cameraStore.camMap.value.get(selectedCamera.value)?.trackStore;
@@ -762,6 +820,10 @@ export default function useModeManager({
     if (visible) {
       annotationModes.visible = visible;
     }
+    if (editing && recipeName !== segmentationRecipe?.name) {
+      // Switching tools keeps the segmentation preview as the detection's shape.
+      acceptSegmentation();
+    }
     if (editing) {
       annotationModes.editing = editing;
       _selectKey(key);
@@ -864,11 +926,292 @@ export default function useModeManager({
     handleGroupEdit(previousOrNext);
   }
 
+  /**
+   * Point-click segmentation. Each prediction is written to the selected
+   * detection as a preview; the keyframe from before the first prediction on
+   * each frame is kept so Reset/Escape can restore it.
+   */
+  function segmentationTrack() {
+    return segmentationTarget
+      ? cameraStore.getPossibleTrack(segmentationTarget.trackId, segmentationTarget.camera)
+      : undefined;
+  }
+
+  function handleSegmentationPoints(state: SegmentationPointsState) {
+    segmentationPoints.value = state;
+  }
+
+  function handleSegmentationPrediction(result: SegmentationPredictionResult) {
+    if (selectedTrackId.value === null) return;
+    const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
+    if (!track) return;
+    if (segmentationTarget?.trackId !== track.id || segmentationTarget.camera !== selectedCamera.value) {
+      segmentationSnapshots.clear();
+      segmentationTarget = { trackId: track.id, camera: selectedCamera.value };
+    }
+    if (!segmentationSnapshots.has(result.frameNum)) {
+      segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
+    }
+    segmentationPredictions.set(result.frameNum, result);
+    if (result.outputMode === 'mask' && result.mask) {
+      // Mask results are previewed as the mask itself (rendered from
+      // `segmentationPreviewMasks` at preview opacity), not as a traced
+      // polygon outline; the binary mask is only stored on confirm, so
+      // cancelling needs no cleanup beyond restoring the snapshot.
+      applySegmentationMaskPreview(track, result.frameNum, result.bounds);
+    } else {
+      applySegmentation(track, result.frameNum, result.polygons, result.bounds);
+    }
+    syncSegmentationPreviewMasks();
+    _nudgeEditingCanary();
+  }
+
+  function isMaskResult(result: SegmentationPredictionResult) {
+    return result.outputMode === 'mask' && !!result.mask && !!createSegmentationMask;
+  }
+
+  /**
+   * Write a confirmed result onto the track: a mask (flagged `hasMask`, no
+   * polygons) in mask mode, otherwise its polygons.
+   */
+  function applyConfirmedSegmentation(track: Track, result: SegmentationPredictionResult) {
+    if (isMaskResult(result)) {
+      applySegmentationMask(track, result.frameNum, result.bounds);
+      if (!annotationModes.visible.includes('Mask')) {
+        annotationModes.visible = [...annotationModes.visible, 'Mask'];
+      }
+    } else {
+      applySegmentation(track, result.frameNum, result.polygons, result.bounds);
+    }
+  }
+
+  /**
+   * Store confirmed binary masks through the platform hook, if any.
+   *
+   * Resolves with the mask results that could not be persisted (and reports
+   * the first failure). Callers must await this before flagging `hasMask`:
+   * flagging first and persisting fire-and-forget left the track pointing at
+   * a mask that does not exist whenever the upload failed (or the tab closed
+   * mid-upload and a manual Save landed first), so every reload warned
+   * "Missing RLE mask". `createSegmentationMask` (see
+   * `useMasks.createMaskFromBinary`) registers the mask locally before its
+   * upload, so by the time this resolves the render that `hasMask` triggers
+   * already finds the mask data.
+   */
+  async function persistSegmentationMasks(
+    trackId: AnnotationId,
+    frames: SegmentationPredictionResult[],
+  ): Promise<Set<SegmentationPredictionResult>> {
+    const failed = new Set<SegmentationPredictionResult>();
+    const masks = frames.filter(isMaskResult);
+    if (!masks.length || !createSegmentationMask) return failed;
+    const create = createSegmentationMask;
+    let firstError: unknown;
+    await Promise.all(masks.map(async (result) => {
+      try {
+        await create(trackId, result.frameNum, result.mask as SegmentationMask);
+      } catch (error) {
+        failed.add(result);
+        if (firstError === undefined) firstError = error;
+      }
+    }));
+    if (failed.size) {
+      handleSegmentationError(firstError instanceof Error ? firstError.message : 'Could not save the segmentation mask.');
+    }
+    return failed;
+  }
+
+  /**
+   * Persist any mask results, then write the confirmed results onto the
+   * track. A frame whose mask could not be stored is put back exactly as it
+   * was before the session (its snapshot), never flagged `hasMask`; frames
+   * that persisted (and plain polygon results) are applied. Returns the
+   * results that were applied.
+   */
+  async function applyConfirmedSegmentationFrames(
+    track: Track,
+    frames: SegmentationPredictionResult[],
+    snapshots: Map<number, SegmentationSnapshot>,
+  ): Promise<SegmentationPredictionResult[]> {
+    const failed = await persistSegmentationMasks(track.id, frames);
+    const applied: SegmentationPredictionResult[] = [];
+    frames.forEach((result) => {
+      if (failed.has(result)) {
+        const snapshot = snapshots.get(result.frameNum);
+        if (snapshot) restoreFeature(track, result.frameNum, snapshot);
+      } else {
+        applyConfirmedSegmentation(track, result);
+        applied.push(result);
+      }
+    });
+    if (failed.size) _nudgeEditingCanary();
+    return applied;
+  }
+
+  function clearSegmentationSession() {
+    segmentationSnapshots.clear();
+    segmentationPredictions.clear();
+    segmentationTarget = null;
+    syncSegmentationPreviewMasks();
+  }
+
+  /** Keep the previewed result; nothing left to restore. */
+  function acceptSegmentation() {
+    const track = segmentationTrack();
+    const pending = Array.from(segmentationPredictions.values());
+    // Capture the snapshots before clearing the session: they are the only
+    // way to put a frame back if its mask cannot be persisted.
+    const snapshots = new Map(segmentationSnapshots);
+    clearSegmentationSession();
+    if (!track || !pending.length) return;
+    if (!pending.some(isMaskResult)) {
+      pending.forEach((result) => applyConfirmedSegmentation(track, result));
+      return;
+    }
+    // Await persistence before flagging `hasMask` (see
+    // persistSegmentationMasks), so a Save while an upload is pending or
+    // after it failed cannot persist a mask flag with no mask behind it.
+    applyConfirmedSegmentationFrames(track, pending, snapshots);
+  }
+
+  /** Put every frame the session changed back as it was. */
+  function restoreSegmentation() {
+    const track = segmentationTrack();
+    if (track) {
+      segmentationSnapshots.forEach((snapshot, frameNum) => restoreFeature(track, frameNum, snapshot));
+    }
+    segmentationSnapshots.clear();
+    segmentationPredictions.clear();
+    segmentationTarget = null;
+    syncSegmentationPreviewMasks();
+    _nudgeEditingCanary();
+  }
+
+  /** Leave point placement for a mode that edits normally. */
+  function leaveSegmentationMode() {
+    if (annotationModes.editing === 'Point') {
+      annotationModes.editing = 'rectangle';
+    }
+  }
+
+  /** Abandon an unconfirmed segmentation, e.g. on selection change. */
+  function cancelSegmentation() {
+    if (!segmentationRecipe) return;
+    const hadSession = segmentationRecipe.active.value || segmentationRecipe.loading.value
+      || segmentationSnapshots.size > 0;
+    if (segmentationSnapshots.size) restoreSegmentation();
+    if (segmentationRecipe.active.value || segmentationRecipe.loading.value) {
+      segmentationRecipe.deactivate();
+    }
+    if (hadSession) leaveSegmentationMode();
+  }
+
+  /** Post-confirm bookkeeping for the results that were actually applied. */
+  function finishSegmentationConfirmed(track: Track, applied: SegmentationPredictionResult[]) {
+    const madeMask = applied.some(isMaskResult);
+    const trackId = track.id;
+    newTrackSettingsAfterLogic(track);
+    if (creating && segmentationRecipe) {
+      // Continuous creation (next detection or auto-advanced frame): keep segmenting.
+      segmentationRecipe.activate();
+    } else if (!madeMask && selectedTrackId.value === trackId && editingTrack.value) {
+      // Refine the result like any drawn polygon.
+      const polygonRecipe = recipes.find((r): r is PolygonBase => r instanceof PolygonBase);
+      if (polygonRecipe) {
+        polygonRecipe.activate();
+      } else {
+        leaveSegmentationMode();
+      }
+    } else {
+      // A mask has no polygon vertices to refine; return to box editing
+      // with the Mask layer visible so the result shows.
+      leaveSegmentationMode();
+    }
+  }
+
+  function handleSegmentationConfirmed(frames: SegmentationPredictionResult[]) {
+    const track = segmentationTrack()
+      ?? (selectedTrackId.value !== null
+        ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
+        : undefined);
+    // Capture the snapshots before clearing the session: they are the only
+    // way to put a frame back if its mask cannot be persisted.
+    const snapshots = new Map(segmentationSnapshots);
+    // Clear the session first (listeners may restart it), then re-apply:
+    // polygon results are already previewed, mask results replace the
+    // preview mask with a stored mask.
+    clearSegmentationSession();
+    if (!track) return;
+    if (!frames.some(isMaskResult)) {
+      frames.forEach((result) => applyConfirmedSegmentation(track, result));
+      finishSegmentationConfirmed(track, frames);
+      return;
+    }
+    // Await persistence before flagging `hasMask` (see acceptSegmentation):
+    // frames whose mask upload failed are restored from their snapshots
+    // instead of being left flagged with no mask stored.
+    (async () => {
+      const applied = await applyConfirmedSegmentationFrames(track, frames, snapshots);
+      if (!applied.length) {
+        // Nothing was confirmed: the detection is back as it was, so there
+        // is no result to refine or advance from.
+        leaveSegmentationMode();
+        return;
+      }
+      finishSegmentationConfirmed(track, applied);
+    })();
+  }
+
+  function handleSegmentationReset() {
+    restoreSegmentation();
+  }
+
+  function handleSegmentationCancelled() {
+    restoreSegmentation();
+    leaveSegmentationMode();
+    _nudgeEditingCanary();
+  }
+
+  function handleSegmentationError(message: string) {
+    prompt({
+      title: 'Segmentation Error',
+      text: [message],
+    });
+  }
+
+  function confirmSegmentation() {
+    segmentationRecipe?.confirm();
+  }
+
+  if (segmentationRecipe) {
+    const currentFrame = () => {
+      try {
+        return aggregateController.value.frame.value;
+      } catch {
+        // No camera controllers until the media has loaded.
+        return undefined;
+      }
+    };
+    watch(currentFrame, (frame) => {
+      if (frame !== undefined) segmentationRecipe.handleFrameChange(frame);
+    });
+  }
+
   /* Subscribe to recipe activation events */
   recipes.forEach((r) => r.bus.$on('activate', handleSetAnnotationState));
+  const segmentationEvents: [string, (...args: any[]) => void][] = [
+    ['points-updated', handleSegmentationPoints],
+    ['prediction-ready', handleSegmentationPrediction],
+    ['prediction-confirmed', handleSegmentationConfirmed],
+    ['prediction-reset', handleSegmentationReset],
+    ['prediction-cancelled', handleSegmentationCancelled],
+    ['prediction-error', handleSegmentationError],
+  ];
+  segmentationEvents.forEach(([event, fn]) => segmentationRecipe?.bus.$on(event, fn));
   /* Unsubscribe before unmount */
   onBeforeUnmount(() => {
     recipes.forEach((r) => r.bus.$off('activate', handleSetAnnotationState));
+    segmentationEvents.forEach(([event, fn]) => segmentationRecipe?.bus.$off(event, fn));
   });
 
   function addFullFrameTrack(type: string, trackLength = -1) {
@@ -1132,6 +1475,10 @@ export default function useModeManager({
     diveMetadataRootId,
     selectNextTrack,
     setDeleteLocalMasks,
+    setSegmentationMaskCreator,
+    segmentationPoints,
+    segmentationPreviewMasks,
+    confirmSegmentation,
     handler: {
       commitMerge: handleCommitMerge,
       groupAdd: handleAddGroup,

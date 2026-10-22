@@ -11,7 +11,8 @@ export default defineComponent({
   },
   setup() {
     const configMan = useConfiguration();
-    const editVisTypes = ref(['bounding box', 'polygon', 'line', 'time']);
+    // Order matches the UIEditingTypes indexes used by EditorMenu.
+    const editVisTypes = ref(['bounding box', 'polygon', 'line', 'time', 'mask', 'segment']);
     const visTypes = ref(['bounding box', 'polygon', 'line', 'time', 'text', 'tooltip']);
     const transferArr = (data: boolean[], typesUsed: Ref<string[]>) => {
       const results: string[] = [];
@@ -24,7 +25,7 @@ export default defineComponent({
     };
 
     const UIEditingInfo = ref(configMan.getUISetting('UIEditingInfo') as boolean);
-    const UIEditingTypes = ref(isObject(configMan.getUISetting('UIEditingTypes')) ? transferArr(configMan.getUISetting('UIEditingTypes') as boolean[], editVisTypes) : ['bounding box', 'polygon', 'line', 'time']);
+    const UIEditingTypes = ref(isObject(configMan.getUISetting('UIEditingTypes')) ? transferArr(configMan.getUISetting('UIEditingTypes') as boolean[], editVisTypes) : [...editVisTypes.value]);
     const UIVisibility = ref(isObject(configMan.getUISetting('UIVisibility')) ? transferArr(configMan.getUISetting('UIVisibility') as boolean[], visTypes) : ['bounding box', 'polygon', 'line', 'time']);
     const UITrackTrails = ref(configMan.getUISetting('UITrackTrails') as boolean);
 

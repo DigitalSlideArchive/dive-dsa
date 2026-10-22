@@ -149,6 +149,36 @@ const GroupFilterControlsSymbol = Symbol('groupFilters');
 const VisualMaskManagerSymbol = Symbol('visualMaskManager');
 
 /**
+ * Interactive point-prompt segmentation feedback for the annotation layers.
+ * Optional: annotators without a segmentation tool simply show no points.
+ */
+export interface SegmentationPromptState {
+  /** Prompt points for one frame of the selected camera */
+  points: Readonly<Ref<{ points: [number, number][]; labels: number[]; frameNum: number }>>;
+  /**
+   * Unconfirmed mask-mode predictions for the selected camera, rendered as
+   * masks (not polygon outlines) until confirmed or cancelled. Optional so
+   * annotators without mask output simply show no preview mask.
+   */
+  previewMasks?: Readonly<Ref<readonly {
+    trackId: AnnotationId;
+    frameNum: number;
+    mask: { data: Uint8Array; width: number; height: number };
+  }[]>>;
+  /** Confirm the in-progress segmentation (right click while placing points) */
+  confirm: () => void;
+}
+const SegmentationPromptSymbol = Symbol('segmentationPrompt');
+
+function provideSegmentationPrompt(state: SegmentationPromptState) {
+  provide(SegmentationPromptSymbol, state);
+}
+
+function useSegmentationPrompt(): SegmentationPromptState | null {
+  return inject<SegmentationPromptState | null>(SegmentationPromptSymbol, null);
+}
+
+/**
  * Handler interface describes all global events mutations
  * for above state
  */
@@ -435,6 +465,10 @@ function dummyState(): State {
           resolve();
         }),
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        createMaskFromBinary: (trackId: number, frameId: number, mask: { data: Uint8Array, width: number, height: number }) => new Promise<void>((resolve) => {
+          resolve();
+        }),
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         deleteMaskFrame: (trackId: number) => new Promise<void>((resolve) => {
           // Add your implementation logic here
           resolve();
@@ -663,4 +697,6 @@ export {
   useImageEnhancements,
   useAttributesFilters,
   useTimelineFilters,
+  provideSegmentationPrompt,
+  useSegmentationPrompt,
 };

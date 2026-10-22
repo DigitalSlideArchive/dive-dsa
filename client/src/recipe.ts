@@ -28,6 +28,8 @@ interface Recipe {
   icon: Ref<string>;
   active: Ref<boolean>;
   toggleable: Ref<boolean>;
+  /** Hotkey for the toolbar button; defaults to the button's position. */
+  hotkey?: string;
   bus: Vue;
   update: (
     mode: 'in-progress' | 'editing',

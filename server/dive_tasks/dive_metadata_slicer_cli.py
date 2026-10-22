@@ -131,11 +131,20 @@ def cliSubHandler(cliItem, params, user, token, datalist=None):
         container_args=container_args,
         **job_kwargs,
     )
+    # Persist via updateJob(otherFields=...) rather than load + Job().save():
+    # save() rewrites the whole document, so it can clobber the worker's
+    # task_prerun INACTIVE -> RUNNING update back to INACTIVE, after which
+    # FETCHING_INPUT (only valid from RUNNING) fails with a 400.
     jobRecord = Job().load(job.job['_id'], force=True)
-    job.job['_original_params'] = jobRecord['_original_params'] = original_params
-    job.job['_original_name'] = jobRecord['_original_name'] = cliItem.name
-    job.job['_original_path'] = jobRecord['_original_path'] = cliItem.restBasePath
-    Job().save(jobRecord)
+    jobRecord = Job().updateJob(
+        jobRecord,
+        otherFields={
+            '_original_params': original_params,
+            '_original_name': cliItem.name,
+            '_original_path': cliItem.restBasePath,
+        },
+    )
+    job._job = jobRecord
     return jobRecord
 
 
