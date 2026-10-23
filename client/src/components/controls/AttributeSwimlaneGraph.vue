@@ -231,8 +231,7 @@ export default defineComponent({
 
     /**
      * Frames whose appearance depends on the playhead. Covers both ends of every subsection
-     * because a boundary landing on the current frame both highlights its icon and forces
-     * that icon to be drawn even when it would otherwise be skipped as part of a cluster.
+     * because a boundary landing on the current frame highlights its icon and draws it on top.
      */
     const highlightFrames = computed(() => {
       const frames = new Set<number>();
@@ -376,7 +375,6 @@ export default defineComponent({
         }
 
         const iconMidline = bar.top + barHeight / 2;
-        let lastIconEdge = -Infinity;
         // Adjacent subsections resolving to the same color are merged into one fillRect
         let pendingColor: string | null = null;
         let pendingLeft = 0;
@@ -418,33 +416,27 @@ export default defineComponent({
             pendingRight = left + width;
           }
           if (drawSymbols) {
-            // Icons are ~10px wide, so only draw one per cluster unless it marks the
-            // playhead or the hovered zone, which must always stay visible. Begin and end
-            // markers are gated independently so a dense begin cluster cannot drop an end
-            // diamond that sits further right.
-            const beginHighlighted = sub.begin === currentFrame || sub.begin === hovered;
-            const endHighlighted = sub.end === currentFrame || sub.end === hovered;
-            const tryQueueIcon = (
-              xFrame: number,
-              xPosition: number,
-              symbol: 'diamond' | 'arrows',
-              highlighted: boolean,
-            ) => {
-              if (!highlighted && xPosition < lastIconEdge) {
-                return;
-              }
-              pendingIcons.push({
-                xFrame, xPosition, yPosition: iconMidline, symbol, highlighted,
-              });
-              lastIconEdge = Math.max(lastIconEdge, xPosition + 6);
-            };
+            // Every keyframe gets an icon, even when neighbours overlap, so annotators can
+            // see each graded frame. Playhead and hovered icons are flagged to draw on top.
             if (!sub.singleVal || renderMode !== 'segments') {
               const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
-              tryQueueIcon(sub.begin, left, symbol, beginHighlighted);
+              pendingIcons.push({
+                xFrame: sub.begin,
+                xPosition: left,
+                yPosition: iconMidline,
+                symbol,
+                highlighted: sub.begin === currentFrame || sub.begin === hovered,
+              });
             }
             if (renderMode === 'segments') {
               const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              tryQueueIcon(sub.end, right, endSymbol, endHighlighted);
+              pendingIcons.push({
+                xFrame: sub.end,
+                xPosition: right,
+                yPosition: iconMidline,
+                symbol: endSymbol,
+                highlighted: sub.end === currentFrame || sub.end === hovered,
+              });
             }
           }
         });
