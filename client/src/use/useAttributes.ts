@@ -6,7 +6,7 @@ import {
 import { cloneDeep } from 'lodash';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import * as d3 from 'd3';
-import StyleManager, { Track } from '..';
+import { StyleManager, Track } from '..';
 import createGetAttributeValueColor from './attributeValueColor';
 import CameraStore from '../CameraStore';
 import { LineChartData } from './useLineChart';
@@ -601,7 +601,7 @@ export default function UseAttributes(
     baseAttribute?: Attribute,
     settings?: Record<string, SwimlaneGraphSettings>,
     colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
-    renderMode?: SwimlaneGraph['displaySettings']['renderMode'],
+    renderMode?: DisplayTrackFilterSettings['renderMode'],
   ): string | boolean | number | undefined | null {
     if (key === 'userAttributes') {
       return null;
@@ -667,12 +667,8 @@ export default function UseAttributes(
       }
       const subSections = valueMap[key].data;
       const openSection = subSections.length ? subSections[subSections.length - 1] : undefined;
-      if (openSection !== undefined && openSection.value === val) {
-        // Same value continues, so grow the open run rather than starting a new subsection
-        openSection.end = frame + 1;
-        openSection.singleVal = (openSection.end - openSection.begin) === 1 ? true : undefined;
-        return val;
-      }
+      // Every keyframe starts its own subsection, even when the value repeats, so each one
+      // gets a frame indicator. Same-colored neighbours are merged into one fill when drawn.
       if (openSection !== undefined) {
         openSection.end = frame;
         openSection.singleVal = (openSection.end - openSection.begin) === 1 ? true : undefined;
@@ -695,7 +691,7 @@ export default function UseAttributes(
     filter: SwimlaneFilter,
     settings?: Record<string, SwimlaneGraphSettings>,
     colorScalingNumbers?: Record<string, (data: string | number | boolean) => string>,
-    renderMode?: SwimlaneGraph['displaySettings']['renderMode'],
+    renderMode?: DisplayTrackFilterSettings['renderMode'],
   ) {
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, SwimlaneAttribute> = { };
