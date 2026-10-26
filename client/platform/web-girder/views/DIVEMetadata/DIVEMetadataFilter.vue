@@ -15,6 +15,7 @@ import DIVEMetadataSlicerVue from './DIVEMetadataSlicer.vue';
 import DIVEMetadataExportVue from './DIVEMetadataExport.vue';
 import DIVEMetadataImportVue from './DIVEMetadataImport.vue';
 import DIVEMetadataIndexFolderVue from './DIVEMetadataIndexFolder.vue';
+import MetadataLaunchConfigs from './MetadataLaunchConfigs.vue';
 
 export default defineComponent({
   name: 'DIVEMetadataFilter',
@@ -25,6 +26,7 @@ export default defineComponent({
     DIVEMetadataExportVue,
     DIVEMetadataImportVue,
     DIVEMetadataIndexFolderVue,
+    MetadataLaunchConfigs,
   },
   props: {
     currentPage: {
@@ -365,6 +367,11 @@ export default defineComponent({
           </v-icon>
           Edit Filters
         </v-btn>
+        <MetadataLaunchConfigs
+          v-if="ownerAdmin"
+          :folder-id="id"
+          @updated="$emit('launch-configs-updated')"
+        />
 
         <v-spacer />
         <DIVEMetadataSlicerVue v-if="showSlicerCLI" :filters="currentFilter" :metadata-root="id" class="mr-2" @job-complete="jobCompleted()" />

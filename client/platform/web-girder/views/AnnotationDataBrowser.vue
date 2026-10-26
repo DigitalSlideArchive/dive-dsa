@@ -11,11 +11,14 @@ import { getFolder } from 'platform/web-girder/api/girder.service';
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
 import { useHandler } from 'vue-media-annotator/provides';
 import { useStore } from '../store/types';
+import { useLaunchConfigs } from '../use/useLaunchConfigs';
+import LaunchButtons from './LaunchButtons.vue';
 
 export default defineComponent({
   components: {
     GirderFileManager,
     TooltipButton,
+    LaunchButtons,
   },
   props: {
     datasetId: {
@@ -63,6 +66,11 @@ export default defineComponent({
       localDiveMetadataRootId.value = getDiveMetadataRootId();
     });
 
+    const { launchConfigs, load } = useLaunchConfigs();
+    watch(location, (loc) => {
+      load(loc && loc._modelType === 'folder' ? loc._id : null);
+    }, { immediate: true });
+
     const queryParams = computed(() => {
       const params: Record<string, string> = {};
       if (localDiveMetadataRootId.value !== null && (location.value?._id === (locationStore.location as GirderModel)?._id)) {
@@ -80,6 +88,7 @@ export default defineComponent({
       itemsPerPageOptions,
       showDialog,
       location,
+      launchConfigs,
       /* methods */
       isAnnotationFolder,
       setLocation,
@@ -139,16 +148,12 @@ export default defineComponent({
               >
                 mdi-autorenew
               </v-icon>
-              <v-btn
+              <launch-buttons
                 v-if="isAnnotationFolder(item)"
-                class="ml-2"
-                x-small
-                color="primary"
-                depressed
-                :to="{ name: 'viewer', params: { id: item._id }, query: queryParams }"
-              >
-                Launch Annotator
-              </v-btn>
+                :dataset-id="item._id"
+                :launch-configs="launchConfigs"
+                :extra-query="queryParams"
+              />
               <v-chip
                 v-if="(item.foreign_media_id)"
                 color="white"
