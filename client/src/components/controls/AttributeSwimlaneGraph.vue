@@ -231,8 +231,7 @@ export default defineComponent({
 
     /**
      * Frames whose appearance depends on the playhead. Covers both ends of every subsection
-     * because a boundary landing on the current frame both highlights its icon and forces
-     * that icon to be drawn even when it would otherwise be skipped as part of a cluster.
+     * because a boundary landing on the current frame highlights its icon.
      */
     const highlightFrames = computed(() => {
       const frames = new Set<number>();
@@ -346,24 +345,12 @@ export default defineComponent({
       const scale = x.value;
       const renderMode = props.displaySettings?.renderMode;
       const drawSymbols = showSymbols.value;
-      const currentFrame = frame.value;
-      const hovered = hoveredZone.value;
       const visibleStart = startFrame_.value;
       const visibleEnd = endFrame_.value;
       // Discrete boxes are widened to minWidth, so keep a margin before culling
       const cullPadding = Math.max(1, (visibleEnd - visibleStart) * 0.02);
       const cullStart = visibleStart - cullPadding;
       const cullEnd = visibleEnd + cullPadding;
-
-      // Frame indicators are queued and drawn after every segment fill so that neither a
-      // neighbouring subsection nor a deferred merged fill can paint over them.
-      const pendingIcons: {
-        xFrame: number;
-        xPosition: number;
-        yPosition: number;
-        symbol: 'diamond' | 'arrows';
-        highlighted: boolean;
-      }[] = [];
 
       barList.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
@@ -374,20 +361,6 @@ export default defineComponent({
           ctx.fillStyle = bar.backgroundColor;
           ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
         }
-
-        const iconMidline = bar.top + barHeight / 2;
-        let lastIconEdge = -Infinity;
-        // Adjacent subsections resolving to the same color are merged into one fillRect
-        let pendingColor: string | null = null;
-        let pendingLeft = 0;
-        let pendingRight = 0;
-        const flushPending = () => {
-          if (pendingColor !== null && pendingRight > pendingLeft) {
-            ctx.fillStyle = pendingColor;
-            ctx.fillRect(pendingLeft, bar.top, pendingRight - pendingLeft, barHeight);
-          }
-          pendingColor = null;
-        };
 
         bar.subSections.forEach((sub, index) => {
           const dragging = dragData.isDragging
@@ -408,59 +381,19 @@ export default defineComponent({
           const width = renderMode === 'discrete'
             ? Math.max(right - left, bar.minWidth)
             : right - left;
-          const fillColor = sub.color || 'white';
-          if (pendingColor === fillColor && left <= pendingRight + 0.5) {
-            pendingRight = Math.max(pendingRight, left + width);
-          } else {
-            flushPending();
-            pendingColor = fillColor;
-            pendingLeft = left;
-            pendingRight = left + width;
-          }
+          ctx.fillStyle = sub.color || 'white';
+          ctx.fillRect(left, bar.top, width, barHeight);
           if (drawSymbols) {
-            // Icons are ~10px wide, so only draw one per cluster unless it marks the
-            // playhead or the hovered zone, which must always stay visible. Begin and end
-            // markers are gated independently so a dense begin cluster cannot drop an end
-            // diamond that sits further right.
-            const beginHighlighted = sub.begin === currentFrame || sub.begin === hovered;
-            const endHighlighted = sub.end === currentFrame || sub.end === hovered;
-            const tryQueueIcon = (
-              xFrame: number,
-              xPosition: number,
-              symbol: 'diamond' | 'arrows',
-              highlighted: boolean,
-            ) => {
-              if (!highlighted && xPosition < lastIconEdge) {
-                return;
-              }
-              pendingIcons.push({
-                xFrame, xPosition, yPosition: iconMidline, symbol, highlighted,
-              });
-              lastIconEdge = Math.max(lastIconEdge, xPosition + 6);
-            };
+            const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
             if (!sub.singleVal || renderMode !== 'segments') {
-              const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
-              tryQueueIcon(sub.begin, left, symbol, beginHighlighted);
+              drawIcon(ctx, sub.begin, left, bar.top + barHeight / 2, symbol);
             }
             if (renderMode === 'segments') {
               const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              tryQueueIcon(sub.end, right, endSymbol, endHighlighted);
+              drawIcon(ctx, sub.end, right, bar.top + barHeight / 2, endSymbol);
             }
           }
         });
-        flushPending();
-      });
-
-      // Highlighted indicators go last so the playhead and hovered markers sit above their neighbours
-      pendingIcons.forEach((icon) => {
-        if (!icon.highlighted) {
-          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
-        }
-      });
-      pendingIcons.forEach((icon) => {
-        if (icon.highlighted) {
-          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
-        }
       });
     };
 
