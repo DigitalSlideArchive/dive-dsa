@@ -42,10 +42,6 @@ export default defineComponent({
       next.value = configMap.prevNext.value?.next;
     });
 
-    const gotoId = (id: string) => {
-      router.push({ name: 'viewer', params: { id } });
-    };
-
     const queryStringParams = ref('');
     watch(getDiveMetadataRootId, (newval) => {
       diveMetadataRootId.value = newval;
@@ -59,6 +55,12 @@ export default defineComponent({
       }
       queryStringParams.value = params.length ? `?${params.join('&')}` : '';
     }, { immediate: true });
+
+    const gotoId = (id: string) => {
+      // Keep session overrides (configFolderId, diveMetadataRootId) on keyboard
+      // Prev/Next the same way click navigation does via :to + queryStringParams.
+      router.push(`/viewer/${id}${queryStringParams.value}`);
+    };
 
     return {
       previous,
