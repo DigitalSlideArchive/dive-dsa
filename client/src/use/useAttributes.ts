@@ -17,20 +17,9 @@ import {
   TimelineGraph, TimelineAttribute, TimelineGraphSettings, TimeLineFilter, SwimlaneGraph, SwimlaneFilter, SwimlaneGraphSettings, SwimlaneAttribute,
 } from './AttributeTypes';
 import {
+  getDisplayTrackId,
   normalizeDisplaySettings,
-  parsePinnedTrackId,
 } from './displayTrackFilterSettings';
-
-function getDisplayTrackId(
-  displaySettings?: DisplayTrackFilterSettings,
-  selectedTrackId: number | null = null,
-): number | null {
-  const settings = normalizeDisplaySettings(displaySettings);
-  if (settings?.display === 'pinned') {
-    return parsePinnedTrackId(settings.pinnedTrackId);
-  }
-  return selectedTrackId;
-}
 
 function isDisplayFiltered(
   displaySettings?: DisplayTrackFilterSettings,
