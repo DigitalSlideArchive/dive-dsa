@@ -14,6 +14,7 @@ import {
   useAttributes, useCameraStore, useSelectedTrackId, useTime,
 } from 'vue-media-annotator/provides';
 import { SwimlaneAttribute, SwimlaneData, SwimlaneGraph } from 'vue-media-annotator/use/AttributeTypes';
+import { getDisplayTrackId } from 'vue-media-annotator/use/displayTrackFilterSettings';
 import { mdiArrowLeftRightBold } from '@mdi/js';
 import { useStore } from 'platform/web-girder/store/types';
 import { injectAggregateController } from '../annotators/useMediaController';
@@ -114,9 +115,11 @@ export default defineComponent({
     function updateAttribute({
       name, updateFrame, value, belongs,
     }: { name: string; updateFrame: number, value: unknown; belongs: 'track' | 'detection' }) {
-      if (selectedTrackIdRef.value !== null) {
+      // Edit the track this swimlane displays, which is the pinned track when one is set
+      const trackId = getDisplayTrackId(props.displaySettings, selectedTrackIdRef.value);
+      if (trackId !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
-        const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
+        const tracks = cameraStore.getTrackAll(trackId);
         const user = getAttributeUser({ name, belongs });
         if (tracks.length) {
           if (belongs === 'track') {
@@ -211,20 +214,24 @@ export default defineComponent({
       symbolGenerator.value = d3.symbol().type(d3.symbolDiamond);
     };
 
+    /**
+     * Sorted, de-duplicated frames of the icons actually drawn for each bar (mirrors baseUpdate),
+     * so hit testing never snaps to an icon that isn't on screen.
+     */
     const iconFrames = computed(() => {
       const barFrames: Record<string, number[]> = {};
-      const barList = bars.value;
-      if (!barList.length) {
-        return barFrames;
-      }
-      barList.forEach((bar) => {
-        barFrames[bar.id] = [];
+      const renderMode = props.displaySettings?.renderMode;
+      bars.value.forEach((bar) => {
+        const frames = new Set<number>();
         bar.subSections.forEach((sub) => {
-          barFrames[bar.id].push(sub.begin);
-          if (props.displaySettings?.renderMode === 'segments') {
-            barFrames[bar.id].push(sub.end);
+          if (!sub.singleVal || renderMode !== 'segments') {
+            frames.add(sub.begin);
+          }
+          if (renderMode === 'segments') {
+            frames.add(sub.end);
           }
         });
+        barFrames[bar.id] = [...frames].sort((a, b) => a - b);
       });
       return barFrames;
     });
@@ -244,37 +251,31 @@ export default defineComponent({
       return frames;
     });
 
-    const interactiveZones = computed(() => {
-      const zones: Record<string, {frame: number, start: number; end:number}[]> = {};
-      Object.keys(iconFrames.value).forEach((key) => {
-        zones[key] = [];
-        const iconFramesVal = iconFrames.value[key];
+    // Max horizontal pixel distance from a diamond's center that still counts as hovering it
+    const iconHitRadius = 8;
 
-        const frames = [...iconFramesVal].sort((a, b) => a - b);
-        const baseWidth = Math.round((props.endFrame - props.startFrame) * 0.01) || 1; // Number of frames to extend on each side
-
-        for (let i = 0; i < frames.length; i += 1) {
-          const current = frames[i];
-          const prev = frames[i - 1] ?? -Infinity;
-          const next = frames[i + 1] ?? Infinity;
-
-          // Calculate distance to neighboring frames
-          const distPrev = current - prev;
-          const distNext = next - current;
-
-          // Adjust width to prevent overlap
-          const leftWidth = Math.min(baseWidth, Math.floor(distPrev / 2));
-          const rightWidth = Math.min(baseWidth, Math.floor(distNext / 2));
-
-          zones[key].push({
-            frame: current,
-            start: current - leftWidth,
-            end: current + rightWidth,
-          });
+    /**
+     * Find the drawn icon nearest the cursor, restricted to the bar row under the cursor.
+     */
+    const findIconAtCursor = (offsetX: number, offsetY: number) => {
+      const bar = bars.value[Math.floor(offsetY / 30)];
+      if (!bar) return null;
+      const frames = iconFrames.value[bar.id];
+      if (!frames?.length) return null;
+      const scale = x.value;
+      const idx = d3.bisectLeft(frames, scale.invert(offsetX));
+      let best: number | null = null;
+      let bestDist = iconHitRadius;
+      [frames[idx - 1], frames[idx]].forEach((f) => {
+        if (f === undefined) return;
+        const dist = Math.abs(scale(f) - offsetX);
+        if (dist <= bestDist) {
+          best = f;
+          bestDist = dist;
         }
       });
-      return zones;
-    });
+      return best === null ? null : { frame: best as number, barId: bar.id };
+    };
 
     const getSymbolPath = (type: 'diamond' | 'arrows', size: number) => {
       if (type === 'arrows') {
@@ -283,7 +284,14 @@ export default defineComponent({
       return new Path2D(symbolGenerator.value.size(size)());
     };
 
-    const drawIcon = (ctx: CanvasRenderingContext2D, xFrame: number, xPosition: number, yPosition: number, symbol: 'diamond' | 'arrows' = 'diamond') => {
+    const drawIcon = (
+      ctx: CanvasRenderingContext2D,
+      barId: string,
+      xFrame: number,
+      xPosition: number,
+      yPosition: number,
+      symbol: 'diamond' | 'arrows' = 'diamond',
+    ) => {
       let fillColor = xFrame === frame.value ? 'cyan' : 'white';
       let symbolSize = xFrame === frame.value ? 100 : 50;
       let thickness = xFrame === frame.value ? 2 : 1;
@@ -294,7 +302,7 @@ export default defineComponent({
         fillColor = 'yellow';
       }
 
-      if (hoveredZone.value !== null && xFrame === hoveredZone.value) {
+      if (hoveredZone.value !== null && xFrame === hoveredZone.value && barId === hoveredAttributeType.value) {
         if (props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
           symbol = 'arrows';
         }
@@ -386,11 +394,11 @@ export default defineComponent({
           if (drawSymbols) {
             const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
             if (!sub.singleVal || renderMode !== 'segments') {
-              drawIcon(ctx, sub.begin, left, bar.top + barHeight / 2, symbol);
+              drawIcon(ctx, bar.id, sub.begin, left, bar.top + barHeight / 2, symbol);
             }
             if (renderMode === 'segments') {
               const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              drawIcon(ctx, sub.end, right, bar.top + barHeight / 2, endSymbol);
+              drawIcon(ctx, bar.id, sub.end, right, bar.top + barHeight / 2, endSymbol);
             }
           }
         });
@@ -412,13 +420,6 @@ export default defineComponent({
       if (!bar) {
         hoverTrack.value = null;
         return false;
-      }
-      const dragSubSectionIndex = bar.subSections.findIndex((s) => hoveredZone.value === s.begin || hoveredZone.value === s.end);
-      if (dragData.isDragging && dragSubSectionIndex !== -1 && dragData.draggedSubsectionIndex === null) {
-        dragData.draggedSubsectionIndex = dragSubSectionIndex;
-        const sub = bar.subSections[dragSubSectionIndex];
-        dragData.dragBarName = bar.name;
-        dragData.draggingValue = sub.value || 'None';
       }
       const subIndex = bar.subSections.findIndex((s) => {
         const left = x.value(s.begin);
@@ -459,8 +460,6 @@ export default defineComponent({
       const hovering = detectBarHovering(e);
       if (!hovering) {
         tooltip.value = null;
-        hoveredZone.value = null;
-        hoveredAttributeType.value = null;
       }
       const { offsetX } = e;
       const frameAtCursor = x.value.invert(offsetX);
@@ -470,43 +469,22 @@ export default defineComponent({
         update();
       }
 
-      hoveredZone.value = null;
-      hoveredAttributeType.value = null;
-      if (showSymbols.value) {
-        const zoneKeys = Object.keys(interactiveZones.value);
-
-        let found = dragData.isDragging;
-        for (let i = 0; i < zoneKeys.length; i += 1) {
-          const zones = interactiveZones.value[zoneKeys[i]];
-          for (let k = 0; k < zones.length; k += 1) {
-            const zone = zones[k];
-            if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
-              hoveredZone.value = zone.frame;
-              hoveredAttributeType.value = zoneKeys[i];
-              if (!dragData.isDragging && props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
-                hoveredState.value = 'hover-grab';
-              }
-              found = true;
-              break;
-            }
-          }
-          if (found) {
-            break;
-          }
-        }
-        if (!found && !dragData.isDragging) {
-          hoveredState.value = 'hover-cursor';
-        }
+      if (dragData.isDragging) {
+        hoveredZone.value = null;
+        hoveredAttributeType.value = null;
+        return;
+      }
+      const icon = showSymbols.value ? findIconAtCursor(offsetX, e.offsetY) : null;
+      hoveredZone.value = icon?.frame ?? null;
+      hoveredAttributeType.value = icon?.barId ?? null;
+      if (icon && props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
+        hoveredState.value = 'hover-grab';
       } else {
         hoveredState.value = 'hover-cursor';
       }
     };
 
-    watch(hoveredZone, (oldVal, newVal) => {
-      if (oldVal !== newVal) {
-        update();
-      }
-    });
+    watch([hoveredZone, hoveredAttributeType], update);
 
     const mousedown = (e: MouseEvent) => {
       if (hoverTrack.value !== null) {
@@ -519,8 +497,12 @@ export default defineComponent({
         // Need to know if we are dragging a being or end for the section
         const bar = bars.value.find((bar) => bar.name === hoveredAttributeType.value);
         if (bar) {
-          const subsection = bar.subSections.find((sub) => sub.begin === hoveredZone.value || sub.end === hoveredZone.value);
+          const subIndex = bar.subSections.findIndex((sub) => sub.begin === hoveredZone.value || sub.end === hoveredZone.value);
+          const subsection = bar.subSections[subIndex];
           if (subsection) {
+            dragData.draggedSubsectionIndex = subIndex;
+            dragData.dragBarName = bar.name;
+            dragData.draggingValue = subsection.value || 'None';
             if (subsection.begin === dragData.draggedFrame) {
               dragData.dragTarget = 'begin';
             } else if (subsection.end === dragData.draggedFrame) {
@@ -640,6 +622,27 @@ export default defineComponent({
       }
     };
 
+    /**
+     * Clear drag state and redraw. The redraw must come after the reset, or it would repaint
+     * the in-progress drag. When the drop edited attributes, wait a tick for the new swimlane
+     * data to arrive; redrawing now would briefly flash the segment at its old position.
+     */
+    const endDrag = (edited = false) => {
+      const wasDragging = dragData.isDragging;
+      dragData.isDragging = false;
+      dragData.dragBarName = null;
+      dragData.draggedFrame = null;
+      dragData.draggedSubsectionIndex = null;
+      dragData.dragTarget = null;
+      dragData.draggingCurrentLocation = null;
+      hoveredState.value = 'hover-cursor';
+      if (edited) {
+        nextTick(() => baseUpdate());
+      } else if (wasDragging) {
+        update();
+      }
+    };
+
     const systemMouseUp = (e: MouseEvent) => {
       if (dragData.isDragging && dragData.dragBarName && dragData.draggedFrame !== null) {
         // Unset the previous value
@@ -659,13 +662,7 @@ export default defineComponent({
               value: undefined,
               belongs: 'detection',
             });
-            dragData.isDragging = false;
-            dragData.dragBarName = null;
-            dragData.draggedFrame = null;
-            dragData.draggedSubsectionIndex = null;
-            dragData.dragTarget = null;
-            dragData.draggingCurrentLocation = null;
-            hoveredState.value = 'hover-cursor';
+            endDrag(true);
             return;
           }
           const newSize = dragData.dragTarget === 'end' ? Math.abs(frame.value - (subSection?.begin || 0)) : Math.abs(frame.value - (subSection?.end || 0));
@@ -704,16 +701,11 @@ export default defineComponent({
             const end = dragData.dragTarget === 'end' ? frame.value : subSection.end;
             dragEndRemoveExtraPoints(dragData.dragBarName, begin, end);
           }
+          endDrag(true);
+          return;
         }
-        update();
       }
-      dragData.isDragging = false;
-      dragData.dragBarName = null;
-      dragData.draggedFrame = null;
-      dragData.draggedSubsectionIndex = null;
-      dragData.dragTarget = null;
-      dragData.draggingCurrentLocation = null;
-      hoveredState.value = 'hover-cursor';
+      endDrag();
     };
 
     onMounted(() => {
