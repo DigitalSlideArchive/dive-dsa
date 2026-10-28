@@ -18,7 +18,7 @@ import { Handler } from 'vue-media-annotator/provides';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { debounce } from 'lodash';
 import {
-  binaryMaskToImage, imageToRLEObject, maskToLuminanceAlpha, decode, encode, DataArray,
+  binaryMaskToImage, binaryMaskToPngBlob, imageToRLEObject, maskToLuminanceAlpha, decode, encode, DataArray,
 } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 import createRLEWorker from './rleWorkerFactory';
@@ -281,6 +281,12 @@ export default function useMasks(
     const previousRLE = rleMasks.value[trackId]?.[frameId];
     const previousDecoded = rleCache.get(key);
     const previousImage = cache.get(key);
+    // Reject rather than silently succeed: callers flag the feature
+    // `hasMask` once this resolves, so resolving without storing anything
+    // would leave the track pointing at a mask that does not exist.
+    if (!mask.data.some((value) => value)) {
+      throw new Error('Could not save the segmentation mask: the mask is empty.');
+    }
     if (useRLE.value) {
       // Register the mask locally before any await (image encoding, upload).
       // Confirming flags the feature `hasMask` and enables the Mask layer
@@ -290,19 +296,11 @@ export default function useMasks(
       // did not appear until some unrelated update. The binary mask is
       // row-major; COCO RLE is column-major.
       const cocoMask = new Uint8Array(mask.width * mask.height);
-      let hasPixel = false;
       for (let row = 0; row < mask.height; row += 1) {
         for (let col = 0; col < mask.width; col += 1) {
-          if (mask.data[row * mask.width + col]) {
-            cocoMask[col * mask.height + row] = 1;
-            hasPixel = true;
-          }
+          if (mask.data[row * mask.width + col]) cocoMask[col * mask.height + row] = 1;
         }
       }
-      // Reject rather than silently succeed: callers flag the feature
-      // `hasMask` once this resolves, so resolving without storing anything
-      // would leave the track pointing at a mask that does not exist.
-      if (!hasPixel) throw new Error('Could not save the segmentation mask: the mask is empty.');
       const [rleObject] = encode(new DataArray(cocoMask, [mask.height, mask.width, 1]));
       const rleData: RLEFrameData = {
         rle: rleObject,
@@ -313,30 +311,23 @@ export default function useMasks(
         ...rleMasks.value,
         [trackId]: { ...(rleMasks.value[trackId] || {}), [frameId]: rleData },
       };
-      const decoded = {
-        trackId,
-        frame: frameId,
+      // `cocoMask` is exactly what decoding `rleObject` would return.
+      rleCache.set(key, {
         width: mask.width,
         height: mask.height,
-        data: maskToLuminanceAlpha(decode([rleObject]).data, mask.width, mask.height),
-      };
-      rleCache.set(key, decoded);
+        data: maskToLuminanceAlpha(cocoMask, mask.width, mask.height),
+      });
       clearMaskWarning();
     }
     // LayerManager redraws when loadingFrame clears; marking the frame lets
     // completion trigger a redraw even if the first render raced ahead.
     loadingFrame.value = key;
     try {
-      const image = await binaryMaskToImage(mask.data, mask.width, mask.height);
-      const { bounds, blob } = await getMaskBlobAndBoundsFromImage(image);
-      if (!bounds) {
-        // Nothing would be uploaded; reject (rolling back the optimistic
-        // registration in the catch below) instead of letting the caller
-        // flag `hasMask` for a mask that was never stored.
-        throw new Error('Could not save the segmentation mask: the mask is empty.');
-      }
+      // Encode the upload straight from the mask: no image round trip or
+      // bounds scan (the caller already has the prediction's bounds).
+      const blob = await binaryMaskToPngBlob(mask.data, mask.width, mask.height);
       if (!useRLE.value) {
-        cache.set(key, image);
+        cache.set(key, await binaryMaskToImage(mask.data, mask.width, mask.height));
       }
       await uploadMask(datasetId.value, trackId, frameId, blob);
     } catch (error) {

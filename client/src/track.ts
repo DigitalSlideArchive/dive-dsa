@@ -136,15 +136,20 @@ export default class Track extends BaseAnnotation {
     });
   }
 
-  /* Call if the bounds were possible shrunk */
+  /*
+   * Call if the bounds were possible shrunk. A track left with no keyframes
+   * keeps the removed frame as its range: an inverted [Infinity, 0] range
+   * cannot be found in the store's interval tree again, so the empty track
+   * could not be removed.
+   */
   private maybeShrinkBounds(frame: number) {
     const oldval = [this.begin, this.end];
     if (frame === this.begin) {
       // frame is begin
       const nextFrame = this.getNextKeyframe(this.begin + 1);
       if (nextFrame === undefined) {
-        this.begin = Infinity;
-        this.end = 0;
+        this.begin = frame;
+        this.end = frame;
       } else {
         this.begin = nextFrame;
       }
@@ -153,8 +158,8 @@ export default class Track extends BaseAnnotation {
       // frame is end
       const previousFrame = this.getPreviousKeyframe(this.end - 1);
       if (previousFrame === undefined) {
-        this.end = 0;
-        this.begin = Infinity;
+        this.begin = frame;
+        this.end = frame;
       } else {
         this.end = previousFrame;
       }

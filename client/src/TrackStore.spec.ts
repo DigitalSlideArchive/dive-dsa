@@ -36,6 +36,19 @@ describe('TrackStore', () => {
     expect(ts.intervalTree.search([0, 0])).toStrictEqual(['0']);
   });
 
+  it('can remove a track after deleting its last keyframe', () => {
+    const ts = new TrackStore({ markChangesPending: () => null, cameraName: 'singleCam' });
+    const t = ts.add(5, 'foo', undefined, ts.getNewId());
+    t.setFeature({ frame: 5, keyframe: true, bounds: [0, 0, 1, 1] });
+    t.deleteFeature(5);
+    expect(t.featureIndex).toEqual([]);
+    expect([t.begin, t.end]).toEqual([5, 5]);
+    expect(ts.intervalTree.search([5, 5]).length).toBe(1);
+    ts.remove(t.id);
+    expect(ts.getPossible(t.id)).toBeUndefined();
+    expect(ts.intervalTree.search([5, 5]).length).toBe(0);
+  });
+
   it('marks changes pending when a track updates', () => {
     let didCall = false;
     const markChangesPending = () => { didCall = true; };

@@ -423,9 +423,7 @@ export default function useModeManager({
     cancelSegmentation();
     if (selectedTrackId.value !== null) {
       const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-      // A track whose only keyframe was removed (e.g. a discarded segmentation
-      // preview) has no features but no longer has begin === end.
-      if (track && (track.begin === track.end || track.featureIndex.length === 0)) {
+      if (track && track.begin === track.end) {
         const features = track.featureIndex.length ? track.getFeature(track.begin) : [];
         // If no features exist we remove the empty track
         if (!features.filter((item) => item !== null).length) {

@@ -167,17 +167,6 @@ export default class SamOnnx {
     return this.dispose();
   }
 
-  /** Forget the encoding for one frame key (e.g. after the image changed). */
-  forgetFrame(key: string): Promise<void> {
-    return this.run(async () => {
-      const frame = this.frames.get(key);
-      if (frame) {
-        Object.values(frame.embeddings).forEach((tensor) => tensor.dispose());
-        this.frames.delete(key);
-      }
-    });
-  }
-
   dispose(): Promise<void> {
     this.version += 1;
     return this.run(async () => {

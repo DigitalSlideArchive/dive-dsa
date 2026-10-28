@@ -30,15 +30,6 @@ export function restoreFeature(track: Track, frameNum: number, snapshot: Segment
   const [real] = track.getFeature(frameNum);
   if (real && real.keyframe) {
     track.deleteFeature(frameNum);
-    if (!track.featureIndex.length && !snapshot.feature) {
-      // Deleting the only keyframe leaves begin/end at Infinity/0 without
-      // notifying the store, whose interval tree still holds [frame, frame].
-      // Match it so the empty track can be found and removed.
-      /* eslint-disable no-param-reassign */
-      track.begin = frameNum;
-      track.end = frameNum;
-      /* eslint-enable no-param-reassign */
-    }
   }
   if (snapshot.feature) {
     const { geometry, ...feature } = cloneDeep(snapshot.feature);
@@ -54,9 +45,34 @@ export const SegmentationPolygonKey = 'SegmentationPolygon';
 export const SegmentationPrimaryPolygonKey = '';
 
 /**
+ * Write a segmentation result as the detection's keyframe on this frame:
+ * every earlier polygon on the frame (e.g. a previous preview) is replaced by
+ * `polygons`, and the box becomes `bounds`. Head/tail points and attributes
+ * are kept.
+ */
+function writeSegmentationFeature(
+  track: Track,
+  frameNum: number,
+  bounds: RectBounds,
+  polygons: GeoJSON.Feature<TrackSupportedFeature>[] = [],
+) {
+  const [real] = track.getFeature(frameNum);
+  if (real && real.keyframe) {
+    const existing = track.getFeatureGeometry(frameNum, { type: 'Polygon' }).length;
+    for (let i = 0; i < existing; i += 1) track.removeFeatureGeometry(frameNum, { type: 'Polygon' });
+  }
+  const { interpolate } = track.canInterpolate(frameNum);
+  track.setFeature({
+    frame: frameNum,
+    keyframe: true,
+    bounds,
+    interpolate,
+  }, polygons);
+}
+
+/**
  * Make the mask the detection's shape on this frame: its components become
- * keyed polygons (replacing any earlier polygons on the frame) and the box
- * becomes the mask bounds. Head/tail points and attributes are kept.
+ * keyed polygons and the box becomes the mask bounds.
  */
 export function applySegmentation(
   track: Track,
@@ -65,54 +81,32 @@ export function applySegmentation(
   bounds?: RectBounds | null,
 ) {
   if (!polygons.length) return;
-  const [real] = track.getFeature(frameNum);
-  if (real && real.keyframe) {
-    const existing = track.getFeatureGeometry(frameNum, { type: 'Polygon' }).length;
-    for (let i = 0; i < existing; i += 1) track.removeFeatureGeometry(frameNum, { type: 'Polygon' });
-  }
-  const { interpolate } = track.canInterpolate(frameNum);
-  track.setFeature({
-    frame: frameNum,
-    keyframe: true,
-    bounds: bounds || componentsBounds(polygons),
-    interpolate,
-  }, segmentationPolygonFeatures(polygons, SegmentationPolygonKey, SegmentationPrimaryPolygonKey) as GeoJSON.Feature<TrackSupportedFeature>[]);
+  writeSegmentationFeature(
+    track,
+    frameNum,
+    bounds || componentsBounds(polygons),
+    segmentationPolygonFeatures(polygons, SegmentationPolygonKey, SegmentationPrimaryPolygonKey) as GeoJSON.Feature<TrackSupportedFeature>[],
+  );
 }
 
 /**
  * Preview a mask result on this frame without storing anything: the box
  * becomes the mask bounds, but no polygon is written and the frame is not
  * flagged `hasMask` (the binary mask is rendered directly by the preview
- * layer, and is only stored on confirm). Any polygons on the frame, e.g.
- * an earlier polygon-mode preview, are removed. Head/tail points and
- * attributes are kept.
+ * layer, and is only stored on confirm).
  */
 export function applySegmentationMaskPreview(
   track: Track,
   frameNum: number,
   bounds?: RectBounds | null,
 ) {
-  if (!bounds) return;
-  const [real] = track.getFeature(frameNum);
-  if (real && real.keyframe) {
-    const existing = track.getFeatureGeometry(frameNum, { type: 'Polygon' }).length;
-    for (let i = 0; i < existing; i += 1) track.removeFeatureGeometry(frameNum, { type: 'Polygon' });
-  }
-  const { interpolate } = track.canInterpolate(frameNum);
-  track.setFeature({
-    frame: frameNum,
-    keyframe: true,
-    bounds,
-    interpolate,
-  });
+  if (bounds) writeSegmentationFeature(track, frameNum, bounds);
 }
 
 /**
  * Make the mask the detection's shape on this frame without storing any
  * polygon: the frame is flagged as having a mask (whose pixels are stored
- * separately, see useMasks) and the box becomes the mask bounds. Any polygons
- * on the frame, including a segmentation preview, are removed. Head/tail
- * points and attributes are kept.
+ * separately, see useMasks) and the box becomes the mask bounds.
  */
 export function applySegmentationMask(
   track: Track,
@@ -120,17 +114,6 @@ export function applySegmentationMask(
   bounds?: RectBounds | null,
 ) {
   if (!bounds) return;
-  const [real] = track.getFeature(frameNum);
-  if (real && real.keyframe) {
-    const existing = track.getFeatureGeometry(frameNum, { type: 'Polygon' }).length;
-    for (let i = 0; i < existing; i += 1) track.removeFeatureGeometry(frameNum, { type: 'Polygon' });
-  }
-  const { interpolate } = track.canInterpolate(frameNum);
-  track.setFeature({
-    frame: frameNum,
-    keyframe: true,
-    bounds,
-    interpolate,
-  });
+  writeSegmentationFeature(track, frameNum, bounds);
   track.setHasMask(frameNum, true);
 }

@@ -62,19 +62,25 @@ export default function useSamSegmentation({
     progress.value = message ? (next ?? null) : null;
   });
 
-  /** Pixels for `frameNum` on `camera`, or an error if that frame is not on screen. */
+  /**
+   * Pixels for `frameNum` on `camera`. This runs when the request reaches
+   * the front of the model queue, which on a CPU can be well after the click,
+   * so the user may have moved on: an image-sequence frame is then loaded
+   * from its URL, while a video frame can only be read while it is shown.
+   */
   async function readFrame(camera: string, frameNum: number): Promise<RgbaImage> {
     const controller = aggregateController.value.getController(camera);
-    if (controller.frame.value !== frameNum) {
-      throw new Error('The frame changed before segmentation could read it.');
-    }
-    const media = findQuadMedia(controller.geoViewerRef.value);
+    const onScreen = controller.frame.value === frameNum;
+    const media = onScreen ? findQuadMedia(controller.geoViewerRef.value) : null;
     const expectedUrl = imageData.value[camera]?.[frameNum]?.url;
-    // While the next image is loading, the map may still show the previous one.
-    if (expectedUrl && (!media || media.kind !== 'image'
-      || !sameUrl((media.source as HTMLImageElement).src, expectedUrl))) {
+    if (expectedUrl) {
+      // While the next image is loading, the map may still show the previous one.
+      if (media?.kind === 'image' && sameUrl((media.source as HTMLImageElement).src, expectedUrl)) {
+        return captureQuadMedia(media);
+      }
       return urlToRgba(expectedUrl);
     }
+    if (!onScreen) throw new Error('The frame changed before segmentation could read it.');
     if (!media) throw new Error('The image or video frame is not ready for segmentation.');
     return captureQuadMedia(media);
   }

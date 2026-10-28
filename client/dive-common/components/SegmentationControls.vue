@@ -212,9 +212,7 @@ export default defineComponent({
             {{ draftMaxPolygonPoints }} points ({{ polygonPointsGrowthFactor }}x)
             when needed to keep the simplified outline within 5% of the
             mask's area. Higher values follow complex outlines more closely
-            but create larger polygons. Applying regenerates the current
-            frame's outline; otherwise it takes effect on the next click.
-            Saved in this browser.
+            but create larger polygons.
           </div>
           <div class="text-caption mt-2">
             Applying regenerates the current frame's result; otherwise it

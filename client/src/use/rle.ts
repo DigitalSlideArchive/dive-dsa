@@ -569,16 +569,8 @@ export function imageToRLEObject(img: HTMLImageElement): RLEObject {
   return rleObjs[0]; // since we passed n = 1
 }
 
-/**
- * Render a binary mask (1 = object, row-major) as an image: white where the
- * mask is set, transparent elsewhere. This is the format mask uploads and
- * `imageToRLEObject` expect.
- */
-export function binaryMaskToImage(
-  mask: Uint8Array,
-  width: number,
-  height: number,
-): Promise<HTMLImageElement> {
+/** Draw a binary mask (1 = object, row-major): opaque white where set, transparent elsewhere. */
+function binaryMaskCanvas(mask: Uint8Array, width: number, height: number): HTMLCanvasElement {
   if (mask.length !== width * height) throw new Error('Invalid mask dimensions.');
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -596,6 +588,31 @@ export function binaryMaskToImage(
     }
   }
   ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+/**
+ * Encode a binary mask (1 = object, row-major) as the PNG mask uploads
+ * expect: white where the mask is set, transparent elsewhere.
+ */
+export function binaryMaskToPngBlob(mask: Uint8Array, width: number, height: number): Promise<Blob> {
+  const canvas = binaryMaskCanvas(mask, width, height);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not encode the mask image.'))), 'image/png');
+  });
+}
+
+/**
+ * Render a binary mask (1 = object, row-major) as an image: white where the
+ * mask is set, transparent elsewhere. This is the format mask uploads and
+ * `imageToRLEObject` expect.
+ */
+export function binaryMaskToImage(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+): Promise<HTMLImageElement> {
+  const canvas = binaryMaskCanvas(mask, width, height);
   return new Promise((resolve, reject) => {
     const img = new Image(width, height);
     img.onload = () => resolve(img);
