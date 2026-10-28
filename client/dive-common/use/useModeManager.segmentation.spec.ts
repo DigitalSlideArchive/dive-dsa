@@ -379,6 +379,30 @@ it('a prediction for a different target restores the previous one first', async 
   expect(other.getFeature(0)[0]?.bounds).toEqual([5, 5, 25, 25]);
 });
 
+it('a mask upload finishing does not end a segmentation started meanwhile', async () => {
+  const ctx = await segmentExisting();
+  let resolveCreate!: () => void;
+  const createMask = jest.fn(() => new Promise<void>((resolve) => { resolveCreate = resolve; }));
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = {
+    data: new Uint8Array(100).fill(1), width: 10, height: 10,
+  };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  ctx.manager.confirmSegmentation();
+  // Point placement ends right away, not when the upload lands.
+  expect(ctx.manager.editingMode.value).toBe('rectangle');
+  // Start segmenting again while the first mask is still uploading.
+  ctx.segmentation.activate();
+  await flush();
+  expect(ctx.manager.editingMode.value).toBe('Point');
+  resolveCreate();
+  await flush();
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
+  expect(ctx.segmentation.active.value).toBe(true);
+  expect(ctx.manager.editingMode.value).toBe('Point');
+});
+
 it('a cancelled segmentation with no mask returns to box editing', async () => {
   const ctx = await segmentExisting();
   ctx.manager.confirmSegmentation();

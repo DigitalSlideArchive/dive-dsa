@@ -1197,17 +1197,20 @@ export default function useModeManager({
       finishSegmentationConfirmed(track, frames);
       return;
     }
+    // Leave point placement now: the recipe is already inactive, so staying
+    // in Point mode for the upload would leave clicks doing nothing.
+    leaveSegmentationMode();
     // Await persistence before flagging `hasMask` (see acceptSegmentation):
     // frames whose mask upload failed are restored from their snapshots
     // instead of being left flagged with no mask stored.
     (async () => {
       const applied = await applyConfirmedSegmentationFrames(track, camera, frames, snapshots);
-      if (!applied.length) {
-        // Nothing was confirmed: the detection is back as it was, so there
-        // is no result to refine or advance from.
-        leaveSegmentationMode();
-        return;
-      }
+      // Nothing confirmed means nothing to advance from. If the user moved on
+      // during the upload (segmenting again, or another detection), the
+      // follow-up (continuous creation, mode switch) would pull them back.
+      const movedOn = !!segmentationRecipe?.active.value || !!segmentationRecipe?.loading.value
+        || selectedTrackId.value !== track.id;
+      if (!applied.length || movedOn) return;
       finishSegmentationConfirmed(track, applied);
     })();
   }
