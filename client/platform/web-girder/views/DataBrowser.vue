@@ -1,6 +1,6 @@
 <script lang="ts">
 import {
-  computed, defineComponent, ref, onBeforeUnmount,
+  computed, defineComponent, ref, onBeforeUnmount, watch,
 } from 'vue';
 import {
   GirderFileManager, getLocationType, GirderModel,
@@ -8,13 +8,16 @@ import {
 import { itemsPerPageOptions } from 'dive-common/constants';
 import { clientSettings } from 'dive-common/store/settings';
 import { useStore, LocationType } from '../store/types';
+import { useLaunchConfigs } from '../use/useLaunchConfigs';
 import Upload from './Upload.vue';
+import LaunchButtons from './LaunchButtons.vue';
 import eventBus from '../eventBus';
 
 export default defineComponent({
   components: {
     GirderFileManager,
     Upload,
+    LaunchButtons,
   },
 
   setup() {
@@ -62,6 +65,13 @@ export default defineComponent({
       && !locationStore.selected.length
     ));
 
+    // Resolve launch configs once per browse location, never per row
+    const { launchConfigs, load } = useLaunchConfigs();
+    watch(() => locationStore.location, (loc) => {
+      const folder = loc && getLocationType(loc) === 'folder' ? (loc as GirderModel)._id : null;
+      load(folder);
+    }, { immediate: true });
+
     eventBus.$on('refresh-data-browser', handleNotification);
     onBeforeUnmount(() => {
       eventBus.$off('refresh-data-browser', handleNotification);
@@ -70,6 +80,7 @@ export default defineComponent({
     return {
       fileManager,
       locationStore,
+      launchConfigs,
       getters,
       shouldShowUpload,
       uploaderDialog,
@@ -140,16 +151,11 @@ export default defineComponent({
       >
         mdi-autorenew
       </v-icon>
-      <v-btn
+      <launch-buttons
         v-if="isAnnotationFolder(item)"
-        class="ml-2"
-        x-small
-        color="primary"
-        depressed
-        :to="{ name: 'viewer', params: { id: item._id } }"
-      >
-        Launch Annotator
-      </v-btn>
+        :dataset-id="item._id"
+        :launch-configs="launchConfigs"
+      />
       <v-btn
         v-if="isMetadataFolder(item)"
         class="ml-2"

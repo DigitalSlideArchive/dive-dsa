@@ -64,6 +64,8 @@ import SlicerTaskRunnerVue from 'platform/web-girder/views/SlicerTaskRunner.vue'
 import useURLParameters from 'vue-media-annotator/use/useURLParameters';
 import useUINotifications from 'platform/web-girder/UIControls';
 import { getLatestRevision } from 'platform/web-girder/api/annotation.service';
+import { getDiveConfiguration } from 'platform/web-girder/api/dataset.service';
+import { readConfigFolderIdFromUrl } from 'vue-media-annotator/use/configFolderParam';
 import { putDiveMetadataLastModified } from 'platform/web-girder/api/divemetadata.service';
 import { OverlayPreferences } from 'vue-media-annotator/types';
 import { useRoute } from 'vue-router/composables';
@@ -663,6 +665,8 @@ export default defineComponent({
       ctx.emit('change-camera', camera);
     };
 
+    /** Folder id from ?configFolderId= that overrides the hierarchy base config for this session */
+    const configFolderOverride: Ref<string | null> = ref(null);
     const initializeConfig = (config: { metadata: DatasetMeta & DatasetMetaMutable;
     diveConfig: DiveConfiguration & {metadata: DatasetMetaMutable}; }) => {
       const meta = config.metadata;
@@ -682,7 +686,10 @@ export default defineComponent({
         );
         visualMaskManager.load(config.diveConfig.metadata.configuration.visualMasks);
 
-        if (config.diveConfig.metadata.configuration.general?.baseConfiguration) {
+        if (configFolderOverride.value) {
+          // Session-only override: edits target the override folder, stored base is untouched
+          configurationManager.setConfigurationId(configFolderOverride.value);
+        } else if (config.diveConfig.metadata.configuration.general?.baseConfiguration) {
           configurationManager.setConfigurationId(
             config.diveConfig.metadata.configuration.general.baseConfiguration,
           );
@@ -703,6 +710,33 @@ export default defineComponent({
         // Close and reset sideBar
         context.resetActive();
         let config = await loadMetadata(datasetId.value);
+        configFolderOverride.value = readConfigFolderIdFromUrl();
+        if (configFolderOverride.value) {
+          try {
+            const override = (await getDiveConfiguration(configFolderOverride.value)).data;
+            if (!override.metadata?.configuration) {
+              throw new Error('Target folder has no configuration');
+            }
+            // Only overlay the config folder's metadata; prevNext / hierarchy / configOwners
+            // stay those of the dataset being viewed
+            config = {
+              ...config,
+              diveConfig: {
+                ...config.diveConfig,
+                metadata: override.metadata as typeof config.diveConfig.metadata,
+              },
+            };
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('configFolderId override failed, using default configuration', err);
+            configFolderOverride.value = null;
+            prompt({
+              title: 'Config folder unavailable',
+              text: 'The requested configuration folder could not be loaded (missing, no configuration, or no access). Using the default configuration.',
+              positiveButton: 'OK',
+            });
+          }
+        }
         if (props.revision > 0) {
           latestRevisionId.value = props.revision;
         } else {

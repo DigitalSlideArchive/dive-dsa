@@ -59,6 +59,17 @@ This object controls key visibility, ordering, grouping, and some UI behavior.
 - Empty groups are valid in saved metadata and can be shown in the edit UI.
 - `display`/`hide` control list visibility, while `filterDisplay`/`filterHide` control filter panel visibility.
 
+## Launch Configs
+
+Independent of `DIVEMetadataFilter`, the DIVE Metadata browser can show custom **launch buttons** on every dataset row. They open the viewer with the UI configuration of another folder instead of the dataset's default configuration.
+
+- **Storage:** On the metadata folder being viewed only, at `folder.meta.configuration.launchConfigs`. Unlike Data Browser launch configs, this list does *not* come from the hierarchy write-base configuration, is not inherited from parent folders, and does not transfer to child/sibling metadata folders.
+- **Editing:** Folder owners and site admins use the **Launch Configs** (cog) button next to **Edit Filters** in the metadata toolbar. All users of the metadata view can use the buttons.
+- **Options per entry:** `label` (required button text), `configurationFolderId` (required Girder folder id that must already have a UI configuration), `color` (optional hex, default `#1976D2`), and `tooltip` (optional hover text). Entries appear in list order; up to three are shown inline and the rest go in an overflow menu. An empty list shows the default **Launch Annotator** button.
+- **Behavior:** Launching opens `/viewer/<datasetId>?configFolderId=<folderId>&diveMetadataRootId=<metadataFolderId>` (an open-in-new icon is available per button). The configuration override is session-only and does not change the dataset's stored base configuration; if the target folder is missing, has no configuration, or is inaccessible, the viewer falls back to the default configuration with a warning.
+
+See [Configuration — DIVEMetadata Launch Configs](UI-Configuration.md#divemetadata-launch-configs) for the full option reference, stored JSON shape, and troubleshooting.
+
 ## Process
 
 A new collection of URL endpoints under `dive_metadata` allows for importing and querying DIVE Metadata.
