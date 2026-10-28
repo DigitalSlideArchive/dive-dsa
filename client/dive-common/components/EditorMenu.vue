@@ -528,7 +528,7 @@ export default defineComponent({
           <template #activator="{ on }">
             <div v-on="on">
               <v-btn
-                v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[button.uiIndex]"
+                v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[button.uiIndex] !== false"
                 :disabled="button.disabled"
                 :outlined="!button.active"
                 :color="button.color || ''"

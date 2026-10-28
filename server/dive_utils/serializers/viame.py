@@ -276,10 +276,10 @@ def load_json_as_track_and_attributes(
             if 'attributes' in feature.keys():
                 for attrkey, attribute in feature['attributes'].items():
                     detection_attributes[attrkey] = _deduceType(attribute)
-        for key, val in track_attributes.items():
-            create_attributes(metadata_attributes, test_vals, 'track', key, val)
-        for key, val in detection_attributes.items():
-            create_attributes(metadata_attributes, test_vals, 'detection', key, val)
+        for attr_name, val in track_attributes.items():
+            create_attributes(metadata_attributes, test_vals, 'track', attr_name, val)
+        for attr_name, val in detection_attributes.items():
+            create_attributes(metadata_attributes, test_vals, 'detection', attr_name, val)
 
     calculate_attribute_types(metadata_attributes, test_vals)
     return json_data, metadata_attributes

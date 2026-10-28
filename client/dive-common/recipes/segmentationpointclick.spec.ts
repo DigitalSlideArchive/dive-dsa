@@ -70,6 +70,18 @@ it('loads the model on first activation and enters point placement', async () =>
   expect(ready).toHaveBeenCalledTimes(1);
 });
 
+it('loads the model again after it was invalidated', async () => {
+  const { recipe, ready, activate } = harness();
+  await activate();
+  recipe.deactivate();
+  recipe.invalidateService();
+  recipe.activate();
+  expect(recipe.loading.value).toBe(true);
+  await flush();
+  expect(recipe.active.value).toBe(true);
+  expect(ready).toHaveBeenCalledTimes(2);
+});
+
 it('stays inactive and reports the error when the model cannot load', async () => {
   const { recipe, ready, events } = harness();
   ready.mockRejectedValueOnce(new Error('offline'));

@@ -17,7 +17,9 @@ export default defineComponent({
     const transferArr = (data: boolean[], typesUsed: Ref<string[]>) => {
       const results: string[] = [];
       typesUsed.value.forEach((item, index) => {
-        if (data[index]) {
+        // Entries past the end of an older, shorter saved list (tools added
+        // since) were never hidden, so they count as shown.
+        if (data[index] !== false) {
           results.push(item);
         }
       });

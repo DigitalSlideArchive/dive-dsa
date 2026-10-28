@@ -186,6 +186,19 @@ it('rolls back the local registration and rejects when the upload fails', async 
   expect(api.editorOptions.loadingFrame.value).toBe(false);
 });
 
+it('restores the mask the frame already had when replacing it fails', async () => {
+  const { api } = setup([7]);
+  mockUploadMask.mockResolvedValueOnce(undefined);
+  await api.editorFunctions.createMaskFromBinary(7, 3, mask);
+  const stored = api.getRLEMask(7, 3);
+  const storedDecoded = api.getRLELuminanceMask(7, 3);
+  const other = { data: new Uint8Array([1, 0, 0, 0, 1, 0, 0, 0]), width: 4, height: 2 };
+  mockUploadMask.mockRejectedValueOnce(new Error('upload failed'));
+  await expect(api.editorFunctions.createMaskFromBinary(7, 3, other)).rejects.toThrow('upload failed');
+  expect(api.getRLEMask(7, 3)).toEqual(stored);
+  expect(api.getRLELuminanceMask(7, 3)).toEqual(storedDecoded);
+});
+
 it('rejects an empty mask without uploading or registering anything', async () => {
   const { api } = setup();
   const empty = { data: new Uint8Array(8), width: 4, height: 2 };

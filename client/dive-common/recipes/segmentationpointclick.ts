@@ -141,6 +141,14 @@ export default class SegmentationPointClick implements Recipe {
     this.toggleable.value = true;
   }
 
+  /**
+   * The model was released (e.g. its settings changed): the next activation
+   * loads it again, showing the loading state and reporting load errors.
+   */
+  invalidateService(): void {
+    this.serviceInitialized = false;
+  }
+
   /** Remove the platform functions, e.g. for media that cannot be segmented. */
   disable(): void {
     this.deactivate();

@@ -103,10 +103,13 @@ export default function useSamSegmentation({
   // Changing either releases the loaded session; the next click loads the new one.
   watch(
     () => [clientSettings.segmentationSettings.model, clientSettings.segmentationSettings.device],
-    () => Promise.all([
-      sam.setModel(clientSettings.segmentationSettings.model),
-      sam.setDevice(clientSettings.segmentationSettings.device),
-    ]),
+    () => {
+      recipe.invalidateService();
+      return Promise.all([
+        sam.setModel(clientSettings.segmentationSettings.model),
+        sam.setDevice(clientSettings.segmentationSettings.device),
+      ]);
+    },
     { immediate: true },
   );
 

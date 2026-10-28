@@ -277,6 +277,10 @@ export default function useMasks(
     mask: { data: Uint8Array; width: number; height: number },
   ) {
     const key = frameKey(frameId, trackId);
+    // A mask already stored for this frame; a failed save puts it back.
+    const previousRLE = rleMasks.value[trackId]?.[frameId];
+    const previousDecoded = rleCache.get(key);
+    const previousImage = cache.get(key);
     if (useRLE.value) {
       // Register the mask locally before any await (image encoding, upload).
       // Confirming flags the feature `hasMask` and enables the Mask layer
@@ -338,8 +342,24 @@ export default function useMasks(
     } catch (error) {
       // Roll back the optimistic registration so a mask that was not
       // persisted does not keep displaying (the caller reports the error).
+      // A mask the frame already had is restored, not dropped: the caller
+      // restores the feature's `hasMask` flag, which must still find it.
       if (useRLE.value) {
-        await deleteLocalMasks(trackId, [frameId]);
+        if (previousRLE) {
+          rleMasks.value = {
+            ...rleMasks.value,
+            [trackId]: { ...(rleMasks.value[trackId] || {}), [frameId]: previousRLE },
+          };
+          if (previousDecoded) {
+            rleCache.set(key, previousDecoded);
+          } else {
+            rleCache.delete(key);
+          }
+        } else {
+          await deleteLocalMasks(trackId, [frameId]);
+        }
+      } else if (previousImage) {
+        cache.set(key, previousImage);
       } else {
         cache.delete(key);
       }
