@@ -103,27 +103,37 @@ export default function useModeManager({
    * the binary mask itself (at preview opacity) instead of a polygon outline.
    * Kept in sync with `segmentationPredictions` below.
    */
-  const segmentationPreviewMasks = ref<{
-    trackId: AnnotationId; frameNum: number; mask: SegmentationMask;
-  }[]>([]);
+  interface SegmentationPreviewMask {
+    trackId: AnnotationId; camera: string; frameNum: number; mask: SegmentationMask;
+  }
+  const segmentationPreviewMasks = ref<SegmentationPreviewMask[]>([]);
 
   let segmentationTarget: { trackId: AnnotationId; camera: string } | null = null;
   const segmentationSnapshots = new Map<number, SegmentationSnapshot>();
   /** Latest previewed prediction per frame, kept so accepting (e.g. by
    * switching tools) can still turn a mask-mode preview into a mask. */
   const segmentationPredictions = new Map<number, SegmentationPredictionResult>();
+  /**
+   * Accepted or confirmed masks still being stored. They stay previewed
+   * until the upload settles, so the frame never shows neither the preview
+   * nor the stored mask.
+   */
+  let persistingPreviewMasks: SegmentationPreviewMask[] = [];
 
   function syncSegmentationPreviewMasks() {
     const target = segmentationTarget;
-    segmentationPreviewMasks.value = target
+    const session = target
       ? Array.from(segmentationPredictions.values())
         .filter((result) => result.outputMode === 'mask' && !!result.mask)
         .map((result) => ({
           trackId: target.trackId,
+          camera: target.camera,
           frameNum: result.frameNum,
           mask: result.mask as SegmentationMask,
         }))
       : [];
+    // A live preview of the same track and frame wins over one being stored.
+    segmentationPreviewMasks.value = [...session, ...persistingPreviewMasks];
   }
   /** Platform hook that stores a confirmed binary mask (web: RLE upload). */
   let createSegmentationMask: ((trackId: AnnotationId, frameNum: number, mask: SegmentationMask) => Promise<void>) | null = null;
@@ -937,22 +947,8 @@ export default function useModeManager({
       : undefined;
   }
 
-  function handleSegmentationPoints(state: SegmentationPointsState) {
-    segmentationPoints.value = state;
-  }
-
-  function handleSegmentationPrediction(result: SegmentationPredictionResult) {
-    if (selectedTrackId.value === null) return;
-    const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-    if (!track) return;
-    if (segmentationTarget?.trackId !== track.id || segmentationTarget.camera !== selectedCamera.value) {
-      segmentationSnapshots.clear();
-      segmentationTarget = { trackId: track.id, camera: selectedCamera.value };
-    }
-    if (!segmentationSnapshots.has(result.frameNum)) {
-      segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
-    }
-    segmentationPredictions.set(result.frameNum, result);
+  /** Write an unconfirmed result onto the track as its preview. */
+  function previewSegmentation(track: Track, result: SegmentationPredictionResult) {
     if (result.outputMode === 'mask' && result.mask) {
       // Mask results are previewed as the mask itself (rendered from
       // `segmentationPreviewMasks` at preview opacity), not as a traced
@@ -962,6 +958,27 @@ export default function useModeManager({
     } else {
       applySegmentation(track, result.frameNum, result.polygons, result.bounds);
     }
+  }
+
+  function handleSegmentationPoints(state: SegmentationPointsState) {
+    segmentationPoints.value = state;
+  }
+
+  function handleSegmentationPrediction(result: SegmentationPredictionResult) {
+    if (selectedTrackId.value === null) return;
+    const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
+    if (!track) return;
+    if (segmentationTarget?.trackId !== track.id || segmentationTarget.camera !== selectedCamera.value) {
+      // Put the previous target back before dropping its snapshots, or its
+      // unconfirmed preview would become permanent.
+      if (segmentationSnapshots.size) restoreSegmentation();
+      segmentationTarget = { trackId: track.id, camera: selectedCamera.value };
+    }
+    if (!segmentationSnapshots.has(result.frameNum)) {
+      segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
+    }
+    segmentationPredictions.set(result.frameNum, result);
+    previewSegmentation(track, result);
     syncSegmentationPreviewMasks();
     _nudgeEditingCanary();
   }
@@ -1030,21 +1047,53 @@ export default function useModeManager({
    */
   async function applyConfirmedSegmentationFrames(
     track: Track,
+    camera: string,
     frames: SegmentationPredictionResult[],
     snapshots: Map<number, SegmentationSnapshot>,
   ): Promise<SegmentationPredictionResult[]> {
-    const failed = await persistSegmentationMasks(track.id, frames);
+    // Keep showing the masks while they upload (the session preview is gone).
+    const persisting: SegmentationPreviewMask[] = frames.filter(isMaskResult).map((result) => ({
+      trackId: track.id,
+      camera,
+      frameNum: result.frameNum,
+      mask: result.mask as SegmentationMask,
+    }));
+    persistingPreviewMasks = [...persistingPreviewMasks, ...persisting];
+    syncSegmentationPreviewMasks();
+    let failed: Set<SegmentationPredictionResult>;
+    try {
+      failed = await persistSegmentationMasks(track.id, frames);
+    } finally {
+      persistingPreviewMasks = persistingPreviewMasks.filter((p) => !persisting.includes(p));
+      syncSegmentationPreviewMasks();
+    }
     const applied: SegmentationPredictionResult[] = [];
     frames.forEach((result) => {
+      // The user may have started segmenting this frame again during the
+      // upload. Writing now would erase that preview, so update the new
+      // session's snapshot instead and keep previewing on top of it.
+      const resegmenting = segmentationTarget?.trackId === track.id
+        && segmentationTarget.camera === camera
+        && segmentationSnapshots.has(result.frameNum);
+      const preview = resegmenting ? segmentationPredictions.get(result.frameNum) : undefined;
       if (failed.has(result)) {
         const snapshot = snapshots.get(result.frameNum);
-        if (snapshot) restoreFeature(track, result.frameNum, snapshot);
+        if (!snapshot) return;
+        if (resegmenting) {
+          segmentationSnapshots.set(result.frameNum, snapshot);
+        } else {
+          restoreFeature(track, result.frameNum, snapshot);
+        }
       } else {
         applyConfirmedSegmentation(track, result);
+        if (resegmenting) {
+          segmentationSnapshots.set(result.frameNum, snapshotFeature(track, result.frameNum));
+          if (preview) previewSegmentation(track, preview);
+        }
         applied.push(result);
       }
     });
-    if (failed.size) _nudgeEditingCanary();
+    _nudgeEditingCanary();
     return applied;
   }
 
@@ -1058,6 +1107,7 @@ export default function useModeManager({
   /** Keep the previewed result; nothing left to restore. */
   function acceptSegmentation() {
     const track = segmentationTrack();
+    const camera = segmentationTarget?.camera ?? selectedCamera.value;
     const pending = Array.from(segmentationPredictions.values());
     // Capture the snapshots before clearing the session: they are the only
     // way to put a frame back if its mask cannot be persisted.
@@ -1071,7 +1121,8 @@ export default function useModeManager({
     // Await persistence before flagging `hasMask` (see
     // persistSegmentationMasks), so a Save while an upload is pending or
     // after it failed cannot persist a mask flag with no mask behind it.
-    applyConfirmedSegmentationFrames(track, pending, snapshots);
+    // The masks stay previewed until then, and a failure reports itself.
+    applyConfirmedSegmentationFrames(track, camera, pending, snapshots);
   }
 
   /** Put every frame the session changed back as it was. */
@@ -1134,6 +1185,7 @@ export default function useModeManager({
       ?? (selectedTrackId.value !== null
         ? cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value)
         : undefined);
+    const camera = segmentationTarget?.camera ?? selectedCamera.value;
     // Capture the snapshots before clearing the session: they are the only
     // way to put a frame back if its mask cannot be persisted.
     const snapshots = new Map(segmentationSnapshots);
@@ -1151,7 +1203,7 @@ export default function useModeManager({
     // frames whose mask upload failed are restored from their snapshots
     // instead of being left flagged with no mask stored.
     (async () => {
-      const applied = await applyConfirmedSegmentationFrames(track, frames, snapshots);
+      const applied = await applyConfirmedSegmentationFrames(track, camera, frames, snapshots);
       if (!applied.length) {
         // Nothing was confirmed: the detection is back as it was, so there
         // is no result to refine or advance from.
@@ -1479,6 +1531,7 @@ export default function useModeManager({
     segmentationPoints,
     segmentationPreviewMasks,
     confirmSegmentation,
+    cancelSegmentation,
     handler: {
       commitMerge: handleCommitMerge,
       groupAdd: handleAddGroup,

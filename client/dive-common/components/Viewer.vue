@@ -338,6 +338,7 @@ export default defineComponent({
       segmentationPoints,
       segmentationPreviewMasks,
       confirmSegmentation,
+      cancelSegmentation,
     } = useModeManager({
       recipes,
       trackFilterControls: trackFilters,
@@ -624,12 +625,15 @@ export default defineComponent({
         });
         return;
       }
+      // Segmentation previews belong to the camera being left: restore them
+      // before the empty-track check, which may then remove a new detection.
+      cancelSegmentation();
       // EditTrack is set false by the LayerMap before executing this
       if (selectedTrackId.value !== null) {
         // If we had a track selected and it still exists with
-        // a feature length of 0 we need to remove it
+        // no keyframes we need to remove it
         const track = cameraStore.getPossibleTrack(selectedTrackId.value, selectedCamera.value);
-        if (track && track.features.length === 0) {
+        if (track && track.featureIndex.length === 0) {
           handler.trackAbort();
         }
       }

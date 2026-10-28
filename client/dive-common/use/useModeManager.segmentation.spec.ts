@@ -189,7 +189,9 @@ it('confirming a mask result stores a mask instead of a polygon', async () => {
   expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([10, 0, 30, 20]);
   expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
   expect(ctx.manager.segmentationPreviewMasks.value).toEqual([
-    { trackId: ctx.track.id, frameNum: 0, mask },
+    {
+      trackId: ctx.track.id, camera: 'singleCam', frameNum: 0, mask,
+    },
   ]);
   ctx.manager.confirmSegmentation();
   await flush();
@@ -304,6 +306,77 @@ it('switching tools converts a previewed mask result into a stored mask', async 
   expect(createMask).toHaveBeenCalledWith(ctx.track.id, 0, mask);
   expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
   expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+});
+
+it('keeps previewing an accepted mask until its upload settles', async () => {
+  const ctx = await segmentExisting();
+  let resolveCreate!: () => void;
+  const createMask = jest.fn(() => new Promise<void>((resolve) => { resolveCreate = resolve; }));
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  ctx.manager.handler.setAnnotationState({ editing: 'rectangle' });
+  // The session preview is gone, but the mask still shows while it uploads.
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
+  expect(ctx.manager.segmentationPreviewMasks.value).toEqual([
+    {
+      trackId: ctx.track.id, camera: 'singleCam', frameNum: 0, mask,
+    },
+  ]);
+  resolveCreate();
+  await flush();
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBe(true);
+  expect(ctx.manager.segmentationPreviewMasks.value).toEqual([]);
+});
+
+it('a failed upload does not erase a new segmentation of the same frame', async () => {
+  const ctx = await segmentExisting();
+  let rejectCreate!: (error: Error) => void;
+  const createMask = jest.fn(() => new Promise<void>((_, reject) => { rejectCreate = reject; }));
+  ctx.manager.setSegmentationMaskCreator(createMask);
+  const mask = { data: new Uint8Array(100).fill(1), width: 10, height: 10 };
+  ctx.predict.mockResolvedValue({ ...response, mask });
+  await place(ctx, 15);
+  ctx.manager.handler.setAnnotationState({ editing: 'rectangle' });
+  // Segment the same frame again while the first upload is pending.
+  ctx.predict.mockResolvedValue({ ...response, bounds: [40, 0, 60, 20] });
+  ctx.segmentation.activate();
+  await flush();
+  await place(ctx, 45);
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([40, 0, 60, 20]);
+  rejectCreate(new Error('upload failed'));
+  await flush();
+  // The new preview stays; resetting it goes back to the original box.
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([40, 0, 60, 20]);
+  ctx.segmentation.resetPoints();
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([0, 0, 100, 100]);
+  expect(ctx.track.getFeature(0)[0]?.hasMask).toBeUndefined();
+});
+
+it('cancelling (e.g. on camera switch) restores the detection and leaves point mode', async () => {
+  const ctx = await segmentExisting();
+  await place(ctx, 15);
+  ctx.manager.cancelSegmentation();
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([0, 0, 100, 100]);
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(ctx.segmentation.active.value).toBe(false);
+  expect(ctx.manager.editingMode.value).toBe('rectangle');
+});
+
+it('a prediction for a different target restores the previous one first', async () => {
+  const ctx = await segmentExisting();
+  await place(ctx, 15);
+  const other = ctx.trackStore.add(0, 'fish', undefined, 2);
+  other.setFeature({ frame: 0, keyframe: true, bounds: [0, 0, 50, 50] });
+  // Bypass the selection handlers, as a camera switch did before.
+  ctx.manager.selectedTrackId.value = other.id;
+  ctx.segmentation.bus.$emit('prediction-ready', {
+    frameNum: 0, polygons: response.polygons, bounds: [5, 5, 25, 25], outputMode: 'polygon',
+  });
+  expect(ctx.track.getFeature(0)[0]?.bounds).toEqual([0, 0, 100, 100]);
+  expect(ctx.track.getFeatureGeometry(0, { type: 'Polygon' })).toHaveLength(0);
+  expect(other.getFeature(0)[0]?.bounds).toEqual([5, 5, 25, 25]);
 });
 
 it('a cancelled segmentation with no mask returns to box editing', async () => {

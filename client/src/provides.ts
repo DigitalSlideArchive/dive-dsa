@@ -156,12 +156,14 @@ export interface SegmentationPromptState {
   /** Prompt points for one frame of the selected camera */
   points: Readonly<Ref<{ points: [number, number][]; labels: number[]; frameNum: number }>>;
   /**
-   * Unconfirmed mask-mode predictions for the selected camera, rendered as
-   * masks (not polygon outlines) until confirmed or cancelled. Optional so
+   * Unconfirmed mask-mode predictions, and confirmed ones still uploading,
+   * rendered as masks (not polygon outlines) until stored or cancelled. Optional so
    * annotators without mask output simply show no preview mask.
    */
   previewMasks?: Readonly<Ref<readonly {
     trackId: AnnotationId;
+    /** Camera the mask belongs to; the selected camera when omitted */
+    camera?: string;
     frameNum: number;
     mask: { data: Uint8Array; width: number; height: number };
   }[]>>;

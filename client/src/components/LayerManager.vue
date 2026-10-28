@@ -136,20 +136,15 @@ export default defineComponent({
       typeStyling: typeStylingRef,
     });
     segmentationPreviewMaskLayer.setOpacity(SegmentationPreviewOpacity);
-    let previewTextureCache: {
-      data: Uint8Array; width: number; height: number; converted: Uint8Array;
-    } | null = null;
+    // Converted textures per mask buffer, so redraws do not convert again.
+    const previewTextureCache = new WeakMap<Uint8Array, Uint8Array>();
     const getPreviewTexture = (mask: { data: Uint8Array; width: number; height: number }) => {
-      if (!previewTextureCache || previewTextureCache.data !== mask.data
-        || previewTextureCache.width !== mask.width || previewTextureCache.height !== mask.height) {
-        previewTextureCache = {
-          data: mask.data,
-          width: mask.width,
-          height: mask.height,
-          converted: binaryMaskToLuminanceAlpha(mask.data, mask.width, mask.height),
-        };
+      let converted = previewTextureCache.get(mask.data);
+      if (!converted) {
+        converted = binaryMaskToLuminanceAlpha(mask.data, mask.width, mask.height);
+        previewTextureCache.set(mask.data, converted);
       }
-      return previewTextureCache.converted;
+      return converted;
     };
     const maskEditorLayer = new MaskEditorLayer({
       annotator, typeStyling: typeStylingRef, editorOptions, editorFunctions,
@@ -266,11 +261,13 @@ export default defineComponent({
         },
         { deep: true },
       );
-      editAnnotationLayer.bus.$on('confirm-annotation', () => {
-        if (selectedCamera.value === props.camera) segmentationPrompt.confirm();
-      });
     }
+    const confirmSegmentation = () => {
+      if (segmentationPrompt && selectedCamera.value === props.camera) segmentationPrompt.confirm();
+    };
+    editAnnotationLayer.bus.$on('confirm-annotation', confirmSegmentation);
     onBeforeUnmount(() => {
+      editAnnotationLayer.bus.$off('confirm-annotation', confirmSegmentation);
       editAnnotationLayer.destroy();
       visualMaskEditLayer.destroy();
     });
@@ -441,18 +438,21 @@ export default defineComponent({
         videoLayerManager.disable();
       }
 
-      // Unconfirmed magic-wand result in Mask mode for this frame, if any.
-      // It replaces any stored mask shown for the same track below.
-      const previewMask = (segmentationPrompt?.previewMasks && props.camera === selectedCamera.value)
-        ? segmentationPrompt.previewMasks.value.find((preview) => preview.frameNum === frame)
-        : undefined;
+      // Magic-wand masks for this frame and camera: unconfirmed results, and
+      // accepted ones still uploading. One per track (the first, the live
+      // preview, wins); each replaces any stored mask for its track below.
+      const previewMasks = (segmentationPrompt?.previewMasks?.value ?? [])
+        .filter((preview) => preview.frameNum === frame
+          && (preview.camera ?? selectedCamera.value) === props.camera)
+        .filter((preview, index, list) => list.findIndex((p) => p.trackId === preview.trackId) === index);
+      const previewTrackIds = new Set(previewMasks.map((preview) => preview.trackId));
 
       if (visibleModes.includes('Mask')) {
         const maskRLEData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         const maskImages : {trackId: number, type: string, image: HTMLImageElement}[] = [];
         const maskLuminanceData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         frameData.forEach((track) => {
-          if (track.features?.hasMask && previewMask?.trackId !== track.track.id) {
+          if (track.features?.hasMask && !previewTrackIds.has(track.track.id)) {
             if (editorOptions.useRLE.value && !useworker) {
               const rle = getRLEMask(track.track.id, frame);
               if (rle) {
@@ -505,21 +505,21 @@ export default defineComponent({
       // Show the preview mask itself at preview opacity instead of a polygon
       // outline. Independent of the stored-Mask layer above (the frame is
       // not flagged `hasMask` until the result is confirmed).
-      if (previewMask) {
-        const previewType = frameData.find((track) => track.track.id === previewMask.trackId)?.styleType[0]
-          ?? trackStore?.getPossible(previewMask.trackId)?.getType(0)[0];
-        if (previewType) {
-          getOrCreateFilter(previewType, typeStylingRef.value.color(previewType));
-          segmentationPreviewMaskLayer.setSegmenationLuminanceRLE([{
-            trackId: previewMask.trackId,
-            type: previewType,
-            mask: getPreviewTexture(previewMask.mask),
-            width: previewMask.mask.width,
-            height: previewMask.mask.height,
-          }]);
-        } else {
-          segmentationPreviewMaskLayer.disable();
-        }
+      const previewData = previewMasks.flatMap((preview) => {
+        const previewType = frameData.find((track) => track.track.id === preview.trackId)?.styleType[0]
+          ?? trackStore?.getPossible(preview.trackId)?.getType(0)[0];
+        if (!previewType) return [];
+        getOrCreateFilter(previewType, typeStylingRef.value.color(previewType));
+        return [{
+          trackId: preview.trackId,
+          type: previewType,
+          mask: getPreviewTexture(preview.mask),
+          width: preview.mask.width,
+          height: preview.mask.height,
+        }];
+      });
+      if (previewData.length) {
+        segmentationPreviewMaskLayer.setSegmenationLuminanceRLE(previewData);
       } else {
         segmentationPreviewMaskLayer.disable();
       }
