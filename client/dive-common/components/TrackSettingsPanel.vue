@@ -341,14 +341,20 @@ export default defineComponent({
         :key="setting.key"
         align="end"
         dense
+        class="mb-1"
       >
+        <v-col
+          class="mx-2 px-0"
+          cols="3"
+        >
+          {{ setting.label }}:
+        </v-col>
         <v-col>
           <v-select
             v-model="clientSettings.segmentationSettings[setting.key]"
             class="ml-0 pa-0"
             x-small
             :items="setting.items"
-            :label="setting.label"
             dense
             hide-details
           />
@@ -378,7 +384,14 @@ export default defineComponent({
         v-if="clientSettings.segmentationSettings.outputMode === 'polygon'"
         align="end"
         dense
+        class="mb-1"
       >
+        <v-col
+          class="mx-2 px-0"
+          cols="3"
+        >
+          Points:
+        </v-col>
         <v-col>
           <v-text-field
             v-model.number="clientSettings.segmentationSettings.polygonPoints"
@@ -387,7 +400,6 @@ export default defineComponent({
             :min="polygonPointsMin"
             :max="polygonPointsMax"
             step="5"
-            label="Polygon points"
             dense
             hide-details
             @change="clampPolygonPoints"
