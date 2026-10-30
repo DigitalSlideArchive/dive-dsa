@@ -1,6 +1,6 @@
 {
   "name": "dive-dsa",
-  "version": "1.11.52",
+  "version": "1.11.53",
   "author": {
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
@@ -35,6 +35,7 @@
   "dependencies": {
     "@flatten-js/interval-tree": "^1.0.11",
     "@girder/components": "^3.2.0",
+    "@huggingface/transformers": "^4.3.0",
     "@mdi/font": "^6.2.95",
     "@mdi/js": "^7.4.47",
     "axios": "^1.6.7",

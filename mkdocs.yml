@@ -79,6 +79,7 @@ nav:
     - UI Notifications: UI-Notifications.md
     - DIVE Metadata: DIVE-Metadata.md
     - SAM2 Support : SAM2-Support.md
+    - Interactive Segmentation (SAM2 Point-Click): Interactive-Segmentation.md
     - Screenshots: Screenshots.md
     - Support: Support.md
     - Video Overlay: VideoOverlay.md

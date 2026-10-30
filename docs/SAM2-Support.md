@@ -1,5 +1,8 @@
 # SAM2 Support in DIVE-DSA
 
+!!! tip
+    To outline objects by clicking on them, without any server setup, use the browser-based [Segment tool](Interactive-Segmentation.md). This page covers server-side SAM2 **mask tracking**.
+
 DIVE-DSA now includes support for [SAM2](https://github.com/facebookresearch/segment-anything), enabling advanced mask tracking using vision-language models. This feature can be configured and used by admins and annotators through the standard DIVE interface.
 
 ---

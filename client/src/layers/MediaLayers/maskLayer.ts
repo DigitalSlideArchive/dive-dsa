@@ -5,6 +5,13 @@ import { Ref } from 'vue';
 import { maskToLuminance, maskToLuminanceAlpha, maskToRGBA } from 'vue-media-annotator/use/rle';
 import { TypeStyling } from '../../StyleManager';
 
+/**
+ * Opacity (%) for the unconfirmed magic-wand mask preview. Deliberately
+ * higher than the stored-mask default (50%, user-adjustable) so the
+ * preview reads as a solid mask rather than a faint overlay.
+ */
+export const SegmentationPreviewOpacity = 75;
+
 export default class MaskLayer {
   annotator: MediaController;
 

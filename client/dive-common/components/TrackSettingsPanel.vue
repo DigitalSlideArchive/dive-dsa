@@ -5,8 +5,16 @@ import {
   PropType,
   ref,
   computed,
+  onMounted,
 } from 'vue';
 import { clientSettings } from 'dive-common/store/settings';
+import { SAM_LABELS, SamModel } from 'dive-common/use/segmentation/samModels';
+import { samHardwareGpuAvailable } from 'dive-common/use/segmentation/samDevices';
+import {
+  normalizeSegmentationPolygonPoints,
+  SegmentationPolygonPointsSettingMax,
+  SegmentationPolygonPointsSettingMin,
+} from 'dive-common/use/segmentation/constants';
 
 export default defineComponent({
   name: 'TrackSettingsPanel',
@@ -30,6 +38,44 @@ export default defineComponent({
       interpolate: 'Whether new tracks should have interpolation enabled by default',
       continuous: 'Immediately stay in detection creation mode after creating a new track.  Hit Esc to exit.',
       prompt: 'Prompt user before deleting a track?',
+      segmentationModel: 'Used by the Segment (wand) tool. Downloads once on first use, then loads from the browser cache. Tiny is fastest; Small is more accurate but slower and needs more memory.',
+      segmentationDevice: 'Each new frame is encoded once: about a second on a GPU, often 5-15 seconds on a CPU. Later clicks on the same frame are fast. Auto prefers the GPU and falls back to the CPU.',
+      segmentationPolygonPoints: 'Base number of points per Segment (wand) outline. Complex outlines can grow to 4x this value to stay within 5% of the mask area. Higher values follow outlines more closely but create larger polygons. Also available from the gear button while segmenting.',
+      segmentationOutputMode: 'What the Segment (wand) tool creates when confirmed: an editable Polygon on the detection, or a Mask stored for the detection (shown with the Mask layer, editable with the mask brush). Also available from the gear button while segmenting.',
+    });
+    const segmentationModels = (Object.keys(SAM_LABELS) as SamModel[])
+      .map((value) => ({ text: SAM_LABELS[value], value }));
+    const gpuAvailable = ref(true);
+    const segmentationDevices = computed(() => [
+      { text: 'Auto', value: 'auto' },
+      { text: 'GPU (WebGPU)', value: 'gpu', disabled: !gpuAvailable.value },
+      { text: 'CPU (WebAssembly)', value: 'cpu' },
+    ]);
+    const segmentationRows = computed(() => [
+      {
+        key: 'model', label: 'Model', items: segmentationModels, help: help.segmentationModel,
+      },
+      {
+        key: 'device', label: 'Device', items: segmentationDevices.value, help: help.segmentationDevice,
+      },
+      {
+        key: 'outputMode',
+        label: 'Creates',
+        items: [{ text: 'Polygon', value: 'polygon' }, { text: 'Mask', value: 'mask' }],
+        help: help.segmentationOutputMode,
+      },
+    ]);
+    /** Keep a typed polygon-point value inside the supported range. */
+    function clampPolygonPoints() {
+      clientSettings.segmentationSettings.polygonPoints = normalizeSegmentationPolygonPoints(
+        clientSettings.segmentationSettings.polygonPoints,
+      );
+    }
+    onMounted(async () => {
+      gpuAvailable.value = await samHardwareGpuAvailable();
+      if (!gpuAvailable.value && clientSettings.segmentationSettings.device === 'gpu') {
+        clientSettings.segmentationSettings.device = 'auto';
+      }
     });
     const modes = ref(['Track', 'Detection']);
     // Add unknown as the default type to the typeList
@@ -41,6 +87,11 @@ export default defineComponent({
       help,
       modes,
       typeList,
+      segmentationRows,
+      gpuAvailable,
+      clampPolygonPoints,
+      polygonPointsMin: SegmentationPolygonPointsSettingMin,
+      polygonPointsMax: SegmentationPolygonPointsSettingMax,
     };
   },
 });
@@ -281,6 +332,106 @@ export default defineComponent({
           </v-tooltip>
         </v-col>
       </v-row>
+      <v-divider class="my-2" />
+      <div class="subheading">
+        Segmentation (SAM2)
+      </div>
+      <v-row
+        v-for="setting in segmentationRows"
+        :key="setting.key"
+        align="end"
+        dense
+        class="mb-1"
+      >
+        <v-col
+          class="mx-2 px-0"
+          cols="3"
+        >
+          {{ setting.label }}:
+        </v-col>
+        <v-col>
+          <v-select
+            v-model="clientSettings.segmentationSettings[setting.key]"
+            class="ml-0 pa-0"
+            x-small
+            :items="setting.items"
+            dense
+            hide-details
+          />
+        </v-col>
+        <v-col
+          cols="2"
+          align="right"
+        >
+          <v-tooltip
+            open-delay="200"
+            max-width="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon
+                small
+                v-on="on"
+              >
+                mdi-help
+              </v-icon>
+            </template>
+            <span>{{ setting.help }}</span>
+          </v-tooltip>
+        </v-col>
+      </v-row>
+      <v-row
+        v-if="clientSettings.segmentationSettings.outputMode === 'polygon'"
+        align="end"
+        dense
+        class="mb-1"
+      >
+        <v-col
+          class="mx-2 px-0"
+          cols="3"
+        >
+          Points:
+        </v-col>
+        <v-col>
+          <v-text-field
+            v-model.number="clientSettings.segmentationSettings.polygonPoints"
+            class="ml-0 pa-0"
+            type="number"
+            :min="polygonPointsMin"
+            :max="polygonPointsMax"
+            step="5"
+            dense
+            hide-details
+            @change="clampPolygonPoints"
+          />
+        </v-col>
+        <v-col
+          cols="2"
+          align="right"
+        >
+          <v-tooltip
+            open-delay="200"
+            max-width="200"
+            bottom
+          >
+            <template #activator="{ on }">
+              <v-icon
+                small
+                v-on="on"
+              >
+                mdi-help
+              </v-icon>
+            </template>
+            <span>{{ help.segmentationPolygonPoints }}</span>
+          </v-tooltip>
+        </v-col>
+      </v-row>
+      <div
+        v-if="!gpuAvailable"
+        class="text-caption mt-1"
+      >
+        No hardware GPU was found in this browser, so segmentation runs on the CPU.
+      </div>
     </v-card>
   </div>
 </template>
