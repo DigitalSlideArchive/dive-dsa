@@ -613,6 +613,15 @@ class VisualMask(BaseModel):
     style: Optional[CustomStyle]
 
 
+class LaunchConfig(BaseModel):
+    id: str
+    label: str
+    tooltip: Optional[str]
+    color: Optional[str]
+    configurationFolderId: str
+    order: Optional[int]
+
+
 class DIVEConfiguration(BaseModel):
     general: Optional[GeneralSettings]
     UISettings: Optional[UISettings]
@@ -622,6 +631,7 @@ class DIVEConfiguration(BaseModel):
     timelineConfigs: Optional[List[TimelineConfiguration]]
     customUI: Optional[CustomUISettings]
     visualMasks: Optional[Dict[str, List[VisualMask]]]
+    launchConfigs: Optional[List[LaunchConfig]]
 
     @validator('timelineConfigs', pre=True)
     @classmethod

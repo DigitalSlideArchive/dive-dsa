@@ -5,6 +5,7 @@ import {
 import TooltipButton from 'vue-media-annotator/components/TooltipButton.vue';
 import { useConfiguration, useHandler } from 'vue-media-annotator/provides';
 import { useRouter } from 'vue-router/composables';
+import { readConfigFolderIdFromUrl } from 'vue-media-annotator/use/configFolderParam';
 
 export default defineComponent({
   name: 'PrevNext',
@@ -41,19 +42,25 @@ export default defineComponent({
       next.value = configMap.prevNext.value?.next;
     });
 
-    const gotoId = (id: string) => {
-      router.push({ name: 'viewer', params: { id } });
-    };
-
     const queryStringParams = ref('');
     watch(getDiveMetadataRootId, (newval) => {
       diveMetadataRootId.value = newval;
+      const params: string[] = [];
       if (diveMetadataRootId.value) {
-        queryStringParams.value = `?diveMetadataRootId=${diveMetadataRootId.value}`;
-      } else {
-        queryStringParams.value = '';
+        params.push(`diveMetadataRootId=${diveMetadataRootId.value}`);
       }
+      const configFolderId = readConfigFolderIdFromUrl();
+      if (configFolderId) {
+        params.push(`configFolderId=${encodeURIComponent(configFolderId)}`);
+      }
+      queryStringParams.value = params.length ? `?${params.join('&')}` : '';
     }, { immediate: true });
+
+    const gotoId = (id: string) => {
+      // Keep session overrides (configFolderId, diveMetadataRootId) on keyboard
+      // Prev/Next the same way click navigation does via :to + queryStringParams.
+      router.push(`/viewer/${id}${queryStringParams.value}`);
+    };
 
     return {
       previous,

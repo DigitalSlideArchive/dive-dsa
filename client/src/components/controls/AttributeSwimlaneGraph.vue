@@ -14,6 +14,7 @@ import {
   useAttributes, useCameraStore, useSelectedTrackId, useTime,
 } from 'vue-media-annotator/provides';
 import { SwimlaneAttribute, SwimlaneData, SwimlaneGraph } from 'vue-media-annotator/use/AttributeTypes';
+import { getDisplayTrackId } from 'vue-media-annotator/use/displayTrackFilterSettings';
 import { mdiArrowLeftRightBold } from '@mdi/js';
 import { useStore } from 'platform/web-girder/store/types';
 import { injectAggregateController } from '../annotators/useMediaController';
@@ -114,9 +115,11 @@ export default defineComponent({
     function updateAttribute({
       name, updateFrame, value, belongs,
     }: { name: string; updateFrame: number, value: unknown; belongs: 'track' | 'detection' }) {
-      if (selectedTrackIdRef.value !== null) {
+      // Edit the track this swimlane displays, which is the pinned track when one is set
+      const trackId = getDisplayTrackId(props.displaySettings, selectedTrackIdRef.value);
+      if (trackId !== null) {
         // Tracks across all cameras get the same attributes set if they are linked
-        const tracks = cameraStore.getTrackAll(selectedTrackIdRef.value);
+        const tracks = cameraStore.getTrackAll(trackId);
         const user = getAttributeUser({ name, belongs });
         if (tracks.length) {
           if (belongs === 'track') {
@@ -211,28 +214,31 @@ export default defineComponent({
       symbolGenerator.value = d3.symbol().type(d3.symbolDiamond);
     };
 
+    /**
+     * Sorted, de-duplicated frames of the icons actually drawn for each bar (mirrors baseUpdate),
+     * so hit testing never snaps to an icon that isn't on screen.
+     */
     const iconFrames = computed(() => {
       const barFrames: Record<string, number[]> = {};
-      const barList = bars.value;
-      if (!barList.length) {
-        return barFrames;
-      }
-      barList.forEach((bar) => {
-        barFrames[bar.id] = [];
+      const renderMode = props.displaySettings?.renderMode;
+      bars.value.forEach((bar) => {
+        const frames = new Set<number>();
         bar.subSections.forEach((sub) => {
-          barFrames[bar.id].push(sub.begin);
-          if (props.displaySettings?.renderMode === 'segments') {
-            barFrames[bar.id].push(sub.end);
+          if (!sub.singleVal || renderMode !== 'segments') {
+            frames.add(sub.begin);
+          }
+          if (renderMode === 'segments') {
+            frames.add(sub.end);
           }
         });
+        barFrames[bar.id] = [...frames].sort((a, b) => a - b);
       });
       return barFrames;
     });
 
     /**
      * Frames whose appearance depends on the playhead. Covers both ends of every subsection
-     * because a boundary landing on the current frame both highlights its icon and forces
-     * that icon to be drawn even when it would otherwise be skipped as part of a cluster.
+     * because a boundary landing on the current frame highlights its icon.
      */
     const highlightFrames = computed(() => {
       const frames = new Set<number>();
@@ -245,37 +251,31 @@ export default defineComponent({
       return frames;
     });
 
-    const interactiveZones = computed(() => {
-      const zones: Record<string, {frame: number, start: number; end:number}[]> = {};
-      Object.keys(iconFrames.value).forEach((key) => {
-        zones[key] = [];
-        const iconFramesVal = iconFrames.value[key];
+    // Max horizontal pixel distance from a diamond's center that still counts as hovering it
+    const iconHitRadius = 8;
 
-        const frames = [...iconFramesVal].sort((a, b) => a - b);
-        const baseWidth = Math.round((props.endFrame - props.startFrame) * 0.01) || 1; // Number of frames to extend on each side
-
-        for (let i = 0; i < frames.length; i += 1) {
-          const current = frames[i];
-          const prev = frames[i - 1] ?? -Infinity;
-          const next = frames[i + 1] ?? Infinity;
-
-          // Calculate distance to neighboring frames
-          const distPrev = current - prev;
-          const distNext = next - current;
-
-          // Adjust width to prevent overlap
-          const leftWidth = Math.min(baseWidth, Math.floor(distPrev / 2));
-          const rightWidth = Math.min(baseWidth, Math.floor(distNext / 2));
-
-          zones[key].push({
-            frame: current,
-            start: current - leftWidth,
-            end: current + rightWidth,
-          });
+    /**
+     * Find the drawn icon nearest the cursor, restricted to the bar row under the cursor.
+     */
+    const findIconAtCursor = (offsetX: number, offsetY: number) => {
+      const bar = bars.value[Math.floor(offsetY / 30)];
+      if (!bar) return null;
+      const frames = iconFrames.value[bar.id];
+      if (!frames?.length) return null;
+      const scale = x.value;
+      const idx = d3.bisectLeft(frames, scale.invert(offsetX));
+      let best: number | null = null;
+      let bestDist = iconHitRadius;
+      [frames[idx - 1], frames[idx]].forEach((f) => {
+        if (f === undefined) return;
+        const dist = Math.abs(scale(f) - offsetX);
+        if (dist <= bestDist) {
+          best = f;
+          bestDist = dist;
         }
       });
-      return zones;
-    });
+      return best === null ? null : { frame: best as number, barId: bar.id };
+    };
 
     const getSymbolPath = (type: 'diamond' | 'arrows', size: number) => {
       if (type === 'arrows') {
@@ -284,7 +284,14 @@ export default defineComponent({
       return new Path2D(symbolGenerator.value.size(size)());
     };
 
-    const drawIcon = (ctx: CanvasRenderingContext2D, xFrame: number, xPosition: number, yPosition: number, symbol: 'diamond' | 'arrows' = 'diamond') => {
+    const drawIcon = (
+      ctx: CanvasRenderingContext2D,
+      barId: string,
+      xFrame: number,
+      xPosition: number,
+      yPosition: number,
+      symbol: 'diamond' | 'arrows' = 'diamond',
+    ) => {
       let fillColor = xFrame === frame.value ? 'cyan' : 'white';
       let symbolSize = xFrame === frame.value ? 100 : 50;
       let thickness = xFrame === frame.value ? 2 : 1;
@@ -295,7 +302,7 @@ export default defineComponent({
         fillColor = 'yellow';
       }
 
-      if (hoveredZone.value !== null && xFrame === hoveredZone.value) {
+      if (hoveredZone.value !== null && xFrame === hoveredZone.value && barId === hoveredAttributeType.value) {
         if (props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
           symbol = 'arrows';
         }
@@ -346,24 +353,12 @@ export default defineComponent({
       const scale = x.value;
       const renderMode = props.displaySettings?.renderMode;
       const drawSymbols = showSymbols.value;
-      const currentFrame = frame.value;
-      const hovered = hoveredZone.value;
       const visibleStart = startFrame_.value;
       const visibleEnd = endFrame_.value;
       // Discrete boxes are widened to minWidth, so keep a margin before culling
       const cullPadding = Math.max(1, (visibleEnd - visibleStart) * 0.02);
       const cullStart = visibleStart - cullPadding;
       const cullEnd = visibleEnd + cullPadding;
-
-      // Frame indicators are queued and drawn after every segment fill so that neither a
-      // neighbouring subsection nor a deferred merged fill can paint over them.
-      const pendingIcons: {
-        xFrame: number;
-        xPosition: number;
-        yPosition: number;
-        symbol: 'diamond' | 'arrows';
-        highlighted: boolean;
-      }[] = [];
 
       barList.forEach((bar) => {
         const barWidth = Math.max(bar.right - bar.left, bar.minWidth);
@@ -374,20 +369,6 @@ export default defineComponent({
           ctx.fillStyle = bar.backgroundColor;
           ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
         }
-
-        const iconMidline = bar.top + barHeight / 2;
-        let lastIconEdge = -Infinity;
-        // Adjacent subsections resolving to the same color are merged into one fillRect
-        let pendingColor: string | null = null;
-        let pendingLeft = 0;
-        let pendingRight = 0;
-        const flushPending = () => {
-          if (pendingColor !== null && pendingRight > pendingLeft) {
-            ctx.fillStyle = pendingColor;
-            ctx.fillRect(pendingLeft, bar.top, pendingRight - pendingLeft, barHeight);
-          }
-          pendingColor = null;
-        };
 
         bar.subSections.forEach((sub, index) => {
           const dragging = dragData.isDragging
@@ -408,59 +389,19 @@ export default defineComponent({
           const width = renderMode === 'discrete'
             ? Math.max(right - left, bar.minWidth)
             : right - left;
-          const fillColor = sub.color || 'white';
-          if (pendingColor === fillColor && left <= pendingRight + 0.5) {
-            pendingRight = Math.max(pendingRight, left + width);
-          } else {
-            flushPending();
-            pendingColor = fillColor;
-            pendingLeft = left;
-            pendingRight = left + width;
-          }
+          ctx.fillStyle = sub.color || 'white';
+          ctx.fillRect(left, bar.top, width, barHeight);
           if (drawSymbols) {
-            // Icons are ~10px wide, so only draw one per cluster unless it marks the
-            // playhead or the hovered zone, which must always stay visible. Begin and end
-            // markers are gated independently so a dense begin cluster cannot drop an end
-            // diamond that sits further right.
-            const beginHighlighted = sub.begin === currentFrame || sub.begin === hovered;
-            const endHighlighted = sub.end === currentFrame || sub.end === hovered;
-            const tryQueueIcon = (
-              xFrame: number,
-              xPosition: number,
-              symbol: 'diamond' | 'arrows',
-              highlighted: boolean,
-            ) => {
-              if (!highlighted && xPosition < lastIconEdge) {
-                return;
-              }
-              pendingIcons.push({
-                xFrame, xPosition, yPosition: iconMidline, symbol, highlighted,
-              });
-              lastIconEdge = Math.max(lastIconEdge, xPosition + 6);
-            };
+            const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
             if (!sub.singleVal || renderMode !== 'segments') {
-              const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
-              tryQueueIcon(sub.begin, left, symbol, beginHighlighted);
+              drawIcon(ctx, bar.id, sub.begin, left, bar.top + barHeight / 2, symbol);
             }
             if (renderMode === 'segments') {
               const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              tryQueueIcon(sub.end, right, endSymbol, endHighlighted);
+              drawIcon(ctx, bar.id, sub.end, right, bar.top + barHeight / 2, endSymbol);
             }
           }
         });
-        flushPending();
-      });
-
-      // Highlighted indicators go last so the playhead and hovered markers sit above their neighbours
-      pendingIcons.forEach((icon) => {
-        if (!icon.highlighted) {
-          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
-        }
-      });
-      pendingIcons.forEach((icon) => {
-        if (icon.highlighted) {
-          drawIcon(ctx, icon.xFrame, icon.xPosition, icon.yPosition, icon.symbol);
-        }
       });
     };
 
@@ -479,13 +420,6 @@ export default defineComponent({
       if (!bar) {
         hoverTrack.value = null;
         return false;
-      }
-      const dragSubSectionIndex = bar.subSections.findIndex((s) => hoveredZone.value === s.begin || hoveredZone.value === s.end);
-      if (dragData.isDragging && dragSubSectionIndex !== -1 && dragData.draggedSubsectionIndex === null) {
-        dragData.draggedSubsectionIndex = dragSubSectionIndex;
-        const sub = bar.subSections[dragSubSectionIndex];
-        dragData.dragBarName = bar.name;
-        dragData.draggingValue = sub.value || 'None';
       }
       const subIndex = bar.subSections.findIndex((s) => {
         const left = x.value(s.begin);
@@ -526,8 +460,6 @@ export default defineComponent({
       const hovering = detectBarHovering(e);
       if (!hovering) {
         tooltip.value = null;
-        hoveredZone.value = null;
-        hoveredAttributeType.value = null;
       }
       const { offsetX } = e;
       const frameAtCursor = x.value.invert(offsetX);
@@ -537,43 +469,22 @@ export default defineComponent({
         update();
       }
 
-      hoveredZone.value = null;
-      hoveredAttributeType.value = null;
-      if (showSymbols.value) {
-        const zoneKeys = Object.keys(interactiveZones.value);
-
-        let found = dragData.isDragging;
-        for (let i = 0; i < zoneKeys.length; i += 1) {
-          const zones = interactiveZones.value[zoneKeys[i]];
-          for (let k = 0; k < zones.length; k += 1) {
-            const zone = zones[k];
-            if (frameAtCursor >= zone.start && frameAtCursor <= zone.end) {
-              hoveredZone.value = zone.frame;
-              hoveredAttributeType.value = zoneKeys[i];
-              if (!dragData.isDragging && props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
-                hoveredState.value = 'hover-grab';
-              }
-              found = true;
-              break;
-            }
-          }
-          if (found) {
-            break;
-          }
-        }
-        if (!found && !dragData.isDragging) {
-          hoveredState.value = 'hover-cursor';
-        }
+      if (dragData.isDragging) {
+        hoveredZone.value = null;
+        hoveredAttributeType.value = null;
+        return;
+      }
+      const icon = showSymbols.value ? findIconAtCursor(offsetX, e.offsetY) : null;
+      hoveredZone.value = icon?.frame ?? null;
+      hoveredAttributeType.value = icon?.barId ?? null;
+      if (icon && props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
+        hoveredState.value = 'hover-grab';
       } else {
         hoveredState.value = 'hover-cursor';
       }
     };
 
-    watch(hoveredZone, (oldVal, newVal) => {
-      if (oldVal !== newVal) {
-        update();
-      }
-    });
+    watch([hoveredZone, hoveredAttributeType], update);
 
     const mousedown = (e: MouseEvent) => {
       if (hoverTrack.value !== null) {
@@ -586,8 +497,12 @@ export default defineComponent({
         // Need to know if we are dragging a being or end for the section
         const bar = bars.value.find((bar) => bar.name === hoveredAttributeType.value);
         if (bar) {
-          const subsection = bar.subSections.find((sub) => sub.begin === hoveredZone.value || sub.end === hoveredZone.value);
+          const subIndex = bar.subSections.findIndex((sub) => sub.begin === hoveredZone.value || sub.end === hoveredZone.value);
+          const subsection = bar.subSections[subIndex];
           if (subsection) {
+            dragData.draggedSubsectionIndex = subIndex;
+            dragData.dragBarName = bar.name;
+            dragData.draggingValue = subsection.value || 'None';
             if (subsection.begin === dragData.draggedFrame) {
               dragData.dragTarget = 'begin';
             } else if (subsection.end === dragData.draggedFrame) {
@@ -707,6 +622,27 @@ export default defineComponent({
       }
     };
 
+    /**
+     * Clear drag state and redraw. The redraw must come after the reset, or it would repaint
+     * the in-progress drag. When the drop edited attributes, wait a tick for the new swimlane
+     * data to arrive; redrawing now would briefly flash the segment at its old position.
+     */
+    const endDrag = (edited = false) => {
+      const wasDragging = dragData.isDragging;
+      dragData.isDragging = false;
+      dragData.dragBarName = null;
+      dragData.draggedFrame = null;
+      dragData.draggedSubsectionIndex = null;
+      dragData.dragTarget = null;
+      dragData.draggingCurrentLocation = null;
+      hoveredState.value = 'hover-cursor';
+      if (edited) {
+        nextTick(() => baseUpdate());
+      } else if (wasDragging) {
+        update();
+      }
+    };
+
     const systemMouseUp = (e: MouseEvent) => {
       if (dragData.isDragging && dragData.dragBarName && dragData.draggedFrame !== null) {
         // Unset the previous value
@@ -726,13 +662,7 @@ export default defineComponent({
               value: undefined,
               belongs: 'detection',
             });
-            dragData.isDragging = false;
-            dragData.dragBarName = null;
-            dragData.draggedFrame = null;
-            dragData.draggedSubsectionIndex = null;
-            dragData.dragTarget = null;
-            dragData.draggingCurrentLocation = null;
-            hoveredState.value = 'hover-cursor';
+            endDrag(true);
             return;
           }
           const newSize = dragData.dragTarget === 'end' ? Math.abs(frame.value - (subSection?.begin || 0)) : Math.abs(frame.value - (subSection?.end || 0));
@@ -771,16 +701,11 @@ export default defineComponent({
             const end = dragData.dragTarget === 'end' ? frame.value : subSection.end;
             dragEndRemoveExtraPoints(dragData.dragBarName, begin, end);
           }
+          endDrag(true);
+          return;
         }
-        update();
       }
-      dragData.isDragging = false;
-      dragData.dragBarName = null;
-      dragData.draggedFrame = null;
-      dragData.draggedSubsectionIndex = null;
-      dragData.dragTarget = null;
-      dragData.draggingCurrentLocation = null;
-      hoveredState.value = 'hover-cursor';
+      endDrag();
     };
 
     onMounted(() => {

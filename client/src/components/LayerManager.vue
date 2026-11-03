@@ -1,15 +1,17 @@
 <script lang="ts">
 import {
-  defineComponent, watch, PropType, Ref, ref, computed, toRef,
+  defineComponent, watch, PropType, Ref, ref, computed, toRef, onBeforeUnmount,
 } from 'vue';
 
 import { UISettingsKey } from 'vue-media-annotator/ConfigurationManager';
 import { useStore } from 'platform/web-girder/store/types';
 import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
-import MaskLayer from 'vue-media-annotator/layers/MediaLayers/maskLayer';
+import MaskLayer, { SegmentationPreviewOpacity } from 'vue-media-annotator/layers/MediaLayers/maskLayer';
 import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
-import { decode, RLEObject, rleObjectToImageSync } from 'vue-media-annotator/use/rle';
+import {
+  binaryMaskToLuminanceAlpha, decode, RLEObject, rleObjectToImageSync,
+} from 'vue-media-annotator/use/rle';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
 import RectangleLayer from '../layers/AnnotationLayers/RectangleLayer';
@@ -19,6 +21,7 @@ import LineLayer from '../layers/AnnotationLayers/LineLayer';
 import TailLayer from '../layers/AnnotationLayers/TailLayer';
 
 import EditAnnotationLayer, { EditAnnotationTypes } from '../layers/EditAnnotationLayer';
+import SegmentationPointsLayer from '../layers/AnnotationLayers/SegmentationPointsLayer';
 import { FrameDataTrack, mergeBounds } from '../layers/LayerTypes';
 import TextLayer, { FormatTextRow } from '../layers/AnnotationLayers/TextLayer';
 import TimeLayer from '../layers/AnnotationLayers/TimeLayer';
@@ -49,6 +52,7 @@ import {
   useMasks,
   useVisualMaskManager,
   useVisualMaskStyleManager,
+  useSegmentationPrompt,
 } from '../provides';
 
 const useworker = true;
@@ -125,6 +129,23 @@ export default defineComponent({
       annotator,
       typeStyling: typeStylingRef,
     });
+    // Separate layer for the unconfirmed magic-wand mask preview, so it can
+    // render at 75% without changing the (user-adjustable) stored-mask opacity.
+    const segmentationPreviewMaskLayer = new MaskLayer({
+      annotator,
+      typeStyling: typeStylingRef,
+    });
+    segmentationPreviewMaskLayer.setOpacity(SegmentationPreviewOpacity);
+    // Converted textures per mask buffer, so redraws do not convert again.
+    const previewTextureCache = new WeakMap<Uint8Array, Uint8Array>();
+    const getPreviewTexture = (mask: { data: Uint8Array; width: number; height: number }) => {
+      let converted = previewTextureCache.get(mask.data);
+      if (!converted) {
+        converted = binaryMaskToLuminanceAlpha(mask.data, mask.width, mask.height);
+        previewTextureCache.set(mask.data, converted);
+      }
+      return converted;
+    };
     const maskEditorLayer = new MaskEditorLayer({
       annotator, typeStyling: typeStylingRef, editorOptions, editorFunctions,
     });
@@ -222,6 +243,33 @@ export default defineComponent({
       stateStyling: visualMaskStyleManager.stateStyles,
       typeStyling: visualMaskStyleManager.typeStyling,
       type: 'rectangle',
+    });
+
+    const segmentationPrompt = useSegmentationPrompt();
+    if (segmentationPrompt) {
+      const segmentationPointsLayer = new SegmentationPointsLayer(annotator);
+      // Prompt points only belong to the frame and camera being segmented.
+      watch(
+        [segmentationPrompt.points, frameNumberRef, selectedCamera],
+        () => {
+          const { points, labels, frameNum } = segmentationPrompt.points.value;
+          if (points.length && frameNum === frameNumberRef.value && selectedCamera.value === props.camera) {
+            segmentationPointsLayer.updatePoints(points, labels);
+          } else {
+            segmentationPointsLayer.clear();
+          }
+        },
+        { deep: true },
+      );
+    }
+    const confirmSegmentation = () => {
+      if (segmentationPrompt && selectedCamera.value === props.camera) segmentationPrompt.confirm();
+    };
+    editAnnotationLayer.bus.$on('confirm-annotation', confirmSegmentation);
+    onBeforeUnmount(() => {
+      editAnnotationLayer.bus.$off('confirm-annotation', confirmSegmentation);
+      editAnnotationLayer.destroy();
+      visualMaskEditLayer.destroy();
     });
 
     const updateAttributes = () => {
@@ -390,12 +438,21 @@ export default defineComponent({
         videoLayerManager.disable();
       }
 
+      // Magic-wand masks for this frame and camera: unconfirmed results, and
+      // accepted ones still uploading. One per track (the first, the live
+      // preview, wins); each replaces any stored mask for its track below.
+      const previewMasks = (segmentationPrompt?.previewMasks?.value ?? [])
+        .filter((preview) => preview.frameNum === frame
+          && (preview.camera ?? selectedCamera.value) === props.camera)
+        .filter((preview, index, list) => list.findIndex((p) => p.trackId === preview.trackId) === index);
+      const previewTrackIds = new Set(previewMasks.map((preview) => preview.trackId));
+
       if (visibleModes.includes('Mask')) {
         const maskRLEData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         const maskImages : {trackId: number, type: string, image: HTMLImageElement}[] = [];
         const maskLuminanceData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         frameData.forEach((track) => {
-          if (track.features?.hasMask) {
+          if (track.features?.hasMask && !previewTrackIds.has(track.track.id)) {
             if (editorOptions.useRLE.value && !useworker) {
               const rle = getRLEMask(track.track.id, frame);
               if (rle) {
@@ -443,6 +500,28 @@ export default defineComponent({
         }
       } else {
         maskLayer.disable();
+      }
+
+      // Show the preview mask itself at preview opacity instead of a polygon
+      // outline. Independent of the stored-Mask layer above (the frame is
+      // not flagged `hasMask` until the result is confirmed).
+      const previewData = previewMasks.flatMap((preview) => {
+        const previewType = frameData.find((track) => track.track.id === preview.trackId)?.styleType[0]
+          ?? trackStore?.getPossible(preview.trackId)?.getType(0)[0];
+        if (!previewType) return [];
+        getOrCreateFilter(previewType, typeStylingRef.value.color(previewType));
+        return [{
+          trackId: preview.trackId,
+          type: previewType,
+          mask: getPreviewTexture(preview.mask),
+          width: preview.mask.width,
+          height: preview.mask.height,
+        }];
+      });
+      if (previewData.length) {
+        segmentationPreviewMaskLayer.setSegmenationLuminanceRLE(previewData);
+      } else {
+        segmentationPreviewMaskLayer.disable();
       }
 
       pointLayer.changeData(frameData);
@@ -582,6 +661,7 @@ export default defineComponent({
         visualMaskManager.revisionCounter,
         toRef(props, 'colorBy'),
         selectedCamera,
+        ...(segmentationPrompt?.previewMasks ? [segmentationPrompt.previewMasks] : []),
       ],
       () => {
         updateLayers(
@@ -665,6 +745,11 @@ export default defineComponent({
 
     const visualMaskClicked = (maskId: number | null, editing: boolean) => {
       if (selectedCamera.value !== props.camera) {
+        return;
+      }
+      // Match Clicked(): clicks placing a new shape's points (polygon
+      // vertices, segmentation points) are not selections.
+      if (editAnnotationLayer.getMode() === 'creation') {
         return;
       }
       // Match Clicked(): do not clear track selection when UISelection is off.

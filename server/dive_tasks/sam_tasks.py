@@ -683,7 +683,7 @@ def run_inference(
         absolute_start = startFrame + batch_start
 
         manager.write(f'Processing batch: {batch_start} to {batch_end}\n')
-        manager.write(f'Extracting {batch_end-batch_start} frames from the Dataset Video\n')
+        manager.write(f'Extracting {batch_end - batch_start} frames from the Dataset Video\n')
         frame_dir = extract_frames(
             gc, manager, datasetId, absolute_start, batch_frame_count, working_directory
         )

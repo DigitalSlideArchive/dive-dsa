@@ -13,6 +13,17 @@ export function parsePinnedTrackId(pinned?: number | string | null): number | nu
   return pinnedNum;
 }
 
+export function getDisplayTrackId(
+  displaySettings?: DisplayTrackFilterSettings,
+  selectedTrackId: number | null = null,
+): number | null {
+  const settings = normalizeDisplaySettings(displaySettings);
+  if (settings?.display === 'pinned') {
+    return parsePinnedTrackId(settings.pinnedTrackId);
+  }
+  return selectedTrackId;
+}
+
 /** Normalize legacy configs that set pinnedTrackId without display: 'pinned'. */
 export function normalizeDisplaySettings(
   settings?: DisplayTrackFilterSettings,

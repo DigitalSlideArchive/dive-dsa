@@ -1,5 +1,6 @@
 import { ref, Ref, watch } from 'vue';
 import { AnnotationId } from 'vue-media-annotator/BaseAnnotation';
+import { CONFIG_FOLDER_PARAM, readConfigFolderIdFromUrl } from './configFolderParam';
 
 export default function useURLParameters(
   frame: Ref<number>,
@@ -42,6 +43,11 @@ export default function useURLParameters(
           }
         });
       }
+    }
+    // Keep the session config override across frame / track changes
+    const configFolderId = readConfigFolderIdFromUrl();
+    if (configFolderId !== null) {
+      values.push(`${CONFIG_FOLDER_PARAM}=${encodeURIComponent(configFolderId)}`);
     }
     const currentLocation = window.location.href;
     if (values.length === 0) {

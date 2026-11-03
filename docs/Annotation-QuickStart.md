@@ -152,7 +152,7 @@ The masks can be used as a precursor to running a slicer-cli container with Obje
 ### Creating a Mask
 
 - **Right click** an annotation to enter edit mode or create a new Track
-- In the [Edit bar](UI-Navigation-Editing-Bar.md), click ==:material-draw:== or press ++4++ to enter Segementation edit/create mode.
+- In the [Edit bar](UI-Navigation-Editing-Bar.md), click ==:material-draw:== or press ++5++ to enter Segementation edit/create mode.
 - You will start off in the paintbrush mode.  Clicking will place down an annotation at the current point.
 - Navigation can be done using ++middle-click++ to pan and ++scroll-wheel++ to zoom in and out
 - Alternatively using the '-' and '=' key to decrease or increase the brush size

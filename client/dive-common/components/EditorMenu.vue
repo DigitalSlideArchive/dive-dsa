@@ -10,15 +10,43 @@ import { hexToRgb } from 'vue-media-annotator/utils';
 import { useMasks, useConfiguration, useVisualMaskManager } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import MaskTracking from 'dive-common/components/MaskTracking.vue';
+import SegmentationPointClick, { SegmentationRecipeName } from 'dive-common/recipes/segmentationpointclick';
 import {
   EDITING_MODE_INSTRUCTIONS,
   GROUP_EDIT_INSTRUCTION,
   IDLE_INSTRUCTION,
   MULTI_SELECT_INSTRUCTION,
+  SEGMENTATION_INSTRUCTION,
+  SEGMENTATION_LOADING_INSTRUCTION,
 } from 'dive-common/use/editingModeInstructions';
+
+/**
+ * Position of each editing button in the UIToolBar `UIEditingTypes` setting.
+ * Fixed so adding a tool does not shift saved configurations.
+ */
+const EditingTypeIndex: Record<string, number> = {
+  rectangle: 0,
+  PolygonBase: 1,
+  HeadTail: 2,
+  Time: 3,
+  Mask: 4,
+  Segment: 5,
+};
+
+/** Numbered keyboard shortcut shown on (and bound to) each editing button. */
+const EditingHotkey: Record<string, string> = {
+  rectangle: '1',
+  PolygonBase: '2',
+  HeadTail: '3',
+  Time: '4',
+  Mask: '5',
+  Segment: '6',
+};
 
 interface ButtonData {
   id: string;
+  /** Index in the UIEditingTypes setting */
+  uiIndex: number;
   icon: string;
   type?: VisibleAnnotationTypes;
   active: boolean;
@@ -103,49 +131,66 @@ export default defineComponent({
     const editWhiteColorScale = ref(false);
     const editTransparentcolor = ref(false);
 
+    const segmentationRecipe = computed(() => props.recipes
+      .find((r): r is SegmentationPointClick => r instanceof SegmentationPointClick));
+    const segmentationActive = computed(() => !!segmentationRecipe.value?.active.value && props.editingTrack);
+    const segmentationLoading = computed(() => !!segmentationRecipe.value?.loading.value);
+    /** SAM point placement (or its model load) owns the editing bar. */
+    const inSegmentationMode = computed(() => segmentationActive.value
+      || (segmentationLoading.value && props.editingTrack));
+
     const editButtons = computed((): ButtonData[] => {
+      const recipeButtons = props.recipes
+        .filter((r) => r.toggleable.value)
+        .map((r, i) => ({
+          id: r.name,
+          uiIndex: EditingTypeIndex[r.name] ?? Object.keys(EditingTypeIndex).length + i,
+          icon: r.icon.value || 'mdi-pencil',
+          active: props.editingTrack && r.active.value,
+          tooltip: r instanceof SegmentationPointClick
+            ? 'Segment: click the object to outline it with SAM2' : undefined,
+          click: () => r.activate(),
+          mousetrap: [
+            { bind: EditingHotkey[r.name] || r.hotkey || (i + 2).toString(), handler: () => r.activate() },
+            ...r.mousetrap(),
+          ],
+        }));
       const buttons: ButtonData[] = [{
         id: 'rectangle',
+        uiIndex: EditingTypeIndex.rectangle,
         icon: 'mdi-vector-square',
         active: props.editingTrack && props.editingMode === 'rectangle',
         mousetrap: [{
-          bind: '1',
+          bind: EditingHotkey.rectangle,
           handler: () => emit('set-annotation-state', { editing: 'rectangle' }),
         }],
         click: () => emit('set-annotation-state', { editing: 'rectangle' }),
       },
-      ...props.recipes
-        .filter((r) => r.toggleable.value)
-        .map((r, i) => ({
-          id: r.name,
-          icon: r.icon.value || 'mdi-pencil',
-          active: props.editingTrack && r.active.value,
-          click: () => r.activate(),
-          mousetrap: [
-            { bind: (i + 2).toString(), handler: () => r.activate() },
-            ...r.mousetrap(),
-          ],
-        })),
+      // The Segment (magic wand) button goes last, after Time and Mask.
+      ...recipeButtons.filter((b) => b.id !== SegmentationRecipeName),
       {
         id: 'Time',
+        uiIndex: EditingTypeIndex.Time,
         icon: 'mdi-timer-outline',
         active: props.editingTrack && props.editingMode === 'Time',
         mousetrap: [{
-          bind: '4',
+          bind: EditingHotkey.Time,
           handler: () => emit('set-annotation-state', { editing: 'Time' }),
         }],
         click: () => emit('set-annotation-state', { editing: 'Time' }),
       },
       {
         id: 'Mask',
+        uiIndex: EditingTypeIndex.Mask,
         icon: 'mdi-draw',
         active: props.editingTrack && props.editingMode === 'Mask',
         mousetrap: [{
-          bind: '4',
+          bind: EditingHotkey.Mask,
           handler: () => emit('set-annotation-state', { editing: 'Mask' }),
         }],
         click: () => emit('set-annotation-state', { editing: 'Mask' }),
       },
+      ...recipeButtons.filter((b) => b.id === SegmentationRecipeName),
       ];
       // Others should be disabled with a reason
       for (let i = 0; i < buttons.length; i += 1) {
@@ -165,6 +210,12 @@ export default defineComponent({
         }
       }
       if (props.editingTrack && props.editingMode !== 'Mask') {
+        // In SAM mode the other editing tools (1-5) are hidden; only the
+        // Segment button remains, alongside Reset/Confirm. Filtering here
+        // also unbinds their numbered shortcuts via the mousetrap computed.
+        if (inSegmentationMode.value) {
+          return buttons.filter((b) => b.id === SegmentationRecipeName);
+        }
         return buttons;
       }
       return [];
@@ -298,12 +349,21 @@ export default defineComponent({
     );
 
     const mousetrap = computed((): Mousetrap[] => flatten(editButtons.value.filter((b) => !b.disabled).map((b) => b.mousetrap || [])));
+    const editingInstruction = computed(() => {
+      if (segmentationLoading.value) return SEGMENTATION_LOADING_INSTRUCTION;
+      if (segmentationActive.value) return SEGMENTATION_INSTRUCTION;
+      if (props.editingDetails === 'disabled' || !props.editingMode) return '';
+      return modeToolTips[props.editingDetails][props.editingMode];
+    });
     const editingHeader = computed(() => {
       if (props.groupEditActive) {
         return { text: 'Group Edit Mode', icon: 'mdi-group', color: 'primary' };
       }
       if (props.multiSelectActive) {
         return { text: 'Multi-select Mode', icon: 'mdi-call-merge', color: 'error' };
+      }
+      if (segmentationActive.value || (segmentationLoading.value && props.editingTrack)) {
+        return { text: 'Segmenting', icon: 'mdi-auto-fix', color: 'success' };
       }
       if (props.editingDetails !== 'disabled') {
         return {
@@ -397,7 +457,9 @@ export default defineComponent({
       toggleVisible,
       isVisible,
       mousetrap,
+      inSegmentationMode,
       editingHeader,
+      editingInstruction,
       modeToolTips,
       groupEditInstruction: GROUP_EDIT_INSTRUCTION,
       multiSelectInstruction: MULTI_SELECT_INSTRUCTION,
@@ -451,22 +513,22 @@ export default defineComponent({
             <span v-else-if="multiSelectActive">
               {{ multiSelectInstruction }}
             </span>
-            <span v-else-if="editingDetails !== 'disabled'">
-              {{ modeToolTips[editingDetails][editingMode] }}
+            <span v-else-if="editingInstruction">
+              {{ editingInstruction }}
             </span>
             <span v-else>{{ idleInstruction }}</span>
           </div>
         </div>
       </div>
       <span
-        v-for="(button, index) in editButtons"
+        v-for="button in editButtons"
         :key="button.id + 'view'"
       >
         <v-tooltip bottom>
           <template #activator="{ on }">
             <div v-on="on">
               <v-btn
-                v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[index]"
+                v-if="getUISetting('UIEditingTypes') === true || getUISetting('UIEditingTypes')[button.uiIndex] !== false"
                 :disabled="button.disabled"
                 :outlined="!button.active"
                 :color="button.color || ''"
@@ -480,8 +542,14 @@ export default defineComponent({
             </div>
           </template>
           <span v-if="button.disabledReason"> {{ button.disabledReason }}</span>
+          <span v-else-if="button.tooltip"> {{ button.tooltip }}</span>
         </v-tooltip></span>
-      <slot name="delete-controls" />
+      <!-- No Del Point/Del Annotation in SAM mode: Reset clears the prompt
+           points and the previewed polygon instead. -->
+      <slot
+        v-if="!inSegmentationMode"
+        name="delete-controls"
+      />
       <slot name="additional-controls" />
       <v-spacer />
       <MaskTracking

@@ -80,6 +80,12 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
   /* in-progress events only emitted for lines and polygons */
   shapeInProgress: GeoJSON.LineString | GeoJSON.Polygon | null;
 
+  /* Point mode: the click being placed is a background (exclude) point */
+  private backgroundClick: boolean;
+
+  /* Point mode: a middle press waiting to see whether it is a click or a pan */
+  private pendingBackgroundPoint: { x: number; y: number } | null;
+
   constructor(params: BaseLayerParams & EditAnnotationLayerParams) {
     super(params);
     this.skipNextExternalUpdate = false;
@@ -91,6 +97,8 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
     this.shapeInProgress = null;
     this.disableModeSync = false;
     this.leftButtonCheckTimeout = -1;
+    this.backgroundClick = false;
+    this.pendingBackgroundPoint = null;
 
     //Only initialize once, prevents recreating Layer each edit
     this.initialize();
@@ -124,6 +132,10 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
         (e: GeoEvent) => this.hoverEditHandle(e),
       );
       this.featureLayer.geoOn(geo.event.mouseclick, (e: GeoEvent) => {
+        if (e.buttonsDown.middle) {
+          this.handleMiddleClick(e);
+          return;
+        }
         //Used to sync clicks that kick out of editing mode with application
         //This prevents that pseudo Edit state when left clicking on a object in edit mode
         if (!this.disableModeSync && (e.buttonsDown.left)
@@ -154,7 +166,76 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
         this.disableModeSync = false;
       });
       this.featureLayer.geoOn(geo.event.actiondown, (e: GeoEvent) => this.setShapeInProgress(e));
+      // A press that moved past the click tolerance (a pan) ends in actionup.
+      this.featureLayer.geoOn(geo.event.actionup, () => { this.pendingBackgroundPoint = null; });
+      document.addEventListener('mousedown', this.trackPointModifiers, true);
+      document.addEventListener('contextmenu', this.handleContextMenu, true);
     }
+  }
+
+  /** Remove document listeners; call when the layer's annotator is destroyed. */
+  destroy() {
+    document.removeEventListener('mousedown', this.trackPointModifiers, true);
+    document.removeEventListener('contextmenu', this.handleContextMenu, true);
+  }
+
+  private placingPoints() {
+    return this.type === 'Point' && this.getMode() === 'creation';
+  }
+
+  /** True when a DOM event happened on this layer's map (not another camera). */
+  private eventOnMap(e: Event) {
+    // geojs returns a jQuery-like wrapper for the map node
+    const node = this.annotator.geoViewerRef.value?.node?.();
+    const element: Element | undefined = node && (node[0] ?? node);
+    return !!element && e.target instanceof Node && typeof element.contains === 'function'
+      && element.contains(e.target);
+  }
+
+  /**
+   * Native mousedown is the reliable source of the shift key for Point mode:
+   * shift+click places a background (exclude) segmentation point.
+   */
+  private trackPointModifiers = (e: MouseEvent) => {
+    if (this.placingPoints() && this.eventOnMap(e)) {
+      this.backgroundClick = e.button === 0 && e.shiftKey;
+    }
+  };
+
+  /**
+   * Right click while placing points confirms the segmentation. Confirming
+   * leaves point placement, so wait until GeoJS has handled the click (on
+   * mouseup) while the other layers still treat it as part of the creation.
+   * Some platforms fire contextmenu on mousedown, others on mouseup.
+   */
+  private handleContextMenu = (e: MouseEvent) => {
+    if (this.placingPoints() && this.eventOnMap(e)) {
+      e.preventDefault();
+      const confirm = () => window.setTimeout(() => this.bus.$emit('confirm-annotation'), 0);
+      if (e.buttons & 2) { // eslint-disable-line no-bitwise
+        document.addEventListener('mouseup', confirm, { capture: true, once: true });
+      } else {
+        confirm();
+      }
+    }
+  };
+
+  /**
+   * GeoJS does not create points on a middle click, so a quick middle click
+   * places a background point here; a middle drag still pans.
+   */
+  handleMiddleClick(e: GeoEvent) {
+    const pending = this.pendingBackgroundPoint;
+    this.pendingBackgroundPoint = null;
+    if (!this.placingPoints()) return;
+    const position = pending ?? e.geo;
+    if (!position) return;
+    const feature: GeoJSON.Feature<GeoJSON.Point> = {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [Math.round(position.x), Math.round(position.y)] },
+      properties: { background: true },
+    };
+    this.bus.$emit('update:geojson', 'editing', true, feature, this.type, this.selectedKey, this.skipNextFunc());
   }
 
   skipNextFunc() {
@@ -166,6 +247,11 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
    * shape that GeoJS is keeps internally.  Emit the shape as update:in-progress-geojson
    */
   setShapeInProgress(e: GeoEvent) {
+    if (e.mouse.buttons.middle && this.placingPoints()) {
+      // Wait for release: a click places a background point, a drag pans.
+      this.pendingBackgroundPoint = { x: e.mouse.geo.x, y: e.mouse.geo.y };
+      return;
+    }
     // Allow middle click movement when placing points
     if (e.mouse.buttons.middle && !e.propogated) {
       return;
@@ -326,6 +412,7 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
       this.setMode(null);
       this.featureLayer.removeAllAnnotations(false);
       this.shapeInProgress = null;
+      this.pendingBackgroundPoint = null;
       if (this.selectedHandleIndex !== -1) {
         this.selectedHandleIndex = -1;
         this.hoverHandleIndex = -1;
@@ -482,6 +569,13 @@ export default class EditAnnotationLayer extends BaseLayer<GeoJSON.Feature> {
           );
         }
         this.formattedData = geoJSONData;
+        if (this.type === 'Point' && this.backgroundClick) {
+          this.formattedData[0].properties = {
+            ...this.formattedData[0].properties,
+            background: true,
+          };
+        }
+        this.backgroundClick = false;
         // The new annotation is in a state without styling, so apply local stypes
         this.applyStylesToAnnotations();
         //This makes sure the click for the end point doesn't kick us out of the mode

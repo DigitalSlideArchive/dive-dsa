@@ -645,10 +645,29 @@ def get_configuration(folder: Folder, user: User):
     folderParentType = folder.get('parentCollection', False)
     prev = None
     next = None
-    folderParent = Folder().load(str(folderParentId), level=AccessType.READ, user=user, force=True)
-    childFolders = list(
-        Folder().childFolders(folderParent, folderParentType, sort=[['lowerName', 1]], user=user)
-    )
+    # Parent may be a user/collection; Folder().load() returns None for those ids.
+    if folderParentType == 'user':
+        folderParent = User().load(str(folderParentId), force=True)
+    elif folderParentType == 'folder':
+        folderParent = Folder().load(
+            str(folderParentId), level=AccessType.READ, user=user, force=True
+        )
+    else:
+        folderParent = None
+        if folderParentId and folderParentType:
+            try:
+                from girder.models.collection import Collection
+
+                folderParent = Collection().load(str(folderParentId), force=True)
+            except Exception:
+                folderParent = None
+    childFolders = []
+    if folderParent is not None and folderParentType:
+        childFolders = list(
+            Folder().childFolders(
+                folderParent, folderParentType, sort=[['lowerName', 1]], user=user
+            )
+        )
     for index, item in enumerate(childFolders):
         if item.get('_id') == folder.get('_id'):
             if index > 0:
@@ -678,7 +697,11 @@ def get_configuration(folder: Folder, user: User):
             "name": next.get('name'),
         }
 
+    # Launch configs live only on the write base (never merged), so return them
+    # explicitly; browsing any descendant folder then resolves the base's buttons.
+    launchConfigs = (baseMetaData.get('configuration', {}) or {}).get('launchConfigs', [])
     returnVal = {
+        'launchConfigs': launchConfigs if isinstance(launchConfigs, list) else [],
         'configOwners': configOwners,
         "prevNext": prevNext,
         'hierarchy': hierarchy,

@@ -17,16 +17,17 @@ import { RectBounds } from 'vue-media-annotator/utils';
 import { Handler } from 'vue-media-annotator/provides';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { debounce } from 'lodash';
-import { imageToRLEObject, maskToLuminanceAlpha, decode } from './rle';
+import {
+  binaryMaskToImage, binaryMaskToPngBlob, imageToRLEObject, maskToLuminanceAlpha, decode, encode, DataArray,
+} from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
+import createRLEWorker from './rleWorkerFactory';
 
-// Dynamically import the worker
-const RLEWorker = () => new Worker(new URL('../workers/rleWorker.js', import.meta.url), { type: 'module' });
-const rleWorker = RLEWorker();
+const rleWorker = createRLEWorker();
 
 const ENABLE_TIMING_LOGS = false;
 const MAX_TEXTURE_PRELOAD = 1000; // Max number of textures to preload at once
-const { preloadRLEMasks, clearQueue } = createRLEPreloader(RLEWorker, {
+const { preloadRLEMasks, clearQueue } = createRLEPreloader(createRLEWorker, {
   batchSize: 20,
   enableTimingLogs: ENABLE_TIMING_LOGS,
 });
@@ -81,6 +82,20 @@ export interface UseMaskInterface {
       triggerAction?: MaskTriggerActions;
     }) => void;
     addUpdateMaskFrame: (trackId: number, Image: HTMLImageElement) => Promise<void>;
+    /**
+     * Store a binary mask (1 = object, row-major) as the mask for a track on
+     * an arbitrary frame, e.g. a confirmed SAM segmentation. Uploads the mask
+     * and updates the local RLE cache; flagging the feature (`hasMask`) and
+     * its bounds is the caller's job. Rejects — after rolling back the
+     * optimistic local registration — when nothing was persisted (empty
+     * mask, encoding or upload failure), so callers must only flag `hasMask`
+     * after this resolves.
+     */
+    createMaskFromBinary: (
+      trackId: number,
+      frameId: number,
+      mask: { data: Uint8Array; width: number; height: number },
+    ) => Promise<void>;
     deleteMaskFrame: (trackId: number) => Promise<void>;
     updateMaskData: (maskData: MaskSAM2UpdateItem[]) => void;
   };
@@ -254,6 +269,97 @@ export default function useMasks(
       handler.trackSelect(trackId, false);
     }
     handler.save();
+  }
+
+  async function createMaskFromBinary(
+    trackId: number,
+    frameId: number,
+    mask: { data: Uint8Array; width: number; height: number },
+  ) {
+    const key = frameKey(frameId, trackId);
+    // A mask already stored for this frame; a failed save puts it back.
+    const previousRLE = rleMasks.value[trackId]?.[frameId];
+    const previousDecoded = rleCache.get(key);
+    const previousImage = cache.get(key);
+    // Reject rather than silently succeed: callers flag the feature
+    // `hasMask` once this resolves, so resolving without storing anything
+    // would leave the track pointing at a mask that does not exist.
+    if (!mask.data.some((value) => value)) {
+      throw new Error('Could not save the segmentation mask: the mask is empty.');
+    }
+    if (useRLE.value) {
+      // Register the mask locally before any await (image encoding, upload).
+      // Confirming flags the feature `hasMask` and enables the Mask layer
+      // synchronously, so the next render looks the mask up immediately:
+      // registering only after the upload returned made that render warn
+      // "Missing RLE mask" and, since nothing redrew afterwards, the mask
+      // did not appear until some unrelated update. The binary mask is
+      // row-major; COCO RLE is column-major.
+      const cocoMask = new Uint8Array(mask.width * mask.height);
+      for (let row = 0; row < mask.height; row += 1) {
+        for (let col = 0; col < mask.width; col += 1) {
+          if (mask.data[row * mask.width + col]) cocoMask[col * mask.height + row] = 1;
+        }
+      }
+      const [rleObject] = encode(new DataArray(cocoMask, [mask.height, mask.width, 1]));
+      const rleData: RLEFrameData = {
+        rle: rleObject,
+        file_name: `${trackId}_${frameId}.png`,
+      };
+      // Reassign (not nested mutation) so Vue notices the new track/frame.
+      rleMasks.value = {
+        ...rleMasks.value,
+        [trackId]: { ...(rleMasks.value[trackId] || {}), [frameId]: rleData },
+      };
+      // `cocoMask` is exactly what decoding `rleObject` would return.
+      rleCache.set(key, {
+        width: mask.width,
+        height: mask.height,
+        data: maskToLuminanceAlpha(cocoMask, mask.width, mask.height),
+      });
+      clearMaskWarning();
+    }
+    // LayerManager redraws when loadingFrame clears; marking the frame lets
+    // completion trigger a redraw even if the first render raced ahead.
+    loadingFrame.value = key;
+    try {
+      // Encode the upload straight from the mask: no image round trip or
+      // bounds scan (the caller already has the prediction's bounds).
+      const blob = await binaryMaskToPngBlob(mask.data, mask.width, mask.height);
+      if (!useRLE.value) {
+        cache.set(key, await binaryMaskToImage(mask.data, mask.width, mask.height));
+      }
+      await uploadMask(datasetId.value, trackId, frameId, blob);
+    } catch (error) {
+      // Roll back the optimistic registration so a mask that was not
+      // persisted does not keep displaying (the caller reports the error).
+      // A mask the frame already had is restored, not dropped: the caller
+      // restores the feature's `hasMask` flag, which must still find it.
+      if (useRLE.value) {
+        if (previousRLE) {
+          rleMasks.value = {
+            ...rleMasks.value,
+            [trackId]: { ...(rleMasks.value[trackId] || {}), [frameId]: previousRLE },
+          };
+          if (previousDecoded) {
+            rleCache.set(key, previousDecoded);
+          } else {
+            rleCache.delete(key);
+          }
+        } else {
+          await deleteLocalMasks(trackId, [frameId]);
+        }
+      } else if (previousImage) {
+        cache.set(key, previousImage);
+      } else {
+        cache.delete(key);
+      }
+      throw error;
+    } finally {
+      if (loadingFrame.value === key) {
+        loadingFrame.value = false;
+      }
+    }
   }
 
   async function deleteLocalMasks(trackId: number, frameIds: number[]) {
@@ -698,6 +804,7 @@ export default function useMasks(
       updateMaskData,
       setEditorOptions,
       addUpdateMaskFrame,
+      createMaskFromBinary,
       deleteMaskFrame,
     },
   };
