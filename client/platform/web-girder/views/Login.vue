@@ -27,6 +27,7 @@ export default defineComponent({
         window.localStorage.setItem('girderToken', girderRest.token);
       }
       store.dispatch('User/loadUser');
+      store.dispatch('Jobs/updateJobs').catch(() => { /* ignore */ });
       router.push('/');
     }
     girderRest.$on('login', onLogin);

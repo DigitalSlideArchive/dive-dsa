@@ -1,11 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import logging
 import os
 
 from bson.objectid import ObjectId
 import cherrypy
-from girder import logger
 from girder.api.rest import getApiUrl
-from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
@@ -14,7 +13,7 @@ from girder.models.user import User
 from girder.settings import SettingKey
 from girder.utility.mail_utils import renderTemplate, sendMail
 from girder_jobs.models.job import Job
-from girder_worker.girder_plugin.utils import getWorkerApiUrl
+from girder_plugin_worker.utils import getWorkerApiUrl
 
 from dive_tasks.dive_batch_postprocess import DIVEBatchPostprocessTaskParams
 from dive_utils import asbool, fromMeta, prevent_assetstore_transcoding
@@ -29,6 +28,8 @@ from dive_utils.constants import (
     VideoType,
     videoRegex,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def send_new_user_email(event):
@@ -74,8 +75,11 @@ def process_assetstore_import(event, meta: dict):
         foldername = f'Video {item["name"]}'
         # reuse existing folder if it already exists with same name
         dest = Folder().createFolder(parentFolder, foldername, creator=user, reuseExisting=True)
-        now = datetime.now()
-        if now - dest['created'] > timedelta(hours=1):
+        now = datetime.now(timezone.utc)
+        created = dest['created']
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        if now - created > timedelta(hours=1):
             # Remove the old referenced item, replace it with the new one.
             oldItem = Item().findOne({'folderId': dest['_id'], 'name': item['name']})
             if oldItem is not None:
@@ -117,19 +121,25 @@ def process_assetstore_import(event, meta: dict):
             Folder().save(folder)
 
 
+def _job_cherrypy_callback_url() -> str:
+    """REST handlers have a CherryPy request; Celery workers do not."""
+    try:
+        return cherrypy.url()
+    except Exception:
+        return getWorkerApiUrl()
+
+
 def convert_video_recrusive(folder, user):
     """
     Start a batch postprocess job for all folders with MarkForPostProcess flag.
     This replaces the manual recursive postprocess calls with a single batch job.
     """
-    # Create a token for the batch job
-
     token = Token().createToken(user=user, days=2)
 
     dive_batch_postprocess_task_params: DIVEBatchPostprocessTaskParams = {
         "source_folder_id": str(folder['_id']),
-        "skipJobs": False,  # Allow jobs to run (transcoding, etc.)
-        "skipTranscoding": True,  # Skip transcoding if not needed
+        "skipJobs": False,
+        "skipTranscoding": True,
         "additive": False,
         "additivePrepend": '',
         "userId": str(user['_id']),
@@ -141,43 +151,39 @@ def convert_video_recrusive(folder, user):
     job = Job().createLocalJob(
         module='dive_tasks.dive_batch_postprocess',
         function='batchPostProcessingTaskLauncher',
-        kwargs={'params': dive_batch_postprocess_task_params, 'url': cherrypy.url()},
+        kwargs={'params': dive_batch_postprocess_task_params, 'url': _job_cherrypy_callback_url()},
         title='Batch process Dive Batch Postprocess',
         type='DIVE Batch Postprocess',
         user=user,
         public=True,
         asynchronous=True,
     )
-    job = Job().save(job)
-    Job().scheduleJob(job)
+    from dive_tasks.local_tasks import run_batch_postprocess_job
+
+    # createLocalJob is the job of record; suppress duplicate Celery "<unnamed job>".
+    run_batch_postprocess_job.delay(str(job['_id']), girder_job_disable=True)
 
 
-class DIVES3Imports:
-    destinationId = None
-    destinationType = None
+def run_post_assetstore_import(event):
+    """
+    Run after Assetstore.importData completes.
 
-    def process_s3_import_before(self, event):
-        self.destinationId = event.info.get('params', {}).get('destinationId')
-        self.destinationType = event.info.get('params', {}).get('destinationType')
-
-    def process_s3_import_after(self, event):
-        if self.destinationType == 'folder' and self.destinationId is not None:
-            # go through all sub folders and add a new script to convert
-            destinationFolder = Folder().findOne({"_id": ObjectId(self.destinationId)})
-            print(destinationFolder)
-            userId = destinationFolder['creatorId'] or destinationFolder['baseParentId']
-            user = User().findOne({'_id': ObjectId(userId)})
-            convert_video_recrusive(destinationFolder, user)
-        if self.destinationType == 'collection' and self.destinationId is not None:
-            destinationCollection = Collection().findOne({"_id": ObjectId(self.destinationId)})
-            userId = destinationCollection['creatorId'] or destinationCollection['baseParentId']
-            user = User().findOne({'_id': ObjectId(userId)})
-            child_folders = Folder().find({'parentId': ObjectId(self.destinationId)})
-            for child in child_folders:
-                convert_video_recrusive(child, user)
-
-        self.destinationId = None
-        self.destinationType = None
+    Bound on Celery ``local`` workers via ``dive_tasks.worker_girder_events``.
+    """
+    info = event.info
+    parent = info.get('parent')
+    parentType = info.get('parentType')
+    user = info.get('user')
+    if not parent or not parentType or not user:
+        return
+    userId = parent['creatorId'] or parent['baseParentId']
+    owner = User().findOne({'_id': ObjectId(userId)})
+    if parentType == 'folder':
+        convert_video_recrusive(parent, owner)
+    elif parentType in ('collection', 'user'):
+        child_folders = Folder().find({'parentId': parent['_id']})
+        for child in child_folders:
+            convert_video_recrusive(child, owner)
 
 
 def process_fs_import(event):

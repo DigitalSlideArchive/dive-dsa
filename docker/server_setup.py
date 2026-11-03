@@ -1,6 +1,5 @@
 import os
 
-import cherrypy
 from dive_utils import constants
 from girder.exceptions import ValidationException
 from girder.models import getDbConnection
@@ -9,8 +8,6 @@ from girder.models.folder import Folder
 from girder.models.setting import Setting
 from girder.models.user import User
 from pymongo.errors import OperationFailure
-
-cherrypy.config["database"]["uri"] = os.getenv("GIRDER_MONGO_URI")
 
 ADMIN_USER = os.getenv("GIRDER_ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("GIRDER_ADMIN_PASS", "letmein")

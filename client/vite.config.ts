@@ -76,6 +76,11 @@ export default defineConfig(({ mode }) => {
           secure: false,
           ws: true,
         },
+        '/notifications': {
+          target: 'http://localhost:8010',
+          secure: false,
+          ws: true,
+        },
       },
     },
     build: {

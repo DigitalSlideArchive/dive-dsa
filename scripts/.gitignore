@@ -5,7 +5,6 @@
 *.yml
 *.txt
 *.log
-*.md
 *.DS_Store
 *.swp
 *.bak
