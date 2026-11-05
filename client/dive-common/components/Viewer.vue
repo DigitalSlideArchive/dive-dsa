@@ -146,6 +146,7 @@ export default defineComponent({
 
     const {
       loadDetections, loadMetadata, saveMetadata, saveConfiguration, transferConfiguration,
+      getSamModelHost,
     } = useApi();
     const progress = reactive({
       // Loaded flag prevents annotator window from populating
@@ -1132,6 +1133,7 @@ export default defineComponent({
       selectedCamera,
       datasetId,
       imageData,
+      resolveModelHost: getSamModelHost,
     });
 
     /** Esc clears segmentation points first; otherwise it leaves editing. */
