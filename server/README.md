@@ -3,6 +3,7 @@
 There are several important python packages in this application
 
 * `dive_server` is a collection of girder plugins for the web server
+* `dive_hf_models` serves browser models from Girder. The collection is public so the system can read them. See [dive_hf_models/README.md](dive_hf_models/README.md) for download and upload.
 * `dive_tasks` is a collection of girder worker plugins for the celery worker
 * `scripts` has general command-line utilities
 * `dive_utils` is shared code between the above packages
