@@ -241,3 +241,55 @@ it('loads models from VUE_APP_SAM_MODEL_HOST when it is set', async () => {
     delete process.env.VUE_APP_SAM_MODEL_HOST;
   }
 });
+
+it('loads models from the host resolveModelHost returns', async () => {
+  const fake = fakeTransformers();
+  const resolve = jest.fn(async (id: string) => (id === SAM_MODELS.sam2 ? 'https://dive.example.org/api/v1/dive_hf_models' : null));
+  const sam = new SamOnnx(undefined, async () => fake.module, resolve);
+  await sam.ready();
+  expect(resolve).toHaveBeenCalledWith(SAM_MODELS.sam2);
+  expect(fake.module.env.remoteHost).toBe('https://dive.example.org/api/v1/dive_hf_models/');
+  // A model the server does not have goes back to the Hub.
+  await sam.setModel('sam2-small');
+  await sam.ready();
+  expect(fake.module.env.remoteHost).toBe('https://huggingface.co/');
+  await sam.dispose();
+});
+
+it('a later instance still falls back to the Hub after another pointed env elsewhere', async () => {
+  const fake = fakeTransformers();
+  const resolve = async (id: string) => (id === SAM_MODELS.sam2 ? 'https://dive.example.org/api/v1/dive_hf_models/' : null);
+  const first = new SamOnnx(undefined, async () => fake.module, resolve);
+  await first.ready();
+  expect(fake.module.env.remoteHost).toBe('https://dive.example.org/api/v1/dive_hf_models/');
+  await first.dispose();
+  // Same transformers module (and env), as when the Viewer remounts.
+  const second = new SamOnnx(undefined, async () => fake.module, resolve);
+  await second.setModel('sam2-small');
+  await second.ready();
+  expect(fake.module.env.remoteHost).toBe('https://huggingface.co/');
+  await second.dispose();
+});
+
+it('falls back to the Hub when resolveModelHost fails', async () => {
+  const fake = fakeTransformers();
+  const sam = new SamOnnx(undefined, async () => fake.module, async () => { throw new Error('offline'); });
+  await sam.ready();
+  expect(fake.module.env.remoteHost).toBe('https://huggingface.co/');
+  await sam.dispose();
+});
+
+it('prefers VUE_APP_SAM_MODEL_HOST over resolveModelHost', async () => {
+  process.env.VUE_APP_SAM_MODEL_HOST = 'https://models.example.org';
+  try {
+    const fake = fakeTransformers();
+    const resolve = jest.fn(async () => 'https://dive.example.org/api/v1/dive_hf_models/');
+    const sam = new SamOnnx(undefined, async () => fake.module, resolve);
+    await sam.ready();
+    expect(fake.module.env.remoteHost).toBe('https://models.example.org/');
+    expect(resolve).not.toHaveBeenCalled();
+    await sam.dispose();
+  } finally {
+    delete process.env.VUE_APP_SAM_MODEL_HOST;
+  }
+});

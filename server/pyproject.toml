@@ -41,6 +41,7 @@ classifiers = [
 requires-python = ">=3.10.0,<=3.12"
 packages = [
   { include = "dive_server" },
+  { include = "dive_hf_models" },
   { include = "dive_tasks" },
 ]
 dependencies = [
@@ -83,10 +84,12 @@ sam = [
 
 [project.scripts]
 diveutils = "scripts.entrypoint_dev:cli"
+dive-hf-models = "dive_hf_models.cli:cli"
 dive = "scripts.entrypoint_main:cli"
 
 [project.entry-points."girder.plugin"]
 dive_server = "dive_server:GirderPlugin"
+dive_hf_models = "dive_hf_models:GirderPlugin"
 
 [project.entry-points."girder_worker_plugins"]
 dive_tasks = "dive_tasks:DIVEPlugin"
@@ -96,11 +99,11 @@ requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["dive_server", "dive_tasks", "dive_utils"]
+packages = ["dive_server", "dive_hf_models", "dive_tasks", "dive_utils"]
 include = ["**/*.mako"]
 
 [tool.hatch.build.targets.sdist]
-include = ["dive_server/", "dive_tasks/", "dive_utils/", "**/*.mako", "README.md"]
+include = ["dive_server/", "dive_hf_models/", "dive_tasks/", "dive_utils/", "**/*.mako", "README.md"]
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
