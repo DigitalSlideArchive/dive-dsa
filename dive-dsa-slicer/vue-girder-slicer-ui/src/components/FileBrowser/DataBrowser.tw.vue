@@ -1,5 +1,5 @@
 <script lang="ts">
-import { PropType, Ref, computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { PropType, Ref, defineComponent, onMounted, ref } from 'vue'
 import RestClient from '../../api/girderRest';
 import { GirderModel, GirderModelType } from '../../girderTypes';
 import { mdiAccount, mdiArrowUpRightBold, mdiChevronDoubleLeft, mdiChevronDoubleRight, mdiChevronDown, mdiChevronLeft, mdiChevronRight, mdiChevronUp,
@@ -100,45 +100,6 @@ export default defineComponent({
     const folderOffset: Ref<number> = ref(0);
     const itemOffset: Ref<number> = ref(0);
     const breadCrumb: Ref<{type: GirderModelType, path: {name:string, id: string}[]}> = ref({type: 'user' as GirderModelType, path:[]})
-    const breadcrumbPathEl: Ref<HTMLElement | null> = ref(null);
-    const breadcrumbTruncated = ref(false);
-    const breadcrumbTooltipVisible = ref(false);
-    const breadcrumbTooltipStyle: Ref<Record<string, string>> = ref({});
-    const breadcrumbFullPath = computed(() =>
-      breadCrumb.value.path.map((item) => item.name).join(' / ')
-    );
-    const updateBreadcrumbTruncation = () => {
-      const el = breadcrumbPathEl.value;
-      if (!el) {
-        breadcrumbTruncated.value = false;
-        return;
-      }
-      breadcrumbTruncated.value = el.scrollWidth > el.clientWidth;
-    };
-    const showBreadcrumbTooltip = () => {
-      updateBreadcrumbTruncation();
-      const el = breadcrumbPathEl.value;
-      if (!breadcrumbTruncated.value || !el) {
-        breadcrumbTooltipVisible.value = false;
-        return;
-      }
-      const rect = el.getBoundingClientRect();
-      const maxWidth = Math.min(Math.max(rect.width, 24 * 16), window.innerWidth - 16);
-      let left = rect.left;
-      if (left + maxWidth > window.innerWidth - 8) {
-        left = Math.max(8, window.innerWidth - maxWidth - 8);
-      }
-      breadcrumbTooltipStyle.value = {
-        left: `${left}px`,
-        top: `${rect.bottom + 4}px`,
-        maxWidth: `${maxWidth}px`,
-      };
-      breadcrumbTooltipVisible.value = true;
-    };
-    const hideBreadcrumbTooltip = () => {
-      breadcrumbTooltipVisible.value = false;
-    };
-    let breadcrumbResizeObserver: ResizeObserver | null = null;
     const currentParentId = ref('');
     const currentParentType = ref('user');
     const selected: Ref<null | {name: string, girderId: string, parentId?: string, fileId?: string}> = ref(null);
@@ -180,21 +141,7 @@ export default defineComponent({
         await openPresetLocation();
       }
       initializing.value = false;
-      await nextTick();
-      updateBreadcrumbTruncation();
-      if (typeof ResizeObserver !== 'undefined' && breadcrumbPathEl.value) {
-        breadcrumbResizeObserver = new ResizeObserver(() => updateBreadcrumbTruncation());
-        breadcrumbResizeObserver.observe(breadcrumbPathEl.value);
-      }
     })
-    onUnmounted(() => {
-      breadcrumbResizeObserver?.disconnect();
-      breadcrumbResizeObserver = null;
-    });
-    watch(breadCrumb, async () => {
-      await nextTick();
-      updateBreadcrumbTruncation();
-    }, { deep: true });
     const updateFolders = async (parentId: string, parentType: string) => {
       const responseFolders = await girderRest.get(`folder`, {
                 params: {
@@ -419,13 +366,6 @@ export default defineComponent({
       itemOffset,
       iconMap,
       breadCrumb,
-      breadcrumbPathEl,
-      breadcrumbTruncated,
-      breadcrumbTooltipVisible,
-      breadcrumbTooltipStyle,
-      breadcrumbFullPath,
-      showBreadcrumbTooltip,
-      hideBreadcrumbTooltip,
       selected,
       selectedItems,
       selectedModel,
@@ -513,13 +453,8 @@ export default defineComponent({
             <div class="gsu-breadcrumb mb-0 shrink-0">
               <div
                 class="gsu-breadcrumb-path-wrap relative"
-                @mouseenter="showBreadcrumbTooltip"
-                @mouseleave="hideBreadcrumbTooltip"
-                @focusin="showBreadcrumbTooltip"
-                @focusout="hideBreadcrumbTooltip"
               >
                 <div
-                  ref="breadcrumbPathEl"
                   class="gsu-breadcrumb-path"
                 >
                   <span
@@ -904,16 +839,6 @@ export default defineComponent({
       </div>
     </div>
     <div class="gsu-modal-backdrop opacity-25 fixed inset-0 bg-black"></div>
-    <teleport to="body">
-      <div
-        v-if="breadcrumbTooltipVisible"
-        class="gsu-breadcrumb-tooltip pointer-events-none fixed z-10001 whitespace-normal break-all rounded-sm border border-borderColor bg-backgroundColor px-2 py-1 text-sm text-textColor shadow-lg"
-        role="tooltip"
-        :style="breadcrumbTooltipStyle"
-      >
-        {{ breadcrumbFullPath }}
-      </div>
-    </teleport>
   </div>
 </template>
 <style>
@@ -936,9 +861,11 @@ export default defineComponent({
   min-width: 0 !important;
   overflow: hidden !important;
 }
+/* Long paths wrap onto extra lines; nothing is cut off. A single name longer
+   than the line may break mid-word rather than overflow. */
 .gsu-breadcrumb-path {
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
 }
 .gsu-breadcrumb-path svg {
   display: inline !important;
@@ -946,9 +873,10 @@ export default defineComponent({
 }
 .gsu-breadcrumb-counts {
   position: absolute !important;
+  /* Pinned to the first line so it stays put when the path wraps */
   top: 0 !important;
   right: 0 !important;
-  bottom: 0 !important;
+  height: 2.25rem;
   z-index: 1;
   display: flex !important;
   flex-direction: row !important;
