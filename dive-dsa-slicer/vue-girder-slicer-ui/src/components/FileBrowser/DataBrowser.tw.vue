@@ -165,7 +165,7 @@ export default defineComponent({
       });
       const baseFolder = (await (girderRest.get(`folder/${props.parentId}`))).data;
       breadCrumb.value.path.push({ name: baseFolder['name'], id: baseFolder['_id'] });
-      await updateMainView(props.parentId, 'folder', '', true);
+      await updateMainView(props.parentId, 'folder', '');
       selected.value = {
         name: props.name,
         girderId: props.girderId,
@@ -226,7 +226,7 @@ export default defineComponent({
             rootItems.value = responseItems.data;
         return responseItems.data;
     }
-    const updateMainView = async (parentId: string, parentType: string, name = '', resetShow=false) => {
+    const updateMainView = async (parentId: string, parentType: string, name = '') => {
       if (props.type === 'directory' && parentType === 'folder') {
         selected.value = {
           name,
@@ -237,15 +237,19 @@ export default defineComponent({
       }
       currentParentId.value = parentId;
       currentParentType.value = parentType;
-      if (resetShow) {
-        itemShow.value = false;
-        folderShow.value = false;
-      }
+      // Every navigation starts on page 1 with both lists expanded. Paging and
+      // collapse state belong to the folder being left, not the one opened.
+      folderOffset.value = 0;
+      itemOffset.value = 0;
+      folderShow.value = true;
+      itemShow.value = true;
         await updateFolders(parentId, parentType);
         if (parentType  === 'folder') {
           await updateItems(parentId)
         } else {
+            // Users and collections hold no items directly
             rootItems.value = [];
+            itemCount.value = 0;
         }
         const foundBreadCrumbIndex = breadCrumb.value.path.findIndex((item) => item.id === parentId);
         if (foundBreadCrumbIndex !== -1) {
@@ -263,7 +267,7 @@ export default defineComponent({
     const setRoot = async ({ val, type, name}: {val: string,  type: GirderModelType, name: string}) => {
         home.value = val;
         breadCrumb.value = { type, path: []};
-        updateMainView(val, type, name, true);
+        updateMainView(val, type, name);
     }
     const upLevel = () => {
       if (breadCrumb.value.path.length > 1) { // we can't go up if add root
@@ -272,7 +276,7 @@ export default defineComponent({
         if( breadCrumb.value.path.length === 2) {
           newPathType = breadCrumb.value.type;
         }
-        updateMainView(newPath.id, newPathType, newPath.name, true)
+        updateMainView(newPath.id, newPathType, newPath.name)
       }
     }
     // This gets the main data for the Root Hierarchy Tool
@@ -305,19 +309,13 @@ export default defineComponent({
           // paint the home folder listing before navigating to parentId.
           return;
         }
-        const rootResponse =  await girderRest.get('folder', {
-            params: {
-                limit: 1001,
-                offset: 0,
-                sort: 'name',
-                sortdir: 1,
-                parentType: 'user',
-                parentId: userResponse._id,
-            },
-        });
-        rootFolders.value = rootResponse.data
         currentParentId.value = userResponse._id;
         currentParentType.value = 'user';
+        // Same paged request as any other location, so the folder count and
+        // paging are correct at Home too.
+        await updateFolders(userResponse._id, 'user');
+        rootItems.value = [];
+        itemCount.value = 0;
         breadCrumb.value = {
             type: 'user',
             path: [{
@@ -326,26 +324,20 @@ export default defineComponent({
             }]
         }
     }
-    watch(folderOffset, () => updateFolders(currentParentId.value, currentParentType.value));
-    watch(itemOffset, () => updateItems(currentParentId.value));
+    // Change page within the current location. Fetches directly (no watcher on
+    // the offsets) so resetting them during navigation does not refetch.
     const updateOffset = (type: 'folder' | 'item', value: number) => {
-      if (value < 0 || Number.isNaN(value)) {
-        folderOffset.value = 0;
-        return;
-      }
-      if (type === 'folder' && value >= Math.ceil(folderCount.value/ props.limit)) {
-        folderOffset.value = Math.ceil(folderCount.value/ props.limit)-1;
-        return;
-      }
-      if (type === 'item' && value >= Math.ceil(itemCount.value/ props.limit)) {
-        itemOffset.value = Math.ceil(itemCount.value/ props.limit)-1;
-        return;
-      }
-      if (type ==='folder') {
-        folderOffset.value = value;
-      }
-      if (type === 'item') {
-        itemOffset.value = value;
+      const count = type === 'folder' ? folderCount.value : itemCount.value;
+      const lastPage = Math.max(Math.ceil(count / props.limit) - 1, 0);
+      const page = Number.isNaN(value) ? 0 : Math.min(Math.max(value, 0), lastPage);
+      if (type === 'folder') {
+        if (page !== folderOffset.value) {
+          folderOffset.value = page;
+          updateFolders(currentParentId.value, currentParentType.value);
+        }
+      } else if (page !== itemOffset.value) {
+        itemOffset.value = page;
+        updateItems(currentParentId.value);
       }
     }
     const selecting = async (item: GirderModel, type: 'folder' | 'file') => {
@@ -536,7 +528,7 @@ export default defineComponent({
                   >
                     <span
                       v-if="index === 0"
-                      @click="updateMainView(item.id, breadCrumb.type, item.name, true);"
+                      @click="updateMainView(item.id, breadCrumb.type, item.name);"
                     >
                       <svg-icon
                         type="mdi"
@@ -554,7 +546,7 @@ export default defineComponent({
                     <span
                       v-else-if="index !== breadCrumb.path.length - 1"
                       class="gsu-clickable"
-                      @click="updateMainView(item.id, 'folder', item.name, true)"
+                      @click="updateMainView(item.id, 'folder', item.name)"
                     >
                       {{ item.name }}
                     </span>
@@ -586,13 +578,16 @@ export default defineComponent({
                     class="number-badge"
                   >{{ countFormatter(itemCount) }}</span>
                 </div>
-                <div class="gsu-breadcrumb-up" title="Up one level">
+                <div
+                  class="gsu-breadcrumb-up"
+                  title="Up one level"
+                  @click="upLevel()"
+                >
                   <svg-icon
                     type="mdi"
                     :path="mdiArrowUpRightBold"
                     :size="20"
                     class="gsu-icon gsu-clickable"
-                    @click="upLevel()"
                   />
                 </div>
               </div>
@@ -724,11 +719,11 @@ export default defineComponent({
               v-if="(itemCount > limit || folderCount > limit) && itemCount"
               class="item-header"
             >
-              <div
-                class="flex flex-wrap"
-                @click="itemShow = !itemShow"
-              >
-                <div class="w-1/5">
+              <div class="flex flex-wrap">
+                <div
+                  class="w-1/5"
+                  @click="itemShow = !itemShow"
+                >
                   <svg-icon
                     type="mdi"
                     :path="itemShow ? mdiChevronDown : mdiChevronUp"
@@ -796,7 +791,7 @@ export default defineComponent({
                     </div>
                     <div
                       class=""
-                      @click="updateOffset('item', Math.ceil(folderCount/limit)-1)"
+                      @click="updateOffset('item', Math.ceil(itemCount/limit)-1)"
                     >
                       <svg-icon
                         type="mdi"
@@ -1079,6 +1074,7 @@ export default defineComponent({
   font-size: inherit;
 }
 .gsu-file-browser .gsu-breadcrumb-up {
+  cursor: pointer;
   padding: 0.125rem;
   border-radius: 4px;
 }
