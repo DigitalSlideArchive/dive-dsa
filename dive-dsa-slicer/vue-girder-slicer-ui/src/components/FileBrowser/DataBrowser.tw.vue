@@ -455,17 +455,17 @@ export default defineComponent({
 <template>
   <div>
     <div class="gsu-modal-layer fixed inset-0 flex justify-center items-center p-4">
-      <div class="gsu-modal-panel flex flex-col rounded-lg shadow-lg bg-backgroundColor text-textColor">
+      <div class="gsu-modal-panel gsu-file-browser flex flex-col rounded-lg shadow-lg bg-backgroundColor text-textColor">
         <!-- Header -->
-        <div class="grid grid-cols-12 shrink-0">
-          <span class="col-span-10 text-xl my-2 ml-5">
+        <div class="gsu-fb-header shrink-0">
+          <span class="gsu-fb-title">
             File Browser
           </span>
-          <span class="col-start-12 col-span-1 justify-self-end mr-5 my-2	" @click="$emit('close')">
+          <span class="gsu-fb-close" @click="$emit('close')">
             <svg-icon
               type="mdi"
               :path="mdiClose"
-              :size="30"
+              :size="24"
               class="gsu-icon gsu-clickable"
               data-dismiss="modal"
               aria-label="Close"
@@ -476,11 +476,11 @@ export default defineComponent({
         </div>
         
         <!-- Body -->
-        <div class="py-2 px-6 flex flex-col min-h-0 flex-1 overflow-hidden">
+        <div class="gsu-fb-body flex flex-col min-h-0 flex-1 overflow-hidden">
           <div class="modal-body flex flex-col min-h-0 flex-1 overflow-hidden">
           <div class="mx-auto flex flex-col min-h-0 flex-1 overflow-hidden w-full">
             <div
-              class="flex flex-nowrap shrink-0"
+              class="gsu-fb-toolbar flex flex-nowrap shrink-0"
             >
               <root-selection
                 v-if="home && user && collections && users"
@@ -489,7 +489,7 @@ export default defineComponent({
                 :collections="collections"
                 :users="users"
                 @change="setRoot($event)"
-                class="grow my-1"
+                class="grow"
               />
             </div>
             <div class="gsu-breadcrumb mb-0 shrink-0">
@@ -515,9 +515,8 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="iconMap[breadCrumb.type]"
-                        color="lightblue"
-                        :size="30"
-                        class="pb-2 gsu-icon gsu-clickable"
+                        :size="20"
+                        class="gsu-icon gsu-clickable"
                         style="display:inline"
                       />
                       <span
@@ -536,44 +535,37 @@ export default defineComponent({
                     <span v-else>
                       {{ item.name }}
                     </span>
-                    <span class="px-2">
-                      /
-                    </span>
+                    <span class="gsu-breadcrumb-sep">/</span>
                   </span>
                 </div>
               </div>
               <div class="gsu-breadcrumb-counts">
-                <div class="gsu-breadcrumb-count">
+                <div class="gsu-breadcrumb-count" title="Folders">
                   <svg-icon
                     type="mdi"
                     :path="iconMap['folder']"
-                    color="gray"
-                    :size="30"
-                    class="pb-2 gsu-icon"
+                    :size="16"
                   />
                   <span
                     class="number-badge"
                   >{{ countFormatter(folderCount) }}</span>
                 </div>
-                <div class="gsu-breadcrumb-count">
+                <div class="gsu-breadcrumb-count" title="Items">
                   <svg-icon
                     type="mdi"
                     :path="iconMap['item']"
-                    color="gray"
-                    :size="30"
-                    class="pb-2 gsu-icon"
+                    :size="16"
                   />
                   <span
                     class="number-badge"
                   >{{ countFormatter(itemCount) }}</span>
                 </div>
-                <div class="gsu-breadcrumb-up">
+                <div class="gsu-breadcrumb-up" title="Up one level">
                   <svg-icon
                     type="mdi"
                     :path="mdiArrowUpRightBold"
-                    color="blue"
-                    :size="25"
-                    class="pb-2 gsu-icon gsu-clickable"
+                    :size="20"
+                    class="gsu-icon gsu-clickable"
                     @click="upLevel()"
                   />
                 </div>
@@ -592,7 +584,7 @@ export default defineComponent({
                   <svg-icon
                     type="mdi"
                     :path="folderShow ? mdiChevronDown : mdiChevronUp"
-                    :size="30"
+                    :size="24"
                     class="gsu-icon gsu-clickable header"
                   />
                   <span class="header">
@@ -611,7 +603,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronDoubleLeft"
-                        :size="30"
+                        :size="24"
                         class="gsu-icon gsu-clickable"
                         :class="{'gsu-disabled-icon': folderOffset === 0}"
                       />
@@ -623,7 +615,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronLeft"
-                        :size="30"
+                        :size="24"
                         class="gsu-icon gsu-clickable"
                         :class="{'gsu-disabled-icon': folderOffset === 0}"
                       />
@@ -651,7 +643,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronRight"
-                        :size="30"
+                        :size="24"
                         class="gsu-icon gsu-clickable"
                         :class="{'gsu-disabled-icon': folderOffset >= Math.ceil(folderCount/limit)-1}"
                       />
@@ -663,7 +655,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronDoubleRight"
-                        :size="30"
+                        :size="24"
                         :class="{'gsu-disabled-icon': folderOffset === Math.ceil(folderCount/limit)-1}"
                         class="gsu-icon gsu-clickable"
                       />
@@ -678,32 +670,25 @@ export default defineComponent({
                 v-for="item in rootFolders"
                 :key="item._id"
                 :class="{'gsu-selected-items' :selectedItems[item.name] || (selected && selected.girderId === item.girderId)}"
-                class="grid grid-cols-8 justify-content-left g-0 gsu-item-row"
+                class="gsu-item-row gsu-row"
                 @click="selecting(item, 'folder'); updateMainView(item._id, item._modelType, item.name)"
               >
-                <div class="col-start-1 col-span-7 grow text-left">
+                <div class="gsu-row-main">
                   <svg-icon
                     type="mdi"
                     :path="iconMap[item._modelType]"
-                    color="lightblue"
-                    :size="30"
-                    class="pb-2 gsu-icon"
+                    :size="20"
+                    class="gsu-row-icon"
                   />
-                  <span
-                    class=" gsu-clickable"
-                  >
-                    {{ item.name }}
-                  </span>
+                  <span class="gsu-row-name">{{ item.name }}</span>
                 </div>
-                <div class="">
+                <div class="gsu-row-meta">
                   <svg-icon
                     type="mdi"
                     :path="item.public ? mdiEarth : mdiLock"
-                    color="gray"
-                    :size="30"
-                    class="pb-2 gsu-icon"
+                    :size="16"
                   />
-                  <span class="gsu-row-info"> {{ item.public ? 'Public' : 'Private' }}</span>
+                  <span>{{ item.public ? 'Public' : 'Private' }}</span>
                 </div>
               </div>
             </span>
@@ -719,7 +704,7 @@ export default defineComponent({
                   <svg-icon
                     type="mdi"
                     :path="itemShow ? mdiChevronDown : mdiChevronUp"
-                    :size="30"
+                    :size="24"
                     class="gsu-icon gsu-clickable"
                   />
                   <span class="header">
@@ -738,7 +723,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronDoubleLeft"
-                        :size="30"
+                        :size="24"
                         class="icon gsu-clickable"
                         :class="{'gsu-disabled-icon': itemOffset === 0}"
                       />
@@ -750,7 +735,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronLeft"
-                        :size="30"
+                        :size="24"
                         class="gsu-icon gsu-clickable"
                         :class="{'gsu-disabled-icon': itemOffset === 0}"
                       />
@@ -776,7 +761,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronRight"
-                        :size="30"
+                        :size="24"
                         class="gsu-icon gsu-clickable"
                         :class="{'gsu-disabled-icon': itemOffset >= Math.ceil(itemCount/limit)-1}"
                       />
@@ -788,7 +773,7 @@ export default defineComponent({
                       <svg-icon
                         type="mdi"
                         :path="mdiChevronDoubleRight"
-                        :size="30"
+                        :size="24"
                         :class="{'gsu-disabled-icon': itemOffset === Math.ceil(itemCount/limit)-1}"
                         class="gsu-icon gsu-clickable"
                       />
@@ -802,49 +787,42 @@ export default defineComponent({
               <div
                 v-for="item in rootItems"
                 :key="item._id"
-                class="grid grid-cols-8 justify-content-left g-0  gsu-item-row"
-                :class="{'gsu-' :selectedItems[item.name] || (selected && selected.girderId === item._id)}"
+                class="gsu-item-row gsu-row"
+                :class="{'gsu-selected-items' :selectedItems[item.name] || (selected && selected.girderId === item._id)}"
                 @click="selecting(item, 'file')"
               >
-                <div class="col-start-1 col-span-6 grow text-left">
+                <div class="gsu-row-main">
                   <svg-icon
                     type="mdi"
                     :path="iconMap[item._modelType]"
-                    color="lightblue"
-                    :size="30"
-                    class="pb-2 gsu-icon"
+                    :size="20"
+                    class="gsu-row-icon"
                   />
-                  <span>
-                    {{ item.name }}
-                  </span>
+                  <span class="gsu-row-name">{{ item.name }}</span>
                 </div>
-                  <div class="col-span-1">
-                    <span class="gsu-row-info">{{ sizeFormatter(item.size) }}</span>
-                  </div>
-                  <div class="col-span-1">
-                    <svg-icon
-                      type="mdi"
-                      :path="item.public ? mdiEarth : mdiLock"
-                      color="gray"
-                      :size="30"
-                      class="pb-2 gsu-icon"
-                    />
-                    <span class="gsu-row-info"> {{ item.public ? 'Public' : 'Private' }}</span>
-                  </div>
+                <div class="gsu-row-size">{{ sizeFormatter(item.size) }}</div>
+                <div class="gsu-row-meta">
+                  <svg-icon
+                    type="mdi"
+                    :path="item.public ? mdiEarth : mdiLock"
+                    :size="16"
+                  />
+                  <span>{{ item.public ? 'Public' : 'Private' }}</span>
+                </div>
               </div>
             </span>
           </div>
         </div>
         <div
           v-if="['directory', 'file'].includes(type)"
-          class="mx-5 gsu-selection mb-2 shrink-0"
+          class="gsu-selection shrink-0"
         >
           <div v-if="!multi">
-            <span> Selected {{ type === 'directory' ? 'folder' : 'file' }}:</span>
+            <span class="gsu-selection-label">Selected {{ type === 'directory' ? 'folder' : 'file' }}</span>
             <input
               v-if="type === 'directory'"
               :value="selected ? selected.name : 'Select a folder'"
-              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded-sm"
+              class="gsu-input block appearance-none w-full text-base leading-normal"
               type="text"
               placeholder="Select a folder…"
               readonly
@@ -852,7 +830,7 @@ export default defineComponent({
             <input
               v-if="type === 'file'"
               :value="selected && selected.name"
-              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded-sm"
+              class="gsu-input block appearance-none w-full text-base leading-normal"
               type="text"
               :placeholder="!output ? 'Select an item' : 'Output name:'"
               :disabled="!output || currentParentType !== 'folder'"
@@ -860,10 +838,10 @@ export default defineComponent({
             >        
           </div>
           <div v-else>
-            <span> {{ type === 'directory' ? 'Folder' : 'Item' }} Filter (Regular Expression)</span>
+            <span class="gsu-selection-label">{{ type === 'directory' ? 'Folder' : 'Item' }} filter (regular expression)</span>
             <input
               :value="selected && selected.name"
-              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded-sm"
+              class="gsu-input block appearance-none w-full text-base leading-normal"
               type="text"
               placeholder="Regular Expression"
               @input="setRegularExpression(convertInputString($event))"
@@ -872,7 +850,7 @@ export default defineComponent({
         </div>
         <div
           v-if="errorMsg"
-          class="mx-5 error-msg shrink-0"
+          class="error-msg shrink-0"
         >
           {{ errorMsg }}
         </div>
@@ -880,10 +858,10 @@ export default defineComponent({
         </div>
         
         <!-- Footer -->
-        <div class="p-6 flex justify-end items-center shrink-0">
+        <div class="gsu-fb-footer flex justify-end items-center shrink-0">
           <button
             type="button"
-            class="gsu-btn inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded-sm text-base leading-normal no-underline mx-3"
+            class="gsu-btn inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded-sm text-base leading-normal no-underline"
             @click="$emit('close')"
           >
             Cancel
@@ -923,7 +901,6 @@ export default defineComponent({
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  padding-right: 6.5rem !important;
   overflow: hidden !important;
 }
 .gsu-breadcrumb-path-wrap,
@@ -961,5 +938,250 @@ export default defineComponent({
   display: inline-flex !important;
   align-items: center !important;
   flex-shrink: 0 !important;
+}
+
+/*
+ * File browser look. Plain, unlayered CSS under .gsu-file-browser so it wins
+ * over Tailwind's layered utilities and is not undone by host resets.
+ */
+.gsu-file-browser {
+  /* Size limits repeated here (also in the gsu-modal-panel utility): Tailwind
+     v4 utilities are layered and lose to unlayered host resets such as Vuetify's. */
+  width: 100%;
+  max-width: min(64rem, calc(100vw - 2rem));
+  max-height: 90vh;
+  overflow: hidden;
+  border: 1px solid var(--gsu-color-border);
+  font-size: 0.9375rem;
+}
+.gsu-file-browser .gsu-fb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--gsu-color-border);
+}
+.gsu-file-browser .gsu-fb-title {
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.gsu-file-browser .gsu-fb-close {
+  display: inline-flex;
+  padding: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.gsu-file-browser .gsu-fb-close svg {
+  color: var(--gsu-color-muted-text);
+}
+.gsu-file-browser .gsu-fb-close:hover {
+  background-color: var(--gsu-color-highlight);
+}
+.gsu-file-browser .gsu-fb-body {
+  padding: 1rem 1.25rem 0.75rem;
+}
+.gsu-file-browser .gsu-fb-toolbar {
+  margin-bottom: 0.5rem;
+}
+.gsu-file-browser .gsu-fb-footer {
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--gsu-color-border);
+}
+.gsu-file-browser .gsu-fb-footer button {
+  min-width: 5.5rem;
+  padding: 0.375rem 1rem;
+  border: 1px solid var(--gsu-color-border);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+.gsu-file-browser .gsu-fb-footer .gsu-btn-accept:not(.gsu-btn-disabled) {
+  border-color: var(--gsu-color-primary);
+  background-color: var(--gsu-color-primary);
+  color: var(--gsu-background-muted);
+  font-weight: 500;
+}
+.gsu-file-browser .gsu-fb-footer .gsu-btn-accept:not(.gsu-btn-disabled):hover {
+  filter: brightness(1.1);
+}
+.gsu-file-browser .gsu-fb-footer .gsu-btn-disabled {
+  background-color: transparent;
+  opacity: 0.5;
+}
+
+/* Breadcrumb bar: one quiet row above the list */
+.gsu-file-browser .gsu-breadcrumb {
+  min-height: 2.25rem;
+  padding: 0.375rem 7.5rem 0.375rem 0.75rem !important;
+  border: 1px solid var(--gsu-color-border);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background-color: var(--gsu-background-muted);
+  line-height: 1.5rem;
+}
+.gsu-file-browser .gsu-breadcrumb-path .gsu-clickable {
+  color: var(--gsu-color-primary);
+}
+.gsu-file-browser .gsu-breadcrumb-path .gsu-clickable:hover {
+  text-decoration: underline;
+}
+.gsu-file-browser .gsu-breadcrumb-path svg {
+  margin-right: 0.25rem;
+  color: var(--gsu-color-muted-text);
+}
+.gsu-file-browser .gsu-breadcrumb-path > span:last-child {
+  color: var(--gsu-color-text);
+}
+.gsu-file-browser .gsu-breadcrumb-sep {
+  padding: 0 0.375rem;
+  color: var(--gsu-color-muted-text);
+}
+.gsu-file-browser .gsu-breadcrumb-counts {
+  gap: 0.75rem;
+  padding-right: 0.5rem;
+  color: var(--gsu-color-muted-text);
+  font-size: 0.8125rem;
+}
+.gsu-file-browser .gsu-breadcrumb-count {
+  gap: 0.25rem;
+}
+.gsu-file-browser .gsu-breadcrumb-count .number-badge {
+  position: static;
+  font-size: inherit;
+}
+.gsu-file-browser .gsu-breadcrumb-up {
+  padding: 0.125rem;
+  border-radius: 4px;
+}
+.gsu-file-browser .gsu-breadcrumb-up svg {
+  color: var(--gsu-color-primary);
+}
+.gsu-file-browser .gsu-breadcrumb-up:hover {
+  background-color: var(--gsu-color-highlight);
+}
+
+/* List: one outer border, thin dividers between rows */
+.gsu-file-browser .data-list {
+  border: 1px solid var(--gsu-color-border);
+  border-radius: 0 0 4px 4px;
+}
+.gsu-file-browser .gsu-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--gsu-color-border);
+}
+.gsu-file-browser .data-list > span:last-child > .gsu-row:last-child {
+  border-bottom: 0;
+}
+.gsu-file-browser .gsu-row-main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.gsu-file-browser .gsu-row svg {
+  flex-shrink: 0;
+}
+.gsu-file-browser .gsu-row-icon {
+  color: var(--gsu-color-primary);
+}
+.gsu-file-browser .gsu-row-name {
+  overflow: hidden;
+  color: var(--gsu-color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gsu-file-browser .gsu-row-meta,
+.gsu-file-browser .gsu-row-size {
+  flex-shrink: 0;
+  color: var(--gsu-color-muted-text);
+  font-size: 0.8125rem;
+}
+.gsu-file-browser .gsu-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 4.75rem;
+}
+.gsu-file-browser .gsu-row-size {
+  width: 6rem;
+  text-align: right;
+}
+.gsu-file-browser .gsu-row.gsu-selected-items {
+  background-color: var(--gsu-color-highlight);
+  box-shadow: inset 3px 0 0 var(--gsu-color-primary);
+}
+
+/* Folders / Items section headers with paging */
+.gsu-file-browser .folder-header,
+.gsu-file-browser .item-header {
+  padding: 0.125rem 0.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--gsu-color-border);
+  background-color: var(--gsu-background-muted);
+  color: var(--gsu-color-muted-text);
+  font-size: 0.8125rem;
+}
+.gsu-file-browser .folder-header > .flex,
+.gsu-file-browser .item-header > .flex,
+.gsu-file-browser .folder-header .flex > div,
+.gsu-file-browser .item-header .flex > div {
+  align-items: center;
+}
+.gsu-file-browser .folder-header svg,
+.gsu-file-browser .item-header svg {
+  display: inline;
+  color: var(--gsu-color-primary);
+  vertical-align: middle;
+}
+.gsu-file-browser .folder-header .header,
+.gsu-file-browser .item-header .header {
+  color: inherit;
+}
+.gsu-file-browser .gsu-disabled-icon {
+  color: var(--gsu-color-muted-text);
+  opacity: 0.35;
+}
+.gsu-file-browser .number-input {
+  margin: 0 0.25rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--gsu-color-border);
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--gsu-color-text);
+  text-align: center;
+}
+
+/* Selection field under the list, aligned with it */
+.gsu-file-browser .gsu-selection {
+  margin-top: 0.75rem;
+  border: 0;
+  background-color: transparent;
+}
+.gsu-file-browser .gsu-selection-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--gsu-color-muted-text);
+  font-size: 0.8125rem;
+}
+.gsu-file-browser .gsu-selection .gsu-input {
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--gsu-color-border);
+  border-radius: 4px;
+  background-color: var(--gsu-background-muted);
+  color: var(--gsu-color-text);
+}
+.gsu-file-browser .gsu-selection .gsu-input:focus {
+  border-color: var(--gsu-color-primary);
+  outline: none;
+}
+.gsu-file-browser .error-msg {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
 }
 </style>
