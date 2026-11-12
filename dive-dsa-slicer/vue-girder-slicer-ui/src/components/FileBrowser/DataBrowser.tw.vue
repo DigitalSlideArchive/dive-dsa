@@ -143,37 +143,48 @@ export default defineComponent({
     const currentParentType = ref('user');
     const selected: Ref<null | {name: string, girderId: string, parentId?: string, fileId?: string}> = ref(null);
     const selectedModel: Ref<null | GirderModel> = ref(null);
+    // Stay true until the initial location is ready so a preset folder does not
+    // briefly paint the home listing (which flashes large, then jumps).
+    const initializing = ref(true);
+    const openPresetLocation = async () => {
+      if (!props.parentId || !props.girderId || !props.name) {
+        return;
+      }
+      currentParentId.value = props.parentId;
+      currentParentType.value = 'folder';
+      const hierarchy = (await (girderRest.get(`folder/${props.parentId}/rootpath`))).data;
+      breadCrumb.value.type = hierarchy[0]['type'];
+      breadCrumb.value.path = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      hierarchy.forEach((folder: any) => {
+        let name = folder['object']['name'];
+        if (!name && breadCrumb.value.type === 'user') {
+          name = `${folder['object']['firstName']} ${folder['object']['lastName']}`
+        }
+        breadCrumb.value.path.push({ name, id: folder['object']['_id'] });
+      });
+      const baseFolder = (await (girderRest.get(`folder/${props.parentId}`))).data;
+      breadCrumb.value.path.push({ name: baseFolder['name'], id: baseFolder['_id'] });
+      await updateMainView(props.parentId, 'folder', '', true);
+      selected.value = {
+        name: props.name,
+        girderId: props.girderId,
+        parentId: props.parentId,
+      };
+      recalculatedSelected();
+    };
     onMounted(async () => {
-      await getData();
+      const hasPresetLocation = !!(props.parentId && props.girderId && props.name);
+      await getData({ skipHomeView: hasPresetLocation });
+      if (hasPresetLocation) {
+        await openPresetLocation();
+      }
+      initializing.value = false;
       await nextTick();
       updateBreadcrumbTruncation();
       if (typeof ResizeObserver !== 'undefined' && breadcrumbPathEl.value) {
         breadcrumbResizeObserver = new ResizeObserver(() => updateBreadcrumbTruncation());
         breadcrumbResizeObserver.observe(breadcrumbPathEl.value);
-      }
-      if (props.parentId && props.girderId && props.name) {
-        currentParentId.value = props.parentId;
-        currentParentType.value = 'user';
-        const hierarchy = (await (girderRest.get(`folder/${props.parentId}/rootpath`))).data;
-        breadCrumb.value.type = hierarchy[0]['type'];
-        breadCrumb.value.path = [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        hierarchy.forEach((folder: any) => {
-          let name = folder['object']['name'];
-          if (!name && breadCrumb.value.type === 'user') {
-            name = `${folder['object']['firstName']} ${folder['object']['lastName']}`
-          } 
-          breadCrumb.value.path.push({ name, id: folder['object']['_id'] });
-        });
-        const baseFolder = (await (girderRest.get(`folder/${props.parentId}`))).data;
-        breadCrumb.value.path.push({name: baseFolder['name'], id: baseFolder['_id']});
-        updateMainView(props.parentId, 'folder', '', true);
-        selected.value = {
-          name: props.name,
-          girderId: props.girderId,
-          parentId: props.parentId,
-        }
-        recalculatedSelected();
       }
     })
     onUnmounted(() => {
@@ -265,7 +276,7 @@ export default defineComponent({
       }
     }
     // This gets the main data for the Root Hierarchy Tool
-    const getData = async () => {
+    const getData = async (options: { skipHomeView?: boolean } = {}) => {
         const userResponse = (await girderRest.get('user/me')).data;
         user.value = userResponse;
         // REPLACE WITH A PROMISE ALL
@@ -286,6 +297,14 @@ export default defineComponent({
                 parentType: 'user',
             },
         });
+        users.value = usersResponse.data;
+        collections.value = collectionsResponse.data;
+        home.value = userResponse._id;
+        if (options.skipHomeView) {
+          // Preset open: root selector still needs user/collections, but do not
+          // paint the home folder listing before navigating to parentId.
+          return;
+        }
         const rootResponse =  await girderRest.get('folder', {
             params: {
                 limit: 1001,
@@ -296,10 +315,9 @@ export default defineComponent({
                 parentId: userResponse._id,
             },
         });
-        users.value = usersResponse.data;
-        collections.value = collectionsResponse.data;
         rootFolders.value = rootResponse.data
-        home.value = userResponse._id;
+        currentParentId.value = userResponse._id;
+        currentParentType.value = 'user';
         breadCrumb.value = {
             type: 'user',
             path: [{
@@ -422,6 +440,7 @@ export default defineComponent({
       errorMsg,
       users,
       currentParentType,
+      initializing,
       // icons
       mdiAccount,
       mdiArrowUpRightBold,
@@ -479,6 +498,13 @@ export default defineComponent({
         <div class="gsu-fb-body flex flex-col min-h-0 flex-1 overflow-hidden">
           <div class="modal-body flex flex-col min-h-0 flex-1 overflow-hidden">
           <div class="mx-auto flex flex-col min-h-0 flex-1 overflow-hidden w-full">
+            <div
+              v-if="initializing"
+              class="data-list gsu-fb-loading"
+            >
+              Loading…
+            </div>
+            <template v-else>
             <div
               class="gsu-fb-toolbar flex flex-nowrap shrink-0"
             >
@@ -571,7 +597,9 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          <div class="data-list">
+          <div
+            class="data-list"
+          >
             <div
               v-if="(folderCount > limit || itemCount > limit) && folderCount"
               class="folder-header"
@@ -812,9 +840,10 @@ export default defineComponent({
               </div>
             </span>
           </div>
+            </template>
         </div>
         <div
-          v-if="['directory', 'file'].includes(type)"
+          v-if="!initializing && ['directory', 'file'].includes(type)"
           class="gsu-selection shrink-0"
         >
           <div v-if="!multi">
@@ -1064,6 +1093,14 @@ export default defineComponent({
 .gsu-file-browser .data-list {
   border: 1px solid var(--gsu-color-border);
   border-radius: 0 0 4px 4px;
+}
+.gsu-file-browser .gsu-fb-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  color: var(--gsu-color-muted-text);
+  font-size: 0.875rem;
 }
 .gsu-file-browser .gsu-row {
   display: flex;
