@@ -53,6 +53,11 @@ export default defineComponent({
       required: false,
       default: undefined,
     },
+    fileId: {
+      type: String,
+      required: false,
+      default: undefined,
+    },
   },
   setup(props, { emit }) {
     useMountToBody();
@@ -131,16 +136,36 @@ export default defineComponent({
         name: props.name,
         girderId: props.girderId,
         parentId: props.parentId,
+        fileId: props.fileId,
       };
+      // Prefer the listed model so confirm/validation match a normal click.
+      const listed = rootItems.value?.find((item) => item._id === props.girderId)
+        || rootFolders.value?.find((folder) => folder._id === props.girderId);
+      if (listed) {
+        selectedModel.value = listed;
+      }
+      // Resolve Girder file id when the caller did not pass one (reopen + confirm).
+      if (props.type !== 'directory' && selected.value && !selected.value.fileId) {
+        const files = (await girderRest.get(`item/${props.girderId}/files`)).data;
+        if (files.length) {
+          selected.value.fileId = files[0]['_id'];
+        }
+      }
       recalculatedSelected();
     };
     onMounted(async () => {
-      const hasPresetLocation = !!(props.parentId && props.girderId && props.name);
-      await getData({ skipHomeView: hasPresetLocation });
-      if (hasPresetLocation) {
-        await openPresetLocation();
+      try {
+        const hasPresetLocation = !!(props.parentId && props.girderId && props.name);
+        await getData({ skipHomeView: hasPresetLocation });
+        if (hasPresetLocation) {
+          await openPresetLocation();
+        }
+      } catch (err: unknown) {
+        const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        errorMsg.value = message || 'Failed to load file browser';
+      } finally {
+        initializing.value = false;
       }
-      initializing.value = false;
     })
     const updateFolders = async (parentId: string, parentType: string) => {
       const responseFolders = await girderRest.get(`folder`, {
