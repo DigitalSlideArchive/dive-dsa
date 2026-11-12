@@ -74,9 +74,9 @@ export default defineComponent({
         </div>
         
         <div class="p-6 flex justify-end items-center shrink-0">
-          <button class="bg-red-500 border-solid border-2 border-borderColor font-bold py-2 px-4 rounded" @click="cancel">Cancel</button>
+          <button class="bg-red-500 border-solid border-2 border-borderColor font-bold py-2 px-4 rounded-sm" @click="cancel">Cancel</button>
           <button 
-            class=" btn ml-2 font-bold py-2 px-4 rounded"
+            class=" btn ml-2 font-bold py-2 px-4 rounded-sm"
             :class="{ 'gsu-disabled-button': disabledConfirm, 'gsu-btn-accept': !disabledConfirm }"
             @click="!disabledConfirm && confirm()"
           >Confirm</button>

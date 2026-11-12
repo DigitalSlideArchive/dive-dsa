@@ -90,7 +90,7 @@ export default defineComponent({
           }
         });
         results.value = taskHierarchy;
-      } catch (err) {
+      } catch (_err) {
         console.error("Cannot communicate with server");
       }
     };

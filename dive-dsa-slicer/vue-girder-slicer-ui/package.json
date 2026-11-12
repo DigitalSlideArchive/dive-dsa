@@ -4,7 +4,7 @@
     "name": "Kitware, Inc.",
     "email": "Bryon.Lewis@kitware.com"
   },
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "files": [
     "dist",
@@ -34,11 +34,12 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vue-tsc --emitDeclarationOnly && npm run build-tailwind",
+    "build": "vite build && vue-tsc --emitDeclarationOnly && npm run build-tailwind && npm run merge-css",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
-    "build-tailwind": "npx tailwindcss -i ./src/tailwind.css -o ./dist/tailwind.css --postcss"
+    "build-tailwind": "npx @tailwindcss/cli -i ./src/tailwind.css -o ./dist/tailwind.css",
+    "merge-css": "node scripts/merge-css.mjs"
   },
   "dependencies": {
     "@jamescoyle/vue-icon": "^0.1.2",
@@ -59,24 +60,25 @@
     "vue": "^2.7.15"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.5",
+    "@tailwindcss/postcss": "^4.3.5",
     "@types/jquery": "^3.5.29",
     "@types/js-cookie": "^3.0.6",
     "@types/lodash": "^4.14.202",
     "@types/qs": "^6.9.10",
     "@types/underscore": "^1.11.15",
-    "@typescript-eslint/eslint-plugin": "^6.7.4",
-    "@typescript-eslint/parser": "^6.7.4",
+    "@typescript-eslint/eslint-plugin": "^8.72.2",
+    "@typescript-eslint/parser": "^8.72.2",
     "@vitejs/plugin-vue2": "^2.3.3",
-    "autoprefixer": "^10.4.16",
-    "eslint": "^8.50.0",
+    "eslint": "^8.57.0",
     "eslint-plugin-vue": "^10.11.1",
     "postcss": "^8.5.24",
     "sass": "^1.69.5",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4.3.5",
     "typescript": "~5.4.5",
     "vite": "^6.4.3",
     "vite-plugin-dts": "^3.6.3",
-    "vue-eslint-parser": "^9.0.3",
+    "vue-eslint-parser": "^10.3.0",
     "vue-template-compiler": "^2.7.15",
     "vue-tsc": "^1.4.2"
   },
@@ -95,6 +97,14 @@
     ],
     "rules": {
       "vue/no-setup-props-destructure": 0,
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ],
       "sort-imports": [
         "error",
         {
@@ -120,7 +130,12 @@
             "apply",
             "variants",
             "responsive",
-            "screen"
+            "screen",
+            "theme",
+            "config",
+            "utility",
+            "source",
+            "plugin"
           ]
         }
       ],
@@ -130,8 +145,7 @@
   },
   "postcss": {
     "plugins": {
-      "tailwindcss": {},
-      "autoprefixer": {}
+      "@tailwindcss/postcss": {}
     }
   }
 }

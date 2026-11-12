@@ -42,6 +42,7 @@ export default defineComponent({
         girderId.value = props.data.fileValue.girderId;
         parentId.value = props.data.fileValue.parentId;
         selectedName.value = props.data.fileValue.name;
+        fileId.value = props.data.fileValue.fileId;
       }
     });
     const showBrowser = ref(false);
@@ -51,19 +52,22 @@ export default defineComponent({
     const girderId: Ref<string | undefined> = ref(undefined);
     const parentId: Ref<string | undefined> = ref(undefined);
     const selectedName: Ref<string | undefined> = ref(undefined);
+    const fileId: Ref<string | undefined> = ref(undefined);
     watch(() => props.data.fileValue, () => {
       if (props.data.fileValue?.name) {
         currentValue.value = props.data.fileValue.name;
         girderId.value = props.data.fileValue.girderId;
         parentId.value = props.data.fileValue.parentId;
         selectedName.value = props.data.fileValue.name;
+        fileId.value = props.data.fileValue.fileId;
       }
     });
-    const acceptBrowser = ({name, girderId, parentId, regExp, fileId}: {name: string, girderId: string, parentId: string, regExp?: boolean, fileId?: string}) => {
+    const acceptBrowser = ({name, girderId, parentId, regExp, fileId: acceptedFileId}: {name: string, girderId: string, parentId: string, regExp?: boolean, fileId?: string}) => {
       showBrowser.value = false;
       const update = { ...props.data };
-      update.fileValue = { name, girderId, parentId, regExp, fileId };
+      update.fileValue = { name, girderId, parentId, regExp, fileId: acceptedFileId };
       currentValue.value = name;
+      fileId.value = acceptedFileId;
       if (props.data.channel === 'input') {
         inputChanged(name);
       }
@@ -80,6 +84,7 @@ export default defineComponent({
       girderId,
       parentId,
       selectedName,
+      fileId,
       acceptBrowser,
       disabledReason,
     } 
@@ -108,7 +113,7 @@ export default defineComponent({
       <span class="sm:flex">
         <button
           type="button"
-          class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded text-base leading-normal no-underline select-btn"
+          class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded-sm text-base leading-normal no-underline select-btn"
           :disabled="!!disabledReason"
           @click="showBrowser = true"
         >
@@ -123,7 +128,7 @@ export default defineComponent({
           v-if="!batchload"
           :disabled="!!disabledReason"
           type="button"
-          class="flex align-middle items-center text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded text-base leading-normal no-underline select-btn-multi"
+          class="flex align-middle items-center text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded-sm text-base leading-normal no-underline select-btn-multi"
           @click="showBrowser = true"
         >
           <svg-icon
@@ -152,6 +157,7 @@ export default defineComponent({
       :girder-id="girderId"
       :parent-id="parentId"
       :name="selectedName"
+      :file-id="fileId"
       @close="showBrowser=false"
       @submit="acceptBrowser($event)"
     />
