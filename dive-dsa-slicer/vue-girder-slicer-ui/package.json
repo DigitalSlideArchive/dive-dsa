@@ -34,11 +34,12 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vue-tsc --emitDeclarationOnly && npm run build-tailwind",
+    "build": "vite build && vue-tsc --emitDeclarationOnly && npm run build-tailwind && npm run merge-css",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
-    "build-tailwind": "npx @tailwindcss/cli -i ./src/tailwind.css -o ./dist/tailwind.css"
+    "build-tailwind": "npx @tailwindcss/cli -i ./src/tailwind.css -o ./dist/tailwind.css",
+    "merge-css": "node scripts/merge-css.mjs"
   },
   "dependencies": {
     "@jamescoyle/vue-icon": "^0.1.2",
