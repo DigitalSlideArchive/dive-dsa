@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Ref, defineComponent, ref, PropType } from 'vue';
+import { PropType, Ref, defineComponent, ref } from 'vue';
 import GirderSlicerTaskMenuModalButton from './GirderSlicerTaskMenuModalButton.tw.vue';
 import GirderSlicerTaskCard from './GirderSlicerTaskCard.tw.vue';
 import type { XMLParameters } from '../parser/parserTypes';

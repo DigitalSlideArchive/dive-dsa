@@ -681,7 +681,7 @@ export default defineComponent({
                 class="grid grid-cols-8 justify-content-left g-0 gsu-item-row"
                 @click="selecting(item, 'folder'); updateMainView(item._id, item._modelType, item.name)"
               >
-                <div class="col-start-1 col-span-7 flex-grow text-left">
+                <div class="col-start-1 col-span-7 grow text-left">
                   <svg-icon
                     type="mdi"
                     :path="iconMap[item._modelType]"
@@ -806,7 +806,7 @@ export default defineComponent({
                 :class="{'gsu-' :selectedItems[item.name] || (selected && selected.girderId === item._id)}"
                 @click="selecting(item, 'file')"
               >
-                <div class="col-start-1 col-span-6 flex-grow text-left">
+                <div class="col-start-1 col-span-6 grow text-left">
                   <svg-icon
                     type="mdi"
                     :path="iconMap[item._modelType]"
@@ -844,7 +844,7 @@ export default defineComponent({
             <input
               v-if="type === 'directory'"
               :value="selected ? selected.name : 'Select a folder'"
-              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded"
+              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded-sm"
               type="text"
               placeholder="Select a folder…"
               readonly
@@ -852,7 +852,7 @@ export default defineComponent({
             <input
               v-if="type === 'file'"
               :value="selected && selected.name"
-              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded"
+              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded-sm"
               type="text"
               :placeholder="!output ? 'Select an item' : 'Output name:'"
               :disabled="!output || currentParentType !== 'folder'"
@@ -863,7 +863,7 @@ export default defineComponent({
             <span> {{ type === 'directory' ? 'Folder' : 'Item' }} Filter (Regular Expression)</span>
             <input
               :value="selected && selected.name"
-              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded"
+              class="gsu-input block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal rounded-sm"
               type="text"
               placeholder="Regular Expression"
               @input="setRegularExpression(convertInputString($event))"
@@ -883,14 +883,14 @@ export default defineComponent({
         <div class="p-6 flex justify-end items-center shrink-0">
           <button
             type="button"
-            class="gsu-btn inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal no-underline mx-3"
+            class="gsu-btn inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded-sm text-base leading-normal no-underline mx-3"
             @click="$emit('close')"
           >
             Cancel
           </button>
           <button
             type="button"
-            class="gsu-btn-accept inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal no-underline"
+            class="gsu-btn-accept inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded-sm text-base leading-normal no-underline"
             data-dismiss="modal"
             :class="{'gsu-btn-disabled': selected === null || !!errorMsg || (multi && Object.values(selectedItems).length === 0)}"
             :disabled="selected === null || !!errorMsg || (multi && Object.values(selectedItems).length === 0)"
@@ -905,7 +905,7 @@ export default defineComponent({
     <teleport to="body">
       <div
         v-if="breadcrumbTooltipVisible"
-        class="gsu-breadcrumb-tooltip pointer-events-none fixed z-[10001] whitespace-normal break-all rounded border border-borderColor bg-backgroundColor px-2 py-1 text-sm text-textColor shadow-lg"
+        class="gsu-breadcrumb-tooltip pointer-events-none fixed z-10001 whitespace-normal break-all rounded-sm border border-borderColor bg-backgroundColor px-2 py-1 text-sm text-textColor shadow-lg"
         role="tooltip"
         :style="breadcrumbTooltipStyle"
       >

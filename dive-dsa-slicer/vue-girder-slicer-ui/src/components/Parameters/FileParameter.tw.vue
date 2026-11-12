@@ -108,7 +108,7 @@ export default defineComponent({
       <span class="sm:flex">
         <button
           type="button"
-          class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded text-base leading-normal no-underline select-btn"
+          class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded-sm text-base leading-normal no-underline select-btn"
           :disabled="!!disabledReason"
           @click="showBrowser = true"
         >
@@ -123,7 +123,7 @@ export default defineComponent({
           v-if="!batchload"
           :disabled="!!disabledReason"
           type="button"
-          class="flex align-middle items-center text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded text-base leading-normal no-underline select-btn-multi"
+          class="flex align-middle items-center text-center select-none border font-normal whitespace-no-wrap py-2 mb-1 px-4 rounded-sm text-base leading-normal no-underline select-btn-multi"
           @click="showBrowser = true"
         >
           <svg-icon

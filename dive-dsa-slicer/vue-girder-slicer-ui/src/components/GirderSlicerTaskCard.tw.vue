@@ -46,7 +46,6 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const girderRest = new RestClient({apiRoot: props.apiUrl});
-    girderRest
     const loggedIn = computed(() => girderRest?.token);
     const result: Ref<XMLSpecification | null> = ref(null);
     const jobData: Ref<null | JobResponse> = ref(null)
@@ -153,7 +152,7 @@ export default defineComponent({
 <template>
   <div
     v-if="result"
-    class="gsu-card relative flex flex-col min-w-0 rounded break-words border pa-2"
+    class="gsu-card relative flex flex-col min-w-0 rounded-sm wrap-break-word border pa-2"
   >
     <div class="flex-auto p-6">
       <div class="grid grid-cols-12 gap-4 pb-2">
@@ -168,7 +167,7 @@ export default defineComponent({
         class="mb-3 flex flex-wrap justify-content-left g-0"
       >
         <div
-          class="relative px-3 py-3 mb-4 border rounded text-green-darker border-green-dark bg-green-lighter  opacity-0 opacity-100 block"
+          class="relative px-3 py-3 mb-4 border rounded-sm text-green-darker border-green-dark bg-green-lighter  opacity-0 opacity-100 block"
           role="alert"
         >
           <span>{{ jobData.title }} running</span>
@@ -203,14 +202,14 @@ export default defineComponent({
         <span>
           <button
             type="button"
-            class="bg-red-500 border-solid border-borderColor font-bold py-2 px-4 mx-2 rounded border-2"
+            class="bg-red-500 border-solid border-borderColor font-bold py-2 px-4 mx-2 rounded-sm border-2"
             @click="cancel()"
           >
             Cancel
           </button>
           <button
             type="button"
-            class="gsu-btn-accept font-bold py-2 px-4 mx-2 rounded border-2"
+            class="gsu-btn-accept font-bold py-2 px-4 mx-2 rounded-sm border-2"
             @click="runTask()"
           >
             Run
