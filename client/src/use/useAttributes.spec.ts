@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 import type Vuetify from 'vuetify/lib';
 import StyleManager from '../StyleManager';
 import Track from '../track';
@@ -18,6 +18,20 @@ const vuetify = {
     },
   },
 } as Vuetify;
+
+/** Minimal CameraStore: a reactive id list plus lookup, like a single-camera TrackStore */
+function mockCameraStore(tracks: Track[]) {
+  const trackMap = new Map(tracks.map((t) => [t.id, t]));
+  const annotationIds = ref(tracks.map((t) => t.id));
+  return {
+    camMap: shallowRef(new Map([['singleCam', { trackStore: { annotationIds } }]])),
+    getAnyPossibleTrack: (id: number) => trackMap.get(id),
+    addTrack(track: Track) {
+      trackMap.set(track.id, track);
+      annotationIds.value.push(track.id);
+    },
+  } as unknown as CameraStore & { addTrack: (track: Track) => void };
+}
 
 const regionAttribute: Attribute = {
   belongs: 'detection',
@@ -54,8 +68,7 @@ function getRegionSwimlane(track: Track, renderMode?: DisplayTrackFilterSettings
     markChangesPending: jest.fn(),
     trackStyleManager: new StyleManager({ markChangesPending: jest.fn(), vuetify }),
     selectedTrackId: ref(0),
-    cameraStore: { getAnyPossibleTrack: () => track } as unknown as CameraStore,
-    pendingSaveCount: ref(0),
+    cameraStore: mockCameraStore([track]),
     login: 'admin',
   });
   attributes.loadAttributes({ detection_Region: regionAttribute });
@@ -136,8 +149,7 @@ describe('useAttributes numeric swimlane colors', () => {
       markChangesPending: jest.fn(),
       trackStyleManager: new StyleManager({ markChangesPending: jest.fn(), vuetify }),
       selectedTrackId: ref(0),
-      cameraStore: { getAnyPossibleTrack: () => track } as unknown as CameraStore,
-      pendingSaveCount: ref(0),
+      cameraStore: mockCameraStore([track]),
       login: 'admin',
     });
     attributes.loadAttributes({ detection_Speed: speedAttribute });
@@ -206,5 +218,103 @@ describe('useAttributes numeric swimlane colors', () => {
     const updated = { ...speedAttribute(), valueColors: { 0: '#000000', 10: '#00ff00' } };
     attributes.setAttribute({ data: updated, oldAttribute: speedAttribute() });
     expect(attributes.attributeSwimlaneData.value.Speed.Speed.data[1].color).toBe('rgb(0, 255, 0)');
+  });
+});
+
+describe('useAttributes graph recompute triggers', () => {
+  function makeRegionTrack(id: number, type = 'fullframe') {
+    const track = new Track(id, {
+      meta: {},
+      begin: 0,
+      end: 0,
+      confidencePairs: [[type, 1]],
+    });
+    track.setFeature({
+      frame: 0, bounds: [0, 0, 10, 10], keyframe: true, interpolate: false,
+    });
+    track.setFeatureAttribute(0, 'Region', 'Scolon');
+    return track;
+  }
+
+  function setup(
+    tracks: Track[],
+    displaySettings: DisplayTrackFilterSettings,
+    selected: number | null = 0,
+  ) {
+    const cameraStore = mockCameraStore(tracks);
+    const selectedTrackId = ref<number | null>(selected);
+    const attributes = UseAttributes({
+      markChangesPending: jest.fn(),
+      trackStyleManager: new StyleManager({ markChangesPending: jest.fn(), vuetify }),
+      selectedTrackId,
+      cameraStore,
+      login: 'admin',
+    });
+    attributes.loadAttributes({ detection_Region: regionAttribute });
+    attributes.loadSwimlanes({
+      Region: {
+        enabled: true,
+        name: 'Region',
+        default: false,
+        filter: {
+          type: 'key', active: true, value: true, appliedTo: ['all'],
+        },
+        displaySettings,
+        settings: {},
+      },
+    });
+    return { attributes, cameraStore, selectedTrackId };
+  }
+
+  const staticDisplay: DisplayTrackFilterSettings = { display: 'static', trackFilter: ['all'] };
+
+  it('rebuilds when the displayed track is edited', () => {
+    const track = makeRegionTrack(0);
+    const { attributes } = setup([track], staticDisplay);
+    expect(attributes.attributeSwimlaneData.value.Region.Region.data.map((d) => d.value)).toEqual(['Scolon']);
+    track.setFeature({
+      frame: 10, bounds: [0, 0, 10, 10], keyframe: true, interpolate: false,
+    });
+    track.setFeatureAttribute(10, 'Region', 'Rectum');
+    expect(attributes.attributeSwimlaneData.value.Region.Region.data.map((d) => d.value)).toEqual(['Scolon', 'Rectum']);
+  });
+
+  it('does not rebuild when a different track is edited', () => {
+    const shown = makeRegionTrack(0);
+    const other = makeRegionTrack(1);
+    const { attributes } = setup([shown, other], staticDisplay);
+    const before = attributes.attributeSwimlaneData.value;
+    other.setFeatureAttribute(0, 'Region', 'Rectum');
+    expect(attributes.attributeSwimlaneData.value).toBe(before);
+  });
+
+  it('hides a selected-mode graph when the track type is not in trackFilter', () => {
+    const track = makeRegionTrack(0, 'fish');
+    const { attributes } = setup([track], { display: 'selected', trackFilter: ['bird'] });
+    expect(attributes.swimlaneEnabled.value.Region).toBe(false);
+    expect(attributes.attributeSwimlaneData.value.Region).toBeUndefined();
+    // Filter state is derived, not written back into the saved graph config
+    expect('filtered' in attributes.swimlaneGraphs.value.Region).toBe(false);
+  });
+
+  it('updates when the track type changes into the trackFilter', () => {
+    const track = makeRegionTrack(0, 'fish');
+    const { attributes } = setup([track], { display: 'selected', trackFilter: ['bird'] });
+    expect(attributes.swimlaneEnabled.value.Region).toBe(false);
+    track.setType('bird');
+    expect(attributes.swimlaneEnabled.value.Region).toBe(true);
+    expect(attributes.attributeSwimlaneData.value.Region.Region.data).toHaveLength(1);
+  });
+
+  it('shows a pinned track once it is created', () => {
+    const { attributes, cameraStore } = setup(
+      [],
+      { display: 'pinned', pinnedTrackId: 5, trackFilter: ['all'] },
+      null,
+    );
+    expect(attributes.swimlaneEnabled.value.Region).toBe(false);
+    cameraStore.addTrack(makeRegionTrack(5));
+    expect(attributes.swimlaneEnabled.value.Region).toBe(true);
+    expect(attributes.attributeSwimlaneData.value.Region.Region.data.map((d) => d.value)).toEqual(['Scolon']);
   });
 });
