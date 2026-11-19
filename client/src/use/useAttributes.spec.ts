@@ -318,3 +318,60 @@ describe('useAttributes graph recompute triggers', () => {
     expect(attributes.attributeSwimlaneData.value.Region.Region.data.map((d) => d.value)).toEqual(['Scolon']);
   });
 });
+
+describe('useAttributes sortAndFilterAttributes', () => {
+  function makeAttr(name: string, belongs: 'track' | 'detection', datatype: Attribute['datatype'] = 'text'): Attribute {
+    return {
+      belongs, datatype, name, key: `${belongs}_${name}`,
+    };
+  }
+
+  function setup() {
+    return UseAttributes({
+      markChangesPending: jest.fn(),
+      trackStyleManager: new StyleManager({ markChangesPending: jest.fn(), vuetify }),
+      selectedTrackId: ref(null),
+      cameraStore: mockCameraStore([]),
+      login: 'admin',
+    });
+  }
+
+  const list = [
+    makeAttr('beta', 'detection'),
+    makeAttr('Alpha', 'detection'),
+    makeAttr('gamma', 'detection', 'number'),
+    makeAttr('Zeta', 'track'),
+    makeAttr('delta', 'detection', 'number'),
+  ];
+
+  it('sorts alphabetically, ignoring case, and only for the requested mode', () => {
+    const { sortAndFilterAttributes } = setup();
+    const names = sortAndFilterAttributes(list, 'detection', {}, 0, []).map((a) => a.name);
+    expect(names).toEqual(['Alpha', 'beta', 'delta', 'gamma']);
+    expect(sortAndFilterAttributes(list, 'track', {}, 0, []).map((a) => a.name)).toEqual(['Zeta']);
+  });
+
+  it('does not let a highlighted-attribute reorder leak into later calls', () => {
+    const { sortAndFilterAttributes } = setup();
+    const highlighted = sortAndFilterAttributes(list, 'detection', {}, 0, [], list[2]);
+    expect(highlighted.map((a) => a.name)).toEqual(['gamma', 'Alpha', 'beta', 'delta']);
+    highlighted.reverse();
+    expect(sortAndFilterAttributes(list, 'detection', {}, 0, []).map((a) => a.name))
+      .toEqual(['Alpha', 'beta', 'delta', 'gamma']);
+  });
+
+  it('re-sorts when given a new attribute list', () => {
+    const { sortAndFilterAttributes } = setup();
+    sortAndFilterAttributes(list, 'detection', {}, 0, []);
+    const updated = [...list, makeAttr('aardvark', 'detection')];
+    expect(sortAndFilterAttributes(updated, 'detection', {}, 0, []).map((a) => a.name))
+      .toEqual(['aardvark', 'Alpha', 'beta', 'delta', 'gamma']);
+  });
+
+  it('numeric mode still orders by the current values', () => {
+    const { sortAndFilterAttributes } = setup();
+    const names = sortAndFilterAttributes(list, 'detection', { gamma: 1, delta: 5, beta: 'x' }, 1, [])
+      .map((a) => a.name);
+    expect(names).toEqual(['delta', 'gamma', 'beta', 'Alpha']);
+  });
+});

@@ -210,14 +210,39 @@ export default function UseAttributes(
     }
   }
 
+  /**
+   * Alphabetical order does not depend on attribute values, so it is computed once per
+   * attribute list (which is a new array whenever an attribute definition changes)
+   * instead of on every frame the attribute panel asks for it.
+   */
+  const alphabeticalOrderCache = new WeakMap<Attribute[], Partial<Record<Attribute['belongs'], Attribute[]>>>();
+
+  function getAlphabeticalOrder(attributeList: Attribute[], mode: Attribute['belongs']) {
+    let byMode = alphabeticalOrderCache.get(attributeList);
+    if (!byMode) {
+      byMode = {};
+      alphabeticalOrderCache.set(attributeList, byMode);
+    }
+    let order = byMode[mode];
+    if (!order) {
+      const lowerKeys = new Map<Attribute, string>();
+      order = Object.values(attributeList).filter((attribute: Attribute) => attribute.belongs === mode);
+      order.forEach((attribute) => lowerKeys.set(attribute, attribute.key.toLowerCase()));
+      order.sort((a, b) => (lowerKeys.get(a) as string).localeCompare(lowerKeys.get(b) as string));
+      byMode[mode] = order;
+    }
+    return order;
+  }
+
   function sortAttributes(attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number) {
+    if (sortingMode === 0) {
+      // Copy so callers that sort or filter the result in place can't change the cache
+      return getAlphabeticalOrder(attributeList, mode).slice();
+    }
     const filteredAttributes = Object.values(attributeList).filter(
       (attribute: Attribute) => attribute.belongs === mode,
     );
     return filteredAttributes.sort((a, b) => {
-      if (sortingMode === 0) {
-        return (a.key.toLowerCase().localeCompare(b.key.toLowerCase()));
-      }
       const aVal = attribVals[a.name];
       const bVal = attribVals[b.name];
       if (aVal === undefined && bVal === undefined) {
