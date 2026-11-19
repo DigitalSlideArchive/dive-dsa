@@ -346,6 +346,78 @@ describe('Track', () => {
   });
 });
 
+describe('Track attribute frame lookups', () => {
+  function makeTrack() {
+    return Track.fromJSON({
+      id: 1,
+      meta: {},
+      attributes: {},
+      confidencePairs: [],
+      begin: 0,
+      end: 40,
+      features: [
+        { frame: 0, bounds: [0, 0, 1, 1], attributes: { Seg: 'a' } },
+        { frame: 10, bounds: [0, 0, 1, 1], attributes: { Seg: 'a', userAttributes: { bob: { Seg: 'b' } } } },
+        { frame: 20, bounds: [0, 0, 1, 1], attributes: { userAttributes: { bob: { Seg: 'b' } } } },
+        { frame: 30, bounds: [0, 0, 1, 1], attributes: { Other: 1 } },
+        { frame: 40, bounds: [0, 0, 1, 1] },
+      ],
+    });
+  }
+
+  it('segment frames fall back to the non-user value for a user', () => {
+    const t = makeTrack();
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 10]);
+    expect(t.getAttributeSegmentFrames('Seg', 'bob')).toEqual([0, 10, 20]);
+    expect(t.getFrameAttributeRanges(['Seg', 'Other', 'Missing'], 'bob')).toEqual({ Seg: [0, 10, 20], Other: [30] });
+  });
+
+  it('getFeatureAttributeFrame only uses the user value when given a user', () => {
+    const t = makeTrack();
+    expect(t.getFeatureAttributeFrame('Seg', 'first', 0, 'bob')).toBe(10);
+    expect(t.getFeatureAttributeFrame('Seg', 'last', 0, 'bob')).toBe(20);
+    expect(t.getFeatureAttributeFrame('Seg', 'next', 0)).toBe(10);
+    expect(t.getFeatureAttributeFrame('Seg', 'prev', 5)).toBe(0);
+    expect(t.getFeatureAttributeFrame('Seg', 'next', 10)).toBeNull();
+    expect(t.getFeatureAttributeFrame('Missing', 'first')).toBeUndefined();
+  });
+
+  it('returns a copy from getFrameAttributeRanges so the cache cannot be modified', () => {
+    const t = makeTrack();
+    t.getFrameAttributeRanges(['Seg']).Seg.push(999);
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 10]);
+  });
+
+  it('refreshes after attributes are set or cleared', () => {
+    const t = makeTrack();
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 10]);
+    t.setFeatureAttribute(30, 'Seg', 'c');
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 10, 30]);
+    t.setFeatureAttribute(40, 'Seg', 'd', 'bob');
+    expect(t.getAttributeSegmentFrames('Seg', 'bob')).toEqual([0, 10, 20, 30, 40]);
+    t.clearFeatureAttributeValues('Seg');
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([]);
+  });
+
+  it('refreshes after features are deleted or merged in with notifications off', () => {
+    const t = makeTrack();
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 10]);
+    t.deleteFeature(10);
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0]);
+    const other = Track.fromJSON({
+      id: 2,
+      meta: {},
+      attributes: {},
+      confidencePairs: [],
+      begin: 50,
+      end: 50,
+      features: [{ frame: 50, bounds: [0, 0, 1, 1], attributes: { Seg: 'z' } }],
+    });
+    t.merge([other], true);
+    expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 50]);
+  });
+});
+
 describe('exceedsThreshold', () => {
   it('correctly determine if a confidence pair set exceeds any thresholds', () => {
     const pairs: ConfidencePair[] = [

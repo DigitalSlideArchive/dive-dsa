@@ -36,6 +36,7 @@ import { DIVEAction, DIVEMetadataAction } from 'dive-common/use/useActions';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
+import { locateSegment } from 'vue-media-annotator/listUtils';
 import context from 'dive-common/store/context';
 
 interface AttributeDisplayButton {
@@ -139,15 +140,13 @@ export default defineComponent({
 
       if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
         const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
-        const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
-        const ranges = rangeVals[attribute.name];
-        if (ranges && ranges.length > 0) {
+        const ranges = track.getAttributeSegmentFrames(attribute.name, store.state.User.user?.login || null);
+        if (ranges.length > 0) {
           if (ranges.length % 2 !== 0) {
             return { disabled: true, tooltip: 'Segments are uneven' };
           }
           if (frameRef.value !== undefined) {
-            let inRange = false;
-            let varianceRange = false;
+            const frame = frameRef.value;
             let segmentCreationFrames = (track.end - track.begin) * trackPercentSize;
             const { segmentSize, segmentSizeType } = shortcut;
             if (segmentSize && segmentSizeType) {
@@ -164,21 +163,13 @@ export default defineComponent({
                 segmentCreationFrames = (track.end - track.begin) * segmentSize;
               }
             }
-            for (let i = 0; i < ranges.length; i += 2) {
-              const start = ranges[i];
-              const end = ranges[i + 1];
-              if (frameRef.value >= start && frameRef.value <= end) {
-                inRange = true;
-                varianceRange = true;
-                break;
-              }
-              if (frameRef.value < start && frameRef.value > start - segmentCreationFrames) {
-                varianceRange = true;
-              }
-              if (frameRef.value > end && frameRef.value < end + segmentCreationFrames) {
-                varianceRange = true;
-              }
-            }
+            // Segments are sorted and non-overlapping, so only the nearest segment on each
+            // side can be within segmentCreationFrames of this frame
+            const { inside, before, after } = locateSegment(ranges, frame);
+            const inRange = inside !== null;
+            const varianceRange = inRange
+              || (after !== null && frame > after[0] - segmentCreationFrames)
+              || (before !== null && frame < before[1] + segmentCreationFrames);
             if (shortcut.type === 'remove' && !inRange) {
               return { disabled: true, tooltip: 'Frame not in segment range' };
             }
@@ -238,19 +229,9 @@ export default defineComponent({
       const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
       // Check if inside segment
       if (shortcut.segmentEditable) {
-        const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
-        const ranges = rangeVals[attribute.name];
-        let insideSegmentBounds: { start: number, end: number } | null = null;
-        if (ranges && ranges.length > 0) {
-          for (let i = 0; i < ranges.length; i += 2) {
-            const startseg = ranges[i];
-            const endseg = ranges[i + 1];
-            if (frameRef.value >= startseg && frameRef.value <= endseg) {
-              insideSegmentBounds = { start: startseg, end: endseg };
-              break;
-            }
-          }
-        }
+        const ranges = track.getAttributeSegmentFrames(attribute.name, store.state.User.user?.login || null);
+        const { inside } = locateSegment(ranges, frameRef.value);
+        const insideSegmentBounds = inside ? { start: inside[0], end: inside[1] } : null;
         if (insideSegmentBounds) {
           updateAttribute({
             name: attribute.name,
@@ -286,8 +267,7 @@ export default defineComponent({
         }
       }
       // Check the ranges so we don't clobber another Segment with our new size:
-      const rangeChecks = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
-      const rangesCheck = rangeChecks[attribute.name];
+      const rangesCheck = track.getAttributeSegmentFrames(attribute.name, store.state.User.user?.login || null);
       let start = Math.max(0, Math.round(frame - (segmentCreationFrames / 2.0)));
       let end = Math.min(track.end, Math.round(frame + (segmentCreationFrames / 2.0)));
 
@@ -371,29 +351,24 @@ export default defineComponent({
         handler = () => {
           if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
             const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
-            const rangeVals = track.getFrameAttributeRanges([attribute.name], store.state.User.user?.login || null);
-            const ranges = rangeVals[attribute.name];
+            const ranges = track.getAttributeSegmentFrames(attribute.name, store.state.User.user?.login || null);
             // find the range that contains the current frame
-            if (ranges && ranges.length > 0) {
-              for (let i = 0; i < ranges.length; i += 2) {
-                const start = ranges[i];
-                const end = ranges[i + 1];
-                if (frameRef.value >= start && frameRef.value <= end) {
-                  // remove the range
-                  updateAttribute({
-                    name: attribute.name,
-                    value: undefined,
-                    belongs: attribute.belongs,
-                    frame: start,
-                  });
-                  updateAttribute({
-                    name: attribute.name,
-                    value: undefined,
-                    belongs: attribute.belongs,
-                    frame: end,
-                  });
-                }
-              }
+            const { inside } = locateSegment(ranges, frameRef.value);
+            if (inside) {
+              const [start, end] = inside;
+              // remove the range
+              updateAttribute({
+                name: attribute.name,
+                value: undefined,
+                belongs: attribute.belongs,
+                frame: start,
+              });
+              updateAttribute({
+                name: attribute.name,
+                value: undefined,
+                belongs: attribute.belongs,
+                frame: end,
+              });
             }
           } else {
             updateAttribute({
@@ -449,28 +424,21 @@ export default defineComponent({
       const hasSegmentShortcut = attribute.shortcuts?.some((shortcut) => shortcut.segment);
       if (hasSegmentShortcut && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
         const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
-        const rangeVals = track.getFrameAttributeRanges(
-          [attribute.name],
+        const ranges = track.getAttributeSegmentFrames(
+          attribute.name,
           store.state.User.user?.login || null,
         );
-        const ranges = rangeVals[attribute.name];
-        if (ranges && ranges.length > 0) {
-          for (let i = 0; i < ranges.length; i += 2) {
-            const start = ranges[i];
-            const end = ranges[i + 1];
-            if (frameRef.value >= start && frameRef.value <= end) {
-              const [real] = track.getFeature(start);
-              if (real?.attributes) {
-                if (attribute.user && real.attributes.userAttributes) {
-                  const user = store.state.User.user?.login;
-                  if (user && real.attributes.userAttributes[user]) {
-                    currentValue = (real.attributes.userAttributes[user] as StringKeyObject)[attribute.name];
-                  }
-                } else {
-                  currentValue = real.attributes[attribute.name];
-                }
+        const { inside } = locateSegment(ranges, frameRef.value);
+        if (inside) {
+          const [real] = track.getFeature(inside[0]);
+          if (real?.attributes) {
+            if (attribute.user && real.attributes.userAttributes) {
+              const user = store.state.User.user?.login;
+              if (user && real.attributes.userAttributes[user]) {
+                currentValue = (real.attributes.userAttributes[user] as StringKeyObject)[attribute.name];
               }
-              break;
+            } else {
+              currentValue = real.attributes[attribute.name];
             }
           }
         }
