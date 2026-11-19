@@ -243,7 +243,9 @@ function defaultFormatter(
                 }
                 if (newVal === '' || newVal === undefined) {
                   newVal = undefined;
-                  prevFrame -= 1;
+                  // Jump past this keyframe rather than stepping back one frame at a time,
+                  // which re-found the same keyframe for every frame in between
+                  prevFrame = previous - 1;
                   // eslint-disable-next-line no-continue
                   continue;
                 }

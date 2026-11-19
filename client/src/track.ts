@@ -440,16 +440,25 @@ export default class Track extends BaseAnnotation {
     return [null, null, null];
   }
 
-  /* Given a frame number, find the track's next keyframe */
+  /**
+   * Given a frame number, find the track's next keyframe at or after it.
+   * Binary search over featureIndex: O(log keyframes) instead of scanning the sparse array.
+   */
   getNextKeyframe(frame: number): number | undefined {
-    const next = this.features.slice(frame).find((a) => a);
-    return next?.frame;
+    const position = binarySearch(this.featureIndex, frame);
+    // A negative position is the bitwise-complemented insertion point
+    const index = position >= 0 ? position : -position - 1;
+    return index < this.featureIndex.length ? this.featureIndex[index] : undefined;
   }
 
-  /* Given a frame number, find the track's previous keyframe */
+  /**
+   * Given a frame number, find the track's previous keyframe at or before it.
+   * Binary search over featureIndex: O(log keyframes) instead of scanning the sparse array.
+   */
   getPreviousKeyframe(frame: number): number | undefined {
-    const previous = this.features.slice(0, frame + 1).reverse().find((a) => a);
-    return previous?.frame;
+    const position = binarySearch(this.featureIndex, frame);
+    const index = position >= 0 ? position : -position - 2;
+    return index >= 0 ? this.featureIndex[index] : undefined;
   }
 
   deleteFeature(frame: number) {

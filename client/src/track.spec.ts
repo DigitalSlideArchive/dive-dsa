@@ -277,6 +277,73 @@ describe('Track', () => {
     expect(t.begin).toEqual(t.end);
     expect(() => t.toggleKeyframe(12)).toThrow('This is the only keyframe in Track:1 it cannot be removed');
   });
+
+  describe('getPreviousKeyframe / getNextKeyframe', () => {
+    function makeTrack(frames: number[]) {
+      return Track.fromJSON({
+        id: 1,
+        meta: {},
+        attributes: {},
+        confidencePairs: [],
+        begin: frames[0],
+        end: frames[frames.length - 1],
+        features: frames.map((frame) => ({ frame, bounds: [0, 0, 10, 10] as RectBounds })),
+      });
+    }
+
+    it('includes the keyframe at the given frame', () => {
+      const t = makeTrack([5, 10, 20]);
+      expect(t.getPreviousKeyframe(10)).toBe(10);
+      expect(t.getNextKeyframe(10)).toBe(10);
+    });
+
+    it('finds the surrounding keyframes between keyframes', () => {
+      const t = makeTrack([5, 10, 20]);
+      expect(t.getPreviousKeyframe(15)).toBe(10);
+      expect(t.getNextKeyframe(15)).toBe(20);
+      expect(t.getPreviousKeyframe(6)).toBe(5);
+      expect(t.getNextKeyframe(6)).toBe(10);
+    });
+
+    it('returns undefined past the ends of the track', () => {
+      const t = makeTrack([5, 10, 20]);
+      expect(t.getPreviousKeyframe(4)).toBeUndefined();
+      expect(t.getNextKeyframe(21)).toBeUndefined();
+      expect(t.getPreviousKeyframe(1000)).toBe(20);
+      expect(t.getNextKeyframe(0)).toBe(5);
+    });
+
+    it('returns undefined for an empty track', () => {
+      const t = new Track(0, { meta: {}, begin: 0, end: 0 });
+      expect(t.getPreviousKeyframe(5)).toBeUndefined();
+      expect(t.getNextKeyframe(5)).toBeUndefined();
+    });
+
+    it('stays correct after keyframes are added and deleted', () => {
+      const t = makeTrack([5, 10, 20]);
+      t.setFeature({ frame: 15, bounds: [0, 0, 10, 10], keyframe: true });
+      expect(t.getPreviousKeyframe(17)).toBe(15);
+      expect(t.getNextKeyframe(11)).toBe(15);
+      t.deleteFeature(10);
+      expect(t.getPreviousKeyframe(12)).toBe(5);
+      expect(t.getNextKeyframe(6)).toBe(15);
+    });
+
+    it('still shrinks bounds when an end keyframe is deleted', () => {
+      const t = makeTrack([5, 10, 20]);
+      t.deleteFeature(20);
+      expect(t.end).toBe(10);
+      t.deleteFeature(5);
+      expect(t.begin).toBe(10);
+    });
+
+    it('splits using the keyframes on either side of the split frame', () => {
+      const t = makeTrack([5, 10, 20]);
+      const [a, b] = t.split(15, 2, 3);
+      expect([a.begin, a.end]).toEqual([5, 10]);
+      expect([b.begin, b.end]).toEqual([20, 20]);
+    });
+  });
 });
 
 describe('exceedsThreshold', () => {

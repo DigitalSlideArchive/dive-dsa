@@ -71,6 +71,39 @@ describe('attributeCustomUI', () => {
     expect(frame15.value).toBe('tracking');
   });
 
+  it('skips earlier keyframes with empty values when inheriting', () => {
+    const track = Track.fromJSON({
+      id: 0,
+      begin: 0,
+      end: 30,
+      confidencePairs: [['customUI', 1]],
+      attributes: {},
+      features: [
+        {
+          frame: 0, bounds: [0, 0, 100, 100], keyframe: true, attributes: { Status: 'idle' },
+        },
+        {
+          frame: 10, bounds: [0, 0, 100, 100], keyframe: true, attributes: { Status: '' },
+        },
+        {
+          frame: 20, bounds: [0, 0, 100, 100], keyframe: true, attributes: {},
+        },
+        {
+          frame: 30, bounds: [0, 0, 100, 100], keyframe: true, attributes: {},
+        },
+      ],
+    });
+    const result = resolveStickyAttributeValue(stickyStatusAttr, {
+      frame: 25,
+      track,
+      userLogin: null,
+      stickyValue: true,
+      currentValue: undefined,
+    });
+    expect(result.inherited).toBe(true);
+    expect(result.value).toBe('idle');
+  });
+
   it('does not inherit when current value is set', () => {
     const track = makeTrackWithStatusKeyframes();
     const result = resolveStickyAttributeValue(stickyStatusAttr, {
