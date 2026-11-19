@@ -547,9 +547,24 @@ export default function UseAttributes(
 
   const getAttributeValueColor = createGetAttributeValueColor(trackStyleManager);
 
+  /**
+   * Color lookup per attribute key for numeric values. The d3 scale for each numeric
+   * attribute is built once here rather than on every call, because the swimlane calls
+   * this once per keyframe per numeric attribute.
+   */
   const numericalColorScaling = computed(() => {
     const autoColorIndex: Record<string, (data: string | number | boolean) => string> = {};
     Object.entries(attributes.value).forEach(([baseKey, item]) => {
+      let colorScale: d3.ScaleLinear<string, string> | null = null;
+      if (item.datatype === 'number' && item.valueColors && Object.keys(item.valueColors).length) {
+        const colorArr = Object.entries(item.valueColors as Record<string, string>)
+          .map(([key, val]) => ({ key: parseFloat(key), val }))
+          .filter((entry) => !Number.isNaN(entry.key));
+        colorArr.sort((a, b) => a.key - b.key);
+        colorScale = d3.scaleLinear<string>()
+          .domain(colorArr.map((map) => map.key))
+          .range(colorArr.map((map) => map.val));
+      }
       autoColorIndex[baseKey] = ((data: string | number | boolean) => {
         if (data === undefined || data === null || data === '') {
           if (item.noneColor) {
@@ -559,18 +574,7 @@ export default function UseAttributes(
             || item.color
             || trackStyleManager.typeStyling.value.color(item.name);
         }
-        if (item.datatype === 'number' && item.valueColors && Object.keys(item.valueColors).length) {
-          const colorArr = Object.entries(item.valueColors as Record<string, string>)
-            .map(([key, val]) => ({ key: parseFloat(key), val }))
-            .filter((entry) => !Number.isNaN(entry.key));
-          colorArr.sort((a, b) => a.key - b.key);
-
-          const colorNums = colorArr.map((map) => map.key);
-          const colorVals = colorArr.map((map) => map.val);
-          const colorScale = d3.scaleLinear()
-            .domain(colorNums)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .range(colorVals as any);
+        if (colorScale) {
           return colorScale(data as number)?.toString() || item.color || 'white';
         }
         return item.color || trackStyleManager.typeStyling.value.color(data.toString());

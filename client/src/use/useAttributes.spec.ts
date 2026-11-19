@@ -110,3 +110,101 @@ describe('useAttributes swimlane data', () => {
     expect(data.map((sub) => [sub.begin, sub.end])).toEqual([[10, 20], [20, 30], [30, 31]]);
   });
 });
+
+describe('useAttributes numeric swimlane colors', () => {
+  function makeSpeedTrack(values: [number, number][]) {
+    const track = new Track(0, {
+      meta: {},
+      begin: 0,
+      end: 0,
+      confidencePairs: [['fullframe', 1]],
+    });
+    values.forEach(([frame, speed]) => {
+      track.setFeature({
+        frame,
+        bounds: [0, 0, 640, 510],
+        keyframe: true,
+        interpolate: false,
+      });
+      track.setFeatureAttribute(frame, 'Speed', speed);
+    });
+    return track;
+  }
+
+  function setup(track: Track, speedAttribute: Attribute) {
+    const attributes = UseAttributes({
+      markChangesPending: jest.fn(),
+      trackStyleManager: new StyleManager({ markChangesPending: jest.fn(), vuetify }),
+      selectedTrackId: ref(0),
+      cameraStore: { getAnyPossibleTrack: () => track } as unknown as CameraStore,
+      pendingSaveCount: ref(0),
+      login: 'admin',
+    });
+    attributes.loadAttributes({ detection_Speed: speedAttribute });
+    attributes.loadSwimlanes({
+      Speed: {
+        enabled: true,
+        name: 'Speed',
+        default: false,
+        filter: {
+          type: 'key',
+          active: true,
+          value: true,
+          appliedTo: ['Speed'],
+        },
+        displaySettings: {
+          display: 'static',
+          trackFilter: ['all'],
+          displayFrameIndicators: true,
+        },
+        settings: {},
+      },
+    });
+    return attributes;
+  }
+
+  const speedAttribute = (): Attribute => ({
+    belongs: 'detection',
+    datatype: 'number',
+    name: 'Speed',
+    key: 'detection_Speed',
+    color: '#123456',
+    valueColors: { 0: '#000000', 10: '#ffffff', '': '#ff0000' },
+  });
+
+  it('interpolates colors between numeric value stops', () => {
+    const track = makeSpeedTrack([[0, 0], [10, 5], [20, 10], [30, 20]]);
+    const attributes = setup(track, speedAttribute());
+    const { data } = attributes.attributeSwimlaneData.value.Speed.Speed;
+    expect(data.map((sub) => sub.color)).toEqual([
+      'rgb(0, 0, 0)',
+      'rgb(128, 128, 128)',
+      'rgb(255, 255, 255)',
+      // d3 extrapolates past the last stop and clamps to the color range
+      'rgb(255, 255, 255)',
+    ]);
+  });
+
+  it('uses the static color when staticColor is set', () => {
+    const track = makeSpeedTrack([[0, 0], [10, 5]]);
+    const attributes = setup(track, { ...speedAttribute(), staticColor: true });
+    const { data } = attributes.attributeSwimlaneData.value.Speed.Speed;
+    expect(data.map((sub) => sub.color)).toEqual(['#123456', '#123456']);
+  });
+
+  it('falls back to the attribute color when there are no numeric stops', () => {
+    const track = makeSpeedTrack([[0, 3]]);
+    const attributes = setup(track, { ...speedAttribute(), valueColors: { '': '#ff0000' } });
+    const { data } = attributes.attributeSwimlaneData.value.Speed.Speed;
+    expect(data[0].color).toBe('#123456');
+  });
+
+  it('picks up valueColors changes made through setAttribute', () => {
+    const track = makeSpeedTrack([[0, 0], [10, 10]]);
+    const attributes = setup(track, speedAttribute());
+    expect(attributes.attributeSwimlaneData.value.Speed.Speed.data[1].color).toBe('rgb(255, 255, 255)');
+    const updated = { ...speedAttribute(), valueColors: { 0: '#000000', 10: '#00ff00' } };
+    attributes.setAttribute({ data: updated, oldAttribute: speedAttribute() });
+    expect(attributes.attributeSwimlaneData.value.Speed.Speed.data[1].color).toBe('rgb(0, 255, 0)');
+  });
+});
