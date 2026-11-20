@@ -31,7 +31,7 @@ export interface Feature {
   tail?: [number, number];
 }
 
-function findAdjacentValue(arr: number[], target: number, direction: 'next' | 'prev'): number | null {
+function findAdjacentValue(arr: readonly number[], target: number, direction: 'next' | 'prev'): number | null {
   let low = 0;
   let high = arr.length - 1;
 
@@ -79,6 +79,12 @@ export default class Track extends BaseAnnotation {
    * for performing fast search */
   featureIndex: number[];
 
+  /**
+   * Sorted frames where an attribute has a value, keyed by attribute, user and lookup mode.
+   * Segment UI asks for these on every render, so they are cached and dropped on any change.
+   */
+  private attributeFrameCache?: Map<string, number[]>;
+
   constructor(id: AnnotationId, params: TrackParams) {
     super(id, params);
     this.features = params.features || []; // NON-reactive sparse array
@@ -92,6 +98,56 @@ export default class Track extends BaseAnnotation {
    */
   public get trackId() {
     return this.id;
+  }
+
+  /**
+   * Every feature or attribute change goes through notify (even while the notifier is
+   * disabled during merge), so it is the one place the attribute frame cache is cleared.
+   */
+  protected notify(name: string, oldValue: unknown = undefined) {
+    this.attributeFrameCache = undefined;
+    super.notify(name, oldValue);
+  }
+
+  /**
+   * Sorted frames whose feature has a value for the attribute. Cached until the track changes.
+   * The returned array is shared, so callers must not mutate it.
+   * @param user - read this user's value from userAttributes
+   * @param userFallback - with a user, also count frames that only have the non-user value
+   */
+  private getAttributeFrames(name: string, user: string | null, userFallback: boolean): readonly number[] {
+    const fallback = user === null || userFallback;
+    const key = JSON.stringify([name, user, fallback]);
+    if (!this.attributeFrameCache) {
+      this.attributeFrameCache = new Map();
+    }
+    const cached = this.attributeFrameCache.get(key);
+    if (cached) {
+      return cached;
+    }
+    const frames: number[] = [];
+    this.features.forEach((feature) => {
+      const { attributes } = feature;
+      if (!attributes) {
+        return;
+      }
+      const userValue = user !== null
+        ? (attributes.userAttributes?.[user] as StringKeyObject | undefined)?.[name]
+        : undefined;
+      if (userValue !== undefined || (fallback && attributes[name] !== undefined)) {
+        frames.push(feature.frame);
+      }
+    });
+    this.attributeFrameCache.set(key, frames);
+    return frames;
+  }
+
+  /**
+   * Sorted [start, end, start, end, ...] frames for a segment attribute: every keyframe where the
+   * user's value, or else the non-user value, is set. Cached; do not mutate the result.
+   */
+  getAttributeSegmentFrames(name: string, user: string | null = null): readonly number[] {
+    return this.getAttributeFrames(name, user, true);
   }
 
   /**
@@ -440,16 +496,25 @@ export default class Track extends BaseAnnotation {
     return [null, null, null];
   }
 
-  /* Given a frame number, find the track's next keyframe */
+  /**
+   * Given a frame number, find the track's next keyframe at or after it.
+   * Binary search over featureIndex: O(log keyframes) instead of scanning the sparse array.
+   */
   getNextKeyframe(frame: number): number | undefined {
-    const next = this.features.slice(frame).find((a) => a);
-    return next?.frame;
+    const position = binarySearch(this.featureIndex, frame);
+    // A negative position is the bitwise-complemented insertion point
+    const index = position >= 0 ? position : -position - 1;
+    return index < this.featureIndex.length ? this.featureIndex[index] : undefined;
   }
 
-  /* Given a frame number, find the track's previous keyframe */
+  /**
+   * Given a frame number, find the track's previous keyframe at or before it.
+   * Binary search over featureIndex: O(log keyframes) instead of scanning the sparse array.
+   */
   getPreviousKeyframe(frame: number): number | undefined {
-    const previous = this.features.slice(0, frame + 1).reverse().find((a) => a);
-    return previous?.frame;
+    const position = binarySearch(this.featureIndex, frame);
+    const index = position >= 0 ? position : -position - 2;
+    return index >= 0 ? this.featureIndex[index] : undefined;
   }
 
   deleteFeature(frame: number) {
@@ -574,23 +639,8 @@ export default class Track extends BaseAnnotation {
   }
 
   getFeatureAttributeFrame(name: string, action: 'first' | 'next' | 'prev' | 'last', startFrame: number = 0, user: null | string = null) {
-    const frameListing: number[] = [];
-    this.features.forEach((feature) => {
-      const { frame } = feature;
-      if (this.features[frame]) {
-        if (user !== null) {
-          if (this.features[frame].attributes !== undefined
-            && (this.features[frame].attributes as StringKeyObject).userAttributes !== undefined
-            && (((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user])
-            && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
-            frameListing.push(frame);
-          }
-        } else if (this.features[frame].attributes && (this.features[frame].attributes as StringKeyObject)[name] !== undefined) {
-          frameListing.push(frame);
-        }
-      }
-    });
-    frameListing.sort((a, b) => a - b);
+    // With a user, only that user's values count (no fallback to the non-user value)
+    const frameListing = this.getAttributeFrames(name, user, false);
     if (action === 'first') {
       return frameListing[0];
     }
@@ -613,29 +663,11 @@ export default class Track extends BaseAnnotation {
 
   getFrameAttributeRanges(attributeNames: string[], user: null | string = null) {
     const ranges: Record<string, number[]> = {};
-    this.features.forEach((feature) => {
-      const { frame } = feature;
-      if (this.features[frame] && this.features[frame].attributes !== undefined) {
-        if (Object.keys(this.features[frame].attributes || {}).length === 0) {
-          return;
-        }
-        attributeNames.forEach((name) => {
-          if (user !== null && this.features[frame].attributes !== undefined
-            && this.features[frame].attributes?.userAttributes !== undefined
-            && ((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user]
-            && ((((this.features[frame].attributes as StringKeyObject).userAttributes as StringKeyObject)[user] as StringKeyObject)[name] !== undefined)) {
-            if (ranges[name] === undefined) {
-              ranges[name] = [];
-            }
-            ranges[name].push(frame);
-          } else
-            if (this.features[frame].attributes !== undefined && (this.features[frame].attributes as StringKeyObject)[name] !== undefined) {
-              if (ranges[name] === undefined) {
-                ranges[name] = [];
-              }
-              ranges[name].push(frame);
-            }
-        });
+    attributeNames.forEach((name) => {
+      const frames = this.getAttributeSegmentFrames(name, user);
+      if (frames.length) {
+        // Copy so callers can't modify the cached list
+        ranges[name] = frames.slice();
       }
     });
     return ranges;

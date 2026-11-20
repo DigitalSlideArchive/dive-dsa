@@ -387,7 +387,6 @@ export default defineComponent({
       trackStyleManager,
       selectedTrackId,
       cameraStore,
-      pendingSaveCount,
       login: store.state.User.user?.login || '',
     });
 
