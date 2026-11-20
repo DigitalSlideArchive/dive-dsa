@@ -127,6 +127,23 @@ describe('AttributeLayer defaultFormatter', () => {
     expect(valueLines(annotation, [flag])).toEqual([['false', '#111111']]);
   });
 
+  it('interpolates number value colors between stops', () => {
+    const speed = attr('Speed', 'detection', 'number', {
+      color: '#222222',
+      valueColors: { 0: '#000000', 10: '#ffffff', '': '#ff00ff' },
+    });
+    const colorFor = (value: unknown) => valueLines(makeAnnotation('bird', { Speed: value }), [speed])[0];
+    expect(colorFor(5)).toEqual(['5', 'rgb(128, 128, 128)']);
+    expect(colorFor(10)).toEqual(['10', 'rgb(255, 255, 255)']);
+    // Missing value uses the '' value color
+    expect(colorFor(undefined)).toEqual(['', '#ff00ff']);
+  });
+
+  it('uses the attribute color for numbers without numeric stops', () => {
+    const plain = attr('Plain', 'detection', 'number', { color: '#222222' });
+    expect(valueLines(makeAnnotation('bird', { Plain: 3 }), [plain])).toEqual([['3', '#222222']]);
+  });
+
   it('reads the user value for a user track attribute after a filtered attribute', () => {
     const owner = attr('Owner', 'track', 'text', { user: true, color: '#123456' });
     const annotation = makeAnnotation(

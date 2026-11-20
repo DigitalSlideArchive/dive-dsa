@@ -7,6 +7,7 @@ import * as d3 from 'd3';
 import { TypeStyling } from '../../StyleManager';
 import BaseLayer, { BaseLayerParams, LayerStyle } from '../BaseLayer';
 import { FrameDataTrack, DimensionBounds, mergeBounds } from '../LayerTypes';
+import { getLineHeight, getMeasureContext } from '../textMeasure';
 
 export interface AttributeTextData {
   selected: boolean;
@@ -141,8 +142,7 @@ export function defaultFormatter(
     const { bounds } = annotation.features;
     const arr: AttributeTextData[] = [];
     // figure out the attributes we are displaying:
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const context = getMeasureContext();
     const isRendered = (item: Attribute) => {
       if (item.render) {
         if (!item.render.typeFilter.includes('all')) {
@@ -167,7 +167,6 @@ export function defaultFormatter(
         renderAttrIndex.push(index);
       }
     });
-    let lineHeight = 15;
     // Calculation of the max line height for spacing purposes
     const maxSize = renderFiltered.reduce((max, item) => {
       // Get the sizes or default to 16
@@ -176,14 +175,7 @@ export function defaultFormatter(
       // Compare the current maximum with both sizes
       return Math.max(max, displaySize, valueSize);
     }, 0); // Initial maximum is 16 (default value)
-    if (context) {
-      const font = `bold ${maxSize}px sans-serif`;
-      context.font = font;
-      const data = context.measureText('A!');
-      // eslint-disable-next-line dot-notation
-      const baseHeight = data.actualBoundingBoxAscent;
-      lineHeight = baseHeight * 1.30;
-    }
+    const lineHeight = getLineHeight(`bold ${maxSize}px sans-serif`, 15);
 
     // For vertical layouts, compute stacking independently for left and right sides.
     // This keeps %/auto sizing and indexing separate per side.
@@ -414,22 +406,22 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
     // text rules, looking up valueColors by the value as a string.
     this.renderAttributes.forEach((item) => {
       if (item.datatype === 'number') {
+        // Build the scale once here; this function runs per rendered value on every frame
+        let colorScale: d3.ScaleLinear<string, string> | null = null;
+        if (item.valueColors && Object.keys(item.valueColors).length) {
+          const colorArr = Object.entries(item.valueColors as Record<string, string>)
+            .map(([key, val]) => ({ key: parseFloat(key), val }))
+            .filter((entry) => !Number.isNaN(entry.key));
+          colorArr.sort((a, b) => a.key - b.key);
+          colorScale = d3.scaleLinear<string>()
+            .domain(colorArr.map((map) => map.key))
+            .range(colorArr.map((map) => map.val));
+        }
         this.autoColorIndex.push((data: string | number | boolean) => {
           if (data === undefined || data === null || data === '') {
             return getMissingValueColor(item) || item.color || 'white';
           }
-          if (item.valueColors && Object.keys(item.valueColors).length) {
-            const colorArr = Object.entries(item.valueColors as Record<string, string>)
-              .map(([key, val]) => ({ key: parseFloat(key), val }))
-              .filter((entry) => !Number.isNaN(entry.key));
-            colorArr.sort((a, b) => a.key - b.key);
-
-            const colorNums = colorArr.map((map) => map.key);
-            const colorVals = colorArr.map((map) => map.val);
-            const colorScale = d3.scaleLinear()
-              .domain(colorNums)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .range(colorVals as any);
+          if (colorScale) {
             return (data !== undefined && colorScale(data as number)?.toString()) || item.color || 'white';
           }
           return item.color || 'white';

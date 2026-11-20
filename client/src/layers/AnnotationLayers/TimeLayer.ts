@@ -4,6 +4,7 @@ import { boundToGeojson, RectBounds } from 'vue-media-annotator/utils';
 import { TypeStyling } from '../../StyleManager';
 import BaseLayer, { BaseLayerParams, LayerStyle } from '../BaseLayer';
 import { FrameDataTrack } from '../LayerTypes';
+import { getMeasureContext } from '../textMeasure';
 
 export interface TextData {
   selected: boolean;
@@ -147,8 +148,7 @@ export default class TimeLayer extends BaseLayer<TextData> {
   }
 
   formatRectData(data: TextData[], font = 'bold 16px sans-serif') {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const context = getMeasureContext();
     if (context) {
       context.font = font;
     }
