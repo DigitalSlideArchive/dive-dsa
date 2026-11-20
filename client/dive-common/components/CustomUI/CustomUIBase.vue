@@ -4,6 +4,9 @@ import {
   Ref,
   watch,
 } from 'vue';
+import { isEqual } from 'lodash';
+import { injectAggregateController } from 'vue-media-annotator/components/annotators/useMediaController';
+import usePlaybackThrottledFrame from 'dive-common/use/usePlaybackThrottledFrame';
 
 import StackedVirtualSidebarContainer from 'dive-common/components/StackedVirtualSidebarContainer.vue';
 import CustomUIAttributeValueDisplay from 'dive-common/components/CustomUI/CustomUIAttributeValueDisplay.vue';
@@ -98,6 +101,23 @@ export default defineComponent({
     const getAttributeValueColor = createGetAttributeValueColor(useTrackStyleManager());
     const { inputValue } = usePrompt();
     const { frame: frameRef, frameRate } = useTime();
+    const aggregateController = injectAggregateController();
+    const playing = computed(() => {
+      try {
+        return !!aggregateController.value.playing.value;
+      } catch {
+        // The controller throws until a camera is registered; nothing can be playing yet.
+        // Its camera list is still tracked, so this re-evaluates once one exists.
+        return false;
+      }
+    });
+
+    /**
+     * Frame that button states and displayed values are computed for. While playing it only
+     * updates every 250 ms: otherwise every button and value in the panel is rebuilt and
+     * re-rendered on every frame of playback. Click handlers still act on the real frame.
+     */
+    const panelFrame = usePlaybackThrottledFrame(frameRef, playing);
     const store = useStore();
     const cameraStore = useCameraStore();
     const selectedTrackIdRef = useSelectedTrackId();
@@ -138,15 +158,18 @@ export default defineComponent({
         return { disabled: true, tooltip: 'No track selected' };
       }
 
-      if (shortcut.segment && selectedTrackIdRef.value !== null && frameRef.value !== undefined) {
+      if (shortcut.segment && selectedTrackIdRef.value !== null && panelFrame.value !== undefined) {
         const track = cameraStore.getAnyTrack(selectedTrackIdRef.value);
+        // Segment edits change the result without changing the frame, so depend on them too
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _revision = track.revision.value;
         const ranges = track.getAttributeSegmentFrames(attribute.name, store.state.User.user?.login || null);
         if (ranges.length > 0) {
           if (ranges.length % 2 !== 0) {
             return { disabled: true, tooltip: 'Segments are uneven' };
           }
-          if (frameRef.value !== undefined) {
-            const frame = frameRef.value;
+          if (panelFrame.value !== undefined) {
+            const frame = panelFrame.value;
             let segmentCreationFrames = (track.end - track.begin) * trackPercentSize;
             const { segmentSize, segmentSizeType } = shortcut;
             if (segmentSize && segmentSizeType) {
@@ -707,10 +730,13 @@ export default defineComponent({
           valueColorStyle: getCustomUIDisplayValueColorStyle(resolvedValueColor),
         };
       });
-      buttonValueMap.value = buttonMapping;
+      // Skip no-op updates so unchanged values don't re-render the panel
+      if (!isEqual(buttonMapping, buttonValueMap.value)) {
+        buttonValueMap.value = buttonMapping;
+      }
     };
 
-    watch([attributeButtons, frameRef, selectedTrackIdRef], () => {
+    watch([attributeButtons, panelFrame, selectedTrackIdRef], () => {
       updateButtonMap();
     }, { immediate: true });
 
