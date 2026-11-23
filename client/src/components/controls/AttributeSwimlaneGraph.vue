@@ -88,6 +88,8 @@ export default defineComponent({
     const showSymbols = ref(props.displaySettings?.displayFrameIndicators);
     const symbolGenerator = ref<any>(null);
     const canvas = ref<HTMLCanvasElement | null>(null);
+    /** Transparent canvas stacked on `canvas` that holds only the current-frame icon highlights */
+    const overlayCanvas = ref<HTMLCanvasElement | null>(null);
     const chart = ref<HTMLDivElement | null>(null);
     const hoveredZone = ref<number | null>(null);
     const hoveredAttributeType = ref<string | null>(null);
@@ -236,21 +238,6 @@ export default defineComponent({
       return barFrames;
     });
 
-    /**
-     * Frames whose appearance depends on the playhead. Covers both ends of every subsection
-     * because a boundary landing on the current frame highlights its icon.
-     */
-    const highlightFrames = computed(() => {
-      const frames = new Set<number>();
-      bars.value.forEach((bar) => {
-        bar.subSections.forEach((sub) => {
-          frames.add(sub.begin);
-          frames.add(sub.end);
-        });
-      });
-      return frames;
-    });
-
     // Max horizontal pixel distance from a diamond's center that still counts as hovering it
     const iconHitRadius = 8;
 
@@ -277,11 +264,19 @@ export default defineComponent({
       return best === null ? null : { frame: best as number, barId: bar.id };
     };
 
+    // Only a handful of (symbol, size) shapes are ever drawn, so parse each Path2D once
+    // instead of rebuilding the path string and parsing it for every icon on every redraw.
+    const symbolPathCache = new Map<string, Path2D>();
     const getSymbolPath = (type: 'diamond' | 'arrows', size: number) => {
-      if (type === 'arrows') {
-        return new Path2D(mdiArrowLeftRightBold);
+      const key = type === 'arrows' ? 'arrows' : `diamond:${size}`;
+      let path = symbolPathCache.get(key);
+      if (!path) {
+        path = type === 'arrows'
+          ? new Path2D(mdiArrowLeftRightBold)
+          : new Path2D(symbolGenerator.value.size(size)());
+        symbolPathCache.set(key, path);
       }
-      return new Path2D(symbolGenerator.value.size(size)());
+      return path;
     };
 
     const drawIcon = (
@@ -291,10 +286,14 @@ export default defineComponent({
       xPosition: number,
       yPosition: number,
       symbol: 'diamond' | 'arrows' = 'diamond',
+      highlightCurrent = true,
     ) => {
-      let fillColor = xFrame === frame.value ? 'cyan' : 'white';
-      let symbolSize = xFrame === frame.value ? 100 : 50;
-      let thickness = xFrame === frame.value ? 2 : 1;
+      // When false the icon is drawn as if it were not on the current frame; the overlay
+      // canvas draws the current-frame version on top so the main canvas need not redraw.
+      const isCurrent = highlightCurrent && xFrame === frame.value;
+      let fillColor = isCurrent ? 'cyan' : 'white';
+      let symbolSize = isCurrent ? 100 : 50;
+      let thickness = isCurrent ? 2 : 1;
       if (symbol === 'arrows') {
         fillColor = 'cyan';
       }
@@ -306,7 +305,7 @@ export default defineComponent({
         if (props.displaySettings?.renderMode === 'segments' && props.displaySettings.editSegments) {
           symbol = 'arrows';
         }
-        if (xFrame !== frame.value) {
+        if (!isCurrent) {
           fillColor = 'yellow';
         }
         symbolSize = 100;
@@ -325,6 +324,41 @@ export default defineComponent({
       ctx.restore();
     };
 
+    const bisectSubEnd = d3.bisector((sub: SwimlaneData) => sub.end).left;
+    const bisectSubBegin = d3.bisector((sub: SwimlaneData) => sub.begin).right;
+
+    /**
+     * Draw the current-frame icon highlights on the overlay canvas. This is all that changes
+     * as the playhead moves, so playback costs one binary search per bar instead of a full
+     * swimlane redraw, which used to happen on nearly every frame when keyframes are dense.
+     */
+    function drawOverlay() {
+      const overlayEl = overlayCanvas.value;
+      const canvasEl = canvas.value;
+      if (!overlayEl || !canvasEl) return;
+      const ctx = overlayEl.getContext('2d');
+      if (!ctx) return;
+      if (overlayEl.width !== canvasEl.width || overlayEl.height !== canvasEl.height) {
+        overlayEl.width = canvasEl.width;
+        overlayEl.height = canvasEl.height;
+      } else {
+        ctx.clearRect(0, 0, overlayEl.width, overlayEl.height);
+      }
+      // The main canvas draws the dragging state itself, including the current frame
+      if (!showSymbols.value || dragData.isDragging || !x.value) return;
+      const currentFrame = frame.value;
+      const scale = x.value;
+      const barHeight = 20;
+      bars.value.forEach((bar) => {
+        const frames = iconFrames.value[bar.id];
+        if (!frames?.length) return;
+        const idx = d3.bisectLeft(frames, currentFrame);
+        if (frames[idx] === currentFrame) {
+          drawIcon(ctx, bar.id, currentFrame, scale(currentFrame), bar.top + barHeight / 2);
+        }
+      });
+    }
+
     const baseUpdate = () => {
       if (dragData.isDragging) {
         hoveredState.value = 'hover-grabbing';
@@ -342,7 +376,10 @@ export default defineComponent({
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
       const barList = bars.value;
-      if (!barList.length) return;
+      if (!barList.length) {
+        drawOverlay();
+        return;
+      }
 
       canvasEl.width = props.clientWidth + props.margin;
       canvasEl.height = barList.slice(-1)[0].top + 30;
@@ -370,13 +407,26 @@ export default defineComponent({
           ctx.fillRect(bar.left, bar.top, barWidth, barHeight);
         }
 
-        bar.subSections.forEach((sub, index) => {
-          const dragging = dragData.isDragging
-            && index === dragData.draggedSubsectionIndex
-            && dragData.draggingCurrentLocation !== null;
-          if (!dragging && (sub.end < cullStart || sub.begin > cullEnd)) {
-            return;
-          }
+        // Subsections are sorted by begin (and so by end), so draw only the visible slice
+        const subs = bar.subSections;
+        const first = bisectSubEnd(subs, cullStart);
+        const last = bisectSubBegin(subs, cullEnd);
+        const drawIndices: number[] = [];
+        const draggedIndex = dragData.isDragging && dragData.draggingCurrentLocation !== null
+          ? dragData.draggedSubsectionIndex : null;
+        // The dragged subsection is drawn even when off screen, since its edge is being moved
+        if (draggedIndex !== null && draggedIndex < first && draggedIndex < subs.length) {
+          drawIndices.push(draggedIndex);
+        }
+        for (let index = first; index < last; index += 1) {
+          drawIndices.push(index);
+        }
+        if (draggedIndex !== null && draggedIndex >= last && draggedIndex < subs.length) {
+          drawIndices.push(draggedIndex);
+        }
+        drawIndices.forEach((index) => {
+          const sub = subs[index];
+          const dragging = index === draggedIndex;
           let left = scale(sub.begin);
           let right = scale(sub.end);
           if (dragging) {
@@ -393,16 +443,20 @@ export default defineComponent({
           ctx.fillRect(left, bar.top, width, barHeight);
           if (drawSymbols) {
             const symbol = dragData.isDragging && sub.begin === dragData.draggedFrame ? 'arrows' : 'diamond';
+            // While dragging, icons are yellow and the canvas redraws on every frame anyway, so
+            // keep the current-frame size there; otherwise the overlay draws that highlight.
+            const highlightCurrent = dragData.isDragging;
             if (!sub.singleVal || renderMode !== 'segments') {
-              drawIcon(ctx, bar.id, sub.begin, left, bar.top + barHeight / 2, symbol);
+              drawIcon(ctx, bar.id, sub.begin, left, bar.top + barHeight / 2, symbol, highlightCurrent);
             }
             if (renderMode === 'segments') {
               const endSymbol = dragData.isDragging && sub.end === dragData.draggedFrame ? 'arrows' : 'diamond';
-              drawIcon(ctx, bar.id, sub.end, right, bar.top + barHeight / 2, endSymbol);
+              drawIcon(ctx, bar.id, sub.end, right, bar.top + barHeight / 2, endSymbol, highlightCurrent);
             }
           }
         });
       });
+      drawOverlay();
     };
 
     const update = throttle(baseUpdate, 20);
@@ -513,23 +567,15 @@ export default defineComponent({
       }
     };
 
-    watch(frame, (newFrame, oldFrame) => {
+    watch(frame, () => {
       if (dragData.isDragging && dragData.draggedFrame !== null && dragData.dragTarget !== null) {
         dragData.draggingCurrentLocation = frame.value;
         update();
         return;
       }
       // The playhead itself is a DOM element owned by Timeline.vue, so the only frame-dependent
-      // pixels here are the keyframe icon highlights. Skip redraws that would repaint an
-      // identical canvas, which is the overwhelming majority of frames on a long video.
-      if (!showSymbols.value) {
-        return;
-      }
-      const highlighted = highlightFrames.value;
-      if (!highlighted.has(newFrame) && !highlighted.has(oldFrame)) {
-        return;
-      }
-      update();
+      // pixels here are the current-frame icon highlights, which live on the overlay canvas.
+      drawOverlay();
     });
 
     const mouseclick = (e: MouseEvent) => {
@@ -734,6 +780,7 @@ export default defineComponent({
       chartTop,
       canvas,
       chart,
+      overlayCanvas,
       tooltipComputed,
       mousemove,
       mouseout,
@@ -770,7 +817,10 @@ export default defineComponent({
         </template>
         <span class="ma-0 pa-1">Click to toggle Symbols for set Values</span>
       </v-tooltip>
-      <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseleave="mouseout" @mouseout="mouseout" @mousedown="mousedown" />
+      <div class="swimlane-canvas-stack">
+        <canvas ref="canvas" @mousemove="mousemove" @click="mouseclick" @mouseleave="mouseout" @mouseout="mouseout" @mousedown="mousedown" />
+        <canvas ref="overlayCanvas" class="swimlane-overlay" />
+      </div>
     </div>
     <body-portal v-if="tooltipComputed && (tooltipComputed.subDisplay?.length ? tooltipComputed.subDisplay.length < 50 : true)">
       <div
@@ -810,6 +860,17 @@ export default defineComponent({
   overflow-y: visible;
   overflow-x: hidden;
 
+}
+
+.swimlane-canvas-stack {
+  position: relative;
+}
+
+.swimlane-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
 }
 
 .hover-grab {

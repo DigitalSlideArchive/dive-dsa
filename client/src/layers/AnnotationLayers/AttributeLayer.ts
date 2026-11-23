@@ -7,6 +7,7 @@ import * as d3 from 'd3';
 import { TypeStyling } from '../../StyleManager';
 import BaseLayer, { BaseLayerParams, LayerStyle } from '../BaseLayer';
 import { FrameDataTrack, DimensionBounds, mergeBounds } from '../LayerTypes';
+import { getLineHeight, getMeasureContext } from '../textMeasure';
 
 export interface AttributeTextData {
   selected: boolean;
@@ -27,6 +28,7 @@ export type FormatTextRow = (
   renderAttr: Attribute[],
   user: string,
   typeStyling: TypeStyling,
+  /** One color function per entry of renderAttr, at the same index */
   autoColorIndex: ((data: string | number | boolean) => string)[],
   frame: number,
   ) => AttributeTextData[] | null;
@@ -127,7 +129,7 @@ export function calculateAttributeArea(baseBounds: RectBounds, renderSettings: A
  * @param lineHeight - height of each text line
  * @returns value or null.  null indicates that the text should not be displayed.
  */
-function defaultFormatter(
+export function defaultFormatter(
   annotation: FrameDataTrack,
   renderAttr: Attribute[],
   user: string,
@@ -140,9 +142,8 @@ function defaultFormatter(
     const { bounds } = annotation.features;
     const arr: AttributeTextData[] = [];
     // figure out the attributes we are displaying:
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    const renderFiltered = renderAttr.filter((item) => {
+    const context = getMeasureContext();
+    const isRendered = (item: Attribute) => {
       if (item.render) {
         if (!item.render.typeFilter.includes('all')) {
           return item.render.typeFilter.includes(annotation.styleType[0]);
@@ -155,8 +156,17 @@ function defaultFormatter(
         }
       }
       return false;
+    };
+    // renderFiltered drops attributes for this annotation, so keep each one's index in
+    // renderAttr: autoColorIndex is aligned with renderAttr, not with renderFiltered.
+    const renderFiltered: Attribute[] = [];
+    const renderAttrIndex: number[] = [];
+    renderAttr.forEach((item, index) => {
+      if (isRendered(item)) {
+        renderFiltered.push(item);
+        renderAttrIndex.push(index);
+      }
     });
-    let lineHeight = 15;
     // Calculation of the max line height for spacing purposes
     const maxSize = renderFiltered.reduce((max, item) => {
       // Get the sizes or default to 16
@@ -165,14 +175,7 @@ function defaultFormatter(
       // Compare the current maximum with both sizes
       return Math.max(max, displaySize, valueSize);
     }, 0); // Initial maximum is 16 (default value)
-    if (context) {
-      const font = `bold ${maxSize}px sans-serif`;
-      context.font = font;
-      const data = context.measureText('A!');
-      // eslint-disable-next-line dot-notation
-      const baseHeight = data.actualBoundingBoxAscent;
-      lineHeight = baseHeight * 1.30;
-    }
+    const lineHeight = getLineHeight(`bold ${maxSize}px sans-serif`, 15);
 
     // For vertical layouts, compute stacking independently for left and right sides.
     // This keeps %/auto sizing and indexing separate per side.
@@ -217,7 +220,7 @@ function defaultFormatter(
         if (type === 'track') {
           const { attributes } = annotation.track;
           if (attributes) {
-            if (renderAttr[i].user && user && attributes.userAttributes && attributes.userAttributes[user]) {
+            if (renderFiltered[i].user && user && attributes.userAttributes && attributes.userAttributes[user]) {
               value = (attributes.userAttributes[user] as StringKeyObject)[name] as string | boolean | number;
             } else {
               value = attributes[name] as string | boolean | number;
@@ -243,7 +246,9 @@ function defaultFormatter(
                 }
                 if (newVal === '' || newVal === undefined) {
                   newVal = undefined;
-                  prevFrame -= 1;
+                  // Jump past this keyframe rather than stepping back one frame at a time,
+                  // which re-found the same keyframe for every frame in between
+                  prevFrame = previous - 1;
                   // eslint-disable-next-line no-continue
                   continue;
                 }
@@ -268,7 +273,7 @@ function defaultFormatter(
           lineHeight,
         );
 
-        const displayColor = currentRender.displayColor === 'auto' ? renderAttr[i].color : currentRender.displayColor;
+        const displayColor = currentRender.displayColor === 'auto' ? renderFiltered[i].color : currentRender.displayColor;
         const { displayTextSize } = currentRender;
         if (currentRender.selected && !annotation.selected) {
           // eslint-disable-next-line no-continue
@@ -301,7 +306,7 @@ function defaultFormatter(
           offsetX,
         });
 
-        const valueColor = autoColorIndex[i](value);
+        const valueColor = autoColorIndex[renderAttrIndex[i]]?.(value);
         const { valueTextSize } = currentRender;
         if (value === undefined) {
           value = '';
@@ -396,9 +401,32 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
       }
       return attribute.valueColors?.[''];
     };
-    // We create the color formatter for the render attributesW
+    // One color function per render attribute, in the same order: the formatter looks them up
+    // by an attribute's index in renderAttributes. Booleans (and any non-number type) use the
+    // text rules, looking up valueColors by the value as a string.
     this.renderAttributes.forEach((item) => {
-      if (item.datatype === 'text') {
+      if (item.datatype === 'number') {
+        // Build the scale once here; this function runs per rendered value on every frame
+        let colorScale: d3.ScaleLinear<string, string> | null = null;
+        if (item.valueColors && Object.keys(item.valueColors).length) {
+          const colorArr = Object.entries(item.valueColors as Record<string, string>)
+            .map(([key, val]) => ({ key: parseFloat(key), val }))
+            .filter((entry) => !Number.isNaN(entry.key));
+          colorArr.sort((a, b) => a.key - b.key);
+          colorScale = d3.scaleLinear<string>()
+            .domain(colorArr.map((map) => map.key))
+            .range(colorArr.map((map) => map.val));
+        }
+        this.autoColorIndex.push((data: string | number | boolean) => {
+          if (data === undefined || data === null || data === '') {
+            return getMissingValueColor(item) || item.color || 'white';
+          }
+          if (colorScale) {
+            return (data !== undefined && colorScale(data as number)?.toString()) || item.color || 'white';
+          }
+          return item.color || 'white';
+        });
+      } else {
         this.autoColorIndex.push((data: string | number | boolean) => {
           if (data === undefined || data === null || data === '') {
             return getMissingValueColor(item) || item.color || 'white';
@@ -407,28 +435,7 @@ export default class AttributeLayer extends BaseLayer<AttributeTextData> {
             return item.color || 'white';
           }
           if (item.valueColors && Object.keys(item.valueColors).length) {
-            return item.valueColors[data as string] || item.color || 'white';
-          }
-          return item.color || 'white';
-        });
-      } else if (item.datatype === 'number') {
-        this.autoColorIndex.push((data: string | number | boolean) => {
-          if (data === undefined || data === null || data === '') {
-            return getMissingValueColor(item) || item.color || 'white';
-          }
-          if (item.valueColors && Object.keys(item.valueColors).length) {
-            const colorArr = Object.entries(item.valueColors as Record<string, string>)
-              .map(([key, val]) => ({ key: parseFloat(key), val }))
-              .filter((entry) => !Number.isNaN(entry.key));
-            colorArr.sort((a, b) => a.key - b.key);
-
-            const colorNums = colorArr.map((map) => map.key);
-            const colorVals = colorArr.map((map) => map.val);
-            const colorScale = d3.scaleLinear()
-              .domain(colorNums)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              .range(colorVals as any);
-            return (data !== undefined && colorScale(data as number)?.toString()) || item.color || 'white';
+            return item.valueColors[String(data)] || item.color || 'white';
           }
           return item.color || 'white';
         });
