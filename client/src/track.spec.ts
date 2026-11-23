@@ -399,6 +399,20 @@ describe('Track attribute frame lookups', () => {
     expect(t.getAttributeSegmentFrames('Seg')).toEqual([]);
   });
 
+  it('setFeatureAttribute keeps a user\'s other values on the same frame', () => {
+    const t = makeTrack();
+    const before = t.features[10].attributes?.userAttributes;
+    t.setFeatureAttribute(10, 'Other', 2, 'bob');
+    expect(t.features[10].attributes).toEqual({
+      Seg: 'a',
+      userAttributes: { bob: { Seg: 'b', Other: 2 } },
+    });
+    // the nested object is replaced, not mutated in place
+    expect(before).toEqual({ bob: { Seg: 'b' } });
+    t.setFeatureAttribute(40, 'Seg', 'd', 'alice');
+    expect(t.features[40].attributes).toEqual({ userAttributes: { alice: { Seg: 'd' } } });
+  });
+
   it('refreshes after features are deleted or merged in with notifications off', () => {
     const t = makeTrack();
     expect(t.getAttributeSegmentFrames('Seg')).toEqual([0, 10]);
