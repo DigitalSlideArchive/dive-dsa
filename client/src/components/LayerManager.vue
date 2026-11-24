@@ -164,8 +164,12 @@ export default defineComponent({
       const g = parseInt(hexColor.slice(3, 5), 16);
       const b = parseInt(hexColor.slice(5, 7), 16);
       const colorString = `rgb(${r}, ${g}, ${b})`;
-      maskFilters.value = { ...maskFilters.value, [type]: colorString };
-      return maskFilters.value[type];
+      // Only replace the object (re-rendering the filter <defs>) when the
+      // color actually changes; this runs for every masked track every frame.
+      if (maskFilters.value[type] !== colorString) {
+        maskFilters.value = { ...maskFilters.value, [type]: colorString };
+      }
+      return colorString;
     };
     if (props.overlays && props.overlays.length) {
       for (let i = 0; i < props.overlays.length; i += 1) {
