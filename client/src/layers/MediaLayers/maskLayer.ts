@@ -1,6 +1,7 @@
 import { MediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { Ref } from 'vue';
-import { maskToLuminanceAlpha } from 'vue-media-annotator/use/rle';
+import type { CroppedMask } from 'vue-media-annotator/use/rle';
+import maskPerf from 'vue-media-annotator/use/maskPerf';
 import { TypeStyling } from '../../StyleManager';
 
 /**
@@ -10,15 +11,27 @@ import { TypeStyling } from '../../StyleManager';
  */
 export const SegmentationPreviewOpacity = 75;
 
+export type MaskLayerItem = { trackId: number; mask: CroppedMask };
+
+type QuadDatum = {
+  ul: { x: number; y: number };
+  lr: { x: number; y: number };
+  texture?: { width: number; height: number; data: Uint8Array; type: 'RGBA' };
+  image?: HTMLCanvasElement;
+};
+
+type CachedDatum = { sizeKey: string; datum: QuadDatum };
+
 /**
- * A track's layer (and its WebGL context) is deleted after this many mask
- * renders in which the track had no mask, so live contexts stay bounded to
- * roughly the tracks on screen (~10s of playback at 30fps).
+ * All stored masks of a camera in ONE geojs feature layer (one canvas / WebGL
+ * context) holding one quad per mask. Each quad covers only the mask's
+ * bounding box and its texture already carries the type color, so no SVG
+ * filter is needed.
+ *
+ * Quad datums are cached per mask buffer: geojs keeps the built quad and its
+ * GPU texture on the datum (`_cachedQuad`), so a mask that is drawn again
+ * (paused, scrubbing back, hover/selection redraws) is not uploaded again.
  */
-export const MaskLayerIdleRenders = 300;
-
-type QuadSource = HTMLImageElement | Uint8Array;
-
 export default class MaskLayer {
   annotator: MediaController;
 
@@ -27,28 +40,18 @@ export default class MaskLayer {
   opacity: number;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  featureLayers: Record<number, any>;
+  featureLayer: any = null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  quads: Record<number, any>;
+  quads: any = null;
 
-  width: number;
+  private datums = new WeakMap<Uint8Array, CachedDatum>();
 
-  height: number;
+  private imageDatums = new WeakMap<HTMLImageElement, Map<string, CachedDatum>>();
 
-  /** Filter type currently applied to each track's layer */
-  private layerFilter: Record<number, string> = {};
+  private lastData: QuadDatum[] = [];
 
-  /** What each track's quad currently holds, to skip identical redraws */
-  private lastDrawn: Record<number, { source: QuadSource; frameSize: string }> = {};
-
-  /** Tracks whose layer is currently visible */
-  private visibleTracks = new Set<number>();
-
-  /** Render counter and the render each track last had a mask in */
-  private renderCount = 0;
-
-  private lastUsed: Record<number, number> = {};
+  private visible = false;
 
   constructor({
     annotator,
@@ -57,168 +60,123 @@ export default class MaskLayer {
     this.annotator = annotator;
     this.typeStyling = typeStyling;
     this.opacity = 50;
-    this.featureLayers = {};
-    this.quads = {};
-    this.width = 0;
-    this.height = 0;
   }
 
-  /** Create the track's layer if needed and point its filter at `filterType`. */
-  private ensureLayer(trackId: number, filterType: string) {
-    if (!this.featureLayers[trackId]) {
-      this.featureLayers[trackId] = this.annotator.geoViewerRef.value.createLayer('feature', {
+  private ensureLayer() {
+    if (!this.featureLayer) {
+      // Own canvas (not auto-shared) so layer opacity applies to all masks
+      this.featureLayer = this.annotator.geoViewerRef.value.createLayer('feature', {
         features: ['quad.image'],
         autoshareRenderer: false,
       });
-      this.quads[trackId] = this.featureLayers[trackId].createFeature('quad');
-      this.featureLayers[trackId].opacity(this.opacity / 100.0);
-      delete this.layerFilter[trackId];
-      delete this.lastDrawn[trackId];
-      this.visibleTracks.add(trackId); // new layers start visible
+      this.quads = this.featureLayer.createFeature('quad');
+      this.featureLayer.opacity(this.opacity / 100.0);
+      this.visible = true;
     }
-    if (this.layerFilter[trackId] !== filterType) {
-      this.featureLayers[trackId].node().css('filter', `url(#mask-filter-${filterType})`);
-      this.layerFilter[trackId] = filterType;
-    }
-  }
-
-  enableTracks(tracks: {id: number, type: string}[]) {
-    tracks.forEach((track) => this.ensureLayer(track.id, track.type));
   }
 
   setOpacity(opacity: number) {
     this.opacity = opacity;
-    Object.keys(this.featureLayers).forEach((key) => {
-      const trackId = parseInt(key, 10);
-      const layer = this.featureLayers[trackId];
-      if (layer) {
-        layer.opacity(this.opacity / 100.0);
-      }
-    });
-  }
-
-  disableTracks(trackIds: number[]) {
-    trackIds.forEach((trackId) => {
-      const layer = this.featureLayers[trackId];
-      if (layer) {
-        this.annotator.geoViewerRef.value.deleteLayer(layer);
-        delete this.featureLayers[trackId];
-        delete this.quads[trackId];
-      }
-      delete this.layerFilter[trackId];
-      delete this.lastDrawn[trackId];
-      delete this.lastUsed[trackId];
-      this.visibleTracks.delete(trackId);
-    });
-  }
-
-  private setLayerVisible(trackId: number, visible: boolean) {
-    if (this.visibleTracks.has(trackId) === visible) return;
-    this.featureLayers[trackId]?.visible(visible);
-    if (visible) {
-      this.visibleTracks.add(trackId);
-    } else {
-      this.visibleTracks.delete(trackId);
+    if (this.featureLayer) {
+      this.featureLayer.opacity(this.opacity / 100.0);
     }
+  }
+
+  private frameScale() {
+    const [frameWidth, frameHeight] = this.annotator.frameSize.value;
+    return { frameWidth, frameHeight, sizeKey: `${frameWidth}x${frameHeight}` };
+  }
+
+  private maskDatum(mask: CroppedMask, sizeKey: string, frameWidth: number, frameHeight: number) {
+    const cached = this.datums.get(mask.data);
+    if (cached && cached.sizeKey === sizeKey) {
+      return cached.datum;
+    }
+    // Mask pixels -> frame coordinates (masks may differ from the media size)
+    const sx = frameWidth / (mask.frameWidth || frameWidth);
+    const sy = frameHeight / (mask.frameHeight || frameHeight);
+    const datum: QuadDatum = {
+      ul: { x: mask.x * sx, y: mask.y * sy },
+      lr: { x: (mask.x + mask.width) * sx, y: (mask.y + mask.height) * sy },
+      texture: {
+        width: mask.width, height: mask.height, data: mask.data, type: 'RGBA',
+      },
+    };
+    this.datums.set(mask.data, { sizeKey, datum });
+    maskPerf.count('layer.newTextures');
+    return datum;
   }
 
   /**
-   * Show exactly `items`: hide only the layers not in this set, redraw a quad
-   * only when its source buffer/image changed, and delete long-idle layers.
+   * Show exactly these masks, drawn in the given order (last on top).
    */
-  private render(
-    items: { trackId: number; filterType: string; source: QuadSource; quad: () => object }[],
-  ) {
-    this.renderCount += 1;
-    const [frameWidth, frameHeight] = this.annotator.frameSize.value;
-    const frameSize = `${frameWidth}x${frameHeight}`;
-    const current = new Set(items.map((item) => item.trackId));
-    Array.from(this.visibleTracks).forEach((trackId) => {
-      if (!current.has(trackId)) this.setLayerVisible(trackId, false);
-    });
-    items.forEach((item) => {
-      this.ensureLayer(item.trackId, item.filterType);
-      this.lastUsed[item.trackId] = this.renderCount;
-      const last = this.lastDrawn[item.trackId];
-      if (!last || last.source !== item.source || last.frameSize !== frameSize) {
-        this.quads[item.trackId].data([item.quad()]).draw();
-        this.lastDrawn[item.trackId] = { source: item.source, frameSize };
-      }
-      this.setLayerVisible(item.trackId, true);
-    });
-    this.pruneIdle();
+  setMasks(items: MaskLayerItem[]) {
+    const { frameWidth, frameHeight, sizeKey } = this.frameScale();
+    const data = items
+      .filter((item) => item.mask.width > 0 && item.mask.height > 0)
+      .map((item) => this.maskDatum(item.mask, sizeKey, frameWidth, frameHeight));
+    this.render(data);
   }
 
-  private pruneIdle() {
-    const idle = Object.keys(this.featureLayers)
-      .map((key) => parseInt(key, 10))
-      .filter((trackId) => (
-        !this.visibleTracks.has(trackId)
-        && this.renderCount - (this.lastUsed[trackId] ?? 0) > MaskLayerIdleRenders
-      ));
-    if (idle.length) {
-      this.disableTracks(idle);
+  /**
+   * Legacy PNG mask path (`useRLE` false): tint each white mask image with
+   * its color on a canvas, cached per image and color.
+   */
+  setImages(items: { trackId: number; image: HTMLImageElement; color: string }[]) {
+    const { frameWidth, frameHeight, sizeKey } = this.frameScale();
+    const data = items.map(({ image, color }) => {
+      let byColor = this.imageDatums.get(image);
+      if (!byColor) {
+        byColor = new Map();
+        this.imageDatums.set(image, byColor);
+      }
+      const cached = byColor.get(color);
+      if (cached && cached.sizeKey === sizeKey) {
+        return cached.datum;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth || image.width;
+      canvas.height = image.naturalHeight || image.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(image, 0, 0);
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      const datum: QuadDatum = {
+        ul: { x: 0, y: 0 },
+        lr: { x: frameWidth, y: frameHeight },
+        image: canvas,
+      };
+      byColor.set(color, { sizeKey, datum });
+      return datum;
+    });
+    this.render(data);
+  }
+
+  private render(data: QuadDatum[]) {
+    if (!data.length) {
+      this.disable();
+      return;
+    }
+    this.ensureLayer();
+    const unchanged = data.length === this.lastData.length
+      && data.every((datum, i) => datum === this.lastData[i]);
+    if (!unchanged) {
+      this.quads.data(data).draw();
+      this.lastData = data;
+    }
+    if (!this.visible) {
+      this.featureLayer.visible(true);
+      this.visible = true;
     }
   }
 
-  setSegmenationImages(data: {trackId: number, image: HTMLImageElement, type: string}[]) {
-    const [width, height] = this.annotator.frameSize.value;
-    this.render(data.map((item) => ({
-      trackId: item.trackId,
-      filterType: item.type,
-      source: item.image,
-      quad: () => ({
-        ul: { x: 0, y: 0 },
-        lr: { x: width, y: height },
-        image: item.image,
-      }),
-    })));
-  }
-
-  setSegmenationLuminanceRLE(data: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[]) {
-    const [frameWidth, frameHeight] = this.annotator.frameSize.value;
-    this.render(data.map((item) => ({
-      trackId: item.trackId,
-      filterType: item.type,
-      source: item.mask,
-      quad: () => ({
-        ul: { x: 0, y: 0 },
-        lr: { x: frameWidth, y: frameHeight },
-        texture: {
-          width: item.width,
-          height: item.height,
-          data: item.mask,
-          type: 'LuminanceAlpha',
-        },
-      }),
-    })));
-  }
-
-  setSegmenationRLE(data: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[]) {
-    const [frameWidth, frameHeight] = this.annotator.frameSize.value;
-    this.render(data.map((item) => ({
-      trackId: item.trackId,
-      filterType: item.type,
-      source: item.mask,
-      quad: () => ({
-        ul: { x: 0, y: 0 },
-        lr: { x: frameWidth, y: frameHeight },
-        texture: {
-          width: item.width,
-          height: item.height,
-          data: maskToLuminanceAlpha(item.mask, item.width, item.height),
-          type: 'LuminanceAlpha',
-        },
-      }),
-    })));
-  }
-
-  initialize(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-  }
-
   disable() {
-    this.render([]);
+    if (this.featureLayer && this.visible) {
+      this.featureLayer.visible(false);
+      this.visible = false;
+    }
   }
 }

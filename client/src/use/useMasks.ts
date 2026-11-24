@@ -18,7 +18,8 @@ import { Handler } from 'vue-media-annotator/provides';
 import { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import { debounce } from 'lodash';
 import {
-  binaryMaskToImage, binaryMaskToPngBlob, imageToRLEObject, maskToLuminanceAlpha, decode, encode, DataArray,
+  binaryMaskToImage, binaryMaskToPngBlob, imageToRLEObject, encode, DataArray,
+  CroppedMask, decodeRLECropped, binaryMaskToCropped, recolorCropped,
 } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 import createRLEWorker from './rleWorkerFactory';
@@ -49,10 +50,18 @@ export type MaskTriggerActions = null | 'save' | 'delete';
 export interface UseMaskInterface {
   getMask: (trackId: number, frameId: number) => HTMLImageElement | undefined;
   getRLEMask: (trackId: number, frameId: number) => RLEFrameData | undefined;
-  getRLELuminanceMask: (
+  /**
+   * The decoded (bounding-box cropped, colored) mask for a track/frame, or
+   * undefined while it is decoding. A cached mask of another color is
+   * recolored to `color`.
+   */
+  getCroppedMask: (
     trackId: number,
-    frameId: number
-  ) => { width: number; height: number; data: Uint8Array } | undefined;
+    frameId: number,
+    color: string,
+  ) => CroppedMask | undefined;
+  /** How to pick the color baked into a track's decoded masks */
+  setMaskColorResolver: (resolver: (trackId: number) => string) => void;
   editorOptions: {
     toolEnabled: Ref<MaskEditingTools>;
     brushSize: Ref<number>;
@@ -167,7 +176,11 @@ export default function useMasks(
   const frameRate = ref(60);
   const masks = ref<MaskItem[]>([]);
   const cache = new Map<string, HTMLImageElement>();
-  const rleCache = new Map<string, { width: number; height: number; data: Uint8Array }>();
+  const rleCache = new Map<string, CroppedMask>();
+  let maskColorFor: (trackId: number) => string = () => '#ffffff';
+  function setMaskColorResolver(resolver: (trackId: number) => string) {
+    maskColorFor = resolver;
+  }
   const inFlightRequests = new Map<
     string,
     { image: HTMLImageElement; controller: AbortController }
@@ -255,15 +268,7 @@ export default function useMasks(
       };
       rleMasks.value[trackId] = rleMasks.value[trackId] || {};
       rleMasks.value[trackId][frame.value] = rleData;
-      const binaryMask = maskToLuminanceAlpha(decode([rleObject]).data, rleData.rle.size[1], rleData.rle.size[0]);
-      const rleDecoded = {
-        trackId,
-        frame: frame.value,
-        width: rleData.rle.size[1],
-        height: rleData.rle.size[0],
-        data: binaryMask,
-      };
-      rleCache.set(frameKey(frame.value, trackId), rleDecoded);
+      rleCache.set(frameKey(frame.value, trackId), decodeRLECropped(rleObject, maskColorFor(trackId)));
       loadingFrame.value = false;
     }
     if (selectedTrackId?.value === trackId) {
@@ -312,12 +317,8 @@ export default function useMasks(
         ...rleMasks.value,
         [trackId]: { ...(rleMasks.value[trackId] || {}), [frameId]: rleData },
       };
-      // `cocoMask` is exactly what decoding `rleObject` would return.
-      rleCache.set(key, {
-        width: mask.width,
-        height: mask.height,
-        data: maskToLuminanceAlpha(cocoMask, mask.width, mask.height),
-      });
+      // Crop the row-major mask directly (same result as decoding `rleObject`).
+      rleCache.set(key, binaryMaskToCropped(mask.data, mask.width, mask.height, maskColorFor(trackId)));
       clearMaskWarning();
     }
     // LayerManager redraws when loadingFrame clears; marking the frame lets
@@ -475,7 +476,7 @@ export default function useMasks(
             loadingFrame.value = false;
           }
         });
-      });
+      }, (trackId) => maskColorFor(trackId));
     }
   }
 
@@ -632,7 +633,7 @@ export default function useMasks(
             loadingFrame.value = false;
           }
         });
-      });
+      }, (trackId) => maskColorFor(trackId));
     }
   }
 
@@ -798,14 +799,22 @@ export default function useMasks(
 
   const getRLEMask = (trackId: number, frameId: number): RLEFrameData | undefined => rleMasks.value[trackId]?.[frameId];
 
-  const getRLELuminanceMask = (
+  const getCroppedMask = (
     trackId: number,
     frameId: number,
-  ): { width: number; height: number; data: Uint8Array } | undefined => {
+    color: string,
+  ): CroppedMask | undefined => {
     const key = frameKey(frameId, trackId);
-    const cacheFound = rleCache.get(key);
+    let cacheFound = rleCache.get(key);
     if (cacheFound) {
       maskPerf.count('cache.hit');
+      if (cacheFound.color !== color) {
+        // Track type/color changed since decoding: recolor in place (cheap
+        // for a cropped mask) rather than decoding again.
+        maskPerf.count('cache.recolor');
+        cacheFound = recolorCropped(cacheFound, color);
+        rleCache.set(key, cacheFound);
+      }
       clearMaskWarning();
       return cacheFound;
     }
@@ -834,7 +843,8 @@ export default function useMasks(
     getMask,
     getFolderRLEMasks,
     getRLEMask,
-    getRLELuminanceMask,
+    getCroppedMask,
+    setMaskColorResolver,
     deleteLocalMasks,
     editorOptions: {
       hasMasks,

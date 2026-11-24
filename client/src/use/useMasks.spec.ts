@@ -17,6 +17,7 @@ import Vue, {
 import { mount } from '@vue/test-utils';
 import type { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import type { Handler } from 'vue-media-annotator/provides';
+import { binaryMaskToCropped } from './rle';
 
 const mockUploadMask = jest.fn();
 const mockBinaryMaskToImage = jest.fn();
@@ -160,12 +161,15 @@ it('registers the RLE mask locally before the upload and keeps it after', async 
     rle: { size: [2, 4], counts: expect.any(String) },
     file_name: '7_3.png',
   });
-  const decoded = api.getRLELuminanceMask(7, 3);
-  expect(decoded?.width).toBe(4);
-  expect(decoded?.height).toBe(2);
-  expect(Array.from(decoded!.data.filter((_, i) => i % 2 === 0))).toEqual(
-    Array.from(maskData, (v) => (v ? 255 : 0)),
-  );
+  // Decoded locally as a bounding-box crop with the track color baked in
+  const decoded = api.getCroppedMask(7, 3, '#ffffff');
+  expect(decoded).toEqual(binaryMaskToCropped(maskData, 4, 2, '#ffffff'));
+  expect(decoded?.frameWidth).toBe(4);
+  expect(decoded?.frameHeight).toBe(2);
+  // A different color is served as a recolored copy, not re-decoded
+  const red = api.getCroppedMask(7, 3, '#ff0000');
+  expect(red?.color).toBe('#ff0000');
+  expect([red?.x, red?.y, red?.width, red?.height]).toEqual([1, 0, 2, 2]);
   await flush();
   expect(mockUploadMask).toHaveBeenCalledWith('dataset-id', 7, 3, expect.any(Blob));
   resolveUpload();
@@ -180,7 +184,7 @@ it('rolls back the local registration and rejects when the upload fails', async 
   await expect(api.editorFunctions.createMaskFromBinary(7, 3, mask)).rejects.toThrow('upload failed');
   // Nothing left behind for a `hasMask` flag (or a Save) to point at.
   expect(api.getRLEMask(7, 3)).toBeUndefined();
-  expect(api.getRLELuminanceMask(7, 3)).toBeUndefined();
+  expect(api.getCroppedMask(7, 3, '#ffffff')).toBeUndefined();
   expect(api.editorOptions.maskWarningMessage.value).toContain('Missing RLE mask for track 7, frame 3');
   expect(api.editorOptions.hasMasks.value).toBe(false);
   expect(api.editorOptions.loadingFrame.value).toBe(false);
@@ -191,12 +195,12 @@ it('restores the mask the frame already had when replacing it fails', async () =
   mockUploadMask.mockResolvedValueOnce(undefined);
   await api.editorFunctions.createMaskFromBinary(7, 3, mask);
   const stored = api.getRLEMask(7, 3);
-  const storedDecoded = api.getRLELuminanceMask(7, 3);
+  const storedDecoded = api.getCroppedMask(7, 3, '#ffffff');
   const other = { data: new Uint8Array([1, 0, 0, 0, 1, 0, 0, 0]), width: 4, height: 2 };
   mockUploadMask.mockRejectedValueOnce(new Error('upload failed'));
   await expect(api.editorFunctions.createMaskFromBinary(7, 3, other)).rejects.toThrow('upload failed');
   expect(api.getRLEMask(7, 3)).toEqual(stored);
-  expect(api.getRLELuminanceMask(7, 3)).toEqual(storedDecoded);
+  expect(api.getCroppedMask(7, 3, '#ffffff')).toEqual(storedDecoded);
 });
 
 it('rejects an empty mask without uploading or registering anything', async () => {

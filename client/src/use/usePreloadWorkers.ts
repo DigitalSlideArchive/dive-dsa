@@ -2,12 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RLEFrameData } from 'platform/web-girder/api/annotation.service';
 import maskPerf from './maskPerf';
-
-export interface LuminanceMask {
-  width: number;
-  height: number;
-  data: Uint8Array;
-}
+import type { CroppedMask } from './rle';
 
 export interface WorkerPoolOptions {
   batchSize: number;
@@ -15,8 +10,8 @@ export interface WorkerPoolOptions {
   enableTimingLogs?: boolean;
 }
 
-export type LuminanceMaskCallback = (
-  results: { trackId: number; frameId: number; mask: LuminanceMask }[]
+export type CroppedMaskCallback = (
+  results: { trackId: number; frameId: number; mask: CroppedMask }[]
 ) => void;
 
 /**
@@ -40,8 +35,10 @@ export function createRLEPreloader(
   let lastTime = 0;
 
   type PendingBatch = {
-    batch: { trackId: number; frameId: number; rleWrapper: RLEFrameData }[];
-    callback: LuminanceMaskCallback;
+    batch: {
+      trackId: number; frameId: number; rleWrapper: RLEFrameData; color: string;
+    }[];
+    callback: CroppedMaskCallback;
     // Caller's in-flight map; keys are released if the batch is dropped
     inFlight: Map<string, boolean>;
   };
@@ -82,7 +79,7 @@ export function createRLEPreloader(
     // eslint-disable-next-line no-param-reassign
     worker.onmessage = (event) => {
       workerBusy[index] = false;
-      const { rleLuminanceMasks, status, decodeMs } = event.data;
+      const { croppedMasks, status, decodeMs } = event.data;
       const currentBatch: PendingBatch | undefined = (worker as any)._currentBatch;
       // eslint-disable-next-line no-param-reassign
       delete (worker as any)._currentBatch;
@@ -93,13 +90,13 @@ export function createRLEPreloader(
         tryDispatchWork();
         return;
       }
-      if (maskPerf.enabled && Array.isArray(rleLuminanceMasks) && rleLuminanceMasks.length) {
+      if (maskPerf.enabled && Array.isArray(croppedMasks) && croppedMasks.length) {
         maskPerf.end('worker.batchRoundTrip', (worker as any)._dispatchedAt);
         if (typeof decodeMs === 'number') {
-          maskPerf.record('worker.decodePerMask', decodeMs / rleLuminanceMasks.length);
+          maskPerf.record('worker.decodePerMask', decodeMs / croppedMasks.length);
         }
       }
-      const callback: LuminanceMaskCallback | undefined = (worker as any)._currentCallback;
+      const callback: CroppedMaskCallback | undefined = (worker as any)._currentCallback;
       // eslint-disable-next-line no-param-reassign
       delete (worker as any)._currentCallback;
 
@@ -109,14 +106,19 @@ export function createRLEPreloader(
         lastTime = end;
       }
 
-      if (callback && Array.isArray(rleLuminanceMasks)) {
-        const results = rleLuminanceMasks.map((rle: any) => ({
+      if (callback && Array.isArray(croppedMasks)) {
+        const results = croppedMasks.map((rle: any) => ({
           trackId: rle.trackId,
           frameId: rle.frameId,
           mask: {
+            x: rle.x,
+            y: rle.y,
             width: rle.width,
             height: rle.height,
             data: rle.data as Uint8Array,
+            color: rle.color,
+            frameWidth: rle.frameWidth,
+            frameHeight: rle.frameHeight,
           },
         }));
         callback(results);
@@ -137,23 +139,22 @@ export function createRLEPreloader(
    * @param currentFrame Frame ID used to prioritize which masks to process first
    * @param rleMasks Map of trackId → frameId → RLEFrameData
    * @param inFlightWorker Map to track which frames are already being processed
-   * @param callback Function that receives luminance mask results as they arrive
+   * @param callback Function that receives cropped mask results as they arrive
+   * @param colorFor Display color baked into each track's masks
    */
   function preloadRLEMasks(
     currentFrame: number,
     rleMasks: Record<number, Record<number, RLEFrameData>>,
     inFlightWorker: Map<string, boolean>,
-    callback: LuminanceMaskCallback,
+    callback: CroppedMaskCallback,
+    colorFor: (trackId: number) => string = () => '#ffffff',
   ) {
-    const sortedFlattenedMaskEntries: {
-      trackId: number;
-      frameId: number;
-      rleWrapper: RLEFrameData;
-    }[] = [];
+    const sortedFlattenedMaskEntries: PendingBatch['batch'] = [];
 
     // Collect tasks not already cached or in-flight
     Object.keys(rleMasks).forEach((trackIdStr) => {
       const trackId = Number(trackIdStr);
+      const color = colorFor(trackId);
       Object.keys(rleMasks[trackId]).forEach((frameIdStr) => {
         const frameId = Number(frameIdStr);
         const key = `${frameId}_${trackId}`;
@@ -163,6 +164,7 @@ export function createRLEPreloader(
             trackId,
             frameId,
             rleWrapper: rleMasks[trackId][frameId],
+            color,
           });
           inFlightWorker.set(key, true);
         }

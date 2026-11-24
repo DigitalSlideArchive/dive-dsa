@@ -1034,7 +1034,8 @@ export default defineComponent({
       setFrameRate,
       getMask,
       getRLEMask,
-      getRLELuminanceMask,
+      getCroppedMask,
+      setMaskColorResolver,
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
@@ -1109,7 +1110,7 @@ export default defineComponent({
         readOnlyMode: readonlyState,
         imageEnhancements,
         masks: {
-          getMask, getRLEMask, getRLELuminanceMask, editorFunctions, editorOptions,
+          getMask, getRLEMask, getCroppedMask, setMaskColorResolver, editorFunctions, editorOptions,
         },
         diveMetadataRootId,
       },

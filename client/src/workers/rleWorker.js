@@ -2,7 +2,7 @@
 /* eslint-disable no-loop-func */
 /* eslint-disable no-restricted-globals */
 /* eslint-disable no-restricted-syntax */
-import { decode, maskToLuminanceAlpha } from '../use/rle';
+import { decodeRLECropped } from '../use/rle';
 
 let shouldStop = false; // control flag
 
@@ -46,14 +46,14 @@ self.onmessage = async (event) => {
       }
 
       const decodeStart = performance.now();
-      results.push(processOneMask(item.trackId, item.frameId, item.rleWrapper.rle));
+      results.push(processOneMask(item.trackId, item.frameId, item.rleWrapper.rle, item.color));
       decodeMs += performance.now() - decodeStart;
     }
 
     if (!shouldStop) {
       // Transfer the decoded buffers instead of structured-cloning them
       self.postMessage({
-        rleLuminanceMasks: results,
+        croppedMasks: results,
         decodeMs,
       }, results.map((result) => result.data.buffer));
     } else {
@@ -64,20 +64,11 @@ self.onmessage = async (event) => {
   }
 };
 
-function processOneMask(trackId, frameId, rleObject) {
-  const binaryMask = maskToLuminanceAlpha(
-    decode([rleObject]).data,
-    rleObject.size[1],
-    rleObject.size[0],
-  );
-  const height = rleObject.size[0];
-  const width = rleObject.size[1];
-
+/** Decode to a bounding-box-cropped RGBA mask with the track color baked in */
+function processOneMask(trackId, frameId, rleObject, color) {
   return {
     trackId,
     frameId,
-    width,
-    height,
-    data: binaryMask,
+    ...decodeRLECropped(rleObject, color || '#ffffff'),
   };
 }

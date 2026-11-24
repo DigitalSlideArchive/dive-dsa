@@ -11,7 +11,7 @@ import MaskLayer, { SegmentationPreviewOpacity } from 'vue-media-annotator/layer
 import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
 import maskPerf from 'vue-media-annotator/use/maskPerf';
 import {
-  binaryMaskToLuminanceAlpha, decode, RLEObject, rleObjectToImageSync,
+  binaryMaskToCropped, CroppedMask, decodeRLECropped, rleObjectToImageSync,
 } from 'vue-media-annotator/use/rle';
 import { TrackWithContext } from '../BaseFilterControls';
 import { injectAggregateController } from './annotators/useMediaController';
@@ -95,7 +95,7 @@ export default defineComponent({
     const attributes = useAttributes();
     const getUISetting = (key: UISettingsKey) => (configMan.getUISetting(key));
     const {
-      getMask, editorOptions, editorFunctions, getRLEMask, getRLELuminanceMask,
+      getMask, editorOptions, editorFunctions, getRLEMask, getCroppedMask, setMaskColorResolver,
     } = useMasks();
 
     const trackStore = cameraStore.camMap.value.get(props.camera)?.trackStore;
@@ -137,16 +137,25 @@ export default defineComponent({
       typeStyling: typeStylingRef,
     });
     segmentationPreviewMaskLayer.setOpacity(SegmentationPreviewOpacity);
-    // Converted textures per mask buffer, so redraws do not convert again.
-    const previewTextureCache = new WeakMap<Uint8Array, Uint8Array>();
-    const getPreviewTexture = (mask: { data: Uint8Array; width: number; height: number }) => {
-      let converted = previewTextureCache.get(mask.data);
-      if (!converted) {
-        converted = binaryMaskToLuminanceAlpha(mask.data, mask.width, mask.height);
-        previewTextureCache.set(mask.data, converted);
+    // Cropped, colored preview per mask buffer, so redraws do not convert again.
+    const previewMaskCache = new WeakMap<Uint8Array, CroppedMask>();
+    const getPreviewMask = (mask: { data: Uint8Array; width: number; height: number }, color: string) => {
+      let converted = previewMaskCache.get(mask.data);
+      if (!converted || converted.color !== color) {
+        converted = binaryMaskToCropped(mask.data, mask.width, mask.height, color);
+        previewMaskCache.set(mask.data, converted);
       }
       return converted;
     };
+
+    // Mask colors are baked into the decoded textures, so the decoder needs
+    // each track's color ahead of drawing: the style type it was last drawn
+    // with, else the track's own type.
+    const maskStyleTypes = new Map<number, string>();
+    const maskColor = (type: string | undefined) => (type ? typeStylingRef.value.color(type) : '#ffffff');
+    setMaskColorResolver((trackId: number) => maskColor(
+      maskStyleTypes.get(trackId) ?? trackStore?.getPossible(trackId)?.getType(0)[0],
+    ));
     const maskEditorLayer = new MaskEditorLayer({
       annotator, typeStyling: typeStylingRef, editorOptions, editorFunctions,
     });
@@ -157,6 +166,8 @@ export default defineComponent({
         colorScaleMatrix: number[],
         id: number;
       }[]> = ref([]);
+    // SVG recolor filters, now only used by the mask editor (which paints
+    // white and saves what it paints); stored masks carry their color.
     const maskFilters: Ref<Record<string, string>> = ref({});
 
     const getOrCreateFilter = (type: string, hexColor: string) => {
@@ -457,59 +468,45 @@ export default defineComponent({
       let perfMasksDrawn = 0;
       if (visibleModes.includes('Mask')) {
         const perfCollectStart = maskPerf.now();
-        const maskRLEData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
-        const maskImages : {trackId: number, type: string, image: HTMLImageElement}[] = [];
-        const maskLuminanceData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
+        const maskItems: { trackId: number; mask: CroppedMask }[] = [];
+        const maskImages: { trackId: number; image: HTMLImageElement; color: string }[] = [];
         frameData.forEach((track) => {
           if (track.features?.hasMask && !previewTrackIds.has(track.track.id)) {
             perfMasksExpected += 1;
+            const trackId = track.track.id;
+            const type = track.styleType[0];
+            maskStyleTypes.set(trackId, type);
+            const color = maskColor(type);
             if (editorOptions.useRLE.value && !useworker) {
-              const rle = getRLEMask(track.track.id, frame);
+              const rle = getRLEMask(trackId, frame);
               if (rle) {
-                const mask = decode([rle?.rle] as RLEObject[]);
-                maskRLEData.push({
-                  trackId: track.track.id,
-                  type: track.styleType[0],
-                  mask: mask.data,
-                  width: mask.shape[1],
-                  height: mask.shape[0],
-                });
+                maskItems.push({ trackId, mask: decodeRLECropped(rle.rle, color) });
               }
-            } else if (editorOptions.useRLE.value && useworker) {
-              const rle = getRLELuminanceMask(track.track.id, frame);
-              if (rle) {
-                maskLuminanceData.push({
-                  trackId: track.track.id,
-                  type: track.styleType[0],
-                  mask: rle.data,
-                  width: rle.width,
-                  height: rle.height,
-                });
+            } else if (editorOptions.useRLE.value) {
+              const mask = getCroppedMask(trackId, frame, color);
+              if (mask) {
+                maskItems.push({ trackId, mask });
               }
             } else {
-              const image = getMask(track.track.id, frame);
+              const image = getMask(trackId, frame);
               if (image) {
-                maskImages.push({
-                  trackId: track.track.id,
-                  type: track.styleType[0],
-                  image,
-                });
+                maskImages.push({ trackId, image, color });
               }
             }
-            getOrCreateFilter(track.styleType[0], typeStylingRef.value.color(track.styleType[0]));
           }
         });
+        // Selected track draws last, on top of overlapping masks
+        if (selectedTrackId !== null) {
+          const sel = maskItems.findIndex((item) => item.trackId === selectedTrackId);
+          if (sel !== -1) maskItems.push(...maskItems.splice(sel, 1));
+        }
         maskPerf.end('layer.maskCollect', perfCollectStart);
-        perfMasksDrawn = maskRLEData.length || maskLuminanceData.length || maskImages.length;
+        perfMasksDrawn = maskItems.length || maskImages.length;
         const perfDrawStart = maskPerf.now();
-        if (maskRLEData.length && editorOptions.useRLE.value) {
-          maskLayer.setSegmenationRLE(maskRLEData);
-        } else if (maskLuminanceData.length) {
-          maskLayer.setSegmenationLuminanceRLE(maskLuminanceData);
-        } else if (maskImages.length) {
-          maskLayer.setSegmenationImages(maskImages);
+        if (maskImages.length) {
+          maskLayer.setImages(maskImages);
         } else {
-          maskLayer.disable();
+          maskLayer.setMasks(maskItems);
         }
         if (perfMasksDrawn) maskPerf.end('layer.maskDraw', perfDrawStart);
       } else {
@@ -524,17 +521,13 @@ export default defineComponent({
         const previewType = frameData.find((track) => track.track.id === preview.trackId)?.styleType[0]
           ?? trackStore?.getPossible(preview.trackId)?.getType(0)[0];
         if (!previewType) return [];
-        getOrCreateFilter(previewType, typeStylingRef.value.color(previewType));
         return [{
           trackId: preview.trackId,
-          type: previewType,
-          mask: getPreviewTexture(preview.mask),
-          width: preview.mask.width,
-          height: preview.mask.height,
+          mask: getPreviewMask(preview.mask, maskColor(previewType)),
         }];
       });
       if (previewData.length) {
-        segmentationPreviewMaskLayer.setSegmenationLuminanceRLE(previewData);
+        segmentationPreviewMaskLayer.setMasks(previewData);
       } else {
         segmentationPreviewMaskLayer.disable();
       }
