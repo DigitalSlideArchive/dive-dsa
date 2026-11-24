@@ -40,9 +40,12 @@ const WINDOW_BUDGET_FRACTION = 0.9;
 const MAX_LOOKAHEAD_SECONDS = 10;
 /** Below this much look-ahead, warn that masks do not fit the budget */
 const MIN_USEFUL_LOOKAHEAD_SECONDS = 0.25;
-/** Kept behind the playhead while paused/scrubbing, and while playing */
+/**
+ * Kept behind the playhead while paused or scrubbing (the user may step
+ * back). While playing nothing behind the playhead is kept or prefetched:
+ * the whole window and budget go to the frames about to be shown.
+ */
 const BEHIND_SECONDS_PAUSED = 0.5;
-const BEHIND_FRAMES_PLAYING = 3;
 /** Size guess for a track with nothing decoded yet: a box 10% of the frame */
 const FALLBACK_MASK_AREA_FRACTION = 0.1;
 const { preloadRLEMasks, clearQueue, cancelPending } = createRLEPreloader(createRLEWorker, {
@@ -511,11 +514,9 @@ export default function useMasks(
     return Boolean(aggregateController.value?.playing?.value);
   }
 
-  /** Frames kept behind the playhead: a few while playing, more when paused */
+  /** Frames kept behind the playhead: none while playing, 0.5s when paused */
   function behindFrames() {
-    return isPlaying()
-      ? BEHIND_FRAMES_PLAYING
-      : Math.floor(frameRate.value * BEHIND_SECONDS_PAUSED);
+    return isPlaying() ? 0 : Math.floor(frameRate.value * BEHIND_SECONDS_PAUSED);
   }
 
   function getFrameWindow(currentFrame: number) {
@@ -802,7 +803,7 @@ export default function useMasks(
     }
   });
 
-  // Playing keeps only a few frames behind the playhead; pausing keeps more
+  // Playing keeps nothing behind the playhead; pausing keeps 0.5s behind
   // (the user may step back). Reshape the window when that changes.
   watch(() => isPlaying(), () => {
     if (visibleMaskIds.value.length > 0) {
