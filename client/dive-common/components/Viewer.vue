@@ -823,8 +823,12 @@ export default defineComponent({
           }
           cameraStore.addCamera(camera);
           addSaveCamera(camera);
-          if (mediaMasks.value?.length) {
+          // The mask cache window is sized in seconds, so it needs the real
+          // frame rate for RLE-only datasets too (it defaulted to 60).
+          if (meta.fps) {
             setFrameRate(meta.fps);
+          }
+          if (mediaMasks.value?.length) {
             initializeMaskData({ masks: mediaMasks.value });
           }
           if (editorOptions.useRLE.value) {

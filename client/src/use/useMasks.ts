@@ -24,11 +24,27 @@ import {
 import { createRLEPreloader } from './usePreloadWorkers';
 import createRLEWorker from './rleWorkerFactory';
 import maskPerf from './maskPerf';
+import MaskCache, { defaultMaskCacheBudgetBytes, parseMaskKey } from './maskCache';
 
 const rleWorker = createRLEWorker();
 
 const ENABLE_TIMING_LOGS = false;
-const MAX_TEXTURE_PRELOAD = 1000; // Max number of textures to preload at once
+/** Decoded-mask memory budget (bytes); sizes the preload window */
+const MASK_CACHE_BUDGET_BYTES = defaultMaskCacheBudgetBytes();
+/**
+ * Share of the budget the window is sized to; the rest absorbs estimate error
+ * (masks larger than their track's average) before budget eviction kicks in.
+ */
+const WINDOW_BUDGET_FRACTION = 0.9;
+/** Furthest the preload window may reach ahead */
+const MAX_LOOKAHEAD_SECONDS = 10;
+/** Below this much look-ahead, warn that masks do not fit the budget */
+const MIN_USEFUL_LOOKAHEAD_SECONDS = 0.25;
+/** Kept behind the playhead while paused/scrubbing, and while playing */
+const BEHIND_SECONDS_PAUSED = 0.5;
+const BEHIND_FRAMES_PLAYING = 3;
+/** Size guess for a track with nothing decoded yet: a box 10% of the frame */
+const FALLBACK_MASK_AREA_FRACTION = 0.1;
 const { preloadRLEMasks, clearQueue, cancelPending } = createRLEPreloader(createRLEWorker, {
   batchSize: 20,
   enableTimingLogs: ENABLE_TIMING_LOGS,
@@ -176,7 +192,7 @@ export default function useMasks(
   const frameRate = ref(60);
   const masks = ref<MaskItem[]>([]);
   const cache = new Map<string, HTMLImageElement>();
-  const rleCache = new Map<string, CroppedMask>();
+  const rleCache = new MaskCache();
   let maskColorFor: (trackId: number) => string = () => '#ffffff';
   function setMaskColorResolver(resolver: (trackId: number) => string) {
     maskColorFor = resolver;
@@ -192,6 +208,8 @@ export default function useMasks(
   const triggerAction: Ref<MaskTriggerActions> = ref(null);
   const opacity = ref(50);
   const maskCacheSeconds = ref(1);
+  // What the user asked for; maskCacheSeconds is this capped by the budget
+  let preferredCacheSeconds = maskCacheSeconds.value;
   const maskMaxCacheSeconds = ref(10);
   const tooManyMasks = ref(false);
   const maskLoadingPercent = ref(0);
@@ -241,6 +259,7 @@ export default function useMasks(
       opacity.value = data.opacity;
     }
     if (data.maskCacheSeconds !== undefined) {
+      preferredCacheSeconds = data.maskCacheSeconds;
       maskCacheSeconds.value = data.maskCacheSeconds;
     }
     if (data.triggerAction !== undefined) {
@@ -488,10 +507,41 @@ export default function useMasks(
     frameRate.value = newRate;
   }
 
+  function isPlaying() {
+    return Boolean(aggregateController.value?.playing?.value);
+  }
+
+  /** Frames kept behind the playhead: a few while playing, more when paused */
+  function behindFrames() {
+    return isPlaying()
+      ? BEHIND_FRAMES_PLAYING
+      : Math.floor(frameRate.value * BEHIND_SECONDS_PAUSED);
+  }
+
   function getFrameWindow(currentFrame: number) {
-    const minFrame = Math.max(0, Math.floor(currentFrame - frameRate.value * 0.5)); // 2 seconds behind
-    const maxFrame = Math.floor(currentFrame + frameRate.value * maskCacheSeconds.value); // 2 seconds ahead
+    const minFrame = Math.max(0, currentFrame - behindFrames());
+    const maxFrame = Math.floor(currentFrame + frameRate.value * maskCacheSeconds.value);
     return { minFrame, maxFrame };
+  }
+
+  /**
+   * Eviction order when over budget: farthest from the playhead first, and
+   * while playing, frames behind the playhead before frames ahead.
+   */
+  function evictionCost(key: string) {
+    const { frameId } = parseMaskKey(key);
+    const current = frame.value;
+    if (frameId < current) {
+      return (current - frameId) * (isPlaying() ? 4 : 1);
+    }
+    return frameId - current;
+  }
+
+  function enforceBudget() {
+    const evicted = rleCache.evictToBudget(MASK_CACHE_BUDGET_BYTES, evictionCost);
+    if (evicted) {
+      maskPerf.count('cache.budgetEvictions', evicted);
+    }
   }
 
   function frameKey(frameId: number, trackId: number) {
@@ -603,6 +653,10 @@ export default function useMasks(
         }
       });
       maskPerf.end('preload.windowScan', perfScanStart);
+      if (maskPerf.enabled) {
+        maskPerf.record('cache.megabytes', rleCache.bytes / (1024 * 1024));
+        maskPerf.record('preload.windowFrames', maxFrame - minFrame + 1);
+      }
       if (subsetSize === 0) {
         return;
       }
@@ -623,10 +677,16 @@ export default function useMasks(
             rleCache.set(key, mask);
             clearMaskWarning();
           }
+          enforceBudget();
           if (windowPending.delete(key)) {
             maskLoadingPercent.value = (1 - (windowPending.size / subsetSize)) * 100;
-            if (windowPending.size === 0 && ENABLE_TIMING_LOGS) {
-              console.log(`🧾 RLE Preloading completed in ${performance.now() - startTime}ms`);
+            if (windowPending.size === 0) {
+              // Real decoded sizes are known now: re-size the window from them
+              // (the first sizing may have used the cautious fallback guess).
+              calculateMaxCacheSeconds();
+              if (ENABLE_TIMING_LOGS) {
+                console.log(`🧾 RLE Preloading completed in ${performance.now() - startTime}ms`);
+              }
             }
           }
           if (loadingFrame.value === key) {
@@ -637,51 +697,54 @@ export default function useMasks(
     }
   }
 
+  /** Bytes for a mask covering FALLBACK_MASK_AREA_FRACTION of its frame */
+  function fallbackMaskBytes() {
+    const anyTrack = visibleMaskIds.value.find((trackId) => rleMasks.value[trackId]);
+    const trackMasks = anyTrack !== undefined ? rleMasks.value[anyTrack] : undefined;
+    const first = trackMasks ? Object.values(trackMasks)[0] : undefined;
+    const [h, w] = first?.rle.size ?? [1080, 1920];
+    return h * w * 4 * FALLBACK_MASK_AREA_FRACTION;
+  }
+
+  /**
+   * Set maskMaxCacheSeconds to how far ahead the visible tracks' masks fit in
+   * the memory budget (after reserving the frames kept behind the playhead),
+   * using each track's measured average decoded size.
+   */
   function calculateMaxCacheSeconds() {
-    // Check the cache and the visibleMaskIds to determine how many tracks have masks
-    // Calculate for the next 10 seconds
-    const frameMaskCountMap: Record<number, number> = {};
-    visibleMaskIds.value.forEach((trackId) => {
-      if (rleMasks.value[trackId]) {
-        const rleTrackObj = rleMasks.value[trackId];
-        if (rleTrackObj) {
-          for (let i = frame.value; i < frame.value + (10 * frameRate.value); i += 1) {
-            const frameId = i;
-            if (rleTrackObj[frameId]) {
-              frameMaskCountMap[frameId] = (frameMaskCountMap[frameId] || 0) + 1;
-            }
-          }
-        }
-      }
-    });
-    // Now calculate how many seconds we can cache without exceeding MAX_TEXTURE_PRELOAD
-    let cumulativeMasks = 0;
-    let maxSeconds = 0;
-    let exceededTextureLimit = false;
-    const sortedFrameIds = Object.keys(frameMaskCountMap).map((f) => Number(f)).sort((a, b) => a - b);
-    for (let i = 0; i < sortedFrameIds.length; i += 1) {
-      const frameId = sortedFrameIds[i];
-      cumulativeMasks += frameMaskCountMap[frameId];
-      if (cumulativeMasks > MAX_TEXTURE_PRELOAD) {
-        exceededTextureLimit = true;
+    const fallback = fallbackMaskBytes();
+    const tracks = visibleMaskIds.value
+      .filter((trackId) => rleMasks.value[trackId])
+      .map((trackId) => ({
+        masks: rleMasks.value[trackId],
+        bytes: rleCache.estimateBytes(trackId, fallback),
+      }));
+    const frameBytes = (f: number) => tracks.reduce(
+      (acc, track) => (track.masks[f] ? acc + track.bytes : acc),
+      0,
+    );
+    const current = frame.value;
+    let budget = MASK_CACHE_BUDGET_BYTES * WINDOW_BUDGET_FRACTION;
+    for (let f = Math.max(0, current - behindFrames()); f < current; f += 1) {
+      budget -= frameBytes(f);
+    }
+    const lastFrame = current + Math.round(MAX_LOOKAHEAD_SECONDS * frameRate.value);
+    let used = 0;
+    let fitsUntil = lastFrame;
+    for (let f = current; f <= lastFrame; f += 1) {
+      used += frameBytes(f);
+      if (used > budget) {
+        fitsUntil = f - 1;
         break;
       }
-      maxSeconds = (frameId - frame.value) / frameRate.value;
     }
-    if (maxSeconds === 0) {
-      maxSeconds = 10;
-    }
-    // Round to the nearest 0.25 seconds
-    maskMaxCacheSeconds.value = Math.max(0.1, Math.floor(maxSeconds * 4) / 4);
-    if (maskCacheSeconds.value > maskMaxCacheSeconds.value) {
-      maskCacheSeconds.value = maskMaxCacheSeconds.value;
-    }
-    // Only show "too many masks" when we actually hit the texture preload limit.
-    if (exceededTextureLimit && maskMaxCacheSeconds.value <= 0.1) {
-      tooManyMasks.value = true;
-    } else {
-      tooManyMasks.value = false;
-    }
+    const maxSeconds = Math.max(0, (fitsUntil - current) / frameRate.value);
+    maskPerf.record('budget.lookaheadSeconds', maxSeconds);
+    // Slider steps are 0.1s, minimum 0.1s
+    maskMaxCacheSeconds.value = Math.max(0.1, Math.floor(maxSeconds * 10) / 10);
+    // Follow the user's choice back up when the budget allows it again
+    maskCacheSeconds.value = Math.min(preferredCacheSeconds, maskMaxCacheSeconds.value);
+    tooManyMasks.value = maxSeconds < MIN_USEFUL_LOOKAHEAD_SECONDS;
   }
 
   function getMask(trackId: number, frameId: number): HTMLImageElement | undefined {
@@ -736,6 +799,17 @@ export default function useMasks(
   watch(maskModeEnabled, (newVal) => {
     if (newVal && typeof frame.value === 'number') {
       preloadWindow(frame.value);
+    }
+  });
+
+  // Playing keeps only a few frames behind the playhead; pausing keeps more
+  // (the user may step back). Reshape the window when that changes.
+  watch(() => isPlaying(), () => {
+    if (visibleMaskIds.value.length > 0) {
+      calculateMaxCacheSeconds();
+    }
+    if (maskModeEnabled.value && typeof frame.value === 'number') {
+      preloadWindow(frame.value, true);
     }
   });
 

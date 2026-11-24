@@ -21,7 +21,12 @@
  *   preload.dispatched     (count) masks sent to decode workers per window
  *   worker.batchRoundTrip  dispatch -> results for one worker batch (queue + decode + transfer)
  *   worker.decodePerMask   decode + luminance conversion inside the worker, per mask
- *   cache.hit / cache.inflight / cache.cold   (counts) getRLELuminanceMask lookups
+ *   cache.hit / cache.inflight / cache.cold / cache.recolor   (counts) getCroppedMask lookups
+ *   cache.megabytes        decoded-mask cache size at each window re-plan
+ *   cache.budgetEvictions  (count) masks evicted because the cache exceeded its memory budget
+ *   preload.windowFrames   frames in the preload window at each re-plan
+ *   budget.lookaheadSeconds  how far ahead the memory budget allows (each resize)
+ *   layer.newTextures      (count) mask quads built (each uploads a texture)
  *   layer.updateLayers     whole LayerManager.updateLayers() call
  *   layer.maskCollect      gathering decoded masks for the frame
  *   layer.maskDraw         quad.data().draw() for all mask layers (texture upload)
