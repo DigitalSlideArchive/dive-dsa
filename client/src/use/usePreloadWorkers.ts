@@ -39,10 +39,20 @@ export function createRLEPreloader(
   const workerBusy = new Array(maxWorkers).fill(false);
   let lastTime = 0;
 
-  const pendingBatches: {
+  type PendingBatch = {
     batch: { trackId: number; frameId: number; rleWrapper: RLEFrameData }[];
     callback: LuminanceMaskCallback;
-  }[] = [];
+    // Caller's in-flight map; keys are released if the batch is dropped
+    inFlight: Map<string, boolean>;
+  };
+  const pendingBatches: PendingBatch[] = [];
+
+  /** A batch that will never report results: let its masks be queued again. */
+  function releaseBatch(pending: PendingBatch | undefined) {
+    pending?.batch.forEach(({ trackId, frameId }) => {
+      pending.inFlight.delete(`${frameId}_${trackId}`);
+    });
+  }
 
   function tryDispatchWork() {
     for (let i = 0; i < maxWorkers && pendingBatches.length > 0; i += 1) {
@@ -62,6 +72,7 @@ export function createRLEPreloader(
 
       worker.postMessage({ rleMasks: next.batch });
       (worker as any)._currentCallback = next.callback;
+      (worker as any)._currentBatch = next;
       (worker as any)._dispatchedAt = maskPerf.now();
     }
   }
@@ -72,7 +83,14 @@ export function createRLEPreloader(
     worker.onmessage = (event) => {
       workerBusy[index] = false;
       const { rleLuminanceMasks, status, decodeMs } = event.data;
+      const currentBatch: PendingBatch | undefined = (worker as any)._currentBatch;
+      // eslint-disable-next-line no-param-reassign
+      delete (worker as any)._currentBatch;
       if (status === 'stopped') {
+        releaseBatch(currentBatch);
+        // eslint-disable-next-line no-param-reassign
+        delete (worker as any)._currentCallback;
+        tryDispatchWork();
         return;
       }
       if (maskPerf.enabled && Array.isArray(rleLuminanceMasks) && rleLuminanceMasks.length) {
@@ -162,12 +180,15 @@ export function createRLEPreloader(
       return;
     }
 
-    // Break into batches
+    // Break into batches. Not-yet-dispatched batches from an earlier call are
+    // replaced; release their keys so a later call can queue them again.
+    pendingBatches.forEach(releaseBatch);
     pendingBatches.length = 0;
     for (let i = 0; i < sortedFlattenedMaskEntries.length; i += batchSize) {
       pendingBatches.push({
         batch: sortedFlattenedMaskEntries.slice(i, i + batchSize),
         callback,
+        inFlight: inFlightWorker,
       });
     }
 
@@ -189,7 +210,17 @@ export function createRLEPreloader(
     pendingBatches.length = 0;
   }
 
+  /**
+   * Drop batches that have not been sent to a worker yet and release their
+   * keys from the caller's in-flight map. Batches already in a worker finish.
+   */
+  function cancelPending() {
+    pendingBatches.forEach(releaseBatch);
+    pendingBatches.length = 0;
+  }
+
   function clearQueue() {
+    pendingBatches.forEach(releaseBatch);
     pendingBatches.length = 0;
     workerBusy.fill(false);
     workers.forEach((worker) => {
@@ -201,5 +232,6 @@ export function createRLEPreloader(
     preloadRLEMasks,
     terminate,
     clearQueue,
+    cancelPending,
   };
 }
