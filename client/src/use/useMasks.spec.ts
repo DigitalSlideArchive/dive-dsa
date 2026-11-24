@@ -38,7 +38,7 @@ jest.mock('./rleWorkerFactory', () => ({
   })),
 }));
 jest.mock('./usePreloadWorkers', () => ({
-  createRLEPreloader: () => ({ preloadRLEMasks: jest.fn(), clearQueue: jest.fn() }),
+  createRLEPreloader: () => ({ preloadRLEMasks: jest.fn(), clearQueue: jest.fn(), cancelPending: jest.fn() }),
 }));
 jest.mock('./rle', () => {
   const actual = jest.requireActual('./rle');
