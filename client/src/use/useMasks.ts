@@ -21,7 +21,7 @@ import {
   binaryMaskToImage, binaryMaskToPngBlob, imageToRLEObject, encode, DataArray,
   CroppedMask, decodeRLECropped, binaryMaskToCropped, recolorCropped,
 } from './rle';
-import { createRLEPreloader } from './usePreloadWorkers';
+import { createRLEPreloader, CroppedMaskCallback } from './usePreloadWorkers';
 import createRLEWorker from './rleWorkerFactory';
 import maskPerf from './maskPerf';
 import MaskCache, { defaultMaskCacheBudgetBytes, parseMaskKey } from './maskCache';
@@ -48,7 +48,7 @@ const MIN_USEFUL_LOOKAHEAD_SECONDS = 0.25;
 const BEHIND_SECONDS_PAUSED = 0.5;
 /** Size guess for a track with nothing decoded yet: a box 10% of the frame */
 const FALLBACK_MASK_AREA_FRACTION = 0.1;
-const { preloadRLEMasks, clearQueue, cancelPending } = createRLEPreloader(createRLEWorker, {
+const { preloadRLEMasks, cancelPending } = createRLEPreloader(createRLEWorker, {
   batchSize: 20,
   enableTimingLogs: ENABLE_TIMING_LOGS,
 });
@@ -481,24 +481,19 @@ export default function useMasks(
       }
     });
     if (useRLE.value) {
-      const startTime = performance.now();
-      preloadRLEMasks(frame.value, rleMasks.value, inFlightWorker, (results) => {
-        results.forEach(({ trackId, frameId, mask }) => {
-          const key = `${frameId}_${trackId}`;
-          rleCache.set(key, mask);
-          clearMaskWarning();
-          if (rleCache.size === masks.value.length) {
-            const endTime = performance.now();
-            if (ENABLE_TIMING_LOGS) {
-              console.log(`🧾 RLE Preloading completed in ${endTime - startTime}ms`);
-            }
-            clearQueue();
-          }
-          if (loadingFrame.value === key) {
-            loadingFrame.value = false;
-          }
-        });
-      }, (trackId) => maskColorFor(trackId));
+      // Drop decoded copies of the replaced masks, then re-plan the current
+      // window (budgeted) instead of decoding the whole dataset. A decode of
+      // the old data that is still in a worker is discarded as stale.
+      newMaskData.forEach((newMask) => {
+        const frameId = newMask.metadata?.frameId;
+        const trackId = newMask.metadata?.trackId;
+        if (frameId !== undefined && trackId !== undefined && newMask.rleMask) {
+          rleCache.delete(frameKey(frameId, trackId));
+        }
+      });
+      if (typeof frame.value === 'number') {
+        preloadWindow(frame.value, true);
+      }
     }
   }
 
@@ -532,10 +527,14 @@ export default function useMasks(
   function evictionCost(key: string) {
     const { frameId } = parseMaskKey(key);
     const current = frame.value;
+    // Masks outside the preload window go before any mask inside it, so the
+    // window is not evicted only to be queued and decoded again.
+    const outside = frameId < cacheWindow.minFrame || frameId > cacheWindow.maxFrame
+      ? Number.MAX_SAFE_INTEGER / 2 : 0;
     if (frameId < current) {
-      return (current - frameId) * (isPlaying() ? 4 : 1);
+      return outside + (current - frameId) * (isPlaying() ? 4 : 1);
     }
-    return frameId - current;
+    return outside + frameId - current;
   }
 
   function enforceBudget() {
@@ -582,6 +581,33 @@ export default function useMasks(
     inFlightRequests.set(key, { image: img, controller });
     img.src = mask.url;
   }
+
+  // Progress of the most recent window plan; results from superseded plans
+  // still get cached but no longer drive the loading percent.
+  let activeWindowPending: Set<string> | null = null;
+
+  /**
+   * Store decoded worker results: drop stale ones (the RLE was replaced while
+   * decoding) and ones outside the window, then enforce the budget once.
+   */
+  const storeDecoded: CroppedMaskCallback = (results) => {
+    results.forEach(({
+      trackId, frameId, mask, source,
+    }) => {
+      const key = frameKey(frameId, trackId);
+      inFlightWorker.delete(key);
+      const current = rleMasks.value[trackId]?.[frameId];
+      const stale = source !== undefined && source !== current;
+      if (!stale && frameId >= cacheWindow.minFrame && frameId <= cacheWindow.maxFrame) {
+        rleCache.set(key, mask);
+        clearMaskWarning();
+      }
+      if (loadingFrame.value === key) {
+        loadingFrame.value = false;
+      }
+    });
+    enforceBudget();
+  };
 
   function preloadWindow(currentFrame: number, force = false) {
     if (!useRLE.value) {
@@ -668,32 +694,27 @@ export default function useMasks(
           windowPending.add(frameKey(Number(frameId), Number(trackId)));
         });
       });
+      activeWindowPending = windowPending;
       maskLoadingPercent.value = 0;
       // Batches already in a worker finish and are cached if still in the window.
       preloadRLEMasks(frame.value, subseMasks, inFlightWorker, (results) => {
-        results.forEach(({ trackId, frameId, mask }) => {
-          const key = `${frameId}_${trackId}`;
-          inFlightWorker.delete(key);
-          if (frameId >= cacheWindow.minFrame && frameId <= cacheWindow.maxFrame) {
-            rleCache.set(key, mask);
-            clearMaskWarning();
-          }
-          enforceBudget();
-          if (windowPending.delete(key)) {
-            maskLoadingPercent.value = (1 - (windowPending.size / subsetSize)) * 100;
-            if (windowPending.size === 0) {
-              // Real decoded sizes are known now: re-size the window from them
-              // (the first sizing may have used the cautious fallback guess).
-              calculateMaxCacheSeconds();
-              if (ENABLE_TIMING_LOGS) {
-                console.log(`🧾 RLE Preloading completed in ${performance.now() - startTime}ms`);
-              }
-            }
-          }
-          if (loadingFrame.value === key) {
-            loadingFrame.value = false;
-          }
+        storeDecoded(results);
+        if (activeWindowPending !== windowPending) {
+          return; // A newer plan replaced this one
+        }
+        results.forEach(({ trackId, frameId }) => {
+          windowPending.delete(frameKey(frameId, trackId));
         });
+        maskLoadingPercent.value = (1 - (windowPending.size / subsetSize)) * 100;
+        if (windowPending.size === 0) {
+          activeWindowPending = null;
+          // Real decoded sizes are known now: re-size the window from them
+          // (the first sizing may have used the cautious fallback guess).
+          calculateMaxCacheSeconds();
+          if (ENABLE_TIMING_LOGS) {
+            console.log(`🧾 RLE Preloading completed in ${performance.now() - startTime}ms`);
+          }
+        }
       }, (trackId) => maskColorFor(trackId));
     }
   }
@@ -904,10 +925,22 @@ export default function useMasks(
       setMaskWarning(`Missing RLE mask for track ${trackId}, frame ${frameId}. Check rlemasks.json mapping.`);
       return undefined;
     }
-    preloadWindow(frame.value, true);
+    // Re-plan only if the window moved or the visible tracks changed (a
+    // cheap check); then decode just this mask, ahead of the queued window.
+    preloadWindow(frame.value);
+    if (!inFlightWorker.has(key) && !rleCache.has(key)) {
+      preloadRLEMasks(
+        frameId,
+        { [trackId]: { [frameId]: rleMasks.value[trackId][frameId] } },
+        inFlightWorker,
+        storeDecoded,
+        (id) => maskColorFor(id),
+        true,
+      );
+    }
     if (inFlightWorker.has(key)) {
       loadingFrame.value = key;
-    } else {
+    } else if (!rleCache.has(key)) {
       setMaskWarning(`Unable to load RLE mask for track ${trackId}, frame ${frameId}.`);
     }
     return undefined;
