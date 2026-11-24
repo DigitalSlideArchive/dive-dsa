@@ -44,4 +44,53 @@ describe('createRLEPreloader', () => {
     expect(inFlight.size).toBe(0);
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it('keeps a stopped worker busy until it replies', () => {
+    const workers: FakeWorker[] = [];
+    const { preloadRLEMasks, clearQueue } = createRLEPreloader(
+      () => { const w = new FakeWorker(); workers.push(w); return w as unknown as Worker; },
+      { batchSize: 1, maxWorkers: 1 },
+    );
+    const inFlight = new Map<string, boolean>();
+    preloadRLEMasks(0, { 1: { 0: rle } }, inFlight, jest.fn());
+    clearQueue();
+    preloadRLEMasks(0, { 2: { 0: rle } }, inFlight, jest.fn());
+    // batch, stop; the new batch waits for the worker's reply
+    expect(workers[0].posted).toHaveLength(2);
+    workers[0].onmessage?.({ data: { status: 'stopped' } });
+    expect(workers[0].posted).toHaveLength(3);
+    expect([...inFlight.keys()]).toEqual(['0_2']);
+  });
+
+  it('queues priority work ahead of pending batches without dropping them', () => {
+    const workers: FakeWorker[] = [];
+    const { preloadRLEMasks } = createRLEPreloader(
+      () => { const w = new FakeWorker(); workers.push(w); return w as unknown as Worker; },
+      { batchSize: 1, maxWorkers: 1 },
+    );
+    const inFlight = new Map<string, boolean>();
+    preloadRLEMasks(0, { 1: { 0: rle, 1: rle } }, inFlight, jest.fn());
+    const priorityCallback = jest.fn();
+    preloadRLEMasks(5, { 1: { 5: rle } }, inFlight, priorityCallback, undefined, true);
+    expect([...inFlight.keys()].sort()).toEqual(['0_1', '1_1', '5_1']);
+    // Worker finishes frame 0; the priority mask is dispatched next
+    workers[0].onmessage?.({ data: { croppedMasks: [] } });
+    expect(workers[0].posted[1]).toMatchObject({ rleMasks: [{ frameId: 5 }] });
+    // Results carry the decoded RLE so callers can detect stale results
+    workers[0].onmessage?.({ data: { croppedMasks: [{ trackId: 1, frameId: 5 }] } });
+    expect(priorityCallback.mock.calls[0][0][0].source).toBe(rle);
+  });
+
+  it('releases the batch of a worker that errors', () => {
+    const workers: FakeWorker[] = [];
+    const { preloadRLEMasks } = createRLEPreloader(
+      () => { const w = new FakeWorker(); workers.push(w); return w as unknown as Worker; },
+      { batchSize: 5, maxWorkers: 1 },
+    );
+    const inFlight = new Map<string, boolean>();
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    preloadRLEMasks(0, { 1: { 0: rle } }, inFlight, jest.fn());
+    workers[0].onerror?.(new Error('boom'));
+    expect(inFlight.size).toBe(0);
+  });
 });

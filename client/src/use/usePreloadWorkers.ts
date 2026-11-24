@@ -11,7 +11,13 @@ export interface WorkerPoolOptions {
 }
 
 export type CroppedMaskCallback = (
-  results: { trackId: number; frameId: number; mask: CroppedMask }[]
+  results: {
+    trackId: number;
+    frameId: number;
+    mask: CroppedMask;
+    /** The RLE entry that was decoded, so callers can drop stale results */
+    source?: RLEFrameData;
+  }[]
 ) => void;
 
 /**
@@ -107,9 +113,11 @@ export function createRLEPreloader(
       }
 
       if (callback && Array.isArray(croppedMasks)) {
-        const results = croppedMasks.map((rle: any) => ({
+        // The worker returns results in batch order
+        const results = croppedMasks.map((rle: any, i: number) => ({
           trackId: rle.trackId,
           frameId: rle.frameId,
+          source: currentBatch?.batch[i]?.rleWrapper,
           mask: {
             x: rle.x,
             y: rle.y,
@@ -131,6 +139,13 @@ export function createRLEPreloader(
     worker.onerror = (err) => {
       workerBusy[index] = false;
       console.error(`Worker ${index} error:`, err);
+      // The batch will never report back: let its masks be queued again
+      releaseBatch((worker as any)._currentBatch);
+      // eslint-disable-next-line no-param-reassign
+      delete (worker as any)._currentBatch;
+      // eslint-disable-next-line no-param-reassign
+      delete (worker as any)._currentCallback;
+      tryDispatchWork();
     };
   });
 
@@ -141,6 +156,7 @@ export function createRLEPreloader(
    * @param inFlightWorker Map to track which frames are already being processed
    * @param callback Function that receives cropped mask results as they arrive
    * @param colorFor Display color baked into each track's masks
+   * @param priority Queue ahead of pending work instead of replacing it
    */
   function preloadRLEMasks(
     currentFrame: number,
@@ -148,6 +164,7 @@ export function createRLEPreloader(
     inFlightWorker: Map<string, boolean>,
     callback: CroppedMaskCallback,
     colorFor: (trackId: number) => string = () => '#ffffff',
+    priority = false,
   ) {
     const sortedFlattenedMaskEntries: PendingBatch['batch'] = [];
 
@@ -182,16 +199,23 @@ export function createRLEPreloader(
       return;
     }
 
-    // Break into batches. Not-yet-dispatched batches from an earlier call are
-    // replaced; release their keys so a later call can queue them again.
-    pendingBatches.forEach(releaseBatch);
-    pendingBatches.length = 0;
+    // Break into batches. Unless this is priority work, not-yet-dispatched
+    // batches from an earlier call are replaced; release their keys so a
+    // later call can queue them again.
+    const batches: PendingBatch[] = [];
     for (let i = 0; i < sortedFlattenedMaskEntries.length; i += batchSize) {
-      pendingBatches.push({
+      batches.push({
         batch: sortedFlattenedMaskEntries.slice(i, i + batchSize),
         callback,
         inFlight: inFlightWorker,
       });
+    }
+    if (priority) {
+      pendingBatches.unshift(...batches);
+    } else {
+      pendingBatches.forEach(releaseBatch);
+      pendingBatches.length = 0;
+      pendingBatches.push(...batches);
     }
 
     if (enableTimingLogs) {
@@ -221,10 +245,14 @@ export function createRLEPreloader(
     pendingBatches.length = 0;
   }
 
+  /**
+   * Drop pending batches and ask running workers to stop. Workers stay busy
+   * until they reply ('stopped' or their results), so a new batch is never
+   * sent to a worker whose previous batch is still running.
+   */
   function clearQueue() {
     pendingBatches.forEach(releaseBatch);
     pendingBatches.length = 0;
-    workerBusy.fill(false);
     workers.forEach((worker) => {
       worker.postMessage({ command: 'stop' });
     });
