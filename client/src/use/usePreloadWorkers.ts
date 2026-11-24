@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { RLEFrameData } from 'platform/web-girder/api/annotation.service';
+import maskPerf from './maskPerf';
 
 export interface LuminanceMask {
   width: number;
@@ -61,6 +62,7 @@ export function createRLEPreloader(
 
       worker.postMessage({ rleMasks: next.batch });
       (worker as any)._currentCallback = next.callback;
+      (worker as any)._dispatchedAt = maskPerf.now();
     }
   }
 
@@ -69,9 +71,15 @@ export function createRLEPreloader(
     // eslint-disable-next-line no-param-reassign
     worker.onmessage = (event) => {
       workerBusy[index] = false;
-      const { rleLuminanceMasks, status } = event.data;
+      const { rleLuminanceMasks, status, decodeMs } = event.data;
       if (status === 'stopped') {
         return;
+      }
+      if (maskPerf.enabled && Array.isArray(rleLuminanceMasks) && rleLuminanceMasks.length) {
+        maskPerf.end('worker.batchRoundTrip', (worker as any)._dispatchedAt);
+        if (typeof decodeMs === 'number') {
+          maskPerf.record('worker.decodePerMask', decodeMs / rleLuminanceMasks.length);
+        }
       }
       const callback: LuminanceMaskCallback | undefined = (worker as any)._currentCallback;
       // eslint-disable-next-line no-param-reassign

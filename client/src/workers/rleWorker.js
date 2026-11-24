@@ -18,6 +18,7 @@ self.onmessage = async (event) => {
   if (command === 'start' || !command) {
     shouldStop = false;
     const results = [];
+    let decodeMs = 0;
 
     // Use for...of with await to allow interruption checks
     for (const item of rleMasks) {
@@ -29,12 +30,15 @@ self.onmessage = async (event) => {
       // to stay responsive and allow message handling
       await new Promise((resolve) => setTimeout(resolve, 0));
 
+      const decodeStart = performance.now();
       results.push(processOneMask(item.trackId, item.frameId, item.rleWrapper.rle));
+      decodeMs += performance.now() - decodeStart;
     }
 
     if (!shouldStop) {
       self.postMessage({
         rleLuminanceMasks: results,
+        decodeMs,
       });
     } else {
       self.postMessage({

@@ -9,6 +9,7 @@ import geo, { GeoEvent } from 'geojs';
 import VideoLayerManager from 'vue-media-annotator/layers/MediaLayers/videoLayerManager';
 import MaskLayer, { SegmentationPreviewOpacity } from 'vue-media-annotator/layers/MediaLayers/maskLayer';
 import MaskEditorLayer from 'vue-media-annotator/layers/MediaLayers/maskEditorLayer';
+import maskPerf from 'vue-media-annotator/use/maskPerf';
 import {
   binaryMaskToLuminanceAlpha, decode, RLEObject, rleObjectToImageSync,
 } from 'vue-media-annotator/use/rle';
@@ -306,6 +307,7 @@ export default defineComponent({
       selectedKey: string,
       colorBy: string,
     ) {
+      const perfUpdateStart = maskPerf.now();
       const currentFrameIds: AnnotationId[] | undefined = trackStore?.intervalTree
         .search([frame, frame])
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -447,12 +449,16 @@ export default defineComponent({
         .filter((preview, index, list) => list.findIndex((p) => p.trackId === preview.trackId) === index);
       const previewTrackIds = new Set(previewMasks.map((preview) => preview.trackId));
 
+      let perfMasksExpected = 0;
+      let perfMasksDrawn = 0;
       if (visibleModes.includes('Mask')) {
+        const perfCollectStart = maskPerf.now();
         const maskRLEData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         const maskImages : {trackId: number, type: string, image: HTMLImageElement}[] = [];
         const maskLuminanceData: {trackId: number, type: string, mask: Uint8Array, width: number, height: number}[] = [];
         frameData.forEach((track) => {
           if (track.features?.hasMask && !previewTrackIds.has(track.track.id)) {
+            perfMasksExpected += 1;
             if (editorOptions.useRLE.value && !useworker) {
               const rle = getRLEMask(track.track.id, frame);
               if (rle) {
@@ -489,6 +495,9 @@ export default defineComponent({
             getOrCreateFilter(track.styleType[0], typeStylingRef.value.color(track.styleType[0]));
           }
         });
+        maskPerf.end('layer.maskCollect', perfCollectStart);
+        perfMasksDrawn = maskRLEData.length || maskLuminanceData.length || maskImages.length;
+        const perfDrawStart = maskPerf.now();
         if (maskRLEData.length && editorOptions.useRLE.value) {
           maskLayer.setSegmenationRLE(maskRLEData);
         } else if (maskLuminanceData.length) {
@@ -498,9 +507,11 @@ export default defineComponent({
         } else {
           maskLayer.disable();
         }
+        if (perfMasksDrawn) maskPerf.end('layer.maskDraw', perfDrawStart);
       } else {
         maskLayer.disable();
       }
+      maskPerf.masksRendered(frame, perfMasksExpected, perfMasksDrawn);
 
       // Show the preview mask itself at preview opacity instead of a polygon
       // outline. Independent of the stored-Mask layer above (the frame is
@@ -628,6 +639,7 @@ export default defineComponent({
         }
       }
       annotator.setExpandedBounds(globalBounds);
+      maskPerf.end('layer.updateLayers', perfUpdateStart);
     }
 
     /**

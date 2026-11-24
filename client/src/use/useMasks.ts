@@ -22,6 +22,7 @@ import {
 } from './rle';
 import { createRLEPreloader } from './usePreloadWorkers';
 import createRLEWorker from './rleWorkerFactory';
+import maskPerf from './maskPerf';
 
 const rleWorker = createRLEWorker();
 
@@ -397,7 +398,13 @@ export default function useMasks(
   }
 
   async function getFolderRLEMasks(folderId: string) {
+    const perfStart = maskPerf.now();
     rleMasks.value = (await getRLEMaskData(folderId)).data;
+    if (maskPerf.enabled) {
+      maskPerf.end('rle.fetch', perfStart);
+      maskPerf.count('rle.totalMasks', Object.values(rleMasks.value)
+        .reduce((acc, frames) => acc + Object.keys(frames).length, 0));
+    }
     if (tracksHaveMasksConfigured() && Object.keys(rleMasks.value).length === 0) {
       setMaskWarning('Mask metadata is enabled, but rlemasks.json is empty or missing data.');
     } else {
@@ -563,6 +570,7 @@ export default function useMasks(
       cacheWindow = { minFrame, maxFrame };
       cachedTracks = [];
       const startTime = performance.now();
+      const perfScanStart = maskPerf.now();
       const newCachedTracks: number[] = [];
       const subseMasks: Record<number, Record<number, RLEFrameData>> = {};
       Object.keys(rleMasks.value).forEach((trackIdStr) => {
@@ -585,10 +593,12 @@ export default function useMasks(
         });
       });
       cachedTracks = newCachedTracks;
+      maskPerf.end('preload.windowScan', perfScanStart);
       if (Object.keys(subseMasks).length === 0) {
         return;
       }
       const subsetSize = Object.keys(subseMasks).reduce((acc, trackId) => acc + Object.keys(subseMasks[Number(trackId)]).length, 0);
+      maskPerf.record('preload.dispatched', subsetSize);
       clearQueue();
       inFlightWorker.clear();
       maskLoadingPercent.value = 0;
@@ -697,6 +707,7 @@ export default function useMasks(
   }, 300);
 
   watch(frame, (newFrame) => {
+    maskPerf.frameChanged(newFrame);
     if (typeof newFrame === 'number' && maskModeEnabled.value && aggregateController.value.playing.value) {
       preloadWindow(newFrame);
     } else if (typeof newFrame === 'number' && maskModeEnabled.value && !aggregateController.value.playing.value) {
@@ -728,6 +739,15 @@ export default function useMasks(
     }
   });
 
+  if (maskPerf.enabled) {
+    maskPerf.setPlaybackHooks({
+      play: () => aggregateController.value.play(),
+      pause: () => aggregateController.value.pause(),
+      seek: (f: number) => aggregateController.value.seek(f),
+      frame: () => frame.value,
+    });
+  }
+
   const hasMasks = computed(() => {
     if (useRLE.value) {
       return Object.keys(rleMasks.value).length > 0;
@@ -756,13 +776,16 @@ export default function useMasks(
     const key = frameKey(frameId, trackId);
     const cacheFound = rleCache.get(key);
     if (cacheFound) {
+      maskPerf.count('cache.hit');
       clearMaskWarning();
       return cacheFound;
     }
     if (inFlightWorker.has(key)) {
+      maskPerf.count('cache.inflight');
       loadingFrame.value = key;
       return undefined;
     }
+    maskPerf.count('cache.cold');
     const hasRLEMask = Boolean(rleMasks.value[trackId]?.[frameId]);
     if (!hasRLEMask) {
       setMaskWarning(`Missing RLE mask for track ${trackId}, frame ${frameId}. Check rlemasks.json mapping.`);
