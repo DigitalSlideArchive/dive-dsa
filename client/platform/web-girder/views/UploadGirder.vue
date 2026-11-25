@@ -10,6 +10,10 @@ import {
   fileSuffixRegex,
 } from 'platform/web-girder/constants';
 import { makeViameFolder, postProcess } from 'platform/web-girder/api';
+import { all as allJobStatuses } from '@girder/components/src/components/Job/status';
+import eventBus from 'platform/web-girder/eventBus';
+
+const JobStatus = allJobStatuses();
 
 export default Vue.extend({
   name: 'GirderUpload',
@@ -149,7 +153,18 @@ export default Vue.extend({
           results: data.results,
         });
         try {
-          await postProcess(folder._id, false, skipTranscoding);
+          const { data: result } = await postProcess(folder._id, false, skipTranscoding);
+          const jobIds = (result?.job_ids || []).map(String);
+          if (jobIds.length) {
+            // Update Jobs tab + folder spinner immediately; do not wait for websockets.
+            this.$store.dispatch('Jobs/trackJobs', {
+              jobIds,
+              datasetId: folder._id,
+              status: JobStatus.QUEUED.value,
+            });
+            this.$store.dispatch('Jobs/updateJobs');
+          }
+          eventBus.$emit('refresh-data-browser');
         } catch (err) {
           this.$emit('error', { err, name });
         }

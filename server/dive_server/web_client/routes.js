@@ -1,6 +1,6 @@
-import events from '@girder/core/events';
-import router from '@girder/core/router';
-import { exposePluginConfig } from '@girder/core/utilities/PluginUtils';
+const router = girder.router;
+const events = girder.events;
+const { exposePluginConfig } = girder.utilities.PluginUtils;
 
 exposePluginConfig('dive_server', 'plugins/dive_server/config');
 

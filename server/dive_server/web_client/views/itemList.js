@@ -1,8 +1,8 @@
 import $ from 'jquery';
 
-import { wrap } from '@girder/core/utilities/PluginUtils';
-import ItemListWidget from '@girder/large_image/views/itemList';
-import { restRequest } from '@girder/core/rest';
+const  { wrap } = girder.utilities.PluginUtils;
+const ItemListWidget = girder.views.widgets.ItemListWidget;
+const { restRequest } = girder.rest;
 
 import {
     convertToDIVEHandler,

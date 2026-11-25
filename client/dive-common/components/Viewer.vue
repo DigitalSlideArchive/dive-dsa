@@ -894,6 +894,12 @@ export default defineComponent({
             description: 'Slicer Tasks',
             component: SlicerTaskRunnerVue,
           });
+        } else {
+          context.register({
+            description: 'Slicer Tasks',
+            component: SlicerTaskRunnerVue,
+            width: 500,
+          });
         }
 
         if (!configurationManager.getUISetting('UIGroupManager')) {

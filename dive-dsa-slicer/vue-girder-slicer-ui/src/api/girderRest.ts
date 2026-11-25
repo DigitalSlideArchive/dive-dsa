@@ -1,6 +1,7 @@
 import axios_, { Axios, AxiosInstance } from 'axios';
 import cookies from 'js-cookie';
 import { stringify } from 'qs';
+import legacyGirderParamsSerializer from './legacyGirderParamsSerializer';
 
 export interface GirderRestClientParams {
     apiRoot: string;
@@ -59,7 +60,8 @@ export default class RestClient extends Axios {
   constructor({
     apiRoot = '/api/v1',
     token = window.localStorage.getItem('girderToken') || cookies.get('girderToken') || setCookieFromHash(window.location),
-    axios = axios_.create(),
+    // Axios 1.x bracket-encodes nested params; Girder jsonParam expects JSON strings.
+    axios = axios_.create({ paramsSerializer: legacyGirderParamsSerializer }),
     authenticateWithCredentials = false,
     useGirderAuthorizationHeader = false,
     setLocalCookie = false,
