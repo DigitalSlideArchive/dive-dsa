@@ -823,8 +823,12 @@ export default defineComponent({
           }
           cameraStore.addCamera(camera);
           addSaveCamera(camera);
-          if (mediaMasks.value?.length) {
+          // The mask cache window is sized in seconds, so it needs the real
+          // frame rate for RLE-only datasets too (it defaulted to 60).
+          if (meta.fps) {
             setFrameRate(meta.fps);
+          }
+          if (mediaMasks.value?.length) {
             initializeMaskData({ masks: mediaMasks.value });
           }
           if (editorOptions.useRLE.value) {
@@ -1034,7 +1038,8 @@ export default defineComponent({
       setFrameRate,
       getMask,
       getRLEMask,
-      getRLELuminanceMask,
+      getCroppedMask,
+      setMaskColorResolver,
       getFolderRLEMasks,
       editorFunctions,
       editorOptions,
@@ -1109,7 +1114,7 @@ export default defineComponent({
         readOnlyMode: readonlyState,
         imageEnhancements,
         masks: {
-          getMask, getRLEMask, getRLELuminanceMask, editorFunctions, editorOptions,
+          getMask, getRLEMask, getCroppedMask, setMaskColorResolver, editorFunctions, editorOptions,
         },
         diveMetadataRootId,
       },

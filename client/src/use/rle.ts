@@ -184,6 +184,153 @@ export function toBbox(rleObjs: RLEObject[]): BB {
   return bb;
 }
 
+/**
+ * A mask cropped to its bounding box, as row-major RGBA with the display
+ * color baked in (mask pixels = color at full alpha, everything else = 0).
+ * `x`/`y`/`width`/`height` are in mask pixels; `frameWidth`/`frameHeight`
+ * are the full mask size, so callers can scale to the media frame.
+ */
+export type CroppedMask = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  data: Uint8Array;
+  color: string;
+  frameWidth: number;
+  frameHeight: number;
+};
+
+/** Parse '#rgb' or '#rrggbb' (anything else is white). */
+export function parseHexColor(color: string): [number, number, number] {
+  let hex = (color || '').trim().replace(/^#/, '');
+  if (hex.length === 3) {
+    hex = hex.split('').map((c) => c + c).join('');
+  }
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+    return [255, 255, 255];
+  }
+  return [
+    parseInt(hex.slice(0, 2), 16),
+    parseInt(hex.slice(2, 4), 16),
+    parseInt(hex.slice(4, 6), 16),
+  ];
+}
+
+/** One RGBA pixel as a Uint32 (little-endian byte order: r, g, b, a). */
+function packOpaque(color: string): number {
+  const [r, g, b] = parseHexColor(color);
+  return ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+}
+
+function emptyCropped(color: string, frameWidth: number, frameHeight: number): CroppedMask {
+  return {
+    x: 0, y: 0, width: 0, height: 0, data: new Uint8Array(0), color, frameWidth, frameHeight,
+  };
+}
+
+/**
+ * Decode a COCO RLE straight into a bounding-box-cropped RGBA buffer.
+ * Walks the runs directly, so cost scales with the mask's pixels rather than
+ * the frame size, and never allocates a full-frame buffer.
+ */
+export function decodeRLECropped(rleObj: RLEObject, color: string): CroppedMask {
+  const Rs = _frString([rleObj]);
+  const R = Rs._R[0];
+  const { h, w } = R;
+  const bb: BB = [];
+  rleToBbox([R], bb, 1);
+  const [bx, by, bw, bh] = bb;
+  if (!bw || !bh) {
+    return emptyCropped(color, w, h);
+  }
+  const data = new Uint8Array(bw * bh * 4);
+  const pixels = new Uint32Array(data.buffer);
+  const value = packOpaque(color);
+  let pos = 0;
+  for (let j = 0; j < R.m; j++) {
+    const count = R.cnts[j];
+    if (j % 2 === 1) {
+      // Foreground run [pos, pos + count) in column-major order
+      let p = pos;
+      let remaining = count;
+      while (remaining > 0) {
+        const col = Math.floor(p / h);
+        const row = p - col * h;
+        const n = Math.min(remaining, h - row);
+        let idx = (row - by) * bw + (col - bx);
+        for (let k = 0; k < n; k++) {
+          pixels[idx] = value;
+          idx += bw;
+        }
+        p += n;
+        remaining -= n;
+      }
+    }
+    pos += count;
+  }
+  return {
+    x: bx, y: by, width: bw, height: bh, data, color, frameWidth: w, frameHeight: h,
+  };
+}
+
+/**
+ * Crop a row-major binary mask (1 = object, as produced by segmentation) to
+ * its bounding box as RGBA with `color` baked in.
+ */
+export function binaryMaskToCropped(
+  maskData: Uint8Array,
+  width: number,
+  height: number,
+  color: string,
+): CroppedMask {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let row = 0; row < height; row++) {
+    const offset = row * width;
+    for (let col = 0; col < width; col++) {
+      if (maskData[offset + col]) {
+        if (col < minX) minX = col;
+        if (col > maxX) maxX = col;
+        if (row < minY) minY = row;
+        if (row > maxY) maxY = row;
+      }
+    }
+  }
+  if (maxX < 0) {
+    return emptyCropped(color, width, height);
+  }
+  const bw = maxX - minX + 1;
+  const bh = maxY - minY + 1;
+  const data = new Uint8Array(bw * bh * 4);
+  const pixels = new Uint32Array(data.buffer);
+  const value = packOpaque(color);
+  for (let row = 0; row < bh; row++) {
+    const src = (row + minY) * width + minX;
+    const dst = row * bw;
+    for (let col = 0; col < bw; col++) {
+      if (maskData[src + col]) pixels[dst + col] = value;
+    }
+  }
+  return {
+    x: minX, y: minY, width: bw, height: bh, data, color, frameWidth: width, frameHeight: height,
+  };
+}
+
+/** Copy of a cropped mask with a different baked-in color. */
+export function recolorCropped(mask: CroppedMask, color: string): CroppedMask {
+  const data = new Uint8Array(mask.data.length);
+  const src = new Uint32Array(mask.data.buffer, mask.data.byteOffset, mask.data.length / 4);
+  const dst = new Uint32Array(data.buffer);
+  const value = packOpaque(color);
+  for (let i = 0; i < src.length; i++) {
+    if (src[i]) dst[i] = value;
+  }
+  return { ...mask, data, color };
+}
+
 function rleEncode(R: RLE[], M: Uint8Array, h: number, w: number, n: number) {
   let i;
   let j;

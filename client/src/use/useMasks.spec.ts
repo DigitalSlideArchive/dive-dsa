@@ -17,14 +17,16 @@ import Vue, {
 import { mount } from '@vue/test-utils';
 import type { AggregateMediaController } from 'vue-media-annotator/components/annotators/mediaControllerType';
 import type { Handler } from 'vue-media-annotator/provides';
+import { binaryMaskToCropped, DataArray, encode } from './rle';
 
 const mockUploadMask = jest.fn();
 const mockBinaryMaskToImage = jest.fn();
 /** The last binary mask handed to `binaryMaskToImage`, for canvas stubs. */
 let mockMaskImage: { data: Uint8Array; width: number; height: number } | null = null;
 
+const mockGetRLEMaskData = jest.fn(async () => ({ data: {} as unknown }));
 jest.mock('platform/web-girder/api/annotation.service', () => ({
-  getRLEMaskData: jest.fn(async () => ({ data: {} })),
+  getRLEMaskData: () => mockGetRLEMaskData(),
   uploadMask: (folderId: string, trackId: number, frameId: number, blob: Blob) => mockUploadMask(folderId, trackId, frameId, blob),
   deleteMask: jest.fn(async () => undefined),
 }));
@@ -37,8 +39,13 @@ jest.mock('./rleWorkerFactory', () => ({
     postMessage: jest.fn(), terminate: jest.fn(), onmessage: null, onerror: null,
   })),
 }));
+const mockPreloadRLEMasks = jest.fn();
 jest.mock('./usePreloadWorkers', () => ({
-  createRLEPreloader: () => ({ preloadRLEMasks: jest.fn(), clearQueue: jest.fn() }),
+  createRLEPreloader: () => ({
+    preloadRLEMasks: (...args: unknown[]) => mockPreloadRLEMasks(...args),
+    clearQueue: jest.fn(),
+    cancelPending: jest.fn(),
+  }),
 }));
 jest.mock('./rle', () => {
   const actual = jest.requireActual('./rle');
@@ -103,7 +110,7 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 const maskData = new Uint8Array([0, 1, 1, 0, 0, 1, 1, 0]);
 const mask = { data: maskData, width: 4, height: 2 };
 
-function setup(visibleMaskIds: number[] = []) {
+function setup(visibleMaskIds: number[] = [], options: { frame?: number; playing?: boolean; maskMode?: boolean } = {}) {
   const handler = {
     updateRectBounds: jest.fn(),
     trackSelect: jest.fn(),
@@ -111,17 +118,17 @@ function setup(visibleMaskIds: number[] = []) {
     removeAnnotation: jest.fn(),
   } as unknown as Handler;
   const aggregateController = shallowRef({
-    playing: ref(false),
+    playing: ref(options.playing ?? false),
   } as unknown as AggregateMediaController);
   let api!: ReturnType<typeof useMasks>;
   const wrapper = mount(Vue.extend({
     setup() {
       api = useMasks(
-        ref(0),
+        ref(options.frame ?? 0),
         ref(0),
         ref('dataset-id'),
         handler,
-        computed(() => false),
+        computed(() => options.maskMode ?? false),
         ref(visibleMaskIds),
         aggregateController,
         ref(null),
@@ -160,12 +167,15 @@ it('registers the RLE mask locally before the upload and keeps it after', async 
     rle: { size: [2, 4], counts: expect.any(String) },
     file_name: '7_3.png',
   });
-  const decoded = api.getRLELuminanceMask(7, 3);
-  expect(decoded?.width).toBe(4);
-  expect(decoded?.height).toBe(2);
-  expect(Array.from(decoded!.data.filter((_, i) => i % 2 === 0))).toEqual(
-    Array.from(maskData, (v) => (v ? 255 : 0)),
-  );
+  // Decoded locally as a bounding-box crop with the track color baked in
+  const decoded = api.getCroppedMask(7, 3, '#ffffff');
+  expect(decoded).toEqual(binaryMaskToCropped(maskData, 4, 2, '#ffffff'));
+  expect(decoded?.frameWidth).toBe(4);
+  expect(decoded?.frameHeight).toBe(2);
+  // A different color is served as a recolored copy, not re-decoded
+  const red = api.getCroppedMask(7, 3, '#ff0000');
+  expect(red?.color).toBe('#ff0000');
+  expect([red?.x, red?.y, red?.width, red?.height]).toEqual([1, 0, 2, 2]);
   await flush();
   expect(mockUploadMask).toHaveBeenCalledWith('dataset-id', 7, 3, expect.any(Blob));
   resolveUpload();
@@ -180,7 +190,7 @@ it('rolls back the local registration and rejects when the upload fails', async 
   await expect(api.editorFunctions.createMaskFromBinary(7, 3, mask)).rejects.toThrow('upload failed');
   // Nothing left behind for a `hasMask` flag (or a Save) to point at.
   expect(api.getRLEMask(7, 3)).toBeUndefined();
-  expect(api.getRLELuminanceMask(7, 3)).toBeUndefined();
+  expect(api.getCroppedMask(7, 3, '#ffffff')).toBeUndefined();
   expect(api.editorOptions.maskWarningMessage.value).toContain('Missing RLE mask for track 7, frame 3');
   expect(api.editorOptions.hasMasks.value).toBe(false);
   expect(api.editorOptions.loadingFrame.value).toBe(false);
@@ -191,12 +201,12 @@ it('restores the mask the frame already had when replacing it fails', async () =
   mockUploadMask.mockResolvedValueOnce(undefined);
   await api.editorFunctions.createMaskFromBinary(7, 3, mask);
   const stored = api.getRLEMask(7, 3);
-  const storedDecoded = api.getRLELuminanceMask(7, 3);
+  const storedDecoded = api.getCroppedMask(7, 3, '#ffffff');
   const other = { data: new Uint8Array([1, 0, 0, 0, 1, 0, 0, 0]), width: 4, height: 2 };
   mockUploadMask.mockRejectedValueOnce(new Error('upload failed'));
   await expect(api.editorFunctions.createMaskFromBinary(7, 3, other)).rejects.toThrow('upload failed');
   expect(api.getRLEMask(7, 3)).toEqual(stored);
-  expect(api.getRLELuminanceMask(7, 3)).toEqual(storedDecoded);
+  expect(api.getCroppedMask(7, 3, '#ffffff')).toEqual(storedDecoded);
 });
 
 it('rejects an empty mask without uploading or registering anything', async () => {
@@ -216,4 +226,44 @@ it('rolls back the cached image and rejects on upload failure without RLE', asyn
   mockUploadMask.mockRejectedValueOnce(new Error('upload failed'));
   await expect(api.editorFunctions.createMaskFromBinary(7, 4, mask)).rejects.toThrow('upload failed');
   expect(api.getMask(7, 4)).toBeUndefined();
+});
+
+describe('preload window', () => {
+  // Track 1 has a mask on every frame 0..299
+  const rleData = () => {
+    const [rle] = encode(new DataArray(new Uint8Array(8).fill(1), [2, 4, 1]));
+    const frames: Record<number, { rle: typeof rle; file_name: string }> = {};
+    for (let f = 0; f < 300; f += 1) frames[f] = { rle, file_name: `1_${f}.png` };
+    return { 1: frames };
+  };
+
+  async function queuedFrames(playing: boolean, fps = 30) {
+    mockPreloadRLEMasks.mockReset();
+    mockGetRLEMaskData.mockResolvedValueOnce({ data: rleData() });
+    const { api } = setup([1], { frame: 100, playing, maskMode: true });
+    api.setFrameRate(fps);
+    await api.getFolderRLEMasks('dataset-id');
+    await flush();
+    const frames = mockPreloadRLEMasks.mock.calls
+      .flatMap(([, subset]) => Object.keys(subset[1] ?? {}).map(Number));
+    return { min: Math.min(...frames), max: Math.max(...frames) };
+  }
+
+  it('prefetches only from the current frame forward while playing', async () => {
+    const { min, max } = await queuedFrames(true);
+    expect(min).toBe(100);
+    expect(max).toBe(130); // 1s ahead at 30fps
+  });
+
+  it('keeps half a second behind the playhead when paused', async () => {
+    const { min, max } = await queuedFrames(false);
+    expect(min).toBe(85);
+    expect(max).toBe(130);
+  });
+
+  it('looks at least one frame ahead when fps * seconds is below one', async () => {
+    const { min, max } = await queuedFrames(true, 0.5);
+    expect(min).toBe(100);
+    expect(max).toBe(101);
+  });
 });
