@@ -47,6 +47,8 @@ export function createRLEPreloader(
     callback: CroppedMaskCallback;
     // Caller's in-flight map; keys are released if the batch is dropped
     inFlight: Map<string, boolean>;
+    // On-demand work (a mask needed now): survives window re-plans
+    priority: boolean;
   };
   const pendingBatches: PendingBatch[] = [];
 
@@ -55,6 +57,14 @@ export function createRLEPreloader(
     pending?.batch.forEach(({ trackId, frameId }) => {
       pending.inFlight.delete(`${frameId}_${trackId}`);
     });
+  }
+
+  /** Drop queued window batches, keeping priority (on-demand) ones. */
+  function dropWindowBatches() {
+    const kept = pendingBatches.filter((pending) => pending.priority);
+    pendingBatches.filter((pending) => !pending.priority).forEach(releaseBatch);
+    pendingBatches.length = 0;
+    pendingBatches.push(...kept);
   }
 
   function tryDispatchWork() {
@@ -200,21 +210,21 @@ export function createRLEPreloader(
     }
 
     // Break into batches. Unless this is priority work, not-yet-dispatched
-    // batches from an earlier call are replaced; release their keys so a
-    // later call can queue them again.
+    // window batches from an earlier call are replaced (their keys released
+    // so a later call can queue them again); priority batches stay queued.
     const batches: PendingBatch[] = [];
     for (let i = 0; i < sortedFlattenedMaskEntries.length; i += batchSize) {
       batches.push({
         batch: sortedFlattenedMaskEntries.slice(i, i + batchSize),
         callback,
         inFlight: inFlightWorker,
+        priority,
       });
     }
     if (priority) {
       pendingBatches.unshift(...batches);
     } else {
-      pendingBatches.forEach(releaseBatch);
-      pendingBatches.length = 0;
+      dropWindowBatches();
       pendingBatches.push(...batches);
     }
 
@@ -237,12 +247,12 @@ export function createRLEPreloader(
   }
 
   /**
-   * Drop batches that have not been sent to a worker yet and release their
-   * keys from the caller's in-flight map. Batches already in a worker finish.
+   * Drop window batches that have not been sent to a worker yet and release
+   * their keys from the caller's in-flight map. Priority batches stay queued
+   * (a mask is waiting on them) and batches already in a worker finish.
    */
   function cancelPending() {
-    pendingBatches.forEach(releaseBatch);
-    pendingBatches.length = 0;
+    dropWindowBatches();
   }
 
   /**

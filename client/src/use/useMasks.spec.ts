@@ -237,11 +237,11 @@ describe('preload window', () => {
     return { 1: frames };
   };
 
-  async function queuedFrames(playing: boolean) {
+  async function queuedFrames(playing: boolean, fps = 30) {
     mockPreloadRLEMasks.mockReset();
     mockGetRLEMaskData.mockResolvedValueOnce({ data: rleData() });
     const { api } = setup([1], { frame: 100, playing, maskMode: true });
-    api.setFrameRate(30);
+    api.setFrameRate(fps);
     await api.getFolderRLEMasks('dataset-id');
     await flush();
     const frames = mockPreloadRLEMasks.mock.calls
@@ -259,5 +259,11 @@ describe('preload window', () => {
     const { min, max } = await queuedFrames(false);
     expect(min).toBe(85);
     expect(max).toBe(130);
+  });
+
+  it('looks at least one frame ahead when fps * seconds is below one', async () => {
+    const { min, max } = await queuedFrames(true, 0.5);
+    expect(min).toBe(100);
+    expect(max).toBe(101);
   });
 });

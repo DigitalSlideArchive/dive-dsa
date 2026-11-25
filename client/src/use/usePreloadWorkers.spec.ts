@@ -81,6 +81,24 @@ describe('createRLEPreloader', () => {
     expect(priorityCallback.mock.calls[0][0][0].source).toBe(rle);
   });
 
+  it('keeps priority batches when the window is re-planned', () => {
+    const workers: FakeWorker[] = [];
+    const { preloadRLEMasks, cancelPending } = createRLEPreloader(
+      () => { const w = new FakeWorker(); workers.push(w); return w as unknown as Worker; },
+      { batchSize: 1, maxWorkers: 1 },
+    );
+    const inFlight = new Map<string, boolean>();
+    preloadRLEMasks(0, { 1: { 0: rle, 1: rle } }, inFlight, jest.fn());
+    preloadRLEMasks(5, { 2: { 5: rle } }, inFlight, jest.fn(), undefined, true);
+    cancelPending();
+    expect([...inFlight.keys()].sort()).toEqual(['0_1', '5_2']);
+    // A new window plan replaces window work but keeps the priority batch first
+    preloadRLEMasks(0, { 1: { 3: rle } }, inFlight, jest.fn());
+    expect([...inFlight.keys()].sort()).toEqual(['0_1', '3_1', '5_2']);
+    workers[0].onmessage?.({ data: { croppedMasks: [] } });
+    expect(workers[0].posted[1]).toMatchObject({ rleMasks: [{ frameId: 5 }] });
+  });
+
   it('releases the batch of a worker that errors', () => {
     const workers: FakeWorker[] = [];
     const { preloadRLEMasks } = createRLEPreloader(

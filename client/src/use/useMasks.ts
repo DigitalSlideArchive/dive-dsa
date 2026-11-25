@@ -516,7 +516,12 @@ export default function useMasks(
 
   function getFrameWindow(currentFrame: number) {
     const minFrame = Math.max(0, currentFrame - behindFrames());
-    const maxFrame = Math.floor(currentFrame + frameRate.value * maskCacheSeconds.value);
+    // At least one frame ahead: at low frame rates fps * seconds can be < 1,
+    // which left no look-ahead and made every call re-plan the window.
+    const maxFrame = Math.max(
+      currentFrame + 1,
+      Math.floor(currentFrame + frameRate.value * maskCacheSeconds.value),
+    );
     return { minFrame, maxFrame };
   }
 
