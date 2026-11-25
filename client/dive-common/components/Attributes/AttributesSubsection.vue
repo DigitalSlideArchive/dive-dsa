@@ -7,6 +7,7 @@ import {
   Ref,
   computed,
   watch,
+  shallowRef,
 } from 'vue';
 import {
   useSelectedTrackId,
@@ -28,12 +29,17 @@ import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
 import useMetadataLinkUpdater from 'dive-common/use/useMetadataLinkUpdater';
 import type { MetadataLinkUpdateContext } from 'dive-common/use/useMetadataLinkUpdater';
+import type { Feature } from 'vue-media-annotator/track';
+import CurrentFrameLabel from 'dive-common/components/Attributes/CurrentFrameLabel.vue';
+
+const EMPTY_VALUES: StringKeyObject = Object.freeze({}) as StringKeyObject;
 
 export default defineComponent({
   components: {
     AttributeInput,
     PanelSubsection,
     TooltipBtn,
+    CurrentFrameLabel,
   },
   props: {
     attributes: {
@@ -106,6 +112,34 @@ export default defineComponent({
       return null;
     });
 
+    /*
+     * Per-frame state the template and sorting need, kept in refs that are only assigned when
+     * something actually changes. Vue 2 computeds pass their dependencies on to whatever reads
+     * them, so reading selectedAttributes (which depends on the frame and returns a new
+     * interpolated object every frame) would re-sort and re-render every attribute row on every
+     * frame of playback, even though frames between keyframes never carry attribute values.
+     */
+    const hasFeature = ref(false);
+    const isInterpolated = ref(false);
+    // Wrapped so a track edit that mutates the attributes object in place still updates
+    const frameValues = shallowRef<{ values: StringKeyObject }>({ values: EMPTY_VALUES });
+    let lastValues: StringKeyObject | undefined;
+    let lastRevision: number | undefined;
+    watch(
+      [selectedAttributes, () => selectedTrack.value?.revision.value],
+      ([selected, revision]) => {
+        hasFeature.value = !!selected;
+        isInterpolated.value = !!selected && (selected as Feature).keyframe === false;
+        const values = (selected?.attributes as StringKeyObject | undefined) ?? EMPTY_VALUES;
+        if (values !== lastValues || revision !== lastRevision) {
+          lastValues = values;
+          lastRevision = revision as number | undefined;
+          frameValues.value = { values };
+        }
+      },
+      { immediate: true },
+    );
+
     const filteredFullAttributes = computed(() => {
       let additionFilters: AttributeFilter[] = [];
       let mode: 'track' | 'detection' = 'track';
@@ -115,20 +149,14 @@ export default defineComponent({
         additionFilters = attributeFilters.value.filter((item) => item.belongsTo === 'detection');
         mode = 'detection';
       }
-      let attributeVals = {};
-      if (selectedAttributes.value && selectedAttributes.value.attributes) {
-        attributeVals = selectedAttributes.value.attributes;
-      }
+      const attributeVals = frameValues.value.values;
       return sortAndFilterAttributes(props.attributes, mode, attributeVals, sortingMode.value, additionFilters, highlightedAttribute.value);
     });
 
-    const activeAttributesCount = computed(
-      () => props.attributes.filter(
-        (a) => selectedAttributes.value
-            && selectedAttributes.value.attributes
-            && selectedAttributes.value.attributes[a.name] !== undefined,
-      ).length,
-    );
+    const activeAttributesCount = computed(() => {
+      const { values } = frameValues.value;
+      return props.attributes.filter((a) => values[a.name] !== undefined).length;
+    });
 
     function toggleActiveSettings() {
       activeSettings.value = !activeSettings.value;
@@ -203,15 +231,15 @@ export default defineComponent({
     }
 
     function getAttributeValue(attribute: Attribute) {
-      if (selectedAttributes.value && selectedAttributes.value.attributes) {
-        if (!attribute.user) {
-          return selectedAttributes.value.attributes[attribute.name];
-        }
-        const user = props.user || store.state.User.user?.login || null;
-        if (user && selectedAttributes.value.attributes?.userAttributes !== undefined && selectedAttributes.value.attributes.userAttributes[user]) {
-          if ((selectedAttributes.value.attributes.userAttributes[user] as StringKeyObject)[attribute.name]) {
-            return ((selectedAttributes.value.attributes.userAttributes[user] as StringKeyObject)[attribute.name]);
-          }
+      const { values } = frameValues.value;
+      if (!attribute.user) {
+        return values[attribute.name];
+      }
+      const user = props.user || store.state.User.user?.login || null;
+      const userAttributes = values.userAttributes as StringKeyObject | undefined;
+      if (user && userAttributes !== undefined && userAttributes[user]) {
+        if ((userAttributes[user] as StringKeyObject)[attribute.name]) {
+          return ((userAttributes[user] as StringKeyObject)[attribute.name]);
         }
       }
       return undefined;
@@ -283,9 +311,10 @@ export default defineComponent({
     };
 
     return {
-      frameRef,
       activeAttributesCount,
-      selectedAttributes,
+      hasFeature,
+      isInterpolated,
+      frameValues,
       filteredFullAttributes,
       activeSettings,
       readOnlyMode,
@@ -318,7 +347,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <panel-subsection v-if="selectedAttributes">
+  <panel-subsection v-if="hasFeature">
     <template
       slot="header"
     >
@@ -333,9 +362,9 @@ export default defineComponent({
             no-gutters
             class="text-caption"
           >
-            {{ `Frame: ${frameRef}` }}
+            <current-frame-label />
             <tooltip-btn
-              v-if="selectedAttributes.keyframe === false"
+              v-if="isInterpolated"
               size="x-small"
               color="warning"
               icon="mdi-alert"
@@ -480,7 +509,7 @@ export default defineComponent({
     </template>
 
     <template
-      v-if="selectedAttributes"
+      v-if="hasFeature"
       slot="scroll-section"
     >
       <v-col
@@ -500,7 +529,7 @@ export default defineComponent({
           <v-row
             v-if="
               activeSettings
-                || selectedAttributes.attributes[attribute.name] !== undefined
+                || frameValues.values[attribute.name] !== undefined
             "
             class="ma-0"
             :class="{
@@ -541,7 +570,7 @@ export default defineComponent({
                 :datatype="attribute.datatype"
                 :name="attribute.name"
                 :disabled="readOnlyMode
-                  || (mode === 'Detection' && selectedAttributes.keyframe === false)"
+                  || (mode === 'Detection' && isInterpolated)"
                 :values="attribute.values ? attribute.values : null"
                 :value="getAttributeValue(attribute)"
                 :locked-value="!!attribute.lockedValues"

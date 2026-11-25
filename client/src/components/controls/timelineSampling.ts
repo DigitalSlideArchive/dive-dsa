@@ -20,7 +20,8 @@ function findFrameIndex(values: Point[], frame: number) {
   return low;
 }
 
-function perpendicularDistanceToSegment(
+/** Squared distance from p to segment ab; squared to avoid sqrt/hypot in the hot loop. */
+function squaredDistanceToSegment(
   px: number,
   py: number,
   ax: number,
@@ -31,79 +32,122 @@ function perpendicularDistanceToSegment(
   const dx = bx - ax;
   const dy = by - ay;
   const lengthSq = dx * dx + dy * dy;
-  if (lengthSq === 0) {
-    return Math.hypot(px - ax, py - ay);
+  let t = 0;
+  if (lengthSq !== 0) {
+    t = ((px - ax) * dx + (py - ay) * dy) / lengthSq;
+    t = Math.max(0, Math.min(1, t));
   }
-  let t = ((px - ax) * dx + (py - ay) * dy) / lengthSq;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-}
-
-function screenCoords(
-  point: Point,
-  x: (frame: number) => number,
-  y: (value: number) => number,
-): [number, number] {
-  return [x(point[0]), y(point[1])];
-}
-
-function sameScreenPixel(
-  a: [number, number],
-  b: [number, number],
-): boolean {
-  return Math.round(a[0]) === Math.round(b[0]) && Math.round(a[1]) === Math.round(b[1]);
+  const ex = px - (ax + t * dx);
+  const ey = py - (ay + t * dy);
+  return ex * ex + ey * ey;
 }
 
 /**
- * Remove interior points that do not change the polyline at the current scales:
- * consecutive samples in the same screen pixel, and points collinear with their
- * neighbours on the actual path (not a long chord).
+ * Min/max per pixel column (M4): keep the first, last, lowest and highest point of
+ * every screen column, in source order. The rasterized polyline is unchanged: the
+ * vertical extent inside each column and the segment joining neighbouring columns
+ * are both preserved. Output is bounded by ~4 points per pixel of chart width, so
+ * zoomed-out views of long videos stay cheap without losing narrow spikes.
+ * Screen coordinates are computed once per input point and kept only for survivors.
  */
-function simplifyLinearScreenSpace(
-  points: Point[],
+function minMaxPerColumn(
+  values: Point[],
+  startIndex: number,
+  endIndex: number,
   x: (frame: number) => number,
   y: (value: number) => number,
-  epsilon: number,
-): Point[] {
-  if (points.length <= 2) {
-    return points;
-  }
-  let simplified = points.slice();
-  let changed = true;
-  while (changed) {
-    changed = false;
-    if (simplified.length <= 2) {
-      break;
+): { points: Point[]; sx: number[]; sy: number[] } {
+  const points: Point[] = [];
+  const sx: number[] = [];
+  const sy: number[] = [];
+  const emit = (i: number, px: number, py: number) => {
+    if (points.length && points[points.length - 1] === values[i]) {
+      return;
     }
-    const next: Point[] = [simplified[0]];
-    for (let i = 1; i < simplified.length - 1; i += 1) {
-      const previous = next[next.length - 1];
-      const current = simplified[i];
-      const after = simplified[i + 1];
-      const [px, py] = screenCoords(current, x, y);
-      const [prevX, prevY] = screenCoords(previous, x, y);
-      const [afterX, afterY] = screenCoords(after, x, y);
-      if (sameScreenPixel([px, py], [prevX, prevY])) {
-        changed = true;
-      } else {
-        const distance = perpendicularDistanceToSegment(px, py, prevX, prevY, afterX, afterY);
-        if (distance > epsilon) {
-          next.push(current);
-        } else {
-          changed = true;
-        }
+    points.push(values[i]);
+    sx.push(px);
+    sy.push(py);
+  };
+  let firstX = x(values[startIndex][0]);
+  let firstY = y(values[startIndex][1]);
+  let column = Math.floor(firstX);
+  let first = startIndex;
+  let min = startIndex;
+  let minX = firstX;
+  let minY = firstY;
+  let max = startIndex;
+  let maxX = firstX;
+  let maxY = firstY;
+  let last = startIndex;
+  let lastX = firstX;
+  let lastY = firstY;
+  const flush = () => {
+    // Emit the column's representatives once each, in source order.
+    const ids: [number, number, number][] = [
+      [first, firstX, firstY], [min, minX, minY], [max, maxX, maxY], [last, lastX, lastY],
+    ];
+    ids.sort((a, b) => a[0] - b[0]);
+    ids.forEach(([i, px, py]) => emit(i, px, py));
+  };
+  for (let i = startIndex + 1; i <= endIndex; i += 1) {
+    const px = x(values[i][0]);
+    const py = y(values[i][1]);
+    const c = Math.floor(px);
+    if (c !== column) {
+      flush();
+      column = c;
+      first = i; firstX = px; firstY = py;
+      min = i; minX = px; minY = py;
+      max = i; maxX = px; maxY = py;
+    } else if (py < minY) {
+      min = i; minX = px; minY = py;
+    } else if (py > maxY) {
+      max = i; maxX = px; maxY = py;
+    }
+    last = i; lastX = px; lastY = py;
+  }
+  flush();
+  return { points, sx, sy };
+}
+
+/**
+ * Ramer-Douglas-Peucker in screen space. Every removed point is within epsilon of
+ * the final segment that replaces it, so collinear runs collapse without drifting
+ * (e.g. a spike's return to baseline is never folded into a long ramp).
+ */
+function douglasPeucker(points: Point[], sx: number[], sy: number[], epsilon: number): Point[] {
+  const last = points.length - 1;
+  const keep = new Uint8Array(points.length);
+  const epsilonSq = epsilon * epsilon;
+  keep[0] = 1;
+  keep[last] = 1;
+  const stack: number[] = [0, last];
+  while (stack.length) {
+    const end = stack.pop() as number;
+    const start = stack.pop() as number;
+    let maxDistance = -1;
+    let maxIndex = -1;
+    for (let i = start + 1; i < end; i += 1) {
+      const distance = squaredDistanceToSegment(sx[i], sy[i], sx[start], sy[start], sx[end], sy[end]);
+      if (distance > maxDistance) {
+        maxDistance = distance;
+        maxIndex = i;
       }
     }
-    next.push(simplified[simplified.length - 1]);
-    simplified = next;
+    if (maxIndex !== -1 && maxDistance > epsilonSq) {
+      keep[maxIndex] = 1;
+      stack.push(start, maxIndex, maxIndex, end);
+    }
   }
-  return simplified;
+  return points.filter((_, i) => keep[i] === 1);
 }
 
 /**
  * Cull frame-ordered samples to the viewport with a neighbour beyond each edge.
- * Linear curves are simplified in screen space only where the polyline is
- * pixel-identical; step and natural curves keep every visible sample.
+ * Linear curves are reduced to each pixel column's first/last/min/max samples and
+ * then simplified with a 0.5px Douglas-Peucker tolerance, so the drawn line stays
+ * within a pixel of the full data; step and natural curves keep every visible sample.
+ * `y` must map values to the screen y the curve is drawn at (e.g. max-mode graphs).
  */
 export default function sampleTimelineValues(
   values: Point[],
@@ -113,7 +157,7 @@ export default function sampleTimelineValues(
   y: (value: number) => number,
   curveType: LineChartData['type'],
 ): Point[] {
-  if (values.length < 4 || !x) {
+  if (!x) {
     return values;
   }
   const startIndex = Math.max(0, findFrameIndex(values, startFrame) - 1);
@@ -121,9 +165,15 @@ export default function sampleTimelineValues(
   if (endIndex <= startIndex) {
     return values.slice(startIndex, endIndex + 1);
   }
-  const visible = values.slice(startIndex, endIndex + 1);
   if (curveType !== 'Linear' || !y) {
-    return visible;
+    return values.slice(startIndex, endIndex + 1);
   }
-  return simplifyLinearScreenSpace(visible, x, y, SCREEN_SIMPLIFY_EPSILON_PX);
+  if (endIndex - startIndex < 2) {
+    return values.slice(startIndex, endIndex + 1);
+  }
+  const reduced = minMaxPerColumn(values, startIndex, endIndex, x, y);
+  if (reduced.points.length <= 2) {
+    return reduced.points;
+  }
+  return douglasPeucker(reduced.points, reduced.sx, reduced.sy, SCREEN_SIMPLIFY_EPSILON_PX);
 }

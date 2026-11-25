@@ -84,9 +84,59 @@ The 4-bit quantized weights are used. The files are stored in the browser's Cach
 
 The ONNX Runtime WebAssembly files are part of the DIVE-DSA client build and are served by the DIVE-DSA server itself.
 
+### Serving the models from DIVE-DSA
+
+The DIVE-DSA server can host the models itself, so browsers never contact the Hugging Face Hub. The `dive_hf_models` Girder plugin serves the folders of the **DIVE HF Models** collection in the Hub's layout:
+
+```
+/collection/DIVE HF Models/<org>/<repo>/...   ->   /api/v1/dive_hf_models/<org>/<repo>/resolve/main/<file>
+```
+
+Admins choose where browsers get the models under **Admin → Models**:
+
+| Source | Behavior |
+|---|---|
+| **Automatic** (default) | Models stored in DIVE-DSA load from there. Any others come from the Hub. |
+| **Hugging Face Hub** | Always download from huggingface.co. |
+| **DIVE-DSA only** | Only models stored in DIVE-DSA. Browsers never contact huggingface.co, and a model that hasn't been imported fails to load. |
+| **Custom server** | A mirror URL that uses the Hub's `<org>/<repo>/resolve/main/<file>` layout. |
+
+The page shows which Segment tool models are stored in DIVE-DSA and where each one will load from. **Test** fetches each model's `config.json` from that location. The choice is saved as the `dive_hf_models.model_source` setting (`GET`/`PUT /api/v1/dive_hf_models/config`). It only affects downloads: a browser that already cached a model keeps using its copy.
+
+Use the `dive-hf-models` command to download a model from the Hub, package it as a zip, upload it and extract it into the collection. `server/dive_hf_models/cli.py` is a self-contained [uv](https://docs.astral.sh/uv/) script (PEP 723 inline dependencies). Copy that one file to any machine with uv and run `uv run cli.py ...`, or run `./cli.py ...` directly. It is also installed as `dive-hf-models` with the DIVE-DSA server package. Importing needs a Girder admin account:
+
+```bash
+# Download both SAM2 models (4-bit weights) and import them into DIVE-DSA
+dive-hf-models sync --api-url https://dive.example.org/api/v1 --api-key <admin API key>
+```
+
+For servers with no Internet access, split it into two steps:
+
+```bash
+# On a machine with Internet access: writes onnx-community__sam2.1-hiera-tiny-ONNX.zip etc.
+dive-hf-models download
+
+# Next to the DIVE-DSA server
+dive-hf-models upload onnx-community__sam2.1-hiera-*.zip --api-url https://dive.example.org/api/v1 --api-key <key>
+```
+
+Useful options:
+
+* `download`/`sync` take model ids, such as `dive-hf-models download onnx-community/sam2.1-hiera-tiny-ONNX`. `--dtype` picks other ONNX weights and can be repeated. `--all` takes every file in the repository.
+* `upload` also accepts a model directory (for example one made by `hf download`) and zips it on the fly. Pass `--repo-id <org>/<repo>` when the directory name doesn't give it.
+* `--replace` overwrites a model that is already in DIVE-DSA. Without it the import is refused.
+* `--folder-id` uploads the zip to that Girder folder instead of your Private folder. Either way, the zip is deleted after it is extracted.
+* `--api-url` (or `GIRDER_API_URL`) defaults to `http://localhost:8010/api/v1`.
+* Girder sign-in uses `--api-key` (or `GIRDER_API_KEY`), else `--token`, else a username and password: `--username`/`--password` (or `GIRDER_USERNAME`/`GIRDER_PASSWORD`), with a prompt for any that are missing.
+* `dive-hf-models list` shows the models the server has. It doesn't sign in unless credentials are given.
+
+The zip goes to your **Private** folder, the server extracts it into `DIVE HF Models/<org>/<repo>/`, and then the zip is deleted. You can also upload a zip through the Girder UI and call `POST /dive_hf_models/import?fileId=<file id>` from the API page. The zip must have `config.json` at its root or inside `<repo>/` or `<org>/<repo>/` folders.
+
+The collection is public when it is created, and it should stay public. The Segment tool loads model files from it by URL, which is how the system reads them. Command parameters are listed in `server/dive_hf_models/README.md`. To use a different collection, set the `dive_hf_models.root_collection` system setting to its id.
+
 ### Offline or restricted networks
 
-To serve the models from your own host instead of the Hugging Face Hub, mirror the repositories above (keeping the Hub's `<repository>/resolve/main/<file>` layout) and build the client with:
+To serve the models from another host instead of DIVE-DSA or the Hugging Face Hub, mirror the repositories above (keeping the Hub's `<repository>/resolve/main/<file>` layout) and choose **Custom server** under Admin → Models. You can also fix the host at build time with the command below, which overrides the admin setting.
 
 ```bash
 VUE_APP_SAM_MODEL_HOST=https://models.example.org/ npm run build:web
@@ -104,7 +154,7 @@ Select a track or detection for editing first. The button is only enabled while 
 
 > **"Could not load SAM2.1 Tiny"**
 
-The model could not be downloaded or started. Check that the browser can reach `huggingface.co` (or your `VUE_APP_SAM_MODEL_HOST`), and try **Device: CPU** in the settings if a GPU driver problem is suspected. The browser console has the full error.
+The model could not be downloaded or started. Check that the browser can reach `huggingface.co`, your `VUE_APP_SAM_MODEL_HOST`, or (for models imported with `dive-hf-models`) that the files open at `/api/v1/dive_hf_models/<org>/<repo>/resolve/main/config.json`. Try **Device: CPU** in the settings if a GPU driver problem is suspected. The browser console has the full error.
 
 > **"The browser blocked reading this frame's pixels"**
 

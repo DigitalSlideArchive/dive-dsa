@@ -84,7 +84,7 @@ export default defineComponent({
           }
         });
         results.value = taskHierarchy;
-      } catch (err) {
+      } catch (_err) {
         console.error("Cannot communicate with server");
       }
     };
@@ -112,7 +112,7 @@ export default defineComponent({
     <div v-if="loggedIn" class="dropdown inline-block relative w-56">
       <button
         class="bg-backgroundColor text-textColor font-semibold py-2 px-4 rounded inline-flex items-center
-        rounded-sm flex items-center min-w-32"
+        rounded-xs flex items-center min-w-32"
         @click="clicked = true"
       >
         <span class="pr-1 font-semibold flex-1">Tasks</span>
@@ -188,7 +188,7 @@ export default defineComponent({
     <div v-else>
       <button
         type="button"
-        class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal no-underline warning-msg-dark border-yellow bg-white hover:bg-yellow-light hover:warning-msg-darker"
+        class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded-sm text-base leading-normal no-underline warning-msg-dark border-yellow bg-white hover:bg-yellow-light hover:warning-msg-darker"
         data-toggle=""
         data-placement="top"
         title="Not Logged In"

@@ -55,6 +55,15 @@ function shouldHideMissingDisplayTrack(
   return false;
 }
 
+/** Builds a lookup for a graph filter's appliedTo list, once per graph instead of per key per frame */
+function makeAppliedToMatcher(appliedTo: string[]): (key: string) => boolean {
+  if (appliedTo.includes('all')) {
+    return () => true;
+  }
+  const keys = new Set(appliedTo);
+  return (key: string) => keys.has(key);
+}
+
 /**
  * Modified markChangesPending for attributes specifically
  */
@@ -74,7 +83,6 @@ interface UseAttributesParams {
   selectedTrackId: Ref<number | null>;
   trackStyleManager: StyleManager;
   cameraStore: CameraStore;
-  pendingSaveCount: Ref<number>;
   login: string;
 }
 
@@ -84,7 +92,6 @@ export default function UseAttributes(
     trackStyleManager,
     selectedTrackId,
     cameraStore,
-    pendingSaveCount,
     login,
   }: UseAttributesParams,
 ) {
@@ -94,8 +101,8 @@ export default function UseAttributes(
 
   const attributes: Ref<Record<string, Attribute>> = ref({});
   const attributeFilters: Ref<AttributeFilter[]> = ref([]);
-  const timelineGraphs: Ref<Record<string, TimelineGraph & {filtered?: boolean}>> = ref({});
-  const swimlaneGraphs: Ref<Record<string, SwimlaneGraph & {filtered?: boolean}>> = ref({});
+  const timelineGraphs: Ref<Record<string, TimelineGraph>> = ref({});
+  const swimlaneGraphs: Ref<Record<string, SwimlaneGraph>> = ref({});
 
   function loadAttributes(metadataAttributes: Record<string, Attribute>) {
     attributes.value = metadataAttributes;
@@ -203,14 +210,39 @@ export default function UseAttributes(
     }
   }
 
+  /**
+   * Alphabetical order does not depend on attribute values, so it is computed once per
+   * attribute list (which is a new array whenever an attribute definition changes)
+   * instead of on every frame the attribute panel asks for it.
+   */
+  const alphabeticalOrderCache = new WeakMap<Attribute[], Partial<Record<Attribute['belongs'], Attribute[]>>>();
+
+  function getAlphabeticalOrder(attributeList: Attribute[], mode: Attribute['belongs']) {
+    let byMode = alphabeticalOrderCache.get(attributeList);
+    if (!byMode) {
+      byMode = {};
+      alphabeticalOrderCache.set(attributeList, byMode);
+    }
+    let order = byMode[mode];
+    if (!order) {
+      const lowerKeys = new Map<Attribute, string>();
+      order = Object.values(attributeList).filter((attribute: Attribute) => attribute.belongs === mode);
+      order.forEach((attribute) => lowerKeys.set(attribute, attribute.key.toLowerCase()));
+      order.sort((a, b) => (lowerKeys.get(a) as string).localeCompare(lowerKeys.get(b) as string));
+      byMode[mode] = order;
+    }
+    return order;
+  }
+
   function sortAttributes(attributeList: Attribute[], mode: Attribute['belongs'], attribVals: StringKeyObject, sortingMode: number) {
+    if (sortingMode === 0) {
+      // Copy so callers that sort or filter the result in place can't change the cache
+      return getAlphabeticalOrder(attributeList, mode).slice();
+    }
     const filteredAttributes = Object.values(attributeList).filter(
       (attribute: Attribute) => attribute.belongs === mode,
     );
     return filteredAttributes.sort((a, b) => {
-      if (sortingMode === 0) {
-        return (a.key.toLowerCase().localeCompare(b.key.toLowerCase()));
-      }
       const aVal = attribVals[a.name];
       const bVal = attribVals[b.name];
       if (aVal === undefined && bVal === undefined) {
@@ -344,12 +376,12 @@ export default function UseAttributes(
   function processDetectionKey(
     key:string,
     valueMap: Record<string, TimelineAttribute>, //modified in place
-    filter: TimeLineFilter,
+    appliesTo: (key: string) => boolean,
     frame: number,
     attr?: StringKeyObject,
     settings?: Record<string, TimelineGraphSettings>,
   ) {
-    if (attr && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+    if (attr && appliesTo(key)) {
       const val = attr[key] as string | number | boolean | undefined;
       if (val === undefined) {
         return;
@@ -418,6 +450,7 @@ export default function UseAttributes(
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, TimelineAttribute> = { };
     const attributeLookup = attributesByName.value;
+    const appliesTo = makeAppliedToMatcher(filter.appliedTo);
     track.features.forEach((feature) => {
       const { frame } = feature;
       if (feature.attributes) {
@@ -426,14 +459,14 @@ export default function UseAttributes(
           Object.keys(userAttr).forEach((key) => {
             const baseAttribute = attributeLookup.get(key);
             if (baseAttribute?.user && feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
-              processDetectionKey(key, valueMap, filter, frame, userAttr, settings);
+              processDetectionKey(key, valueMap, appliesTo, frame, userAttr, settings);
             }
           });
         }
         Object.keys(feature.attributes).forEach((key) => {
           const baseAttribute = attributeLookup.get(key);
           if (!baseAttribute?.user) {
-            processDetectionKey(key, valueMap, filter, frame, feature.attributes, settings);
+            processDetectionKey(key, valueMap, appliesTo, frame, feature.attributes, settings);
           }
         });
       }
@@ -441,41 +474,73 @@ export default function UseAttributes(
     return { valueMap, begin: track.begin, end: track.end };
   }
 
+  // GRAPH DISPLAY TRACKS
+  /**
+   * Track lookups go through non-reactive Maps, so depend on each camera's reactive id list
+   * to notice a displayed (e.g. pinned) track being created or deleted.
+   */
+  function dependOnTrackIds() {
+    cameraStore.camMap.value.forEach((camera) => camera.trackStore.annotationIds.value);
+  }
+
+  interface GraphTrackState {
+    /** Track to build graph data from; undefined when there is none or it is filtered */
+    track?: Track;
+    /** True when the graph should be hidden for the current selection */
+    filtered: boolean;
+  }
+
+  /**
+   * Resolves the track a graph displays. Depends on that track's revision (features are
+   * non-reactive), so graph data rebuilds only when the displayed track changes rather
+   * than on every edit to any track.
+   */
+  function resolveGraphTrack(displaySettings?: DisplayTrackFilterSettings): GraphTrackState {
+    dependOnTrackIds();
+    const trackId = getDisplayTrackId(displaySettings, selectedTrackId.value);
+    const track = trackId !== null ? cameraStore.getAnyPossibleTrack(trackId) : undefined;
+    if (!track) {
+      return { filtered: shouldHideMissingDisplayTrack(displaySettings, trackId, false) };
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _revision = track.revision.value; // reactive to edits of this track only
+    if (isDisplayFiltered(displaySettings, track, selectedTrackId.value)) {
+      return { filtered: true };
+    }
+    return { track, filtered: false };
+  }
+
+  function resolveGraphTracks(graphs: Record<string, TimelineGraph | SwimlaneGraph>) {
+    const states: Record<string, GraphTrackState> = {};
+    Object.entries(graphs).forEach(([key, graph]) => {
+      states[key] = graph.enabled ? resolveGraphTrack(graph.displaySettings) : { filtered: false };
+    });
+    return states;
+  }
+
+  const timelineTrackStates = computed(() => resolveGraphTracks(timelineGraphs.value));
+  const swimlaneTrackStates = computed(() => resolveGraphTracks(swimlaneGraphs.value));
+
   const attributeTimelineData = computed(() => {
     const results: Record<string, { data: TimelineAttribute[]; begin: number; end: number; yRange?: number[]; ticks?: number}> = {};
-    const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
-    if (val !== undefined && selectedTrackId.value !== undefined) {
-      const vals = Object.entries(timelineGraphs.value);
-      vals.forEach(([key, graph]) => {
-        if (graph.enabled) {
-          const trackId = getDisplayTrackId(graph.displaySettings, selectedTrackId.value);
-          const displayTrack = trackId !== null
-            ? cameraStore.getAnyPossibleTrack(trackId)
-            : undefined;
-          if (displayTrack) {
-            if (isDisplayFiltered(graph.displaySettings, displayTrack, selectedTrackId.value)) {
-              timelineGraphs.value[key].filtered = true;
-              return;
-            }
-            timelineGraphs.value[key].filtered = false;
-            const timelineData = generateDetectionTimelineData(displayTrack, graph.filter, graph.settings);
-            // Need to convert any Number types to Line Chart data;
-            const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
-            results[key] = {
-              data: numberVals,
-              begin: timelineData.begin,
-              end: timelineData.end,
-              yRange: graph.yRange,
-              ticks: graph.ticks,
-            };
-          } else if (shouldHideMissingDisplayTrack(graph.displaySettings, trackId, false)) {
-            timelineGraphs.value[key].filtered = true;
-          }
-        }
-      });
-      return results;
-    }
-    return {};
+    const states = timelineTrackStates.value;
+    Object.entries(timelineGraphs.value).forEach(([key, graph]) => {
+      const displayTrack = states[key]?.track;
+      if (!graph.enabled || !displayTrack) {
+        return;
+      }
+      const timelineData = generateDetectionTimelineData(displayTrack, graph.filter, graph.settings);
+      // Need to convert any Number types to Line Chart data;
+      const numberVals = Object.values(timelineData.valueMap).filter((item) => item.type === 'number');
+      results[key] = {
+        data: numberVals,
+        begin: timelineData.begin,
+        end: timelineData.end,
+        yRange: graph.yRange,
+        ticks: graph.ticks,
+      };
+    });
+    return results;
   });
 
   function setTimelineEnabled(name: string, val: boolean) {
@@ -529,10 +594,9 @@ export default function UseAttributes(
 
   const timelineEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const nudgeVal = attributeTimelineData.value; // reactive to changes in the data
+    const states = timelineTrackStates.value;
     Object.entries(timelineGraphs.value).forEach(([key, graph]) => {
-      filters[key] = graph.enabled && !graph.filtered;
+      filters[key] = graph.enabled && !states[key]?.filtered;
     });
     return filters;
   });
@@ -547,9 +611,24 @@ export default function UseAttributes(
 
   const getAttributeValueColor = createGetAttributeValueColor(trackStyleManager);
 
+  /**
+   * Color lookup per attribute key for numeric values. The d3 scale for each numeric
+   * attribute is built once here rather than on every call, because the swimlane calls
+   * this once per keyframe per numeric attribute.
+   */
   const numericalColorScaling = computed(() => {
     const autoColorIndex: Record<string, (data: string | number | boolean) => string> = {};
     Object.entries(attributes.value).forEach(([baseKey, item]) => {
+      let colorScale: d3.ScaleLinear<string, string> | null = null;
+      if (item.datatype === 'number' && item.valueColors && Object.keys(item.valueColors).length) {
+        const colorArr = Object.entries(item.valueColors as Record<string, string>)
+          .map(([key, val]) => ({ key: parseFloat(key), val }))
+          .filter((entry) => !Number.isNaN(entry.key));
+        colorArr.sort((a, b) => a.key - b.key);
+        colorScale = d3.scaleLinear<string>()
+          .domain(colorArr.map((map) => map.key))
+          .range(colorArr.map((map) => map.val));
+      }
       autoColorIndex[baseKey] = ((data: string | number | boolean) => {
         if (data === undefined || data === null || data === '') {
           if (item.noneColor) {
@@ -559,18 +638,7 @@ export default function UseAttributes(
             || item.color
             || trackStyleManager.typeStyling.value.color(item.name);
         }
-        if (item.datatype === 'number' && item.valueColors && Object.keys(item.valueColors).length) {
-          const colorArr = Object.entries(item.valueColors as Record<string, string>)
-            .map(([key, val]) => ({ key: parseFloat(key), val }))
-            .filter((entry) => !Number.isNaN(entry.key));
-          colorArr.sort((a, b) => a.key - b.key);
-
-          const colorNums = colorArr.map((map) => map.key);
-          const colorVals = colorArr.map((map) => map.val);
-          const colorScale = d3.scaleLinear()
-            .domain(colorNums)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .range(colorVals as any);
+        if (colorScale) {
           return colorScale(data as number)?.toString() || item.color || 'white';
         }
         return item.color || trackStyleManager.typeStyling.value.color(data.toString());
@@ -583,7 +651,7 @@ export default function UseAttributes(
   function processSwimlaneKey(
     key:string,
     valueMap: Record<string, SwimlaneAttribute>, // updates valueMap in place
-    filter: SwimlaneFilter,
+    appliesTo: (key: string) => boolean,
     track: Track,
     frame: number,
     attributes?: StringKeyObject,
@@ -595,7 +663,7 @@ export default function UseAttributes(
     if (key === 'userAttributes') {
       return null;
     }
-    if (attributes && (filter.appliedTo.includes(key) || filter.appliedTo.includes('all'))) {
+    if (attributes && appliesTo(key)) {
       // Get user attribute if it exists:
       const val = attributes[key] as string | number | boolean | undefined;
       if (val === undefined) {
@@ -685,6 +753,7 @@ export default function UseAttributes(
     // So we need to generate a list of all of the attributres for the length of the track
     const valueMap: Record<string, SwimlaneAttribute> = { };
     const attributeLookup = attributesByName.value;
+    const appliesTo = makeAppliedToMatcher(filter.appliedTo);
     track.features.forEach((feature) => {
       const { frame } = feature;
       if (feature.attributes) {
@@ -696,7 +765,7 @@ export default function UseAttributes(
               return;
             }
             if (feature.attributes?.userAttributes && feature.attributes.userAttributes[login] && (userAttr[key] !== undefined)) {
-              processSwimlaneKey(key, valueMap, filter, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, renderMode);
+              processSwimlaneKey(key, valueMap, appliesTo, track, frame, userAttr, baseAttribute, settings, colorScalingNumbers, renderMode);
             }
           });
         }
@@ -705,7 +774,7 @@ export default function UseAttributes(
           if (baseAttribute?.user) {
             return;
           }
-          processSwimlaneKey(key, valueMap, filter, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, renderMode);
+          processSwimlaneKey(key, valueMap, appliesTo, track, frame, feature.attributes, baseAttribute, settings, colorScalingNumbers, renderMode);
         });
       }
     });
@@ -714,37 +783,21 @@ export default function UseAttributes(
 
   const attributeSwimlaneData = computed(() => {
     const results: Record<string, Record<string, SwimlaneAttribute>> = {};
-    const val = pendingSaveCount.value; // depends on pending save count so it updates in real time
-    if (val !== undefined) {
-      const vals = Object.entries(swimlaneGraphs.value);
-      vals.forEach(([key, graph]) => {
-        if (graph.enabled) {
-          const trackId = getDisplayTrackId(graph.displaySettings, selectedTrackId.value);
-          const displayTrack = trackId !== null
-            ? cameraStore.getAnyPossibleTrack(trackId)
-            : undefined;
-          if (displayTrack) {
-            if (isDisplayFiltered(graph.displaySettings, displayTrack, selectedTrackId.value)) {
-              swimlaneGraphs.value[key].filtered = true;
-              return;
-            }
-            swimlaneGraphs.value[key].filtered = false;
-            const swimlaneData = generateDetectionSwimlaneData(
-              displayTrack,
-              graph.filter,
-              graph.settings,
-              numericalColorScaling.value,
-              graph.displaySettings?.renderMode,
-            );
-            results[key] = swimlaneData;
-          } else if (shouldHideMissingDisplayTrack(graph.displaySettings, trackId, false)) {
-            swimlaneGraphs.value[key].filtered = true;
-          }
-        }
-      });
-      return results;
-    }
-    return {};
+    const states = swimlaneTrackStates.value;
+    Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
+      const displayTrack = states[key]?.track;
+      if (!graph.enabled || !displayTrack) {
+        return;
+      }
+      results[key] = generateDetectionSwimlaneData(
+        displayTrack,
+        graph.filter,
+        graph.settings,
+        numericalColorScaling.value,
+        graph.displaySettings?.renderMode,
+      );
+    });
+    return results;
   });
   function setSwimlaneEnabled(name: string, val: boolean) {
     if (swimlaneGraphs.value[name]) {
@@ -797,18 +850,15 @@ export default function UseAttributes(
 
   const swimlaneEnabled = computed(() => {
     const filters: Record<string, boolean> = {};
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _nudgeVal = attributeSwimlaneData.value; // reactive to changes in the data
+    const states = swimlaneTrackStates.value;
     Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
-      filters[key] = graph.enabled && !graph.filtered;
+      filters[key] = graph.enabled && !states[key]?.filtered;
     });
     return filters;
   });
 
   const swimlaneDisplaySettings = computed(() => {
     const displaySettings: Record<string, SwimlaneGraph['displaySettings']> = {};
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _nudgeVal = attributeSwimlaneData.value; // reactive to changes in the data
     Object.entries(swimlaneGraphs.value).forEach(([key, graph]) => {
       displaySettings[key] = graph.displaySettings;
     });

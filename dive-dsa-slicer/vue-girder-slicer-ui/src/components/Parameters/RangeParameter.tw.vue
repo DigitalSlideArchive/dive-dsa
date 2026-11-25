@@ -54,7 +54,7 @@ const currentValue: Ref<XMLBaseValue> = ref(0);
       v-if="data.constraints && typeof data.constraints.min === 'number' && typeof data.constraints.max === 'number'"
       id="parameterInput"
       :disabled="!!disabledReason"
-      class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300text-grey-darker border border-grey rounded"
+      class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300text-grey-darker border border-grey rounded-sm"
       type="range"
       :min="data.constraints.min || 0"
       :max="data.constraints.max || 1"
@@ -64,7 +64,7 @@ const currentValue: Ref<XMLBaseValue> = ref(0);
     <input 
       v-else
       id="parameterInput"
-      class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300 text-grey-darker border border-grey rounded"
+      class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300 text-grey-darker border border-grey rounded-sm"
       type="range"
       min="0"
       max="1"

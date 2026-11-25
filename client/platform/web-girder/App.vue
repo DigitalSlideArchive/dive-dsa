@@ -25,6 +25,7 @@ import {
   saveFilters,
   saveConfiguration,
   transferConfiguration,
+  getSamModelHost,
 } from './api';
 import { openFromDisk } from './utils';
 
@@ -57,6 +58,7 @@ export default defineComponent({
       loadMetadata,
       openFromDisk,
       importAnnotationFile,
+      getSamModelHost,
     });
   },
 });

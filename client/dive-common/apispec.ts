@@ -166,6 +166,11 @@ interface Api {
   saveFilters(datasetId: string, args: SaveFilterArgs): Promise<unknown>;
   saveConfiguration(datasetId: string, args: DiveConfiguration['metadata']['configuration']): Promise<unknown>;
   transferConfiguration(source: string, dest: string): Promise<unknown>;
+  /**
+   * Base URL that serves a browser model (Hugging Face `<org>/<repo>` id) in
+   * the `<org>/<repo>/resolve/<revision>/<file>` layout, or null to use the Hub.
+   */
+  getSamModelHost?(modelId: string): Promise<string | null>;
   // Non-Endpoint shared functions
   openFromDisk(datasetType: DatasetType | 'calibration' | 'annotation' | 'text' | 'zip', directory?: boolean):
     Promise<{canceled?: boolean; filePaths: string[]; fileList?: File[]; root?: string}>;

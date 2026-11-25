@@ -88,9 +88,46 @@ function getSurroundingElements(
   return [arr[starti - 1], arr[starti]];
 }
 
+type Segment = [number, number];
+
+/**
+ * Locate a frame among sorted, non-overlapping [start, end, start, end, ...] segment pairs
+ * in O(log n). A trailing unpaired value is ignored.
+ * @returns inside - the segment containing frame (inclusive) or null;
+ *   before/after - the nearest segments entirely before/after frame, or null
+ */
+function locateSegment(ranges: readonly number[], frame: number): {
+  inside: Segment | null;
+  before: Segment | null;
+  after: Segment | null;
+} {
+  const count = Math.floor(ranges.length / 2);
+  const segment = (i: number): Segment | null => (
+    i >= 0 && i < count ? [ranges[2 * i], ranges[2 * i + 1]] : null);
+  // Find the last segment whose start is at or before frame
+  let lo = 0;
+  let hi = count - 1;
+  let last = -1;
+  while (lo <= hi) {
+    // eslint-disable-next-line no-bitwise
+    const mid = (lo + hi) >> 1;
+    if (ranges[2 * mid] <= frame) {
+      last = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (last >= 0 && frame <= ranges[2 * last + 1]) {
+    return { inside: segment(last), before: segment(last - 1), after: segment(last + 1) };
+  }
+  return { inside: null, before: segment(last), after: segment(last + 1) };
+}
+
 export {
   binarySearch,
   getSurroundingElements,
   listInsert,
   listRemove,
+  locateSegment,
 };

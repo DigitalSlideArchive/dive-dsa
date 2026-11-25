@@ -9,7 +9,9 @@ import type { AggregateMediaController } from 'vue-media-annotator/components/an
 import type SegmentationPointClick from 'dive-common/recipes/segmentationpointclick';
 import type { SegmentationPredictRequest } from 'dive-common/use/segmentation/types';
 import SamOnnx from 'dive-common/use/segmentation/SamOnnx';
-import type { RgbaImage, SamModelProgress, SamStatusCallback } from 'dive-common/use/segmentation/SamOnnx';
+import type {
+  RgbaImage, SamModelHostResolver, SamModelProgress, SamStatusCallback,
+} from 'dive-common/use/segmentation/SamOnnx';
 import { captureQuadMedia, findQuadMedia } from 'dive-common/use/segmentation/frameCapture';
 import { clientSettings } from 'dive-common/store/settings';
 
@@ -43,7 +45,8 @@ export default function useSamSegmentation({
   selectedCamera,
   datasetId,
   imageData,
-  createSam = (onStatus) => new SamOnnx(onStatus),
+  resolveModelHost,
+  createSam = (onStatus) => new SamOnnx(onStatus, undefined, resolveModelHost ?? null),
 }: {
   recipe: SegmentationPointClick;
   aggregateController: Ref<AggregateMediaController>;
@@ -51,6 +54,8 @@ export default function useSamSegmentation({
   datasetId: Ref<string | null>;
   /** Image-sequence frame URLs per camera; empty for video */
   imageData: Ref<Record<string, FrameUrl[]>>;
+  /** Where the platform serves a SAM model from (e.g. Girder), or null for the Hub */
+  resolveModelHost?: SamModelHostResolver;
   /** Override for tests */
   createSam?: (onStatus: SamStatusCallback) => SamOnnx;
 }) {

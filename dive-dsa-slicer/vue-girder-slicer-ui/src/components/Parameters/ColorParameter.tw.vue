@@ -49,7 +49,7 @@ export default defineComponent({
     > {{ disabledReason }}</span></label>
     <input
       id="parameterInput"
-      class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300 text-grey-darker border border-grey rounded"
+      class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-black dark:bg-gray-600 dark:text-gray-300 text-grey-darker border border-grey rounded-sm"
       type="color"
       :disabled="!!disabledReason"
       :value="currentValue"

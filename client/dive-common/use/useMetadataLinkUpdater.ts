@@ -1,6 +1,7 @@
 import { Attribute } from 'vue-media-annotator/use/AttributeTypes';
 import { StringKeyObject } from 'vue-media-annotator/BaseAnnotation';
 import type Track from 'vue-media-annotator/track';
+import { locateSegment } from 'vue-media-annotator/listUtils';
 import { useHandler, useAttributes } from 'vue-media-annotator/provides';
 import { useStore } from 'platform/web-girder/store/types';
 import { usePrompt } from 'dive-common/vue-utilities/prompt-service';
@@ -125,19 +126,8 @@ function segmentStartFrameIfInside(
   frame: number,
   userForRanges: string | null,
 ): number | null {
-  const rangeVals = track.getFrameAttributeRanges([attrName], userForRanges);
-  const ranges = rangeVals[attrName];
-  if (!ranges?.length) {
-    return null;
-  }
-  for (let i = 0; i < ranges.length; i += 2) {
-    const start = ranges[i];
-    const end = ranges[i + 1];
-    if (frame >= start && frame <= end) {
-      return start;
-    }
-  }
-  return null;
+  const { inside } = locateSegment(track.getAttributeSegmentFrames(attrName, userForRanges), frame);
+  return inside ? inside[0] : null;
 }
 
 /**

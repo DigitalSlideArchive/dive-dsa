@@ -1,8 +1,10 @@
 /**
  * Browser SAM2 point-prompt segmentation through transformers.js / ONNX Runtime Web.
  *
- * The model is downloaded from the Hugging Face Hub (or VUE_APP_SAM_MODEL_HOST)
- * on first use and kept in the browser Cache API, so later sessions load it
+ * The model is downloaded on first use from VUE_APP_SAM_MODEL_HOST when set,
+ * else from the host `resolveModelHost` returns (DIVE-DSA's Girder when the
+ * model was imported with dive-hf-models), else the Hugging Face Hub, and is
+ * kept in the browser Cache API, so later sessions load it
  * from disk. Each frame is encoded once; further clicks on the same frame only
  * run the small prompt decoder.
  */
@@ -113,6 +115,29 @@ function validPrompts(points: number[][], labels: number[]) {
     && labels.every((label) => label === 0 || label === 1);
 }
 
+/** Base URL serving `<org>/<repo>/resolve/<revision>/<file>` for a model id, or null. */
+export type SamModelHostResolver = (modelId: string) => Promise<string | null | undefined>;
+
+function withTrailingSlash(url: string) {
+  return url.endsWith('/') ? url : `${url}/`;
+}
+
+/**
+ * transformers.js' own remoteHost (the Hub) per module `env`, recorded before
+ * any SamOnnx changes it. `env` is shared by every instance, so a per-instance
+ * snapshot would pick up a host an earlier instance set.
+ */
+const defaultRemoteHosts = new WeakMap<object, string>();
+
+function defaultRemoteHost(env: TransformersModule['env']): string {
+  let host = defaultRemoteHosts.get(env);
+  if (host === undefined) {
+    host = env.remoteHost;
+    defaultRemoteHosts.set(env, host);
+  }
+  return host;
+}
+
 /** One lazily loaded model and a small cache of encoded frames. Work is
  * serialized: switching models cannot release a session inference is using. */
 export default class SamOnnx {
@@ -138,6 +163,7 @@ export default class SamOnnx {
   constructor(
     private onStatus: SamStatusCallback = () => { /* no status display */ },
     private loader: () => Promise<TransformersModule> = loadTransformers,
+    private resolveModelHost: SamModelHostResolver | null = null,
   ) { /* Lazily initialized. */ }
 
   get loaded(): boolean {
@@ -183,11 +209,13 @@ export default class SamOnnx {
     if (this.model) return;
     const transformers = await this.loader();
     const { env } = transformers;
-    // Replaced at build time (vite `define`), so read it as written.
-    const host = process.env.VUE_APP_SAM_MODEL_HOST;
-    if (host) env.remoteHost = host.endsWith('/') ? host : `${host}/`;
-    env.allowLocalModels = false;
     const id = SAM_MODELS[this.kind];
+    const hubHost = defaultRemoteHost(env);
+    // Replaced at build time (vite `define`), so read it as written.
+    const host = process.env.VUE_APP_SAM_MODEL_HOST || await this.modelHost(id);
+    // env is global: reset it so a model the server lacks still comes from the Hub.
+    env.remoteHost = withTrailingSlash(host || hubHost);
+    env.allowLocalModels = false;
     const label = SAM_LABELS[this.kind];
     const devices = await samDevices(navigatorGpu(), this.devicePreference);
     let lastError: unknown;
@@ -229,6 +257,15 @@ export default class SamOnnx {
       }
       throw new Error(`Could not load ${label}: ${String(lastError)}`);
     } finally { this.onStatus(null); }
+  }
+
+  private async modelHost(id: string): Promise<string | null> {
+    if (!this.resolveModelHost) return null;
+    try {
+      return (await this.resolveModelHost(id)) || null;
+    } catch {
+      return null; // Server lookup failed: fall back to the Hub.
+    }
   }
 
   private async loadOnDevice(

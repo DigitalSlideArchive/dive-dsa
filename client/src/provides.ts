@@ -25,6 +25,7 @@ import type {
   MaskEditingTools, MaskItem, MaskTriggerActions, UseMaskInterface,
 } from './use/useMasks';
 import type { ImageEnhancements } from './use/useImageEnhancements';
+import type { CroppedMask } from './use/rle';
 import TrackFilterControls from './TrackFilterControls';
 import GroupFilterControls from './GroupFilterControls';
 import CameraStore from './CameraStore';
@@ -430,8 +431,12 @@ function dummyState(): State {
         return undefined;
       },
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      getRLELuminanceMask(trackId: number, frameId: number): { width: number, height: number, data: Uint8Array } | undefined {
+      getCroppedMask(trackId: number, frameId: number, color: string): CroppedMask | undefined {
         return undefined;
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      setMaskColorResolver(resolver: (trackId: number) => string) {
+        // no-op
       },
       editorOptions: {
         hasMasks: ref(false),
