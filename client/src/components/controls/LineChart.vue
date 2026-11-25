@@ -265,6 +265,9 @@ export default Vue.extend({
         stepAfter: d3.curveStepAfter,
         natural: d3.curveNatural,
       };
+      // Screen y that the *Max paths actually draw; sampling must use it too, or small
+      // non-zero values (full height in max mode) are simplified away as sub-pixel noise.
+      this.maxModeY = (value) => y(value ? max : min);
       const lineTypes = ['linear', 'step', 'stepBefore', 'stepAfter', 'natural'];
       // eslint-disable-next-line func-names
       lineTypes.forEach((lineType) => {
@@ -301,8 +304,10 @@ export default Vue.extend({
       const defaultType = this.atrributesChart ? 'Linear' : 'StepAfter';
       const knownCurveTypes = ['Linear', 'Step', 'StepBefore', 'StepAfter', 'Natural'];
       const curveType = knownCurveTypes.includes(d.type) ? d.type : defaultType;
-      const values = sampleTimelineValues(d.values, this.startFrame, this.endFrame, this.x, this.y, curveType);
-      if (max && d.type) {
+      const maxMode = Boolean(max && d.type);
+      const drawnY = maxMode ? this.maxModeY : this.y;
+      const values = sampleTimelineValues(d.values, this.startFrame, this.endFrame, this.x, drawnY, curveType);
+      if (maxMode) {
         add = `${add}Max`;
       }
       if (curveType === 'Step') {
