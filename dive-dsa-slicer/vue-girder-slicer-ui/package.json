@@ -76,7 +76,7 @@
     "sass": "^1.69.5",
     "tailwindcss": "^4.3.5",
     "typescript": "~5.4.5",
-    "vite": "^6.4.3",
+    "vite": "^6.4.6",
     "vite-plugin-dts": "^3.6.3",
     "vue-eslint-parser": "^10.3.0",
     "vue-template-compiler": "^2.7.15",
